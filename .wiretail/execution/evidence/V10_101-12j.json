@@ -1,0 +1,515 @@
+{
+  "schema_version": 1,
+  "task": "101-12j",
+  "source_commit": "61226a1e3c8aaa9a73503971852f0e5edb10b9f8",
+  "source_diff_sha256": "93e16327869c36a468ed55e47db6750d1b833a2320eb3477ce96aaae8592a845",
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+  },
+  "summary": "Fresh selected, pager-off all-GPU and CPU-main-KV/GPU-MTP canonical campaigns completed on the verified candidate/model/prefix. All three selected prefill medians pass 500/750 tok/s and decode beats CPU-main-KV; prompt-3 selected MTP median is 48.03%, below its unchanged 60% floor. The release remains goal_miss and only the measured same-prefix attribution plus final review chain is scheduled before 102-01.",
+  "checks": {
+    "repeated_selected_mtp_speed_review_and_final_gate": {
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/recalculate.py"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "additional_commands": [
+        [
+          "bash",
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected",
+          "--mode",
+          "selective",
+          "--page-size",
+          "256",
+          "--batch",
+          "1024",
+          "--ubatch",
+          "256",
+          "--context",
+          "8192",
+          "--mtp",
+          "native",
+          "--kv-hot-pages",
+          "16"
+        ],
+        [
+          "bash",
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu",
+          "--mode",
+          "off",
+          "--page-size",
+          "256",
+          "--batch",
+          "1024",
+          "--ubatch",
+          "256",
+          "--context",
+          "8192",
+          "--mtp",
+          "native",
+          "--kv-hot-pages",
+          "16"
+        ],
+        [
+          "bash",
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp",
+          "--mode",
+          "off",
+          "--page-size",
+          "256",
+          "--batch",
+          "1024",
+          "--ubatch",
+          "256",
+          "--context",
+          "8192",
+          "--mtp",
+          "native",
+          "--no-kv-offload",
+          "--kv-hot-pages",
+          "16"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/ttft_probe.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/build_release_report.py"
+        ],
+        [
+          "python3",
+          "tools/server/bench/validate-gpu101-release.py",
+          "--receipt",
+          ".wiretail/execution/evidence/GPU101_RELEASE.json"
+        ],
+        [
+          "python3",
+          "tools/server/bench/test-gpu101-release.py"
+        ],
+        [
+          "python3",
+          "/srv/wiretail/task_state.py",
+          "validate"
+        ],
+        [
+          "python3",
+          ".wiretail/execution/v10/validate.py",
+          "--task",
+          "101-12j",
+          "--receipt",
+          ".wiretail/execution/evidence/V10_101-12j.json"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected/records.jsonl",
+          "sha256": "a2ae36dc38630f1b4c41413d465159ac263966d77fbe5d1d95d96ad70c69046c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected/run-config.json",
+          "sha256": "a6caa660f611d50af06a05fbdce78dc8a16cd74c610124a008eb37ea31401ebc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected/summary.json",
+          "sha256": "1f7b81e35e855ba220ea99e400bf78e87aed7ffb597074cfebeec7b1618d715f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu/records.jsonl",
+          "sha256": "95084f75cc2a1813faf1bf1c84fdc65ad1929169bbcf7015b93cd13cf57858ae"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu/run-config.json",
+          "sha256": "710fdee21cfcf5914c5b8f61921f38b291b008fb647782b204c36de15fa962fd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu/summary.json",
+          "sha256": "e625de61aabd2ad15452edfd4bfaadbd61357bceaa9968f667629987b4030bcb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp/records.jsonl",
+          "sha256": "f8f76cd4f619c277525051e3ffe5f384de8427d0ee1e25442ba419f73269950a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp/run-config.json",
+          "sha256": "06252a8701a27aea81e1fcfeaff381c3abbbb1a66e18f0cda9284efca9904526"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp/summary.json",
+          "sha256": "698c4caa9655e5e339361b5d7d451f6b8215a843b70d1c30c83145aa62e817f9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected-runner.log",
+          "sha256": "424e9abdfbaeaf2c81a29bc0fbed35309922a3cc9b20ed776b21ad1fe67b064a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-runner.log",
+          "sha256": "07747953b98a558d84592e457b9cfe48e69bfc0efa3ce1dc701a78fc48a1a398"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-runner.log",
+          "sha256": "e9a0f13aec4649d592f31d793930bd8acb9a83e875253c0a249b805e7d50254c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/recalculate.py",
+          "sha256": "ccf433834927aace5736cabc35d0320b116fb77ff58002db544c7201735397a3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/recalculation.json",
+          "sha256": "dcc33ead6ce3a644e28badf9878f3f32dec34ab950ec715bf93e6e3a7a87e939"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/recalculation-summary.json",
+          "sha256": "b3f8015a89ccc275e7261c40033e8c6f3aa2ef40a8f92c3bee5066c54db2a222"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/ttft.json",
+          "sha256": "6cebaa085099feccc13b85bb798100e342708ae1ed172941990deeaf831d1843"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/ttft_probe.py",
+          "sha256": "e4162ebca0918fa6bcd800b86abc42fb6d2903c5b4522f3630e940108ff8d70c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/ttft-probe.log",
+          "sha256": "83ee17d86acca53257a2912f2aea5b0c0ef7278e463643877ab1d919ee6134bb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/ttft-bootstrap.log",
+          "sha256": "6353e2b49c24626cbb84223f0fb04ed3e272bd05304fd2e3e6bb6eeedcd76974"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/final-live-identity.json",
+          "sha256": "7e077fdb0d4f1ccce0092419c9c7850d20def336e55537ca1968f81518b85faf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/run_manifest.json",
+          "sha256": "61e3a82d19792b600dd1753024655d64e54d6193646885362ca0b4bad42e5e9a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/build_release_report.py",
+          "sha256": "6442686d8ccbee584a01f703fb3567b184180897cd192dfbfd7febe4b5f5ac8d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/release-validator-tests.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/state-validation.log",
+          "sha256": "f98395e7a4553dfcf58556351f91b5666be51e59bbbc0edf68913cd97d207084"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-common.so.0",
+          "sha256": "d0e2b570de1817c560ac5f13ffdb0c88f3377ae21e95ae240192ead45e0ce1d7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-base.so.0",
+          "sha256": "4e5b69f41a2748033a794891b7448430c6ca4d29e87481ca27369aa9ee7efb6f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
+          "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama.so.0",
+          "sha256": "a9d27f905422acc2c9de09d5d4f0dca3045d0f122554acbc0fbb7acd2a019d6a"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libmtmd.so.0",
+          "sha256": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-server-impl.so",
+          "sha256": "9c2524621bc24e6a0f2aad3fb70c9387efe50ad1b63c5590b672708ae6dc8fd3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libmtmd.so.0.5.0",
+          "sha256": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cuda.so.0.25.3",
+          "sha256": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml.so.0.25.3",
+          "sha256": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-common.so.0.5.0",
+          "sha256": "d0e2b570de1817c560ac5f13ffdb0c88f3377ae21e95ae240192ead45e0ce1d7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/build-receipt.json",
+          "sha256": "690d8e7870d4dbf32a539b653393d6dcbcaac6f5e1064a96a039f35d2b432666"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cpu.so.0",
+          "sha256": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cuda.so.0",
+          "sha256": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama.so.0.5.0",
+          "sha256": "a9d27f905422acc2c9de09d5d4f0dca3045d0f122554acbc0fbb7acd2a019d6a"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml.so.0",
+          "sha256": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-base.so.0.25.3",
+          "sha256": "4e5b69f41a2748033a794891b7448430c6ca4d29e87481ca27369aa9ee7efb6f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cpu.so.0.25.3",
+          "sha256": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c"
+        },
+        {
+          "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+          "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json",
+          "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_101-12i.json",
+          "sha256": "1853db9127a2a9fea6faae4121236d066ec1f9b010239cd70941d709187cc80b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_101-12i.md",
+          "sha256": "da790d55572d075b692d457430d0e5fdf764d02a967a4e1aff327d818989b0cb"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-validation.json",
+          "sha256": "615cc62eda0281f52fd742714962392fb4381a58121cf9c8d1e48408ad3208da"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-validation.log",
+          "sha256": "9a60390cd7d558a217e1cfd160eaed211df81115814a67762bf4a5c83aebac36"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-manifest.json",
+          "sha256": "5e4b3b842d241074648ef9be783180488491fc31c16f571704e0a94f7d5ca5a0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.json",
+          "sha256": "0c7747f68262c7f3f3986bbb3d7688dca5dc373abfab1e34d24b426527271d8c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.log",
+          "sha256": "914c577d1963df8eedcc6b93d150893a38dd0a77fab515c3e58eaef752aaba2f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.json",
+          "sha256": "7d8ae9d7f8eb2e625bc88deef3fa25093cb85a2163036743139bdb7647655c5b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.md",
+          "sha256": "8a6c06f248ee67c8d17f0a69c0664a1bef3884029b84d5ce651f256d6dbf8f06"
+        },
+        {
+          "path": ".wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.json",
+          "sha256": "6af04933f990e20b019322fe221cf8aaea76066985e4b691e534973b4aa0b696"
+        },
+        {
+          "path": ".wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.md",
+          "sha256": "a717d288babba9ead78c52d06eba998aa705677be93a770d2fdcd02ebd8c584e"
+        },
+        {
+          "path": ".wiretail/execution/evidence/provenance/101-18/GPU101_RELEASE.pre-101-18.json",
+          "sha256": "9f35a4f25c8b8c3a68d5a5c38a4b8ecb3cb3c84a2fc447e77a46308b13765cfa"
+        },
+        {
+          "path": ".wiretail/execution/evidence/provenance/101-18/GPU101_RELEASE.pre-101-18.md",
+          "sha256": "ba2554cf8e0cbb3fb4b1f1ec7febcce3cf6dbe2fac5d40ea6c3de47fbe40440d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "f17ddd17a86924cbd91d5703118b1fc5b9b15b926e64a7ca175b6c01209195b2"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "7b5f56147590b6fc85b3dd8e216b63cd6f3fe360171a5455c11d0dcb149e5c44"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-validation.json",
+          "sha256": "615cc62eda0281f52fd742714962392fb4381a58121cf9c8d1e48408ad3208da"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-validation.log",
+          "sha256": "9a60390cd7d558a217e1cfd160eaed211df81115814a67762bf4a5c83aebac36"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-manifest.json",
+          "sha256": "5e4b3b842d241074648ef9be783180488491fc31c16f571704e0a94f7d5ca5a0"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/orchestrator-attempt05.log",
+          "sha256": "65008f8f521f622c10adce8ebe613de17bdceb1402e96f147fd8ed7bf3293150"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident-mtp-traces.log",
+          "sha256": "27962721837f155d399f70f3c8f33f22b4138a1bdeefb130c5e98e574aafb43f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse-mtp-traces.log",
+          "sha256": "db08fbdb503499ff2c976a902eb4996cd7f9f834843925ccfe088da998082db2"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident-mtp-traces.log",
+          "sha256": "0eba94252d5588aeb07329633604a661a1b90a23cc265778a360b4faae711090"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse-mtp-traces.log",
+          "sha256": "3b9ae5cf68bd26a87edabd7477343db6b2646d6bc8b98e74d08a42b033019c39"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/build-receipt.json",
+          "sha256": "690d8e7870d4dbf32a539b653393d6dcbcaac6f5e1064a96a039f35d2b432666"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
+          "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "5c22119e7206098025303b33054e85e4a6ae9d5b4d561cfc7e132029e9ab5b40"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/raw-q0-measured-1.sse",
+          "sha256": "0fdf6f76943b1faa7bb19e0d216db0aa452d253d4ab8097416761dde786b7cca"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/raw-q1-measured-1.sse",
+          "sha256": "26787ab455687d4ae57f1f2aacb86020da70bb533d365545c2857d01c350ae9c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/raw-q2-measured-1.sse",
+          "sha256": "98d349df5457a4c23e2a0afcebee286c19d90bf938ab27f49e5eaadff943bf3f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "7c67674e938dbe1fffa6904afcce1b0bcd4f40461a32b9212481dfdcaf39ca1d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/raw-q0-measured-1.sse",
+          "sha256": "c435ad5b56cc3b327503e4c00627eb44c17defc7a1ad8e47629ebee8cab76a62"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/raw-q1-measured-1.sse",
+          "sha256": "e0cbfaaa701ad4a0ec0ee494b38ff1a8b38aa4a66836c29a4b57900a06348422"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/raw-q2-measured-1.sse",
+          "sha256": "2e686b6831de80fdaad227fc9fcde75f7ba3aba553262064dda41562a4338324"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "b530bd52fc14607a0232cdfaccd77c16297c110a52ad55d2e43728728ef7f940"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/raw-q0-measured-1.sse",
+          "sha256": "513f5bcefca84b1bbfc98e7eb6dc79b1d12bcef500bfb093ff86541812118419"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/raw-q1-measured-1.sse",
+          "sha256": "2bf354055e45add1125c7cd126ac973954e1ce9aaef5a8537eef398350a3bf46"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/raw-q2-measured-1.sse",
+          "sha256": "5e6c55ce56fe555492b3cd26c6f90c87a0d1dcc91d7a7f77350637b8592f3271"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "2c8ddd234c3c999fe33ec58ca20c7922e5ffa4cd60599cd06c6bf8a9ba189f26"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/raw-q0-measured-1.sse",
+          "sha256": "eb603ad00d155413bb7c22415bf30917437de476c5b00f4a8bf5222e04e3600d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/raw-q1-measured-1.sse",
+          "sha256": "67bad8c89cefc50c28f77d12783202b372f3a19362974590f67acb6e68b20387"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/raw-q2-measured-1.sse",
+          "sha256": "5010a944f2d9bcf1bd6a1af4527917058907c0f0a53a24d3b25824da140fcbc8"
+        },
+        {
+          "path": ".wiretail/execution/tasks/101-12k.md",
+          "sha256": "0169744ab80ce8fe3105926bc91e9655f4d9f0a24fde5ebcdc53108da9f90084"
+        },
+        {
+          "path": ".wiretail/execution/tasks/101-12l.md",
+          "sha256": "b69264b90694589ccbe5532c41bc971f446f0a42c275a18c499cb06df9b80cca"
+        }
+      ],
+      "coverage": {
+        "candidate_source_commit": "a0086f056f20efa519100718f010bc15c2efb830",
+        "candidate_sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+        "geometry": "L8192/H4096/P256/B1024/U256",
+        "selected_rows": 9,
+        "selected_warmups": 3,
+        "pager_off_rows": 9,
+        "pager_off_warmups": 3,
+        "cpu_main_kv_rows": 9,
+        "cpu_main_kv_warmups": 3,
+        "canonical_errors": 0,
+        "canonical_cached_input_tokens": 0,
+        "selected_prompt_3_mtp_floor_pass": false,
+        "all_selected_prefill_at_least_750": true,
+        "all_selected_decode_beats_cpu_main_kv": true,
+        "canonical_ttft_available": false,
+        "supplemental_first_content_ttft_ms": [
+          3040.8743290463462,
+          228.11430500587448,
+          232.9184869886376
+        ],
+        "telemetry_scope": "Harness timers and Prometheus MTP deltas only; no CUDA driver event or per-kernel timing captured.",
+        "goal_status": "goal_miss",
+        "scheduled_successors": [
+          "101-12k",
+          "101-12l",
+          "102-01"
+        ]
+      }
+    }
+  },
+  "provenance": {
+    "release_report": {
+      "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+      "sha256": "f17ddd17a86924cbd91d5703118b1fc5b9b15b926e64a7ca175b6c01209195b2"
+    },
+    "release_markdown": {
+      "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+      "sha256": "7b5f56147590b6fc85b3dd8e216b63cd6f3fe360171a5455c11d0dcb149e5c44"
+    },
+    "frozen_predecessor_report": {
+      "path": ".wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.json",
+      "sha256": "7d8ae9d7f8eb2e625bc88deef3fa25093cb85a2163036743139bdb7647655c5b"
+    },
+    "frozen_predecessor_markdown": {
+      "path": ".wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.md",
+      "sha256": "8a6c06f248ee67c8d17f0a69c0664a1bef3884029b84d5ce651f256d6dbf8f06"
+    },
+    "raw_result_root": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01"
+  }
+}

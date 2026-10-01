@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "101",
-  "current_task": "101-12j",
-  "last_updated_utc": "2026-10-01T20:26:44+00:00",
+  "current_task": "101-12k",
+  "last_updated_utc": "2026-10-01T23:06:57+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -32349,7 +32349,7 @@
       "phase": "101",
       "cluster": "gpu101-owner-release",
       "title": "Recheck the final GPU101 release candidate",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "packet": ".wiretail/execution/tasks/101-12j.md",
       "depends_on": [
@@ -32379,6 +32379,126 @@
         ".wiretail/execution/forward/PREFILL101.md",
         ".wiretail/execution/forward/TESTING.md",
         ".wiretail/execution/handoffs/101-12i.md"
+      ],
+      "commit": "61226a1e3c8aaa9a73503971852f0e5edb10b9f8",
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/101-12j-attempt-1-20261001T223908304095236-20261001T223908306610757-V7mJDl.jsonl:187",
+            "total_tokens": 39363264,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 39114820,
+            "cached_input_tokens": 37911808,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 1203012,
+            "output_tokens": 248444,
+            "thinking_tokens": 130441
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 39363264,
+          "input_tokens": 39114820,
+          "cached_input_tokens": 37911808,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 1203012,
+          "output_tokens": 248444,
+          "thinking_tokens": 130441,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
+    },
+    {
+      "phase": "101",
+      "cluster": "gpu101-owner-release",
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "prefill-owner-101-20261001",
+      "id": "101-12k",
+      "title": "Attribute MTP disagreement at one identical prefix",
+      "status": "todo",
+      "blocker": null,
+      "packet": ".wiretail/execution/tasks/101-12k.md",
+      "depends_on": [
+        "101-12j"
+      ],
+      "required_proofs": [
+        "same_prefix_selected_target_mtp_visibility_and_score_owner"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-12k",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-12k.json"
+      ],
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-owner-release.md",
+        ".wiretail/execution/tasks/101-12k.md",
+        ".wiretail/execution/forward/PREFILL101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-12j.md",
+        "src/llama-context.cpp",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-kv-pager.cpp",
+        "tests/test-kv-attention-execution.cpp"
+      ]
+    },
+    {
+      "phase": "101",
+      "cluster": "gpu101-owner-release",
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "prefill-owner-101-20261001",
+      "id": "101-12l",
+      "title": "Review the MTP owner result and final release gate",
+      "status": "todo",
+      "blocker": null,
+      "packet": ".wiretail/execution/tasks/101-12l.md",
+      "depends_on": [
+        "101-12k"
+      ],
+      "required_proofs": [
+        "owner_result_canonical_retake_and_release_gate"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-12l",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-12l.json"
+      ],
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-owner-release.md",
+        ".wiretail/execution/tasks/101-12l.md",
+        ".wiretail/execution/forward/PREFILL101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-12k.md",
+        "tools/server/bench/validate-gpu101-release.py"
       ]
     },
     {
@@ -32400,7 +32520,7 @@
         "32k_16k_committed_history_and_speed"
       ],
       "depends_on": [
-        "101-12j"
+        "101-12l"
       ],
       "commit": null,
       "context_files": [
@@ -32408,7 +32528,7 @@
         ".wiretail/execution/tasks/102-01.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/101-12h.md"
+        ".wiretail/execution/handoffs/101-12j.md"
       ],
       "completion_check": [
         "python3",
@@ -34341,16 +34461,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 32,
-        "total_tokens": 1657253326,
-        "input_tokens": 1648957705,
-        "cached_input_tokens": 1607145728,
+        "usage_events": 33,
+        "total_tokens": 1696616590,
+        "input_tokens": 1688072525,
+        "cached_input_tokens": 1645057536,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 41811977,
-        "output_tokens": 8295621,
-        "thinking_tokens": 4534777,
+        "input_tokens_minus_cached_tokens": 43014989,
+        "output_tokens": 8544065,
+        "thinking_tokens": 4665218,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 32,
+        "total_tokens_derived_events": 33,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -34365,17 +34485,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 471,
-      "total_tokens": 11197118670,
-      "input_tokens": 11159748778,
-      "cached_input_tokens": 10906094336,
+      "usage_events": 472,
+      "total_tokens": 11236481934,
+      "input_tokens": 11198863598,
+      "cached_input_tokens": 10944006144,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 117,
-      "input_tokens_minus_cached_tokens": 253654442,
-      "output_tokens": 37369892,
-      "thinking_tokens": 16860484,
+      "cache_write_input_tokens_known_events": 118,
+      "input_tokens_minus_cached_tokens": 254857454,
+      "output_tokens": 37618336,
+      "thinking_tokens": 16990925,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 471,
+      "total_tokens_derived_events": 472,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

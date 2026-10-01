@@ -1,33 +1,31 @@
-# GPU101 release decision — review 101-12h
+# GPU101 release decision — review 101-12j
 
-Decision: **goal_miss**. Measured candidate source `a0086f056f20efa519100718f010bc15c2efb830`; binary SHA256 `300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54`. This is an independent review of the unchanged 101-18 campaign. The original 101-18 release bytes are preserved under `provenance/101-12h/` and remain referenced by its completed receipt.
+Decision: **goal_miss**. Candidate source `a0086f056f20efa519100718f010bc15c2efb830`; binary SHA256 `300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54`; model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; frozen prefix SHA256 `8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20`. This is a fresh canonical campaign on the verified 101-12i candidate.
 
 ## Candidate and protocol
 
-- Model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; L8192/H4096/P256/B1024/U256; target and draft Turbo4; native GPU MTP nmax2; frozen prefix SHA256 `8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20`.
-- Three matched routes, three measured rows per prompt, one 40-token warmup, 400-token selected outputs, temperature 0, reasoning off, fresh slot per row. Every canonical row succeeded (HTTP 200) with zero cached input tokens. Model-backed query replay and natural old-file recall also passed.
-- The raw-row recalculation is `.wiretail/execution/evidence/raw/101-12h/recalculation.json`.
+- L8192/H4096/P256/B1024/U256; target/draft Turbo4; native GPU MTP nmax2; temperature 0; reasoning off. Each route used one 40-token warmup and three 400-cap measured requests for each exact prompt, clearing the slot before each row.
 
-## Independent selected medians and matched controls
+- All 36 canonical requests returned HTTP 200. Each route has three warmups and nine measured rows; cached input was zero for all measured rows. Actual output tokens are recorded below and may be shorter than 400 at EOG.
 
-| Prompt | Selected prefill tok/s | Selected decode tok/s | Selected MTP median | CPU prefill tok/s | CPU decode tok/s | Pager-off prefill tok/s | Pager-off decode tok/s | Result |
-|---|---:|---:|---:|---:|---:|---:|---:|---|
-| prompt_1 | 1452.08 | 60.05 | 48.56% | 660.72 | 25.50 | 1556.16 | 84.24 | MTP miss |
-| prompt_2 | 1463.84 | 58.45 | 47.58% | 664.31 | 18.54 | 1556.18 | 62.89 | MTP pass |
-| prompt_3 | 1451.19 | 65.41 | 59.79% | 660.74 | 21.09 | 1557.64 | 71.25 | MTP miss |
+## Recalculated per-prompt medians
 
-Selected prefill clears both the 500 tok/s minimum and the 750 tok/s preferred goal on all prompts. MTP floors remain 75% / 40% / 60%; prompt 1 misses by 26.44 percentage points and prompt 3 by 0.21 points. Selected decode beats ordinary CPU-main-KV decode by 2.36x / 3.15x / 3.10x. Selected prefill is 2.20x / 2.20x / 2.20x CPU, below the 3x and 5x comparisons; it is 0.93x / 0.94x / 0.93x pager-off GPU. Selected decode is 0.71x / 0.93x / 0.92x pager-off GPU.
+| Prompt | Selected prefill/decode | Selected drafted → accepted (per row) | Selected MTP median | CPU prefill/decode | Pager-off prefill/decode | Prefill ratios selected/CPU, selected/off | Decode ratios selected/CPU, selected/off | Result |
+|---|---:|---|---:|---:|---:|---:|---:|---|
+| Python sorted merge | 1519.71 / 81.92 tok/s | 279/223, 304/165, 274/234 | 79.93% | 672.75 / 24.97 | 1632.47 / 75.09 | 2.26x, 0.93x | 3.28x, 1.09x | pass |
+| mmap versus read | 1535.38 / 58.77 tok/s | 128/58, 146/72, 104/51 | 49.04% | 676.96 / 18.54 | 1631.09 / 62.90 | 2.27x, 0.94x | 3.17x, 0.93x | pass |
+| Bash directory watcher | 1519.69 / 58.85 tok/s | 304/146, 313/135, 280/212 | 48.03% | 671.78 / 21.64 | 1633.04 / 71.34 | 2.26x, 0.93x | 2.72x, 0.82x | MTP miss |
 
-## Functionality and remaining owner
+Selected measured output counts by prompt were `400,400,400 / 168,196,138 / 400,400,400`; fresh inputs were `4115,4115,4115 / 4112,4112,4112 / 4113,4113,4113` tokens. MTP drafted/accepted counts above are raw per-row counts; medians use the three independently calculated row acceptance percentages.
 
-Natural old-file recall passed: Python03 logical page 5, generation 7, content version 256 was cold and host-backed, naturally nominated at rank 4/5, transferred (34,603,008 useful/aligned bytes), mapped, then consumed by target and draft. Frozen-history Turbo4 MTP accepted 75 of 128 drafted tokens; query replay passed.
+## TTFT and telemetry scope
 
-The canonical rows do not contain first-disagreement logits/state attribution. Schedule `101-12i` to capture the existing 101-09 first-disagreement evidence and repair only a proven state/mask/carry defect or measured selected-history distribution mismatch. Schedule `101-12j` for the exact changed-candidate canonical retake and final release review. `102-01` now depends on `101-12j`.
+Canonical run records do not expose TTFT, so canonical TTFT is recorded as unavailable. A separate client-side streaming probe measured time to the first non-empty content delta once per prompt at 32 requested tokens: `3040.87 / 228.11 / 232.92 ms. This is supplemental, not a three-row median or a release gate.
 
-CPU summary optimization is not scheduled: the available 2112-build / 71,368,704-byte cumulative counters do not establish isolated summary time or a >=10% share of prefill. Sparse page-inventory counters are retained as diagnostics, but their counts disagree with adjacent counters and are not used for this decision. Driver CUDA event counts were not part of the canonical timing receipt; replay logs contain separate graph reuse evidence.
+Canonical telemetry includes harness prompt/generation timers and MTP Prometheus counter deltas. No CUDA driver event timing, per-kernel timing, passive utilization samples, or per-row memory peaks were captured; these are not inferred. Raw records, configs, summaries, runner logs, recalculation, and TTFT probe are under `/srv/ai/paged-kv/results/forward/101-12j/attempt-01`.
 
-## Raw evidence and preserved history
+## Decision and next owner
 
-Canonical raw roots: `/srv/ai/paged-kv/results/forward/101-18/attempt-01/`. The independent row script and results are under `.wiretail/execution/evidence/raw/101-12h/`. The immutable pre-review report copies are `.wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.json` and `.md`.
+Selected prefill clears both 500 tok/s and 750 tok/s on all prompts, and selected decode beats CPU-main-KV decode on all prompts. Prompt 3 MTP is 48.03%, below its unchanged 60% floor; therefore the result is `goal_miss` and scale remains gated. 101-12i did not isolate a single source owner. Schedule `101-12k` for an identical-prefix target/draft score, mask/page visibility, carry, and state comparison; then `101-12l` owns candidate-specific final review. `102-01` now depends on `101-12l`.
 
-Review owner: **101-12h**. Ordered remediation successors: **101-12i**, then exact retake and review **101-12j**. Scaling remains gated until that chain passes.
+Prior frozen report copies and raw roots remain preserved. The pre-101-12j report bytes are copied to `.wiretail/execution/evidence/provenance/101-12j/`; earlier snapshots under `provenance/101-12h/` and `provenance/101-18/` were not modified.
