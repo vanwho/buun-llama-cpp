@@ -1811,3 +1811,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12d`
 - Commit at update: `8a5a3091f`
 - Summary: Completed frozen selected and matched-control GPU101 retest on repaired build; all runs and telemetry passed, selected release gates measured as misses, final review delegated to 101-12e.
+
+## 2026-10-01T15:56:59+00:00 — 101-12e — done
+
+- Branch: `codex/task-101-12e`
+- Commit at update: `d0999713d`
+- Summary: Independently reviewed the completed selected/control retest, recorded per-prompt release comparisons, and scheduled ordered repair, retest, and repeated review before scale; release remains gated on misses.

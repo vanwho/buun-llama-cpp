@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "task": "101-12",
-  "decision_task": "101-12d",
+  "decision_task": "101-12e",
   "measurement_complete": true,
   "goal_status": "goal_miss",
-  "decision": "The repaired candidate completed the full selected matrix and both matched controls without errors. Selected fresh-prefill and MTP measurements remain below the release gates. This is a measured goal miss; 101-12e owns final review and must schedule a concrete repair chain before 102-01 if needed.",
+  "decision": "Independent raw-row review confirms a complete measured goal miss. All selected prefill medians are below 500 tok/s; MTP misses prompts 1 and 3 and passes prompt 2's 40% floor. Selected decode beats matched CPU-main-KV decode for every prompt, but selected prefill remains below 3x CPU-KV and both prefill/decode trail the matched dense-GPU control. Request-wide queue/wait counters are diagnostic leads, not phase-isolated prefill attribution. The scale gate stays closed pending an ordered repair, retest, and repeated review.",
   "identity": {
     "source_commit": "8a5a3091f598c8952f13a904f44b7dce467685e7",
     "binary": {
@@ -1027,9 +1027,60 @@
     }
   },
   "comparisons": {
-    "cpu_kv": "Selected decode versus matched CPU-main-KV/GPU-MTP decode is recorded per prompt.",
-    "dense_gpu": "Selected decode versus matched pager-off all-GPU decode is recorded per prompt.",
-    "three_x": "No 3x selected speed claim is supported; measured ratios are recorded explicitly."
+    "cpu_kv": {
+      "prompt_1": {
+        "selected_prefill_tok_s": 331.27582733823374,
+        "cpu_kv_prefill_tok_s": 659.7459873736001,
+        "selected_prefill_ratio": 0.5021263238856795,
+        "selected_decode_tok_s": 34.689326650609885,
+        "cpu_kv_decode_tok_s": 25.062426598824956,
+        "selected_decode_ratio": 1.3841168377620818,
+        "decode_beats_cpu_kv": true
+      },
+      "prompt_2": {
+        "selected_prefill_tok_s": 386.66087678362845,
+        "cpu_kv_prefill_tok_s": 661.7171979688243,
+        "selected_prefill_ratio": 0.5843294959999594,
+        "selected_decode_tok_s": 34.30072463918756,
+        "cpu_kv_decode_tok_s": 18.59510320783346,
+        "selected_decode_ratio": 1.8446106082776605,
+        "decode_beats_cpu_kv": true
+      },
+      "prompt_3": {
+        "selected_prefill_tok_s": 331.2113687396381,
+        "cpu_kv_prefill_tok_s": 662.2961241426019,
+        "selected_prefill_ratio": 0.5000955866507887,
+        "selected_decode_tok_s": 37.105948083477784,
+        "cpu_kv_decode_tok_s": 21.503075775168366,
+        "selected_decode_ratio": 1.7256111856484984,
+        "decode_beats_cpu_kv": true
+      }
+    },
+    "three_x": {
+      "selected_prefill_vs_cpu_kv_ratio_by_prompt": {
+        "prompt_1": 0.5021263238856795,
+        "prompt_2": 0.5843294959999594,
+        "prompt_3": 0.5000955866507887
+      },
+      "3x_prefill_speedup_supported": false
+    },
+    "dense_gpu": {
+      "prompt_1": {
+        "selected_prefill_ratio": 0.2114973562739898,
+        "selected_decode_ratio": 0.41231394105304836,
+        "selected_slower_for_both": true
+      },
+      "prompt_2": {
+        "selected_prefill_ratio": 0.24743860677209445,
+        "selected_decode_ratio": 0.5559594955333983,
+        "selected_slower_for_both": true
+      },
+      "prompt_3": {
+        "selected_prefill_ratio": 0.21168102694367846,
+        "selected_decode_ratio": 0.5217639405140504,
+        "selected_slower_for_both": true
+      }
+    }
   },
   "runtime_peaks": {
     "pager_off_all_gpu": {
@@ -1548,16 +1599,15 @@
     }
   },
   "ordered_successors": [
-    "101-12e"
+    "101-12f",
+    "101-12g",
+    "101-12h"
   ],
   "successor_contract": {
-    "101-12e": {
-      "kind": "repeated_speed_review_and_final_release_gate",
-      "depends_on": [
-        "101-12d"
-      ],
-      "updates_scale_gate": "102-01 depends on 101-12e"
-    }
+    "repair": "101-12f isolates and repairs the selected fresh-prefill hot path while preserving scheduler-fence and page-publication invariants.",
+    "retest": "101-12g repeats the frozen selected matrix and both matched controls with raw telemetry and candidate identities.",
+    "repeat_review": "101-12h independently recomputes all release gates; only a complete pass may release 102-01, otherwise it schedules another ordered repair/retest/review chain.",
+    "scale_task": "102-01 depends on 101-12h and remains todo; no capacity or occupancy work begins before final gate approval."
   },
   "raw_runs": {
     "selected": {
@@ -1662,5 +1712,85 @@
   },
   "deferred_verification": [
     "Final release decision and any next repair chain are owned by 101-12e; no long occupancy ran."
-  ]
+  ],
+  "final_review": {
+    "owner_task": "101-12e",
+    "result": "goal_miss",
+    "independent_recalculation": ".wiretail/execution/evidence/101-12e-independent-review.json",
+    "gate_summary": {
+      "all_selected_prefill_at_least_500": false,
+      "mtp_floor_pass_prompts": [
+        "prompt_2"
+      ],
+      "all_selected_decode_beats_cpu_kv": true,
+      "selected_prefill_at_least_3x_cpu_kv": false,
+      "selected_beats_dense_gpu_all_prompts": false
+    },
+    "candidate_identity": {
+      "source_commit": "8a5a3091f598c8952f13a904f44b7dce467685e7",
+      "binary": {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "sha256": "d6242076cd05d65289939ea251549367350fe4845cbe936c6b518d6d92ff797d"
+      },
+      "libllama": {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so",
+        "sha256": "67ea4b07a275af63278816333af180c9b13d0df1d8b912bfd0b60f0d2fe93103"
+      },
+      "model": {
+        "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+      },
+      "backend_reported_version": "version: 0.5.0-dev (build 14149, commit b6877d0ef) built with GNU 15.2.0 for Linux x86_64",
+      "backend_reported_source_commit": "b6877d0ef",
+      "candidate_runtime_identity": {
+        "profile": "qwen38-fast",
+        "pid": 1693663,
+        "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --slot-save-path /srv/ai/paged-kv/data/sessions/hybrid-fast --cache-idle-slots --kv-unified --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "context": "8192",
+        "batch": "1024",
+        "ubatch": "256",
+        "target_kv_placement": "gpu",
+        "no_kv_offload": false,
+        "pager_mode": "selective",
+        "page_size_tokens": "256",
+        "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "spec_type": "draft-mtp",
+        "spec_draft_n_max": 2,
+        "loaded_dsos": [
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+        ],
+        "hot_pages": "16",
+        "vram_budget": null,
+        "host_budget": null,
+        "safety_headroom": null,
+        "pin_recent": null
+      },
+      "retained_service_pid_after_probe": 1729620,
+      "context_tokens": 8192,
+      "hot_tokens": 4096,
+      "hot_pages": 16,
+      "page_tokens": 256,
+      "batch": 1024,
+      "ubatch": 256,
+      "route": "automatic selective pager",
+      "mtp": "native GPU MTP nmax=2; target/draft Turbo4",
+      "prefix": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json",
+        "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
+      }
+    },
+    "phase_attribution_limit": "Selected request-wide queue/wait counters include generation; they are not sufficient to attribute prefill cost without phase-specific measurements."
+  }
 }
