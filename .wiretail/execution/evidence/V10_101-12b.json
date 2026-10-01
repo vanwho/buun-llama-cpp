@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "task": "101-12b",
+  "source_commit": "8914d9e1b2dc86637e1d4d07770ffc5fa0dd988a",
+  "summary": "Completed the corrected canonical selected matrix and both matched controls. The measured release gates remain unmet: all selected prefill medians miss 500 tok/s and selected MTP misses prompts 1 and 3. Scheduled the bounded selected-path repair, canonical retest and final repeated review immediately before 102-01; scale remains gated.",
+  "build_provenance": {
+    "source_tree_commit_at_measurement": "8914d9e1b2dc86637e1d4d07770ffc5fa0dd988a",
+    "server_binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "server_binary_sha256": "a464e9099821b424fe8e637b4bc325c38d6d2a7453ec22832310b67f4fba1fba",
+    "server_version": "version: 0.5.0-dev (build 14141, commit 75d0aba47) built with GNU 15.2.0 for Linux x86_64",
+    "binary_reported_source_commit": "75d0aba47c898386be9ec4c2107b607156ccc92d",
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "loaded_process_id": 1652139,
+    "geometry": {
+      "L": 8192,
+      "H": 4096,
+      "P": 256,
+      "B": 1024,
+      "U": 256
+    },
+    "runtime_identity_path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/run-config.json"
+  },
+  "checks": {
+    "canonical_speed_release_or_repairs": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-gpu101-release.py",
+        "--receipt",
+        ".wiretail/execution/evidence/GPU101_RELEASE.json"
+      ],
+      "commands": [
+        [
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full"
+        ],
+        [
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu"
+        ],
+        [
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/probe.py"
+        ],
+        [
+          "python3",
+          "tools/server/bench/validate-gpu101-release.py",
+          "--receipt",
+          ".wiretail/execution/evidence/GPU101_RELEASE.json"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "eaac03482f22c8fdda7d6bdcf65ce6deba77588cd9326061d9fcc3796f6b1613"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "9808f1aab7acd5c7e62ab73135c59b4dcb57b2b0236c3f3242a0e67b3b4da977"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12b-release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/run-config.json",
+          "sha256": "3d599a317fbd80d6f26c74ba66039b0563f121c8ebf2be5d2da9a47144c9492f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/summary.json",
+          "sha256": "c32efd2f254229da3e0f6e5861f1e4c84bc3c2ded8ddc29decf5a4cf1acd3da3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/records.jsonl",
+          "sha256": "93dda113055ab78bc91bdb04a28cd11537a72ee12ab2b8b1ccd75f0f61b2373e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu/run-config.json",
+          "sha256": "707562e791129a6c1bd660593e1e6bd40632eaf2dc7374a59727e1208c161bdd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu/summary.json",
+          "sha256": "7f7152c77f041b680c15febf89eea85969ce1fb9201646ca83176ba5d967559f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu/records.jsonl",
+          "sha256": "df39a5250a1ae3b4f87f5decb907be17fa5e2ec167d7ab9d1e05762e16ad39e7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp/run-config.json",
+          "sha256": "9f97af64c09a9c4bef157cb99ad41f06a677e9183ae58c5b9501567a8bcbe4f5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp/summary.json",
+          "sha256": "9eb5f6995af125ccf2fb9dc392df91d1d4e9218b843b2946ccd4c30de8327af7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp/records.jsonl",
+          "sha256": "f3b3236c93ce9fb5ee66daac1fb1eb7347e7f25b9c76fdfcdb409d60647f260b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/rows.jsonl",
+          "sha256": "b6e6f89b501d048a3b67f11e92ef55ac792f592910eb2eddb94f1530062e392d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/monitor.jsonl",
+          "sha256": "01607f0435dffa31ec06927304f65e1ddc07dda0e1db0b12a266754f653484ea"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full.log",
+          "sha256": "68f9aecb17afd0c05037ac2beffe0af4de69a6138935e2735314f1c2d5303717"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu.log",
+          "sha256": "b14544fddf86d8bb84a60d70a3c804e3f027db652faeb041c06ad1575231dcdb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp.log",
+          "sha256": "97d13834e73b54c2657cbb94a5c24a9e7a822b474ba90bf55b7b3c8d987b6bec"
+        }
+      ],
+      "metrics": {
+        "goal_status": "goal_miss",
+        "measurement_complete": true,
+        "selected_errors": 0,
+        "pager_off_control_errors": 0,
+        "cpu_main_kv_control_errors": 0,
+        "scheduled_successors": [
+          "101-12c",
+          "101-12d",
+          "101-12e"
+        ],
+        "scale_gate_dependency": "102-01 depends on 101-12e"
+      }
+    }
+  }
+}

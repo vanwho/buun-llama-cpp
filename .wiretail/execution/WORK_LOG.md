@@ -1793,3 +1793,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12a`
 - Commit at update: `75d0aba47`
 - Summary: Repaired and verified H4096 reservation after slot erase
+
+## 2026-10-01T15:03:14+00:00 — 101-12b — done
+
+- Branch: `codex/task-101-12b`
+- Commit at update: `8914d9e1b`
+- Summary: canonical selected and matched control matrices completed; goal_miss recorded with scheduled repair/retest/review chain before 102-01
