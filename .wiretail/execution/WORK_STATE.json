@@ -31106,7 +31106,7 @@
       "depends_on": [
         "101-11"
       ],
-      "commit": "4622752e4aae69fa633528d6535fd52ae1fdf20e",
+      "commit": "87bc09791e1a275ab6f402622f6f6837db0ec9a9",
       "context_files": [
         ".wiretail/execution/clusters/gpu101-final-proof.md",
         ".wiretail/execution/tasks/101-12.md",
