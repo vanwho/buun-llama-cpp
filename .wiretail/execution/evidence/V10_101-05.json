@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "task": "101-05",
+  "source_commit": "78dbb75ab36d0568f3e936e3ec04654bb20ef9d9",
+  "checks": {
+    "stable_hybrid_attention_graphs_and_capacity_masks": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-14-01-cpu/bin/test-kv-attention-execution"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/101-05-cpu-validation.log",
+          "sha256": "50c5f6e74a424943fc88e9a449e21cb3492935c7132bbf750e8d50f0b28a114d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-05-paged-cuda-nographs.log",
+          "sha256": "f5eb7c46b3f6bc68c4b7afd75205aeaf34b6de99bdf80d07cddca97f7185324e"
+        }
+      ]
+    }
+  }
+}

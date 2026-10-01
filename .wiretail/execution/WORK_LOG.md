@@ -1739,3 +1739,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-04a`
 - Commit at update: `f17ebe686`
 - Summary: CUDA serial-prefix candidate matched rollback parity but lost full-cost and execution gates; production remains serial and true intra-chunk CUDA kernel remains the next repair boundary.
+
+## 2026-10-01T03:19:44+00:00 — 101-05 — done
+
+- Branch: `codex/task-101-05`
+- Commit at update: `78dbb75ab`
+- Summary: Implemented stable admitted packed attention capacity and shared hybrid graph reuse; CPU regressions and CUDA no-graph fixture pass; CUDA graph capture deferred due VMM stream-capture synchronization failure.

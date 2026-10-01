@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <limits>
 
@@ -75,7 +76,8 @@ bool llama_kv_attention_committed_pages(
 
 uint32_t llama_kv_attention_packed_row_capacity(
         const llama_kv_attention_operator_metadata & metadata,
-        uint32_t page_tokens) noexcept {
+        uint32_t page_tokens,
+        uint64_t admitted_rows) noexcept {
     if (!metadata.valid() || page_tokens == 0) {
         return 0;
     }
@@ -87,9 +89,36 @@ uint32_t llama_kv_attention_packed_row_capacity(
     if (selected_rows == 0 || selected_rows > UINT64_MAX - page_tokens + 1) {
         return 0;
     }
-    const uint64_t pages = (selected_rows + page_tokens - 1) / page_tokens;
+    const uint64_t required_pages = (selected_rows + page_tokens - 1) / page_tokens;
+    uint64_t pages = required_pages;
+    if (admitted_rows != 0) {
+        // Prefer one stable owner covering the admitted hot window. The
+        // caller supplies physical rows rather than logical context rows, so
+        // this cannot accidentally reserve L-sized packed/F16 storage.
+        const uint64_t admitted_pages = admitted_rows / page_tokens;
+        if (admitted_pages < required_pages) {
+            return 0;
+        }
+        pages = admitted_pages;
+    }
     const uint64_t rows = pages * page_tokens;
     return rows > UINT32_MAX ? 0 : uint32_t(rows);
+}
+
+float llama_kv_attention_selected_mask_value(
+        uint32_t row,
+        const std::vector<llama_pos> & native_positions,
+        const std::vector<uint8_t> & native_mask,
+        llama_pos query_position,
+        bool causal,
+        bool use_alibi) noexcept {
+    if (row >= native_positions.size() || row >= native_mask.size() ||
+            native_mask[row] == 0 ||
+            (causal && native_positions[row] > query_position)) {
+        return -std::numeric_limits<float>::infinity();
+    }
+    return use_alibi
+        ? -float(std::abs(native_positions[row] - query_position)) : 0.0f;
 }
 
 size_t llama_kv_attention_packed_allocation_bytes(
@@ -699,6 +728,14 @@ void llama_kv_attention_execution_metrics::record_graph_rebuild_reason(
     if (counter != nullptr) *counter = saturating_add(*counter, uint64_t(1));
 }
 
+void llama_kv_attention_execution_metrics::record_graph_rebuild_reason_if_profiled(
+        llama_kv_attention_graph_rebuild_reason reason,
+        const char * profile_value) noexcept {
+    if (llama_kv_attention_hotpath_profile_enabled(profile_value)) {
+        record_graph_rebuild_reason(reason);
+    }
+}
+
 void llama_kv_attention_execution_metrics::record_wait_time_us(uint64_t elapsed_us) noexcept {
     wait_time_us = saturating_add(wait_time_us, elapsed_us);
 }
@@ -1061,8 +1098,7 @@ bool llama_kv_attention_execution::same_graph(
            (mutable_direct_inputs || metadata.table_epoch() == table_epoch_) &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
            shape_epoch == shape_epoch_ && route == route_ &&
-           ((route != llama_kv_attention_execution_route::selected_dense &&
-             route != llama_kv_attention_execution_route::selected_packed) ||
+           (route != llama_kv_attention_execution_route::selected_dense ||
             metadata.graph_physical_key() == metadata_.graph_physical_key()) &&
            exact_graph_plan_.get() == graph_plan_.get();
 }

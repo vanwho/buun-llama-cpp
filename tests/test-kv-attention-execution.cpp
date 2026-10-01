@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -378,6 +379,12 @@ static void test_routes_epochs_and_fences() {
     assert(execution.metrics().graph_build_us == 17);
     assert(execution.metrics().route_decision_us == 19);
     assert(execution.metrics().rebuild_reason_row_capacity == 1);
+    execution.metrics_mutable().record_graph_rebuild_reason_if_profiled(
+            llama_kv_attention_graph_rebuild_reason::physical_key, "0");
+    assert(execution.metrics().rebuild_reason_physical_key == 0);
+    execution.metrics_mutable().record_graph_rebuild_reason_if_profiled(
+            llama_kv_attention_graph_rebuild_reason::physical_key, "1");
+    assert(execution.metrics().rebuild_reason_physical_key == 1);
     assert(llama_kv_attention_graph_reason(false, true, false, false, false) ==
            llama_kv_attention_graph_rebuild_reason::physical_key);
     assert(llama_kv_attention_graph_reason(false, false, true, false, false) ==
@@ -429,6 +436,15 @@ static void test_packed_cache_identity_and_versions() {
     // needs a larger packed owner and must force graph reconstruction.
     assert(llama_kv_attention_packed_row_capacity(earlier_prefill_view) !=
            llama_kv_attention_packed_row_capacity(selected_metadata));
+    // Graph owners use the admitted H-sized hot window as their stable
+    // capacity bucket. Valid extents may advance inside it without changing
+    // the K/V or mask tensor shapes.
+    assert(llama_kv_attention_packed_row_capacity(earlier_prefill_view,
+            VBR_GENERATION_PAGE_CELLS, 1024) == 1024);
+    assert(llama_kv_attention_packed_row_capacity(selected_metadata,
+            VBR_GENERATION_PAGE_CELLS, 1024) == 1024);
+    assert(llama_kv_attention_packed_row_capacity(selected_metadata,
+            VBR_GENERATION_PAGE_CELLS, 256) == 0);
     const size_t k_row_bytes = ggml_row_size(source_k->type, source_k->ne[0] * source_k->ne[1]);
     const size_t v_row_bytes = ggml_row_size(source_v->type, source_v->ne[0] * source_v->ne[1]);
     assert(llama_kv_attention_packed_allocation_bytes(512, k_row_bytes, v_row_bytes) ==
@@ -441,6 +457,14 @@ static void test_packed_cache_identity_and_versions() {
     assert(std::strcmp(first->k->name, source_k->name) == 0);
     assert(std::strcmp(first->v->name, source_v->name) == 0);
     assert(first->k->ne[2] == row_capacity && first->v->ne[2] == row_capacity);
+    auto * smaller_selection_same_bucket = cache.find_or_create(
+            3, 0, 11, 17, earlier_prefill_view.page_table(), source_k, source_v,
+            backend, row_capacity);
+    assert(smaller_selection_same_bucket == first);
+    auto * selected_again_same_bucket = cache.find_or_create(
+            3, 0, 11, 17, selected_metadata.page_table(), source_k, source_v,
+            backend, row_capacity);
+    assert(selected_again_same_bucket == first);
     assert(cache.content_version(first, 0) == UINT64_MAX);
     cache.set_content_version(first, 0, 91);
     assert(cache.content_version(first, 0) == 91);
@@ -596,6 +620,17 @@ static void test_packed_cache_identity_and_versions() {
 
     ggml_free(context);
     ggml_backend_free(backend);
+}
+
+static void test_selected_mask_capacity_padding() {
+    const std::vector<llama_pos> positions = { 10, 12, 13 };
+    const std::vector<uint8_t> valid = { 1, 1, 0 };
+    const float masked = -std::numeric_limits<float>::infinity();
+    assert(llama_kv_attention_selected_mask_value(0, positions, valid, 11, true, false) == 0.0f);
+    assert(llama_kv_attention_selected_mask_value(1, positions, valid, 11, true, false) == masked);
+    assert(llama_kv_attention_selected_mask_value(2, positions, valid, 20, false, false) == masked);
+    assert(llama_kv_attention_selected_mask_value(3, positions, valid, 20, false, false) == masked);
+    assert(llama_kv_attention_selected_mask_value(0, positions, valid, 13, true, true) == -3.0f);
 }
 
 static void test_packed_view_copy_intervals() {
@@ -1115,9 +1150,12 @@ static void test_epoch_matrix_and_lifetime_metrics() {
 static void test_no_change_decode_replay() {
     const auto stable = metadata(snapshot(), 1, 1);
     const auto tail_advanced = metadata(snapshot(701), 1, 1);
+    const auto remapped = metadata(snapshot_slots(4, 2, 6), 1, 1);
     assert(stable.graph_layout_key() == tail_advanced.graph_layout_key());
     assert(stable.graph_physical_key() == tail_advanced.graph_physical_key());
     assert(stable.table_epoch() != tail_advanced.table_epoch());
+    assert(stable.graph_layout_key() == remapped.graph_layout_key());
+    assert(stable.graph_physical_key() != remapped.graph_physical_key());
 
     llama_kv_attention_scratch_request scratch;
     scratch.resident_rows = stable.get_n_kv();
@@ -1131,13 +1169,17 @@ static void test_no_change_decode_replay() {
     const auto no_change = execution.prepare(tail_advanced,
             llama_kv_attention_execution_phase::decode, 3, 11, true, scratch, {}, false, true);
     assert(!no_change.graph_rebuild);
-    assert(execution.in_flight_graphs() == 2);
+    const auto changed_map_same_bucket = execution.prepare(remapped,
+            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch, {}, false, true);
+    assert(!changed_map_same_bucket.graph_rebuild);
+    assert(execution.in_flight_graphs() == 3);
     assert(execution.metrics().graph_capture_count == 1);
-    assert(execution.metrics().graph_replay_count == 1);
-    assert(execution.metrics().table_epoch_changes == 1);
+    assert(execution.metrics().graph_replay_count == 2);
+    assert(execution.metrics().table_epoch_changes == 2);
 
     // Replaying the shape does not drop either immutable view lease while the
     // mutable descriptor input is refreshed for the next submission.
+    execution.complete_one_graph();
     execution.complete_one_graph();
     execution.complete_one_graph();
     assert(execution.in_flight_graphs() == 0);
@@ -1168,6 +1210,7 @@ int main() {
     test_routes_epochs_and_fences();
     test_packed_view_copy_intervals();
     test_packed_cache_identity_and_versions();
+    test_selected_mask_capacity_padding();
     test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();
     test_epoch_matrix_and_lifetime_metrics();
