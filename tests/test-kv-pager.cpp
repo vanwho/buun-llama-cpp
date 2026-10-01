@@ -824,6 +824,13 @@ static void test_cuda_async_host_publication() {
         const auto queued_next = host->enqueue(next_page, 7);
         assert(queued_next.status == llama_kv_pager_host_status::ok);
         assert(queued_next.queued);
+        auto over_capacity_page = next_page;
+        ++over_capacity_page.id.logical_page;
+        ++over_capacity_page.id.page_generation;
+        over_capacity_page.id.position_begin += VBR_GENERATION_PAGE_CELLS;
+        over_capacity_page.id.position_end += VBR_GENERATION_PAGE_CELLS;
+        const auto over_capacity = host->enqueue(over_capacity_page, 7);
+        assert(over_capacity.status == llama_kv_pager_host_status::ring_unavailable);
 
         // The worker owns only the immutable snapshot acquired by enqueue.
         // Mutating the live generation before the owner drains completion must
@@ -866,7 +873,8 @@ static void test_cuda_async_host_publication() {
                     "inclusive_host_and_page_seal_topology=pass async useful_d2h=%llu "
                     "actual_d2h=%llu "
                     "pageable=%llu metadata=%llu pinned_payload=%llu peak_pinned=%llu "
-                    "submitted_chunks=%llu waits=%llu events=%llu async_captures=3\n",
+                    "submitted_chunks=%llu copy_backpressure_waits=%llu events=%llu "
+                    "queue_bound_pages=2 capacity_rejected=1 async_captures=3\n",
                     (unsigned long long) completed[0].result.transfer.bytes,
                     (unsigned long long) (stale_actual_d2h_bytes +
                         completed[0].result.transfer.bytes),
@@ -1076,6 +1084,11 @@ static void test_pager_host_mutation() {
     }
     assert(pager->residency().pages().size() == 1);
     assert(pager->residency().pages()[0].pin_count == 1);
+    uint32_t current_page = UINT32_MAX;
+    uint32_t current_slot = UINT32_MAX;
+    assert(pager->current_page(0, current_page, current_slot));
+    assert(current_page == 0 && current_slot == pager->residency().pages()[0].physical_slot);
+    assert(!pager->current_page(1, current_page, current_slot));
     fixture.snapshot.pages[0] = pager->residency().pages()[0].id;
     assert(pager->seal_ready_pages() == 1);
     assert(pager->residency().pages()[0].pin_count == 0);
@@ -1101,6 +1114,8 @@ static void test_pager_host_mutation() {
             llama_kv_pager_write_status::all_pinned);
     assert(pager->begin_write(0, 1, 256, ticket) ==
             llama_kv_pager_write_status::ok);
+    assert(pager->current_page(0, current_page, current_slot));
+    assert(current_page == 1 && current_slot == ticket.physical_slot);
     assert(pager->cancel_write(ticket) == llama_kv_pager_write_status::ok);
     assert(pager->query_refresh_count() == query_refreshes_before_freeze);
     assert(pager->clear_turn_state(0, 44, 1) == llama_kv_pager_turn_status::ok);
@@ -1111,6 +1126,8 @@ static void test_pager_host_mutation() {
     fixture.storage[0][0] ^= 0x5a;
     assert(fixture.storage[0][0] != prior_byte);
     assert(pager->begin_write(0, 1, 0, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->current_page(0, current_page, current_slot));
+    assert(current_page == 0 && current_slot == ticket.physical_slot);
     assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     assert(pager->seal_ready_pages() == 1);
     const auto rewritten_pages = pager->host_catalog()->pages();

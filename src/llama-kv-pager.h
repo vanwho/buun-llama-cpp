@@ -930,6 +930,16 @@ public:
         return current_page_index_ < pages_.size() && pages_[current_page_index_].present &&
             pages_[current_page_index_].record.id == id;
     }
+    bool current_page(int32_t sequence_id, uint32_t & logical_page,
+            uint32_t & physical_slot) const noexcept {
+        if (current_page_index_ >= pages_.size()) return false;
+        const auto & page = pages_[current_page_index_];
+        if (!page.present || page.record.id.sequence_id != sequence_id ||
+                page.record.physical_slot == UINT32_MAX) return false;
+        logical_page = page.record.id.logical_page;
+        physical_slot = page.record.physical_slot;
+        return true;
+    }
     bool test_page_checksums(uint32_t logical_page, uint64_t & host_checksum,
             uint64_t & device_checksum, uint32_t & physical_slot,
             uint64_t & page_generation, uint64_t & content_version) const noexcept;
