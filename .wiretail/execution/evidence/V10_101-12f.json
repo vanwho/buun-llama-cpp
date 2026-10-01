@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "task": "101-12f",
+  "source_commit": "8cdca48f5ccb4e678b12ec3b48be9d60545a44bb",
+  "summary": "Implemented phase-tagged per-ubatch/fence diagnostics and safe fence coalescing for fresh contiguous selected prefill; build and focused deterministic test pass. Live speed improvement is not claimed.",
+  "deferred_verification": [
+    "Canonical selected/control live prefill retest is owned by 101-12g; no live speed measurement was made for this source repair."
+  ],
+  "checks": {
+    "selected_prefill_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "llama-server",
+          "test-kv-attention-execution",
+          "-j2"
+        ],
+        [
+          "build-cuda/bin/test-kv-attention-execution"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/build/101-12f-build-retry.log",
+          "sha256": "6c2f31f962cb05e82a7e4d7341f76c3ab78fb3fca2a69cdb18e50713c05a2779"
+        },
+        {
+          "path": ".wiretail/build/101-12f-test.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        }
+      ]
+    }
+  }
+}
