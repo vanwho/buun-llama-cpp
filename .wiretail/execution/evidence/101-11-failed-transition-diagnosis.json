@@ -1,0 +1,48 @@
+{
+  "answer_quality": {
+    "answer": "Based on the file `merge_sorted_lists_03.py` (which corresponds to the content provided in the prompt), the merge approach it uses is a **standard two-pointer merge** (also known as a linear merge).\n\nThis choice allows it to do the following:\n\n1.  **Merge two sorted lists in linear time**: The two-pointer approach iterates through both lists simultaneously, comparing the current elements and appending the smaller one to the result.\n2.  **Produce a sorted result**: The two-pointer approach ensures that the result is sorted.",
+    "expected_fact_local_only": "The preallocated merge writes each output position exactly once.",
+    "markers": [
+      "preallocated",
+      "output position",
+      "once"
+    ],
+    "matched": false,
+    "status": "diagnostic_mismatch"
+  },
+  "final_question": "For merge_sorted_lists_03.py, explain the merge approach it uses and what that choice allows it to do.",
+  "repair": "focus the natural recall wording on the distinctive result-list allocation and indexed fill behavior in the identified file; retain the same selected cold page and generation geometry",
+  "schema": "natural-promotion-failed-transition-diagnosis-v1",
+  "tracked_answer_page": {
+    "candidate_authenticated": false,
+    "cold": true,
+    "failure_outcome": "query_commit_capacity_refusal",
+    "graph_gate": "selector_builder_returned_null",
+    "h2d_completed_bytes": 0,
+    "host_backed": true,
+    "identity": {
+      "content_version": 256,
+      "generation": 13,
+      "logical_page_id": 5,
+      "position_begin": 1280,
+      "position_end": 1536,
+      "sequence_generation": 1,
+      "sequence_id": 0
+    },
+    "mapping_published": false,
+    "nominated": false,
+    "policy_admitted": false,
+    "pre_final_readiness": true,
+    "raw_selected_page_ids": [
+      0,
+      1
+    ],
+    "resident_before_final": false,
+    "selector_outcome": "query_commit_capacity_refusal",
+    "target_eligible": true,
+    "target_found": true,
+    "target_graph_used": false,
+    "target_host_backed": true,
+    "target_summary_ready": true
+  }
+}

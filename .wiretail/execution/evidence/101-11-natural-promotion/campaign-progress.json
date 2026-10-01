@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "error": "RuntimeError: completion returned invalid JSON (HTTP 0, text/plain)",
+      "fixture_id": "PY_MERGE_03",
+      "status": "fail"
+    }
+  ],
+  "failures": [
+    {
+      "error": "RuntimeError: completion returned invalid JSON (HTTP 0, text/plain)",
+      "fixture_id": "PY_MERGE_03"
+    }
+  ],
+  "schema": "pager-promotion-progress-v1"
+}

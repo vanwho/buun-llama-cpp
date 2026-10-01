@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "error": "RuntimeError: answer-bearing page is not cold, host-backed, and summary-ready before final query",
+      "fixture_id": "PY_MERGE_03",
+      "status": "fail"
+    }
+  ],
+  "failures": [
+    {
+      "error": "RuntimeError: answer-bearing page is not cold, host-backed, and summary-ready before final query",
+      "fixture_id": "PY_MERGE_03"
+    }
+  ],
+  "schema": "pager-promotion-progress-v1"
+}

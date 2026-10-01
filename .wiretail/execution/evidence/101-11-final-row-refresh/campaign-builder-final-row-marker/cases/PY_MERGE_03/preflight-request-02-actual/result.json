@@ -1,0 +1,11 @@
+{
+  "completion_reserve_tokens": 256,
+  "context_safety_reserve_tokens": 128,
+  "context_tokens": 8192,
+  "fits": true,
+  "planned_completion_tokens": 256,
+  "planned_prior_reply_reserve_tokens": 0,
+  "remaining_completion_tokens": 2462,
+  "rendered_prompt_sha256": "e98833142eeee8c2622f5c15fee993772dc0ab040b208efdb2a7856f65efccf6",
+  "rendered_prompt_tokens": 5602
+}
