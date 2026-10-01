@@ -121,7 +121,9 @@ its snapshot accounting into this branch.
 
 101-01 measures a real matched 4K input and turns profiling off by default.
 101-02/03 fix and measure fused Turbo4 decode and batched attention.
-101-04 restores parallel prompt GDN without losing rollback planes.
+101-04 proves exact rollback snapshots for a split GDN prefill and measures
+whether the graph decomposition wins. If it loses,101-04a owns a fused CUDA
+prefix before101-05 proceeds.
 101-05/06 fix stable graphs and redundant packed encoding.
 101-07 completes overlap/bounded metadata maintenance without changing selection.
 101-08/09 fix device MTP handoff and diagnose the first real disagreement.

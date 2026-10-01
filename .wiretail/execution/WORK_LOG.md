@@ -1727,3 +1727,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-03`
 - Commit at update: `37d07398c`
 - Summary: Passed tiled Turbo4 parity/cost proof and live 4326/80 retake; completion receipt V10_101-03.json validated.
+
+## 2026-10-01T02:46:56+00:00 — 101-04 — done
+
+- Branch: `codex/task-101-04`
+- Commit at update: `179538120`
+- Summary: CUDA snapshot and partial-acceptance proof passed; measured split miss; serial dispatch retained and 101-04a scheduled

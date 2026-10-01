@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "task": "101-04",
+  "source_commit": "1795381203ba0b5be72d6a4aec3465a69928eb98",
+  "build_identity": {
+    "candidate": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so",
+    "candidate_sha256": "9d120add6e711bd58b6bbb82b9403dc6794bd6caf39f3ef66144416b0a6427c5",
+    "test_binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-cuda-gdn-prefill",
+    "test_binary_sha256": "43d037876beebedb0b645dd0bf566c332e7cf86c8cb0698791de8b98fb956a2d",
+    "dirty": true,
+    "source_diff_sha256": "e960f724182fc181190174acd9ce93c00ee6944bc6c735e96e568e7eb9d7198b",
+    "source_files": {
+      "src/models/delta-net-base.cpp": "687da167243aad184a3463d8ce0430aba2ce2e95bf91f2eb12f5e7bc72e5f7e7",
+      "src/llama-graph.h": "1a5ce2069c096388098ae8bd5a280e1c1c110172ac4c6a208ed899419a591f96",
+      "src/llama-graph.cpp": "d1cb94b487ef866cabb6adfbb87cecadca200130c5c8cfed690c9a320dc4c198",
+      "tests/CMakeLists.txt": "6ab0894da010bb446166d0be8ed58dc151992f2e423ed70bd4ce45a7bcc89ad2",
+      "tests/test-cuda-gdn-prefill.cpp": "525bbc18e9a89e7093342fe0f71dd6008d0da926055bbd2066312ed9b9cba4a1"
+    },
+    "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9"
+  },
+  "checks": {
+    "parallel_gdn_prefill_preserves_mtp_rollback": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "GGML_CUDA_DISABLE_GRAPHS=1",
+        "build-cuda/bin/test-cuda-gdn-prefill"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-cuda-gdn-prefill",
+          "-j",
+          "8"
+        ],
+        [
+          "env",
+          "GGML_CUDA_DISABLE_GRAPHS=1",
+          "build-cuda/bin/test-cuda-gdn-prefill"
+        ],
+        [
+          "ctest",
+          "--test-dir",
+          "build-cuda",
+          "-R",
+          "^test-cuda-gdn-prefill$",
+          "--output-on-failure"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-04/attempt-01/build-final.log",
+          "sha256": "991eb7e7509088401a64c0f7729451f8f0ebce8bc2cfd610cee5bd9a20394e4c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-04/attempt-01/cuda-fixture-final.log",
+          "sha256": "970c0e10f5b466ca79f86cd8c7d355c68600b50ac3e74d7a554be6e56c1868dd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-04/attempt-01/ctest.log",
+          "sha256": "dd82b8f17e62f89f7b6895e7fc97459aaed96e1346f7ff62794c0014be8442dd"
+        }
+      ],
+      "measurement": {
+        "geometry": "Q256 K3 D128 Hk16 Hv48",
+        "repeats": 3,
+        "serial_setup_graph_copy_total_ms": [
+          0.869,
+          0.428,
+          5.148,
+          6.444
+        ],
+        "split_setup_graph_copy_total_ms": [
+          1.133,
+          0.728,
+          5.133,
+          6.994
+        ],
+        "production_dispatch": "serial; graph decomposition was slower, pending task 101-04a fused CUDA implementation"
+      }
+    }
+  }
+}
