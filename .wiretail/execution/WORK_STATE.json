@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "101",
-  "current_task": "101-04",
-  "last_updated_utc": "2026-10-01T02:28:17+00:00",
+  "current_task": "101-04a",
+  "last_updated_utc": "2026-10-01T02:48:47+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -30325,7 +30325,7 @@
       "cluster": "gpu101-recurrent-graphs",
       "title": "Parallel GDN prefill with an exact rollback-snapshot tail",
       "packet": ".wiretail/execution/tasks/101-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -30340,7 +30340,7 @@
       "depends_on": [
         "101-03"
       ],
-      "commit": null,
+      "commit": "1795381203ba0b5be72d6a4aec3465a69928eb98",
       "context_files": [
         ".wiretail/execution/clusters/gpu101-recurrent-graphs.md",
         ".wiretail/execution/tasks/101-04.md",
@@ -30355,6 +30355,84 @@
         "101-04",
         "--receipt",
         ".wiretail/execution/evidence/V10_101-04.json"
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/101-04-attempt-1-20261001T022841596468786-20261001T022841598971575-aWjA45.jsonl:226",
+            "total_tokens": 14244191,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 14189561,
+            "cached_input_tokens": 13897984,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 291577,
+            "output_tokens": 54630,
+            "thinking_tokens": 26093
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 14244191,
+          "input_tokens": 14189561,
+          "cached_input_tokens": 13897984,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 291577,
+          "output_tokens": 54630,
+          "thinking_tokens": 26093,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
+    },
+    {
+      "id": "101-04a",
+      "phase": "101",
+      "cluster": "gpu101-recurrent-graphs",
+      "title": "Fused CUDA parallel GDN prefix with exact rollback tail",
+      "packet": ".wiretail/execution/tasks/101-04a.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "cuda_parallel_gdn_prefix_matches_and_wins"
+      ],
+      "depends_on": [
+        "101-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-recurrent-graphs.md",
+        ".wiretail/execution/tasks/101-04a.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-04.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-04a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-04a.json"
       ]
     },
     {
@@ -30376,7 +30454,7 @@
         "stable_hybrid_attention_graphs_and_capacity_masks"
       ],
       "depends_on": [
-        "101-04"
+        "101-04a"
       ],
       "commit": null,
       "context_files": [
@@ -32622,16 +32700,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 3,
-        "total_tokens": 145781418,
-        "input_tokens": 145233225,
-        "cached_input_tokens": 142309632,
+        "usage_events": 4,
+        "total_tokens": 160025609,
+        "input_tokens": 159422786,
+        "cached_input_tokens": 156207616,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 2923593,
-        "output_tokens": 548193,
-        "thinking_tokens": 306163,
+        "input_tokens_minus_cached_tokens": 3215170,
+        "output_tokens": 602823,
+        "thinking_tokens": 332256,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 3,
+        "total_tokens_derived_events": 4,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -32646,17 +32724,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 442,
-      "total_tokens": 9685646762,
-      "input_tokens": 9656024298,
-      "cached_input_tokens": 9441258240,
+      "usage_events": 443,
+      "total_tokens": 9699890953,
+      "input_tokens": 9670213859,
+      "cached_input_tokens": 9455156224,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 88,
-      "input_tokens_minus_cached_tokens": 214766058,
-      "output_tokens": 29622464,
-      "thinking_tokens": 12631870,
+      "cache_write_input_tokens_known_events": 89,
+      "input_tokens_minus_cached_tokens": 215057635,
+      "output_tokens": 29677094,
+      "thinking_tokens": 12657963,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 442,
+      "total_tokens_derived_events": 443,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
