@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "task": "101-04a",
+  "source_commit": "f17ebe686e5eb9376af703da36cc40b9a04a3e98",
+  "build_identity": {
+    "candidate": "build-cuda/bin/libllama.so",
+    "candidate_sha256": "1cdc17e2187d707aadaed538eeaa43f0912fbea038ff8c9b4b7abb5939506e70",
+    "test_binary": "build-cuda/bin/test-cuda-gdn-prefill",
+    "test_binary_sha256": "2ae9a087c3332273197adb52ae23a7742ceb3bb349c57c0b1de9e87dd2b6b4e3",
+    "dirty": true,
+    "source_diff_sha256": "c4e5f135d9f55204c2150bc54e23ce5d2f2de599b36a1f35f6ce880b63de6b4b",
+    "source_files": {
+      "src/models/delta-net-base.cpp": "1a9103b25e2f2d4a64d018c796554044c677c9653a58135af2ce2dba3abca2b1",
+      "tests/test-cuda-gdn-prefill.cpp": "9aba82d7990a92e47700972852db060c8fc23e02240560fc53a0d0249b003dae"
+    },
+    "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9"
+  },
+  "checks": {
+    "cuda_parallel_gdn_prefix_matches_and_wins": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda/bin/test-cuda-gdn-prefill"],
+      "environment": {"GGML_CUDA_DISABLE_GRAPHS": "1"},
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-04a/attempt-01/release-check.log",
+          "sha256": "54bc037f5ef3b15912ada597371320724f3e97f545f3b110322e0f461fcd7b6b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-04a/attempt-01/ctest-final.log",
+          "sha256": "8d1b1e72bc51e3a986d96d7b66c6d5181cb041011ff3c1e07fc94094704b9bd3"
+        }
+      ],
+      "measurement": {
+        "geometry": "Q256 K3 D128 Hk16 Hv48 RTX 4080",
+        "repeats": 3,
+        "serial_total_ms": 6.360,
+        "serial_graph_ms": 0.425,
+        "graph_split_total_ms": 7.092,
+        "graph_split_graph_ms": 0.726,
+        "cuda_prefix_tail_total_ms": 8.384,
+        "cuda_prefix_tail_graph_ms": 0.442,
+        "cuda_prefix_tail_matches": true,
+        "production_dispatch": "serial",
+        "speed_win": false,
+        "next_boundary": "Implement a true intra-chunk CUDA recurrence/output kernel; the measured compact-Q/K prefix uses the existing serial recurrent kernel and loses."
+      }
+    }
+  }
+}
