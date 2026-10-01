@@ -1,40 +1,33 @@
-# GPU101 release decision — 101-18
+# GPU101 release decision — review 101-12h
 
-Decision: **goal_miss**. Candidate source `a0086f056f20efa519100718f010bc15c2efb830`; binary SHA256 `300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54`.
+Decision: **goal_miss**. Measured candidate source `a0086f056f20efa519100718f010bc15c2efb830`; binary SHA256 `300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54`. This is an independent review of the unchanged 101-18 campaign. The original 101-18 release bytes are preserved under `provenance/101-12h/` and remain referenced by its completed receipt.
 
 ## Candidate and protocol
 
-- Model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; runtime PIDs: selected 2037909, pager-off 2061092, CPU-main-KV 2064564; retained selected candidate PID after the TTFT probe 2077995.
-- L8192/H4096/P256/B1024/U256; target and draft Turbo4; native GPU MTP nmax2; prefix SHA256 `8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20`.
-- Canonical campaign: one 40-token warmup then three 400-token requests per prompt, temperature 0, reasoning off, fresh slot each row. All three routes completed with zero errors.
+- Model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; L8192/H4096/P256/B1024/U256; target and draft Turbo4; native GPU MTP nmax2; frozen prefix SHA256 `8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20`.
+- Three matched routes, three measured rows per prompt, one 40-token warmup, 400-token selected outputs, temperature 0, reasoning off, fresh slot per row. Every canonical row succeeded (HTTP 200) with zero cached input tokens. Model-backed query replay and natural old-file recall also passed.
+- The raw-row recalculation is `.wiretail/execution/evidence/raw/101-12h/recalculation.json`.
 
-## Selected and matched controls
+## Independent selected medians and matched controls
 
-| Prompt | Selected prefill tok/s | Selected decode tok/s | Selected MTP median | CPU prefill tok/s | CPU decode tok/s | Pager-off prefill tok/s | Pager-off decode tok/s | Supplemental TTFT ms | Result |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| prompt_1 | 1452.08 | 60.05 | 48.56% | 660.72 | 25.50 | 1556.16 | 84.24 | 3134.88 | measured_goal_miss |
+| Prompt | Selected prefill tok/s | Selected decode tok/s | Selected MTP median | CPU prefill tok/s | CPU decode tok/s | Pager-off prefill tok/s | Pager-off decode tok/s | Result |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| prompt_1 | 1452.08 | 60.05 | 48.56% | 660.72 | 25.50 | 1556.16 | 84.24 | MTP miss |
+| prompt_2 | 1463.84 | 58.45 | 47.58% | 664.31 | 18.54 | 1556.18 | 62.89 | MTP pass |
+| prompt_3 | 1451.19 | 65.41 | 59.79% | 660.74 | 21.09 | 1557.64 | 71.25 | MTP miss |
 
-| prompt_2 | 1463.84 | 58.45 | 47.58% | 664.31 | 18.54 | 1556.18 | 62.89 | 298.77 | pass |
+Selected prefill clears both the 500 tok/s minimum and the 750 tok/s preferred goal on all prompts. MTP floors remain 75% / 40% / 60%; prompt 1 misses by 26.44 percentage points and prompt 3 by 0.21 points. Selected decode beats ordinary CPU-main-KV decode by 2.36x / 3.15x / 3.10x. Selected prefill is 2.20x / 2.20x / 2.20x CPU, below the 3x and 5x comparisons; it is 0.93x / 0.94x / 0.93x pager-off GPU. Selected decode is 0.71x / 0.93x / 0.92x pager-off GPU.
 
-| prompt_3 | 1451.19 | 65.41 | 59.79% | 660.74 | 21.09 | 1557.64 | 71.25 | 298.43 | measured_goal_miss |
+## Functionality and remaining owner
 
-Raw drafted/accepted counts by selected prompt:
-- prompt_1: drafted `[313, 326, 307]`, accepted `[152, 128, 157]`.
-- prompt_2: drafted `[106, 128, 124]`, accepted `[59, 58, 59]`.
-- prompt_3: drafted `[301, 291, 282]`, accepted `[158, 174, 207]`.
+Natural old-file recall passed: Python03 logical page 5, generation 7, content version 256 was cold and host-backed, naturally nominated at rank 4/5, transferred (34,603,008 useful/aligned bytes), mapped, then consumed by target and draft. Frozen-history Turbo4 MTP accepted 75 of 128 drafted tokens; query replay passed.
 
-Selected prefill exceeds the 500 tok/s minimum on all prompts but does not reach the 750 tok/s preference. MTP misses prompt 1 at 48.56% and prompt 3 at 59.79%; prompt 2 passes at 47.58%. Selected decode beats CPU-main-KV by prompt_1: 2.36x, prompt_2: 3.15x, prompt_3: 3.10x. Selected prefill is prompt_1: 2.20x CPU, prompt_2: 2.20x CPU, prompt_3: 2.20x CPU, below 3x and 5x; it is prompt_1: 0.93x pager-off GPU, prompt_2: 0.94x pager-off GPU, prompt_3: 0.93x pager-off GPU.
+The canonical rows do not contain first-disagreement logits/state attribution. Schedule `101-12i` to capture the existing 101-09 first-disagreement evidence and repair only a proven state/mask/carry defect or measured selected-history distribution mismatch. Schedule `101-12j` for the exact changed-candidate canonical retake and final release review. `102-01` now depends on `101-12j`.
 
-The CPU control is ordinary CPU-main-KV via `--no-kv-offload`; its Turbo4 GPU MTP remains enabled. Supplemental TTFT uses one 32-token request per prompt after the canonical rows; it is not the canonical three-measurement median.
-
-## Promotion, route, and runtime diagnostics
-
-- Natural old-file recall: Python03 logical page 5/generation 7/content version 256 was cold and host-backed, naturally nominated at rank 4/5, admitted, H2D-completed (34,603,008 useful/aligned bytes), mapped, and consumed by target and draft. Query replay and frozen-history Turbo4 MTP passed (75 accepted / 128 drafted).
-- Selected sparse post-request snapshot: 16/16 physical resident capacity, 15 host-backed pages, 32 logical pages; page inventory had 16 resident and 17 host-backed pages. Host pageable bytes 73531392; pinned 0; headroom 201326592 bytes.
-- Summary telemetry snapshot: 2112 builds / 71368704 payload bytes; 0 reads / 0 bytes. Sparse cumulative waits 250 / 7815207 us; copy 0 us; queue 1532278 us; overlap 0 us; transfer backpressure 0.
-- Pager logical graph counters in the same snapshot: captures 153, replays 97, rebuilds 153. Driver CUDA events were not enabled in the timing receipt. The model-backed replay log separately contains 12 actual CUDA graph reuse log lines; these are not the pager counters.
-- Treat these passive snapshot counters as cumulative diagnostics, not per-prompt attribution.
+CPU summary optimization is not scheduled: the available 2112-build / 71,368,704-byte cumulative counters do not establish isolated summary time or a >=10% share of prefill. Sparse page-inventory counters are retained as diagnostics, but their counts disagree with adjacent counters and are not used for this decision. Driver CUDA event counts were not part of the canonical timing receipt; replay logs contain separate graph reuse evidence.
 
 ## Raw evidence and preserved history
 
-Current raw roots are under `/srv/ai/paged-kv/results/forward/101-18/attempt-01/`; JSON contains hashed references for each route config, summary, records and runner log. Old frozen release bytes and their previous raw-run roots are preserved at `.wiretail/execution/evidence/provenance/101-18/` and referenced from the current JSON. Final review successor on this measured miss: **101-12h**.
+Canonical raw roots: `/srv/ai/paged-kv/results/forward/101-18/attempt-01/`. The independent row script and results are under `.wiretail/execution/evidence/raw/101-12h/`. The immutable pre-review report copies are `.wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.json` and `.md`.
+
+Review owner: **101-12h**. Ordered remediation successors: **101-12i**, then exact retake and review **101-12j**. Scaling remains gated until that chain passes.

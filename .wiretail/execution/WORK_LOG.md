@@ -1865,3 +1865,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-18`
 - Commit at update: `a0086f056`
 - Summary: Measured final owner-repaired candidate; replay and natural promotion pass, canonical release recorded as goal_miss for 101-12h.
+
+## 2026-10-01T19:50:56+00:00 — 101-12h — done
+
+- Branch: `codex/task-101-12h`
+- Commit at update: `b3b238bc1`
+- Summary: Independently recalculated 101-18 raw rows; corrected prefill report (all prompts pass 750), preserved prior release evidence, recorded truthful MTP goal_miss, and scheduled 101-12i repair plus 101-12j exact retake/final review before 102-01.
