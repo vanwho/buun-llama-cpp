@@ -404,6 +404,7 @@ struct host_page_fixture {
     std::thread::id prepare_thread;
     std::thread::id owner_thread;
     bool reject_recheck = false;
+    bool use_requested_page_identity = false;
 
     static bool read(
             const void * context, uint64_t offset,
@@ -457,6 +458,7 @@ struct host_page_fixture {
             vbr_selected_page_capture_snapshot_provider & snapshots) noexcept {
         auto & self = *static_cast<host_page_fixture *>(context);
         self.prepare_thread = std::this_thread::get_id();
+        if (self.use_requested_page_identity) self.snapshot.pages[0] = page.id;
         request = {};
         request.source_namespace = source_namespace;
         request.child_id = 0;
@@ -485,7 +487,7 @@ struct host_page_fixture {
         return true;
     }
 
-    void initialize() {
+    void initialize(uint32_t rows = row_count) {
         storage.resize(VBR_SELECTED_PAGE_REQUIRED_UNITS);
         sources.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
         snapshot.source_namespace = source_namespace;
@@ -508,13 +510,13 @@ struct host_page_fixture {
         page.position_end = VBR_GENERATION_PAGE_CELLS;
         snapshot.pages.push_back(page);
         for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
-            storage[unit].resize(row_count * row_bytes);
+            storage[unit].resize(rows * row_bytes);
             for (size_t i = 0; i < storage[unit].size(); ++i) {
                 storage[unit][i] = uint8_t(unit + i);
             }
             vbr_selected_page_unit_source source;
             source.logical_unit_id = unit;
-            source.row_count = row_count;
+            source.row_count = rows;
             source.row_bytes = row_bytes;
             source.source_identity = 0x1000 + unit;
             source.source.size = storage[unit].size();
@@ -524,7 +526,7 @@ struct host_page_fixture {
 
             vbr_capture_projected_shard_source projected;
             projected.shard_index = 0;
-            projected.row_count = row_count;
+            projected.row_count = rows;
             projected.row_bytes = row_bytes;
             projected.source_identity = source.source_identity;
             projected.source = source.source;
@@ -559,13 +561,13 @@ struct host_page_fixture {
                     ? vbr_artifact_side::value : vbr_artifact_side::key;
             descriptor.layout = vbr_artifact_layout::row_major;
             descriptor.n_stream = 1;
-            descriptor.wm_cells = row_count;
+            descriptor.wm_cells = rows;
             descriptor.codebook_digest.fill(2);
             descriptor.rotation_digest.fill(3);
             descriptor.meansub_digest.fill(4);
             descriptor.row_codec_version = 1;
             vbr_artifact_shard_descriptor shard;
-            shard.row_count = row_count;
+            shard.row_count = rows;
             shard.column_count = 1;
             shard.row_bytes = row_bytes;
             shard.payload_bytes = storage[unit].size();
@@ -1162,6 +1164,112 @@ static void test_pager_host_mutation() {
     assert(batch_boundary_tickets[0].logical_page == 1);
     assert(batch_pager->cancel_write(batch_boundary_tickets[0]) ==
             llama_kv_pager_write_status::ok);
+
+    // Reproduce the H4096 admission edge after a slot erase. The cache starts
+    // with a short warmup, clears that ownership, then fills every P256 hot
+    // page before requesting the first row beyond H. The newly completed
+    // frontier must receive both its host seal and routing summary before it
+    // can be selected as an atomic batch victim.
+    host_page_fixture h4096_fixture;
+    h4096_fixture.initialize(4096);
+    h4096_fixture.use_requested_page_identity = true;
+    auto h4096_resources = resources(4096, 128);
+    h4096_resources.host_capture_enabled = true;
+    h4096_resources.host_source_namespace = host_page_fixture::source_namespace;
+    h4096_resources.host_child_id = 0;
+    h4096_resources.host_stream_index = 0;
+    h4096_resources.host_lanes = { { nullptr, nullptr, true } };
+    h4096_resources.host_ring_bytes = 128;
+    h4096_resources.host_chunk_bytes = 64;
+    h4096_resources.host_budget.host.pageable_cap = 1u << 20;
+    h4096_resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    h4096_resources.host_budget.host.pinned_cap = 128;
+    h4096_resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
+    h4096_resources.host_budget.host.total_cap = 1u << 20;
+    h4096_resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+    llama_kv_pager_config h4096_config = config;
+    h4096_config.hot_pages.automatic = false;
+    h4096_config.hot_pages.value = 16;
+    auto h4096_pager = llama_kv_pager::create(
+            h4096_config, geometry(4352), h4096_resources, backend, status);
+    assert(h4096_pager && status == llama_kv_pager_status::ok);
+    h4096_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    h4096_pager->set_host_provider(
+            { &h4096_fixture, host_page_fixture::prepare });
+    h4096_pager->set_routing_summary_provider(
+            { nullptr, build_routing_summary });
+    for (llama_pos position = 0; position < 40; ++position) {
+        assert(h4096_pager->begin_write(0, 1, position, ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(h4096_pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    h4096_pager->release_sequence_pins(0);
+    llama_kv_pager_mutation erase_warmup;
+    erase_warmup.kind = llama_kv_pager_mutation_kind::clear;
+    erase_warmup.sequence_id = 0;
+    assert(h4096_pager->mutate(erase_warmup) ==
+            llama_kv_pager_write_status::ok);
+    assert(h4096_pager->residency().pages().empty());
+
+    for (llama_pos page_begin = 0; page_begin < 4096; page_begin += 256) {
+        std::vector<llama_pos> page_positions;
+        page_positions.reserve(256);
+        for (llama_pos position = page_begin; position < page_begin + 256; ++position) {
+            page_positions.push_back(position);
+        }
+        assert(h4096_pager->begin_write_batch(0, 1, page_positions,
+                batch_boundary_tickets) == llama_kv_pager_write_status::ok);
+        assert(batch_boundary_tickets.size() == page_positions.size());
+        for (const auto & page_ticket : batch_boundary_tickets) {
+            assert(page_ticket.logical_page == uint32_t(page_begin / 256));
+            assert(h4096_pager->complete_write(page_ticket, 32, true) ==
+                    llama_kv_pager_write_status::ok);
+        }
+    }
+    std::vector<llama_pos> beyond_h_positions;
+    for (llama_pos position = 4096; position < 4352; ++position) {
+        beyond_h_positions.push_back(position);
+    }
+    assert(h4096_pager->begin_write_batch(0, 1, beyond_h_positions,
+            batch_boundary_tickets) == llama_kv_pager_write_status::ok);
+    assert(batch_boundary_tickets.size() == beyond_h_positions.size());
+    assert(std::all_of(batch_boundary_tickets.begin(), batch_boundary_tickets.end(),
+            [](const auto & page_ticket) { return page_ticket.logical_page == 16; }));
+    const auto h4096_resident_pages = h4096_pager->residency().pages();
+    assert(h4096_resident_pages.size() == 16);
+    for (uint32_t logical = 1; logical <= 16; ++logical) {
+        const auto resident = std::find_if(h4096_resident_pages.begin(),
+                h4096_resident_pages.end(), [logical](const auto & page) {
+                    return page.id.logical_page == logical;
+                });
+        assert(resident != h4096_resident_pages.end());
+        if (logical < 16) assert(resident->host_valid);
+    }
+    const auto h4096_host_pages = h4096_pager->host_catalog()->pages();
+    assert(h4096_host_pages.size() == 16);
+    const auto evicted_page = std::find_if(h4096_host_pages.begin(),
+            h4096_host_pages.end(), [](const auto & page) {
+                return page.page.identity.logical_page == 0;
+            });
+    assert(evicted_page != h4096_host_pages.end());
+    uint8_t retained_byte = 0;
+    assert(evicted_page->page.units[0].bytes->read(0, &retained_byte, 1));
+    assert(retained_byte == h4096_fixture.storage[0][0]);
+    uint32_t h4096_physical_row = UINT32_MAX;
+    for (llama_pos position = 4096; position < 4352; ++position) {
+        assert(h4096_pager->physical_row(0, position, h4096_physical_row));
+    }
+    for (auto it = batch_boundary_tickets.rbegin();
+            it != batch_boundary_tickets.rend(); ++it) {
+        assert(h4096_pager->cancel_write(*it) ==
+                llama_kv_pager_write_status::ok);
+    }
+    std::cout << "h4096_warmup_erase_reservation=pass P=256 H=4096 C=4352 "
+                 "routing_summary=ready atomic_batch=256\n";
 
     // A completed tail is sealed with only its committed rows. It must be
     // readable from the canonical catalog without turning padding into valid

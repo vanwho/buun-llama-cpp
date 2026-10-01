@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "task": "101-12a",
+  "source_commit": "75d0aba47c898386be9ec4c2107b607156ccc92d",
+  "summary": "Repaired H4096 batch reservation eligibility after slot erase by publishing current routing summaries at the real capacity boundary; deterministic CPU/CUDA tests and the minimum live reproduction pass.",
+  "build_provenance": {
+    "cpu_test_build": [
+      "cmake",
+      "--build",
+      "build",
+      "--target",
+      "test-kv-pager",
+      "-j2"
+    ],
+    "cuda_server_build": [
+      "cmake",
+      "--build",
+      "build-cuda",
+      "--target",
+      "test-kv-pager",
+      "llama-server",
+      "-j2"
+    ],
+    "server_binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "server_binary_sha256": "a464e9099821b424fe8e637b4bc325c38d6d2a7453ec22832310b67f4fba1fba",
+    "server_version": "version: 0.5.0-dev (build 14141, commit 75d0aba47) built with GNU 15.2.0 for Linux x86_64",
+    "loaded_process_id": 1592785,
+    "loaded_cuda_libraries": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+    ],
+    "model": {
+      "source": "unsloth/Qwen3.8-27B-GGUF",
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "file": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "quantization": "UD-IQ4_XS",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "size_bytes": 14252845984
+    }
+  },
+  "checks": {
+    "h4096_warmup_erase_reservation_repaired": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build/bin/test-kv-pager"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build",
+          "--target",
+          "test-kv-pager",
+          "-j2"
+        ],
+        [
+          "build/bin/test-kv-pager"
+        ],
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-kv-pager",
+          "llama-server",
+          "-j2"
+        ],
+        [
+          "build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct",
+          "--context",
+          "8192",
+          "--batch",
+          "1024",
+          "--ubatch",
+          "256",
+          "--kv-hot-pages",
+          "16"
+        ]
+      ],
+      "metrics": {
+        "cpu_pager_test_exit_code": 0,
+        "cuda_pager_test_exit_code": 0,
+        "server_build_exit_code": 0,
+        "test_marker": "h4096_warmup_erase_reservation=pass P=256 H=4096 C=4352 routing_summary=ready atomic_batch=256",
+        "live": {
+          "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+          "process_id": 1592785,
+          "server_fingerprint": "b14141-75d0aba47",
+          "request_id": "chatcmpl-egltEaJpbdJahcFEQrusyqCek3KKYIRL",
+          "request_case_key": "1dda67b6c9604a66767cef9f281d08d1017dba65c12d682051c57b93a363abd2",
+          "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+          "context_tokens": 8192,
+          "page_tokens": 256,
+          "hot_pages": 16,
+          "hot_tokens": 4096,
+          "pager_mode": "selective",
+          "device_policy": "auto",
+          "observed_route_before_erase": "selected dense",
+          "warmup_requested_tokens": 40,
+          "warmup_completed_tokens": 40,
+          "prompt_tokens": 4271,
+          "cached_prompt_tokens": 0,
+          "measured_max_tokens": 400,
+          "measured_completed_tokens": 18,
+          "finish_reason": "stop",
+          "http_status": 200,
+          "slot_tokens_before_erase": 4310,
+          "slot_tokens_erased": 4310,
+          "slot_prompt_tokens_after_erase": 0,
+          "slot_valid_rows_after_erase": 0,
+          "slot_host_pages_after_erase": 0,
+          "mtp_device": "gpu",
+          "mtp_type_k": "turbo4",
+          "mtp_type_v": "turbo4",
+          "mtp_n_max": 2,
+          "mtp_draft_tokens_measured": 12,
+          "mtp_accepted_tokens_measured": 10
+        },
+        "initial_proxy_attempt": "port 8090 returned HTTP 502 before any inference; direct configured server endpoint 8080 completed the required reproduction",
+        "limitations": [
+          "The measured request set max_tokens=400 and completed normally at stop after 18 output tokens; full 400-token throughput was not measured in this task."
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "src/llama-kv-pager.cpp",
+          "sha256": "63b43c5a738f81bc5370cccc659e7667c0ae105adc9dafcff60209c37e64bacc"
+        },
+        {
+          "path": "tests/test-kv-pager.cpp",
+          "sha256": "d6eaa0703945471ce46fdd08011d1eee30ef165afc51e95ecd9cb66d55dec7d4"
+        },
+        {
+          "path": "build/bin/test-kv-pager",
+          "sha256": "c02f0ebe74058bbcc8c58693e8d3a7d42feb897fe691d0718d11777b598c4536"
+        },
+        {
+          "path": "build-cuda/bin/test-kv-pager",
+          "sha256": "6c6b94726646437acddbb2a0bd9893f6016e20c02590c46b19d22fc7a8c36733"
+        },
+        {
+          "path": "build-cuda/bin/llama-server",
+          "sha256": "a464e9099821b424fe8e637b4bc325c38d6d2a7453ec22832310b67f4fba1fba"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/build-cpu-final.log",
+          "sha256": "ea9dc7e2aa56b85422e1114484efb36a0ea4ba03661bcde6bb300260ab773807"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/test-cpu-final.log",
+          "sha256": "c2bcd7c3dbc619c76ba9a8294ca8c17e1bb1d04366d14cd5f5162441b242f9a6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/build-cuda-final.log",
+          "sha256": "8d5d77966d7f659543ef00eaefa6ee540662eee33166dd979586a7fdbf87d23f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/test-cuda-final.log",
+          "sha256": "1f9bace4a858e03788eda24cd411d1617de2afe827e308bcd4602aceec7f1987"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/build-cuda.log",
+          "sha256": "377f4483a178f39c8d216bee37d561d000512cc620f764e8e0e381e511fad658"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/run-config.json",
+          "sha256": "2977f692166db691a54f5ab3d3a346e3f6566abec2e78dfe8703ffd3a5ffbbe3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/lifecycle-state.json",
+          "sha256": "51ae3e5817d99502bebacc5b45949e963c2ef7f8fe9807f81b7a6bc998b9fae1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/records.jsonl",
+          "sha256": "e9fd009d3332f59d9950b00663242bd362425f9f2ac3f03f7cb99fdcd7e42adf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/summary.json",
+          "sha256": "e422f3f3590164787407ceb2b6152b1c3b39e28d74e49b45ac6655175118e6c5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/startup-mtp.log",
+          "sha256": "5b2ad60539025b27d0d0011b1422126f80397800fefd88e03ae6215a742786e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-warmup-1.json",
+          "sha256": "aed1317d36ccdcea4e97edac0ea4663398a87a39a599d763af6ce582d014faf0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.json",
+          "sha256": "077df62dcb684f932e3922171852ee25754d2f205eeae9b807a60debaae9905b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.http",
+          "sha256": "4bdaee4e91f630d951faa0b8415780125eee21d183982b5e06f2f49367f90c51"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.preflight.json",
+          "sha256": "fc516dd489f61a76098bf4585bd85137a05ea8aa5f5b95d5ba42021ebb28185c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.slot-before.json",
+          "sha256": "df5d2ca69a0e41e4128b3a826b426c678441c66a4dbd7b78229ef318c7dc6fcf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.slot-erase.json",
+          "sha256": "46a5a7a7ad103df886bd432a936ee99a15410f378d19e3fa34947a665cd4a76b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.slot-after.json",
+          "sha256": "90927071c2e3b2018db93ae40c358b5886b5237f1e8d0a2d8507cf95e51feae5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12a/attempt-01/live-repro-direct/raw/off-measured-1.journal.log",
+          "sha256": "fa6629c85172836106c8f5d189eac77daca6f5776c616c180f7db26e2021897b"
+        }
+      ]
+    }
+  }
+}
