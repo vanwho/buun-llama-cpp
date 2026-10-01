@@ -1805,3 +1805,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12c`
 - Commit at update: `b6877d0ef`
 - Summary: Repaired the measured selected-prefill summary-copy cost; CUDA build, focused H4096 pager regression, and required receipt check pass. Post-fix canonical retake is deferred to 101-12d.
+
+## 2026-10-01T15:46:28+00:00 — 101-12d — done
+
+- Branch: `codex/task-101-12d`
+- Commit at update: `8a5a3091f`
+- Summary: Completed frozen selected and matched-control GPU101 retest on repaired build; all runs and telemetry passed, selected release gates measured as misses, final review delegated to 101-12e.
