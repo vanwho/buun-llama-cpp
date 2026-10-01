@@ -4968,7 +4968,10 @@ bool llama_kv_cache::pager_routing_summary_build(
     try {
         auto & cached = cache->pager_summary_cache_;
         bool cache_hit = cached.valid && cached.identity == page.id &&
-            cached.content_version == page.content_version;
+            cached.content_version == page.content_version &&
+            cached.form == config.form && cached.vector_dim == config.vector_dim &&
+            cached.subblock_tokens == config.subblock_tokens &&
+            cached.coordinate_identity == config.coordinate_identity;
         auto item = std::find_if(cached.items.begin(), cached.items.end(),
                 [&](const auto & value) {
             return value.layer == config.layer_index && value.head == config.head_index;
@@ -4990,6 +4993,10 @@ bool llama_kv_cache::pager_routing_summary_build(
             cached = {};
             cached.identity = page.id;
             cached.content_version = page.content_version;
+            cached.form = config.form;
+            cached.vector_dim = config.vector_dim;
+            cached.subblock_tokens = config.subblock_tokens;
+            cached.coordinate_identity = config.coordinate_identity;
             const auto * host = cache->pager_->host_catalog();
             vbr_selected_page_host_view host_page;
             if (host == nullptr || !host->find_page(page.id, host_page)) {
@@ -5077,17 +5084,19 @@ bool llama_kv_cache::pager_routing_summary_build(
                     cached.items.push_back(std::move(item));
                 }
             }
-            if (!cached.items.empty()) cached.items.front().input.source_bytes = captured_bytes;
+            cached.rebuild_source_bytes = captured_bytes;
             cached.valid = true;
             if (profile) {
                 LLAMA_LOG_INFO("hotpath stage=summary_cache_rebuild phase=page_seal page=%u "
-                        "version=%" PRIu64 " layer=%u head=%u cache_miss=1 "
+                        "version=%" PRIu64 " layer=%u head=%u cache_miss=1 physical_rebuilds=1 "
                         "host_k_read_calls=%" PRIu64 " host_k_read_bytes=%" PRIu64
-                        " decoded_k_rows=%" PRIu64 " decoded_floats=%" PRIu64
+                        " decoded_k_bytes=%" PRIu64 " decoded_k_rows=%" PRIu64
+                        " decoded_floats=%" PRIu64
                         " cpu_wall_us=%" PRIu64 " cpu_thread_us=%" PRIu64 "\n",
                         page.id.logical_page, page.content_version,
                         config.layer_index, config.head_index,
-                        host_k_read_calls, host_k_read_bytes, decoded_k_rows,
+                        host_k_read_calls, host_k_read_bytes, host_k_read_bytes,
+                        decoded_k_rows,
                         decoded_floats,
                         uint64_t(std::max<int64_t>(0, ggml_time_us() -
                                 int64_t(rebuild_wall_start))),
@@ -5102,6 +5111,12 @@ bool llama_kv_cache::pager_routing_summary_build(
         if (item == cached.items.end()) {
             log_tail_failure("head_item_missing");
             return false;
+        }
+        // Attribute the physical all-layer read to the first requested item,
+        // regardless of which head/layer caused the page cache miss.
+        if (!cached.source_bytes_charged) {
+            item->input.source_bytes = cached.rebuild_source_bytes;
+            cached.source_bytes_charged = true;
         }
         output = std::move(item->input);
         item->consumed = true;

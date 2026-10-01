@@ -2792,9 +2792,12 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                 std::vector<size_t> pages;
             };
             std::vector<pending_group> groups(configs.size());
-            for (size_t config_index = 0; config_index < configs.size(); ++config_index) {
-                for (auto & item : changed) {
-                    if (!item.needs_summary || !item.summary_ok) continue;
+            // The provider owns a deliberately one-page cache. Collect each
+            // page's configurations together so its all-layer decode is reused
+            // until that page's final head has been transferred.
+            for (auto & item : changed) {
+                if (!item.needs_summary || !item.summary_ok) continue;
+                for (size_t config_index = 0; config_index < configs.size(); ++config_index) {
                     llama_kv_routing_page_input input;
                     auto & page = pages_[item.index];
                     if (!routing_summary_provider_.build(
@@ -2817,7 +2820,7 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                             }
                         }
                         item.summary_ok = false;
-                        continue;
+                        break;
                     }
                     ++summary_build_calls_;
                     summary_build_bytes_ = summary_build_bytes_ > UINT64_MAX - input.source_bytes
@@ -2827,24 +2830,42 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                 }
             }
 
+            // A source failure invalidates the entire page/config batch. Drop
+            // any earlier inputs for that page before a store can see them.
+            for (const auto & item : changed) {
+                if (item.summary_ok) continue;
+                for (auto & group : groups) {
+                    for (size_t input_index = group.pages.size(); input_index > 0; --input_index) {
+                        const size_t index = input_index - 1;
+                        if (group.pages[index] != item.index) continue;
+                        group.pages.erase(group.pages.begin() + index);
+                        group.inputs.erase(group.inputs.begin() + index);
+                    }
+                }
+            }
+
             bool have_inputs = false;
             for (const auto & group : groups) have_inputs = have_inputs || !group.inputs.empty();
             if (have_inputs) {
                 const auto snapshot = residency_.snapshot();
                 const auto inventory = routing_inventory();
+                struct staged_store {
+                    size_t config_index;
+                    llama_kv_routing_summary_store store;
+                };
+                std::vector<staged_store> staged;
+                bool publication_failed = false;
                 for (size_t config_index = 0; config_index < configs.size(); ++config_index) {
-                    auto & group = groups[config_index];
+                    const auto & group = groups[config_index];
                     if (group.inputs.empty()) continue;
                     llama_kv_routing_summary_status summary_status;
-                    auto * indexed = routing_summary_index_.find(
+                    const auto * indexed = routing_summary_index_.find(
                             configs[config_index].layer_index, configs[config_index].head_index);
                     auto next = indexed != nullptr
-                        ? indexed->update_pages(
-                            snapshot, inventory, group.inputs, configs[config_index],
-                            summary_status, true)
-                        : llama_kv_routing_summary_store{}.update_pages(
-                            snapshot, inventory, group.inputs, configs[config_index],
-                            summary_status, true);
+                        ? indexed->update_pages(snapshot, inventory, group.inputs,
+                            configs[config_index], summary_status, true)
+                        : llama_kv_routing_summary_store{}.update_pages(snapshot, inventory,
+                            group.inputs, configs[config_index], summary_status, true);
                     if (summary_status != llama_kv_routing_summary_status::ok) {
                         static std::atomic<uint32_t> summary_failure_logs{0};
                         if (summary_failure_logs.fetch_add(1, std::memory_order_relaxed) < 8) {
@@ -2855,16 +2876,24 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                                     group.inputs.size(), inventory.size(),
                                     snapshot.pages().size());
                         }
-                        for (const size_t page_index : group.pages) {
-                            auto it = std::find_if(changed.begin(), changed.end(),
-                                    [&](const auto & item) { return item.index == page_index; });
-                            if (it != changed.end()) it->summary_ok = false;
-                        }
-                        continue;
+                        publication_failed = true;
+                        break;
                     }
-                    if (configs[config_index].layer_index == 0) routing_summaries_ = next;
-                    routing_summary_index_.set(std::move(next));
-                    ++store_copy_count_;
+                    staged.push_back({ config_index, std::move(next) });
+                }
+                if (publication_failed) {
+                    // Stores are staged locally, so discard the whole seal
+                    // wave and leave every changed page queued for retry.
+                    for (auto & item : changed) {
+                        if (item.needs_summary) item.summary_ok = false;
+                    }
+                } else {
+                    for (auto & entry : staged) {
+                        const auto & config = configs[entry.config_index];
+                        if (config.layer_index == 0) routing_summaries_ = entry.store;
+                        routing_summary_index_.set(std::move(entry.store));
+                        ++store_copy_count_;
+                    }
                 }
             }
         }
@@ -2874,6 +2903,8 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
             auto & page = pages_[item.index];
             if (item.needs_summary && item.summary_ok) {
                 page.summary_content_version = page.content_version;
+            } else if (item.needs_summary) {
+                queue_maintenance(page);
             }
             if (!item.needs_summary || item.summary_ok) {
                 ++seal_pages_changed_;
