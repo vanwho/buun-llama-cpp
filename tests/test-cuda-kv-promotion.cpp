@@ -596,6 +596,13 @@ static int run_proof() {
         (void) write_page_metadata(logical, false);
         (void) pager->seal_ready_pages();
     }
+    // Generation writes and committed-page D2H sealing must not trigger a
+    // historical promotion or launch the selector. Query-boundary promotion
+    // is exercised later in this fixture, after generation is complete.
+    assert(pager->h2d_counters().submitted == 0);
+    assert(pager->selector_trace_history_count() == 0);
+    std::cout << "decode_history_pcie=pass generation_h2d_submitted=0 "
+                 "selector_graphs=0 generation_pages=" << (pages - 1) << "\n";
 
     const auto rejected_frontier = common_speculative_rollback_frontier_resolve(2045, 2, 1);
     assert(rejected_frontier.valid() && rejected_frontier.accepted_token_count == 2047 &&

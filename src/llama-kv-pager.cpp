@@ -2517,30 +2517,46 @@ void llama_kv_pager::wait_host_completions() noexcept {
 bool llama_kv_pager::host_maintenance_pending() const noexcept {
     if (!host_) return false;
     if (host_->completion_ready()) return true;
-    for (const auto & page : pages_) {
-        if (!page.present || !page.maintenance_pending || page.host_inflight) continue;
+    if (!maintenance_queue_complete_) return true;
+    const auto needs_host_work = [&](size_t index) {
+        if (index >= pages_.size()) return false;
+        const auto & page = pages_[index];
+        if (!page.present || !page.maintenance_pending || page.host_inflight) return false;
         const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
             std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
                         [](uint8_t value) { return value != 0; });
-        const bool current_partial = current_page_index_ < pages_.size() &&
-            &pages_[current_page_index_] == &page && !full;
-        if (!current_partial && (!page.record.host_valid ||
-                page.host_content_version != page.content_version)) return true;
+        const bool current_partial = current_page_index_ == index && !full;
+        return !current_partial && (!page.record.host_valid ||
+                page.host_content_version != page.content_version);
+    };
+    for (const size_t index : maintenance_page_indices_) {
+        if (needs_host_work(index)) return true;
+    }
+    for (const size_t index : maintenance_processing_indices_) {
+        if (needs_host_work(index)) return true;
     }
     return false;
 }
 
 bool llama_kv_pager::catalogue_maintenance_pending() const noexcept {
     if (routing_summary_provider_.build == nullptr) return false;
-    for (const auto & page : pages_) {
+    if (!maintenance_queue_complete_) return true;
+    const auto needs_catalogue_work = [&](size_t index) {
+        if (index >= pages_.size()) return false;
+        const auto & page = pages_[index];
         if (!page.present || !page.maintenance_pending || page.host_inflight ||
-                page.summary_content_version == page.content_version) continue;
+                page.summary_content_version == page.content_version) return false;
         const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
             std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
                         [](uint8_t value) { return value != 0; });
-        const bool current_partial = current_page_index_ < pages_.size() &&
-            &pages_[current_page_index_] == &page && !full;
-        if (!current_partial) return true;
+        const bool current_partial = current_page_index_ == index && !full;
+        return !current_partial;
+    };
+    for (const size_t index : maintenance_page_indices_) {
+        if (needs_catalogue_work(index)) return true;
+    }
+    for (const size_t index : maintenance_processing_indices_) {
+        if (needs_catalogue_work(index)) return true;
     }
     return false;
 }

@@ -2945,16 +2945,10 @@ void llama_kv_cache::seal_kv_pager_pages() {
             pager_policy_dirty_ = pager_policy_dirty_ || changed;
         }
         if (pager_last_sequence_id_ >= 0) {
-            const auto snapshot = pager_->residency(pager_last_sequence_id_);
             uint32_t current_page = UINT32_MAX;
             uint32_t current_slot = UINT32_MAX;
-            for (const auto & page : snapshot.pages()) {
-                if (pager_->is_current_page(page.id)) {
-                    current_page = page.id.logical_page;
-                    current_slot = page.physical_slot;
-                    break;
-                }
-            }
+            (void) pager_->current_page(
+                    pager_last_sequence_id_, current_page, current_slot);
             pager_policy_dirty_ = pager_policy_dirty_ ||
                 pager_policy_current_sequence_ != pager_last_sequence_id_ ||
                 pager_policy_current_page_ != current_page ||
