@@ -5,6 +5,14 @@ This compact specification supersedes the scheduling and repair directions in
 HOTPATH_POST100, REPAIR100 and completed phase-100 packets. They are provenance,
 not startup context. The architecture in OVERVIEW remains authoritative.
 
+For the next implementation after101-12e, use `forward/PREFILL101.md` and
+tasks101-13–19. That source-directed amendment supersedes the generic repeated
+repair direction below: page-cache visitation, catalogue payload/digest work,
+actual CUDA graphs and capacity-driven fences are now explicit owners.
+102-01 follows101-19, not the unsuccessful101-12e speed-review boundary.
+Upcoming task startup loads the compact new amendment instead of this completed
+implementation history; this file is retained as provenance.
+
 ## Assessment of the Luna diagnosis
 
 The diagnosis correctly rejects scaling from the current result. The retained

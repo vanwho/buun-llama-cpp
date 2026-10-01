@@ -2544,8 +2544,11 @@ void llama_context::synchronize() {
     if (llama_context_hotpath_profile_enabled()) {
         const int64_t total_fence_us = std::max<int64_t>(
                 0, ggml_time_us() - wait_start_us);
-        LLAMA_LOG_INFO("hotpath stage=context_fence in_flight=%d backend_wait_us=%" PRId64
+        LLAMA_LOG_INFO("hotpath stage=context_fence phase=%s queued_tokens=%u "
+                "prefill_pages_admitted=%u in_flight=%d backend_wait_us=%" PRId64
                 " retained_state_us=%" PRId64 " total_us=%" PRId64 "\n",
+                llama_kv_attention_execution_phase_name(kv_attention_execution.phase()),
+                n_queued_tokens, kv_pager_prefill_fence_pages_,
                 kv_attention_wait ? 1 : 0, backend_wait_us,
                 std::max<int64_t>(0, total_fence_us - backend_wait_us),
                 total_fence_us);
@@ -6944,12 +6947,16 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
             ? ubatch.pos[0] : -1;
         const llama_pos last_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
             ? ubatch.pos[size_t(ubatch.n_tokens - 1) * std::max<uint32_t>(1, ubatch.n_pos)] : -1;
-        LLAMA_LOG_INFO("hotpath stage=context_ubatch tokens=%u first_pos=%" PRId64
+        LLAMA_LOG_INFO("hotpath stage=context_ubatch phase=%s route=%s query_tokens=%u "
+                "tokens=%u first_pos=%" PRId64
                 " last_pos=%" PRId64 " graph_reuse=%d apply_us=%" PRId64
                 " attention_prepare_us=%" PRId64 " graph_build_us=%" PRId64
                 " set_inputs_us=%" PRId64 " backend_submit_us=%" PRId64
                 " retained_state_us=%" PRId64 " total_us=%" PRId64 "\n",
-                ubatch.n_tokens, int64_t(first_position), int64_t(last_position),
+                llama_kv_attention_execution_phase_name(attention_decision.phase),
+                llama_kv_attention_execution_route_name(attention_decision.route),
+                ubatch.n_tokens, ubatch.n_tokens,
+                int64_t(first_position), int64_t(last_position),
                 graph_reuse ? 1 : 0,
                 apply_us, attention_prepare_us, graph_build_elapsed_us,
                 set_inputs_us, backend_submit_us, retained_state_us,
@@ -7497,6 +7504,23 @@ int llama_context::decode(const llama_batch & batch_inp) {
     while (true) {
         const auto & ubatch = mctx->get_ubatch();
 
+        // A cleared single-sequence slot has no resident history to publish
+        // between its first page writes. Keep its prefill graphs in flight
+        // until the outer decode batch ends or the physical page window fills;
+        // an existing/nonlinear sequence keeps the original per-page fence.
+        if (bounded_pager_prefill && kv_pager_owner != nullptr &&
+                ubatch.n_seqs_unq == 1 && ubatch.n_seq_tokens == ubatch.n_tokens &&
+                ubatch.n_pos == 1 && ubatch.pos != nullptr &&
+                ubatch.seq_id_unq != nullptr && ubatch.seq_id_unq[0] >= 0 &&
+                ubatch.pos[0] == 0 &&
+                kv_pager_owner->exact_page_records(ubatch.seq_id_unq[0]).empty()) {
+            kv_pager_prefill_fence_coalescing_ = true;
+            kv_pager_prefill_fence_sequence_ = ubatch.seq_id_unq[0];
+            kv_pager_prefill_fence_last_position_ = -1;
+            kv_pager_prefill_fence_last_page_ = UINT64_MAX;
+            kv_pager_prefill_fence_pages_ = 0;
+        }
+
         // DFlash: hand the eval callback this ubatch so it can route hidden-state
         // captures per-token (multi-seq) or whole-tensor (single-seq) to the
         // correct layer_hiddens slot. Populate per-seq tape pointers for the
@@ -7651,6 +7675,42 @@ int llama_context::decode(const llama_batch & batch_inp) {
                 case GGML_STATUS_ALLOC_FAILED: return -2;
                 case GGML_STATUS_FAILED:       return -3;
                 case GGML_STATUS_SUCCESS:      GGML_ABORT("should not happen");
+            }
+        }
+
+        if (kv_pager_prefill_fence_coalescing_) {
+            const bool valid_prefill = kv_attention_execution.phase() ==
+                    llama_kv_attention_execution_phase::prefill &&
+                ubatch.n_seqs_unq == 1 && ubatch.n_seq_tokens == ubatch.n_tokens &&
+                ubatch.n_pos == 1 && ubatch.pos != nullptr &&
+                ubatch.seq_id_unq != nullptr &&
+                ubatch.seq_id_unq[0] == kv_pager_prefill_fence_sequence_ &&
+                ubatch.n_tokens != 0 &&
+                kv_pager_prefill_fence_last_position_ != std::numeric_limits<llama_pos>::max() &&
+                ubatch.pos[0] == kv_pager_prefill_fence_last_position_ + 1;
+            if (!valid_prefill) {
+                kv_pager_prefill_fence_coalescing_ = false;
+            } else {
+                const uint32_t page_tokens = kv_pager_owner->snapshot().geometry.page_tokens;
+                if (page_tokens == 0) {
+                    kv_pager_prefill_fence_coalescing_ = false;
+                } else {
+                    for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+                        const llama_pos position = ubatch.pos[token];
+                        if (position < 0) {
+                            kv_pager_prefill_fence_coalescing_ = false;
+                            break;
+                        }
+                        const uint64_t page = uint64_t(position) / page_tokens;
+                        if (page != kv_pager_prefill_fence_last_page_) {
+                            kv_pager_prefill_fence_last_page_ = page;
+                            if (kv_pager_prefill_fence_pages_ != UINT32_MAX) {
+                                ++kv_pager_prefill_fence_pages_;
+                            }
+                        }
+                    }
+                    kv_pager_prefill_fence_last_position_ = ubatch.pos[ubatch.n_tokens - 1];
+                }
             }
         }
 
@@ -7925,20 +7985,31 @@ int llama_context::decode(const llama_batch & batch_inp) {
         n_outputs_prev += n_outputs;
         n_tokens_prev  += ubatch.n_tokens;
 
-        // Keep several query tiles in flight within a page. Synchronize only
-        // when the current tile crosses into a new logical page (or at the
-        // final tile), so host sealing and policy updates remain page-boundary
-        // operations rather than one fence per tile.
+        // Fresh writes can occupy several distinct physical pages before a
+        // publication fence. Preserve the conservative page fence for existing
+        // or unknown layouts, and fence a fresh sequence as soon as its
+        // admitted physical window is full.
         const bool page_wave_boundary = bounded_pager_prefill &&
             prefill_page_wave_boundary(ubatch, kv_pager.page_size);
-        if (page_wave_boundary) {
+        const bool has_next = mctx->next();
+        const uint32_t physical_page_capacity = kv_pager_owner != nullptr
+            ? kv_pager_owner->snapshot().physical_page_count : 0;
+        const bool page_capacity_fence = page_wave_boundary &&
+            llama_kv_attention_prefill_page_fence_due(
+                    true, kv_pager_prefill_fence_coalescing_,
+                    kv_pager_prefill_fence_pages_, physical_page_capacity);
+        const bool final_batch_fence = bounded_pager_prefill && !has_next;
+        if (llama_context_hotpath_profile_enabled() && page_wave_boundary) {
+            LLAMA_LOG_INFO("hotpath stage=prefill_page_fence action=%s pages_admitted=%u "
+                    "physical_page_capacity=%u has_next=%d\n",
+                    page_capacity_fence || final_batch_fence ? "synchronize" : "defer",
+                    kv_pager_prefill_fence_pages_, physical_page_capacity,
+                    has_next ? 1 : 0);
+        }
+        if (page_capacity_fence || final_batch_fence) {
             synchronize();
         }
-        const bool has_next = mctx->next();
         if (!has_next) {
-            if (bounded_pager_prefill && !page_wave_boundary) {
-                synchronize();
-            }
             break;
         }
     }

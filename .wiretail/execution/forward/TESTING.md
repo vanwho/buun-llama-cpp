@@ -1,9 +1,10 @@
 # Minimal testing and honest performance measurement
 
 Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
-Current source-directed procedure is SPEED101 and tasks101-01–12. Completed
-phase100 and its repair/audit packets are provenance, not runnable context.
-101-12 owns the canonical speed decision;102 owns capacity after that release.
+Current next implementation procedure is PREFILL101 and tasks101-13–19 after
+the101-12e review. Completed phase100/101 packets are provenance, not startup
+context.101-18 owns the next canonical measurement,101-19 its review;102 owns
+capacity only after the accepted release or its explicitly scheduled successor.
 
 ## Setup once, verify cheaply, keep loaded
 

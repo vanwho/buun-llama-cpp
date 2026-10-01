@@ -1817,3 +1817,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12e`
 - Commit at update: `d0999713d`
 - Summary: Independently reviewed the completed selected/control retest, recorded per-prompt release comparisons, and scheduled ordered repair, retest, and repeated review before scale; release remains gated on misses.
+
+## 2026-10-01T16:14:20+00:00 — 101-12f — done
+
+- Branch: `codex/task-101-12f`
+- Commit at update: `8cdca48f5`
+- Summary: Implemented fresh-prefill fence coalescing and phase-specific diagnostics; CUDA build, focused execution test, and receipt validation pass. Live retest remains assigned to 101-12g.

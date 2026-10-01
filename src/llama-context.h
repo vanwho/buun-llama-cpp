@@ -847,6 +847,15 @@ private:
     llama_memory_ptr memory;
     std::unique_ptr<llama_kv_pager> kv_pager_owner;
     llama_kv_attention_execution kv_attention_execution;
+    // Fresh selected prefill may leave several independent page writes in
+    // flight, but never more pages than the admitted physical window. This
+    // only relaxes intermediate page-wave fences; API-batch, capacity, and
+    // unknown-layout fences remain mandatory.
+    bool kv_pager_prefill_fence_coalescing_ = false;
+    int32_t kv_pager_prefill_fence_sequence_ = -1;
+    llama_pos kv_pager_prefill_fence_last_position_ = -1;
+    uint64_t kv_pager_prefill_fence_last_page_ = UINT64_MAX;
+    uint32_t kv_pager_prefill_fence_pages_ = 0;
     struct kv_attention_proof_graph {
         uint64_t table_epoch = 0;
         bool mtp_verify = false;
