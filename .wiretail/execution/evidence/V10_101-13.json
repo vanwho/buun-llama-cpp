@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "task": "101-13",
+  "source_commit": "2d9c5511f72cb9a640d0ef0c2da123eb4984551c",
+  "summary": "Added a deterministic two-page summary locality reproduction and exact-opt-in owner counters; captured and analyzed a bounded current CUDA prefill for the selected packed route.",
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "1922c6f291a9f6180c686c779581d931112d2d0622719861556a12e2eb105cf7",
+    "libllama_sha256": "7e5a9f8bf39dceec3b8162d56cbd022add2659ac57e537893fdbd3bbb75f47d6",
+    "server_impl_sha256": "e6c433ce1a40a6f9fa15e6869621bd36a4821b4d62fb13ce3edfbcddb0e24ed8",
+    "cuda_backend_sha256": "74c3a757f1a61dd79884a03f42c46d516bbb3828cd64f1ff9cc5e7e0ba73e4bd"
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "source_diff_sha256": "f9f7c356432d3016eea918ba753686279f1ccaebc3bf7b5978de3b32fabdb485",
+  "checks": {
+    "current_prefill_owner_attribution": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/run-bounded-request.py"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-kv-pager",
+          "llama-server",
+          "-j",
+          "8"
+        ],
+        [
+          "env",
+          "-u",
+          "LLAMA_HOTPATH_PROFILE",
+          "build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "env",
+          "LLAMA_HOTPATH_PROFILE=0",
+          "build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/run-bounded-request.py"
+        ],
+        [
+          "/tmp/nsys2025/opt/nvidia/nsight-systems/2025.5.2/bin/nsys",
+          "profile",
+          "--trace=cuda,nvtx,osrt",
+          "--sample=none",
+          "--cpuctxsw=none",
+          "--duration=90",
+          "--stop-on-exit=false",
+          "--force-overwrite=true",
+          "--output=/srv/ai/paged-kv/results/forward/101-13/attempt-01/nsys-current-prefill-v3",
+          "build-cuda/bin/llama-server"
+        ],
+        [
+          "/tmp/nsys2025/opt/nvidia/nsight-systems/2025.5.2/bin/nsys",
+          "export",
+          "--type",
+          "sqlite",
+          "--output=/srv/ai/paged-kv/results/forward/101-13/attempt-01/nsys-current-prefill-v3.sqlite",
+          "/srv/ai/paged-kv/results/forward/101-13/attempt-01/nsys-current-prefill-v3.nsys-rep"
+        ],
+        [
+          "/tmp/nsys2025/opt/nvidia/nsight-systems/2025.5.2/bin/nsys",
+          "stats",
+          "--force-export=true",
+          "--filter-time=31853979286/51637505438",
+          "--report=cuda_gpu_kern_sum,cuda_gpu_mem_time_sum,cuda_api_sum",
+          "--format=column",
+          "/srv/ai/paged-kv/results/forward/101-13/attempt-01/nsys-current-prefill-v3.nsys-rep"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/build/101-13-instrumentation-build.log",
+          "sha256": "c0ee64d031ae1870f112e86ce1798b33913f41ca9fa0ab20cc99efdf8f420199"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/build/101-13-test-kv-pager-retry.log",
+          "sha256": "61c2f33072f08b88545430f813901925908ef2ee880ff88af253596cfdd40cb2"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/build/101-13-test-profile-off.log",
+          "sha256": "61c2f33072f08b88545430f813901925908ef2ee880ff88af253596cfdd40cb2"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/build/101-13-test-profile-zero.log",
+          "sha256": "61c2f33072f08b88545430f813901925908ef2ee880ff88af253596cfdd40cb2"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_PREFILL_OWNERS_101-13.md",
+          "sha256": "30f18d1aa13f8238454981d26cec502a2a1675cdbf36729c7c92171b2ab9d67c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/nsys-current-prefill-v3.nsys-rep",
+          "sha256": "90f48b0e7f9873250be60b039a7d84a62e556d119ffe25fd2050878569cfc250"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/nsys-current-prefill-v3.sqlite",
+          "sha256": "6104edf72af3ad8777bb81329c7ac1f73a08a3aeb2e984d5e42d9e22de184aec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/prefill-owner-timeline.json",
+          "sha256": "1a1747d5afb663e95edb8826fac2020f8ff79f9e3d041c401f042490271ac12d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/nsys-prefill-filtered-stats.txt",
+          "sha256": "5399bb88ff13216e3e3da31a06d1b3967515d15df3450523d22746c4a8ee5da5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/profile-request-timeline-nsys2025-v3.log",
+          "sha256": "f506980991df57ced80d78e62b6308298fc55515c722ce072ed32a644995e9b9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/frozen-prefix-messages.json",
+          "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/warmup.request.json",
+          "sha256": "f680a228d48ccb60b0ecc59f4d34bd377e46cc04216794a69bed4d0d1106de7b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/warmup.sse",
+          "sha256": "505df50da99b8192a3828a44d7ed433d922aafcab52e0b93591aa42c85b282f3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/warmup.timing.json",
+          "sha256": "3cbea553b1b3574fe5ebdcaa29b19725f22dc4f216c0b41d3ff6022870e78f67"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/warmup-after-erase.slots.json",
+          "sha256": "80c78c2adb42933db8a7a5fe7dd7f0072a6374d938ca91479a8994f82635b2db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/measured.request.json",
+          "sha256": "e4487344d08ee5c0401e92071e34ef5efb961f4666a88be49bc3e7ef8e5767d6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/measured.sse",
+          "sha256": "0bed45e353c3d8b5d405cc832a32ee9d03bbd584ced819637bb15019d2073fcc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/measured.timing.json",
+          "sha256": "dee0919141b7695b347c35ec2e03ce98fd036fda66f64084a28bc5a318c117a2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/measured-after-erase.slots.json",
+          "sha256": "6397b0815846cb3821d9c793676fa64b894476a02bd6d613f86b006056e81440"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/measured-after.slots.json",
+          "sha256": "6b98f4239232abc3fa932a8ffd6cd2801be008141f660421bb0f349a28994ca6"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [
+    "The exact-profile summary-cache and selector-sideband stage log hooks did not emit records on the fresh sequential prefill; slot telemetry reports zero summary-build calls. Their per-owner CPU/read/upload time is therefore unmeasured and is not inferred from the CUDA trace. Nsight CPU stack sampling was disabled."
+  ],
+  "owner_summary": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_PREFILL_OWNERS_101-13.md",
+  "raw_result_root": "/srv/ai/paged-kv/results/forward/101-13/attempt-01",
+  "profile": {
+    "nsys_version": "2025.5.2.266",
+    "device": "NVIDIA GeForce RTX 4080",
+    "capture_seconds": 90,
+    "measured_prefill_window_ns": 19774103808,
+    "measured_prefill_gpu_busy_union_ns": 1400559545,
+    "measured_prefill_gpu_busy_union_percent": 7.082796563621641,
+    "actual_cuda_graph_launches_in_prefill": 7,
+    "cuda_stream_synchronize_calls_in_prefill": 9677
+  },
+  "fixture": {
+    "changed_pages": 2,
+    "configurations": 64,
+    "provider_builds": 128,
+    "ideal_page_major_builds": 64,
+    "visitation": "configuration-major"
+  }
+}

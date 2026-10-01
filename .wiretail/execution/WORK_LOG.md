@@ -1829,3 +1829,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12g`
 - Commit at update: `2517c5a06`
 - Summary: Completed selected and matched-control live retest with verified geometry, candidate/model identities, routes and telemetry; measured selected prefill remains below 500 tok/s, with ordered repair/retest/review successors preserved.
+
+## 2026-10-01T17:19:52+00:00 — 101-13 — done
+
+- Branch: `codex/task-101-13`
+- Commit at update: `2d9c5511f`
+- Summary: verified current CPU/GPU attribution and multi-page reproduction
