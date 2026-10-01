@@ -575,6 +575,7 @@ struct llama_context {
             const llama_seq_id * expected_sequences);
     bool mark_embeddings_nextn_device_consumed(llama_context * consumer);
     void get_embeddings_nextn_transfer_bytes(uint64_t * d2h, uint64_t * h2d) const;
+    uint64_t get_embeddings_nextn_device_generation() const;
 
     float * get_embeddings_layer_inp(uint32_t lid);
 

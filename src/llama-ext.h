@@ -256,6 +256,8 @@ LLAMA_API bool llama_mark_embeddings_nextn_device_consumed(
         struct llama_context * source, struct llama_context * consumer);
 LLAMA_API void llama_get_embeddings_nextn_transfer_bytes(
         struct llama_context * ctx, uint64_t * d2h, uint64_t * h2d);
+LLAMA_API uint64_t llama_get_embeddings_nextn_device_generation(
+        struct llama_context * ctx);
 
 // Mark the target graph as native-MTP verification while it is being built.
 // This is a staging hook for speculative consumers; it does not alter public

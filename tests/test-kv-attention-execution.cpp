@@ -236,12 +236,29 @@ static void test_routes_epochs_and_fences() {
            route_metrics.selected_page_ids[1] == 2);
     const auto selected_mtp = metadata(snapshot(), 2, 1);
     const auto mtp = execution.prepare(selected_mtp,
-            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch, {}, false, true);
+            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch, {}, true, true);
     assert(mtp.route == llama_kv_attention_execution_route::selected_packed);
     assert(execution.metrics().mtp_verify_routes.selected_packed == 1);
     execution.complete_one_graph();
     assert(llama_kv_attention_execution_phase_name(
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
+
+    // A complete resident view must use the native cache representation for
+    // parity with pager-off execution. The incomplete view above remains
+    // selected-packed even when a contiguous dense materialization is
+    // otherwise available.
+    llama_kv_attention_execution all_resident(
+            llama_kv_attention_execution_mode::selective);
+    // A complete resident page may have valid suffix rows past this query.
+    const auto complete_view = metadata(snapshot(), 2, 1, { 0, 1, 2 }, 2);
+    for (const auto phase : { llama_kv_attention_execution_phase::prefill,
+                              llama_kv_attention_execution_phase::decode,
+                              llama_kv_attention_execution_phase::mtp_verify }) {
+        const auto complete = all_resident.prepare(complete_view, phase, 4, 8,
+                true, scratch, {}, true, true);
+        assert(complete.route == llama_kv_attention_execution_route::dense);
+        all_resident.complete_one_graph();
+    }
 
     execution.set_route_override("auto");
     const auto dense = execution.prepare(selected_prefill,
@@ -792,11 +809,12 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(metadata(snapshot(), 3, 1),
             llama_kv_attention_execution_phase::prefill, true, false, false) ==
            llama_kv_attention_execution_route::selected_direct);
-    // A genuinely contiguous selected view uses mature dense FA before the
-    // paged consumer, even when both capability contracts are available.
+    // A genuinely complete resident view uses the native dense cache path,
+    // even when selected dense materialization and paged consumers are also
+    // available.
     assert(execution.planned_route(metadata(snapshot(), 1, 1, { 0 }, 255),
             llama_kv_attention_execution_phase::decode, true, true, true) ==
-           llama_kv_attention_execution_route::selected_dense);
+           llama_kv_attention_execution_route::dense);
     const auto full_history_snapshot = snapshot_slots(5, 1, 7, 601);
     const auto complete_mtp_history = metadata(full_history_snapshot,
             3, 1, { 2, 1, 0 }, 600, 24, 4);
@@ -806,7 +824,7 @@ static void test_view_sized_scratch_contract() {
     assert(bounded_mtp_history.get_n_kv() < 601);
     assert(execution.planned_route(complete_mtp_history,
             llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
-           llama_kv_attention_execution_route::selected_dense);
+           llama_kv_attention_execution_route::dense);
     assert(execution.planned_route(bounded_mtp_history,
             llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
            llama_kv_attention_execution_route::selected_packed);
@@ -817,7 +835,7 @@ static void test_view_sized_scratch_contract() {
     assert(standard_dense_view.eligible);
     assert(execution.planned_route(standard_dense,
             llama_kv_attention_execution_phase::decode, false, true, false) ==
-           llama_kv_attention_execution_route::selected_dense);
+           llama_kv_attention_execution_route::dense);
 
     const auto batched_small = metadata(snapshot(), 32, 1);
     const auto batched_large_q = metadata(snapshot(), 256, 1);
@@ -851,7 +869,7 @@ static void test_view_sized_scratch_contract() {
            llama_kv_attention_execution_route::selected_packed);
     assert(execution.planned_route(batched_4k,
             llama_kv_attention_execution_phase::prefill, true, true, true) ==
-           llama_kv_attention_execution_route::selected_dense);
+           llama_kv_attention_execution_route::dense);
     assert(execution.planned_route(metadata(large_table.snapshot(), 256, 1,
                 all_pages, 4351, 16, 4),
             llama_kv_attention_execution_phase::prefill, true, false, true) ==

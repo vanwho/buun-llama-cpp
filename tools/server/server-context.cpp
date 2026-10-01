@@ -67,6 +67,8 @@
 #include <unordered_map>
 #include <utility>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 
 // fix problem with std::min and std::max
 #if defined(_WIN32)
@@ -24901,6 +24903,104 @@ private:
                 slot.mandatory_recovery_reset(
                     server_cache_destruction_reason::restore_failure);
                 return;
+            }
+
+            const bool mtp_reject_trace_enabled = [] {
+                const char * value = std::getenv("LLAMA_MTP_FIRST_REJECT_TRACE");
+                return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+            }();
+            const size_t rejected_index = size_t(rollback_frontier.accepted_draft_tokens);
+            if (mtp_reject_trace_enabled &&
+                    params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
+                    rollback_frontier.rejected_draft_tokens > 0 &&
+                    slot.mtp_request_rejected == 0 && rejected_index < n_draft &&
+                    rejected_index < verify_rows.size()) {
+                const llama_seq_id trace_seq = slot.spec ? 0 : slot.id;
+                common_speculative_mtp_reject_trace draft_trace;
+                const bool have_draft_trace = common_speculative_get_mtp_reject_trace(
+                        slot.get_spec(), trace_seq, rejected_index, draft_trace);
+                const int32_t target_row = verify_rows[rejected_index];
+                const float * target_logits = llama_get_logits_ith(ctx_tgt, target_row);
+                const int32_t n_vocab = llama_vocab_n_tokens(
+                        llama_model_get_vocab(llama_get_model(ctx_tgt)));
+                bool target_finite = target_logits != nullptr && n_vocab > 0;
+                float target_max = -std::numeric_limits<float>::infinity();
+                if (target_finite) {
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        if (!std::isfinite(target_logits[token])) {
+                            target_finite = false;
+                            break;
+                        }
+                        target_max = std::max(target_max, target_logits[token]);
+                    }
+                }
+                double target_normalizer = 0.0;
+                if (target_finite) {
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        target_normalizer += std::exp(double(target_logits[token] - target_max));
+                    }
+                }
+                std::vector<std::pair<llama_token, float>> target_top;
+                if (target_logits != nullptr && n_vocab > 0) {
+                    target_top.reserve(8);
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        if (!std::isfinite(target_logits[token])) {
+                            continue;
+                        }
+                        auto at = target_top.begin();
+                        while (at != target_top.end() && target_logits[token] <= at->second) {
+                            ++at;
+                        }
+                        if (at != target_top.end() || target_top.size() < 8) {
+                            target_top.insert(at, { (llama_token) token, target_logits[token] });
+                            if (target_top.size() > 8) {
+                                target_top.pop_back();
+                            }
+                        }
+                    }
+                }
+                std::ostringstream trace_line;
+                trace_line << "MTP first rejection: seq=" << trace_seq
+                    << " rejected_index=" << rejected_index
+                    << " proposed_token=" << (have_draft_trace
+                            ? (int) draft_trace.proposal
+                            : (int) slot.spec_draft[rejected_index])
+                    << " target_row=" << target_row
+                    << " target_finite=" << (target_finite ? "yes" : "no")
+                    << " target_softmax_temperature=1 target_top8=[";
+                for (size_t i = 0; i < target_top.size(); ++i) {
+                    if (i != 0) trace_line << ',';
+                    const double probability = target_finite && target_normalizer > 0.0
+                        ? std::exp(double(target_top[i].second - target_max)) / target_normalizer
+                        : std::numeric_limits<double>::quiet_NaN();
+                    trace_line << target_top[i].first << ':' << std::setprecision(7)
+                        << target_top[i].second << ':' << probability;
+                }
+                trace_line << "] draft_position="
+                    << (have_draft_trace ? draft_trace.position : -1)
+                    << " draft_carry_generation="
+                    << (have_draft_trace ? draft_trace.carry_generation : 0)
+                    << " draft_top8=[";
+                if (have_draft_trace) {
+                    for (size_t i = 0; i < draft_trace.candidate_ids.size(); ++i) {
+                        if (i != 0) trace_line << ',';
+                        trace_line << draft_trace.candidate_ids[i] << ':'
+                            << draft_trace.candidate_logits[i] << ':'
+                            << draft_trace.candidate_probs[i];
+                    }
+                }
+                const llama_memory_t target_memory = llama_get_memory(ctx_tgt);
+                const llama_memory_t draft_memory = llama_get_memory(slot.ctx_dft);
+                trace_line << "] target_kv_range=["
+                    << llama_memory_seq_pos_min(target_memory, trace_seq) << ','
+                    << llama_memory_seq_pos_max(target_memory, trace_seq)
+                    << "] draft_valid_frontier="
+                    << llama_memory_seq_pos_max(draft_memory, trace_seq)
+                    << " staged_hidden_generation="
+                    << llama_get_embeddings_nextn_device_generation(ctx_tgt)
+                    << " target_verify_rows=" << verify_rows.size()
+                    << " target_causal_row=" << target_row;
+                SLT_INF(slot, "%s\n", trace_line.str().c_str());
             }
 
             // Keep the small output-index table until token stop handling has

@@ -3837,6 +3837,10 @@ void llama_context::get_embeddings_nextn_transfer_bytes(uint64_t * d2h, uint64_t
     }
 }
 
+uint64_t llama_context::get_embeddings_nextn_device_generation() const {
+    return embeddings_nextn_device_generation;
+}
+
 float * llama_context::get_embeddings_nextn_ith(int32_t i) {
     output_reorder();
 
@@ -10862,6 +10866,10 @@ void llama_get_embeddings_nextn_transfer_bytes(
     if (ctx != nullptr) {
         ctx->get_embeddings_nextn_transfer_bytes(d2h, h2d);
     }
+}
+
+uint64_t llama_get_embeddings_nextn_device_generation(llama_context * ctx) {
+    return ctx != nullptr ? ctx->get_embeddings_nextn_device_generation() : 0;
 }
 
 void llama_set_kv_attention_mtp_verification(llama_context * ctx, bool enabled) {

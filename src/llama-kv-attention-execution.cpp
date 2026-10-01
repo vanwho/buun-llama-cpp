@@ -890,6 +890,40 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
+    // When the selected view contains the complete causal history and is
+    // dense-capable, keep the native KV representation and ordinary dense
+    // Flash Attention graph.  selected_dense gathers/dequantizes Turbo4 rows
+    // into an f16 view; that is useful for a genuinely selected layout, but
+    // changes the target execution path even when paging has selected every
+    // live row.  Using the native cache here preserves pager-off logits for
+    // the all-resident case.  Incomplete sparse views continue through the
+    // selected packed/direct routes below.
+    const auto complete_causal_history = [&]() noexcept {
+        const auto & query_positions = metadata.query_positions();
+        if (query_positions.empty()) return false;
+        const llama_pos first_query = *std::min_element(
+                query_positions.begin(), query_positions.end());
+        const auto & native_positions = metadata.native_positions();
+        const auto & native_mask = metadata.native_mask();
+        if (first_query < 0 || native_positions.empty() ||
+                native_positions.size() < uint64_t(first_query) ||
+                native_mask.size() < uint64_t(first_query)) {
+            return false;
+        }
+        // Native positions describe cached history before the graph's query
+        // suffix. Require that entire causal prefix, and permit later resident
+        // rows because they are causally masked by the dense graph.
+        for (llama_pos pos = 0; pos < first_query; ++pos) {
+            if (native_positions[size_t(pos)] != pos || native_mask[size_t(pos)] == 0) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (dense_capable && complete_causal_history()) {
+        return llama_kv_attention_execution_route::dense;
+    }
+
     // A selected dense view is valid for MTP verification only while it
     // contains the complete causal history. A bounded view with evicted prefix
     // pages can still pass the dense storage-contiguity check, but the dense
@@ -899,15 +933,7 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
     // starts at position zero.
     if (phase == llama_kv_attention_execution_phase::mtp_verify &&
             packed_capable && !metadata.query_positions().empty()) {
-        const auto & query_positions = metadata.query_positions();
-        const llama_pos max_query = *std::max_element(
-                query_positions.begin(), query_positions.end());
-        const auto & native_positions = metadata.native_positions();
-        const bool complete_history = max_query >= 0 &&
-            !native_positions.empty() && native_positions.front() == 0 &&
-            native_positions.back() == max_query &&
-            native_positions.size() == uint64_t(max_query) + 1;
-        if (!complete_history) {
+        if (!complete_causal_history()) {
             return llama_kv_attention_execution_route::selected_packed;
         }
     }
