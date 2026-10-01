@@ -375,6 +375,11 @@ static void test_full_256k_capacity_plan() {
 
 static uint64_t routing_provider_calls = 0;
 static uint64_t routing_provider_source_bytes = 0;
+static uint64_t routing_provider_page_rebuilds = 0;
+static uint32_t routing_provider_last_page = UINT32_MAX;
+static uint32_t routing_provider_fail_page = UINT32_MAX;
+static uint32_t routing_provider_fail_layer = UINT32_MAX;
+static uint32_t routing_provider_fail_head = UINT32_MAX;
 struct routing_provider_visit {
     uint32_t page;
     uint32_t layer;
@@ -387,9 +392,16 @@ static bool build_routing_summary(
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_page_input & output) noexcept {
     ++routing_provider_calls;
+    if (routing_provider_last_page != page.id.logical_page) {
+        ++routing_provider_page_rebuilds;
+        routing_provider_last_page = page.id.logical_page;
+    }
     routing_provider_visits.push_back({
         page.id.logical_page, config.layer_index, config.head_index,
     });
+    if (page.id.logical_page == routing_provider_fail_page &&
+            config.layer_index == routing_provider_fail_layer &&
+            config.head_index == routing_provider_fail_head) return false;
     output = {};
     output.id = page.id;
     const uint32_t rows = uint32_t(page.id.position_end - page.id.position_begin);
@@ -397,6 +409,21 @@ static bool build_routing_summary(
     output.rotated_k_rows.assign(output.row_indices.size() * config.vector_dim, 0.0f);
     for (size_t i = 0; i < output.row_indices.size(); ++i) {
         output.rotated_k_rows[i * config.vector_dim] = float(page.id.logical_page + 1);
+    }
+    if (config.form == llama_kv_routing_summary_form::minmax_ranges) {
+        const uint32_t subblocks = 256 / config.subblock_tokens;
+        output.range_min.resize(size_t(subblocks) * config.vector_dim);
+        output.range_max.resize(size_t(subblocks) * config.vector_dim);
+        output.mean_k_values.resize(config.vector_dim);
+        for (uint32_t block = 0; block < subblocks; ++block) {
+            for (uint32_t dim = 0; dim < config.vector_dim; ++dim) {
+                const size_t index = size_t(block) * config.vector_dim + dim;
+                const float scalar = float(page.id.logical_page * 10 + block + dim % 4);
+                output.range_min[index] = scalar;
+                output.range_max[index] = scalar + 1.0f;
+                if (block == 0) output.mean_k_values[dim] = scalar + 0.5f;
+            }
+        }
     }
     output.source_bytes = output.rotated_k_rows.size() * sizeof(float);
     routing_provider_source_bytes += output.source_bytes;
@@ -2021,14 +2048,19 @@ int main() {
     // cache. Preserve the exact observed page/configuration sequence so a
     // later owner can verify page-major batching without relying on provider
     // byte totals as physical device-read counts.
+    auto two_config_geometry = geometry(1024);
+    two_config_geometry.attention_layers = 1;
+    two_config_geometry.kv_heads = 2;
     auto locality_pager = llama_kv_pager::create(
-            config, geometry(1024), resources(1024, 128), write_backend, status);
+            config, two_config_geometry, resources(1024, 128), write_backend, status);
     assert(locality_pager && status == llama_kv_pager_status::ok);
     locality_pager->set_routing_summary_provider({ nullptr, build_routing_summary });
     const uint64_t saved_provider_calls = routing_provider_calls;
     const uint64_t saved_provider_source_bytes = routing_provider_source_bytes;
     routing_provider_calls = 0;
     routing_provider_source_bytes = 0;
+    routing_provider_page_rebuilds = 0;
+    routing_provider_last_page = UINT32_MAX;
     routing_provider_visits.clear();
     for (llama_pos position = 0; position < 512; ++position) {
         assert(locality_pager->begin_write(0, 1, position, ticket) ==
@@ -2037,25 +2069,106 @@ int main() {
                 llama_kv_pager_write_status::ok);
     }
     assert(locality_pager->seal_ready_pages() == 2);
-    const size_t locality_config_count =
-        size_t(geometry(1024).attention_layers) * geometry(1024).kv_heads;
+    const size_t locality_config_count = size_t(two_config_geometry.attention_layers) *
+        two_config_geometry.kv_heads;
     assert(locality_config_count >= 2);
     assert(routing_provider_calls == 2 * locality_config_count);
+    assert(routing_provider_page_rebuilds == 2);
     assert(routing_provider_visits.size() == routing_provider_calls);
-    for (size_t config_index = 0; config_index < locality_config_count; ++config_index) {
-        const auto & first = routing_provider_visits[config_index * 2];
-        const auto & second = routing_provider_visits[config_index * 2 + 1];
-        assert(first.page == 0 && second.page == 1);
-        assert(first.layer == config_index / geometry(1024).kv_heads);
-        assert(first.head == config_index % geometry(1024).kv_heads);
-        assert(second.layer == first.layer && second.head == first.head);
+    for (size_t page_index = 0; page_index < 2; ++page_index) {
+        for (size_t config_index = 0; config_index < locality_config_count; ++config_index) {
+            const auto & visit = routing_provider_visits[
+                page_index * locality_config_count + config_index];
+            assert(visit.page == page_index);
+            assert(visit.layer == config_index / two_config_geometry.kv_heads);
+            assert(visit.head == config_index % two_config_geometry.kv_heads);
+        }
     }
     std::cout << "summary_locality_repro=pass changed_pages=2 configurations="
               << locality_config_count << " provider_builds=" << routing_provider_calls
-              << " visitation=config-major all_page_rebuilds=" << routing_provider_calls
-              << " ideal_page-major_builds=" << locality_config_count << "\n";
+              << " visitation=page-major all_page_rebuilds="
+              << routing_provider_page_rebuilds << " ideal_page-major_builds=2\n";
     routing_provider_calls = saved_provider_calls;
     routing_provider_source_bytes = saved_provider_source_bytes;
+
+    // Three changed pages exercise all model-derived layer/head configs. A
+    // middle-config failure must leave that page queued, with no partial store
+    // publication; a clean retry then completes its summary exactly once.
+    auto all_config_geometry = geometry(1024);
+    auto all_config_config = config;
+    all_config_config.hot_pages.automatic = false;
+    all_config_config.hot_pages.value = 4;
+    auto all_config_resources = resources(4096, 128);
+    all_config_resources.routing_summary.vector_dim = all_config_geometry.key_length;
+    all_config_resources.routing_summary.form = llama_kv_routing_summary_form::minmax_ranges;
+    all_config_resources.routing_summary.subblock_tokens = 64;
+    auto all_config_pager = llama_kv_pager::create(
+            all_config_config, all_config_geometry, all_config_resources, write_backend, status);
+    assert(all_config_pager && status == llama_kv_pager_status::ok);
+    all_config_pager->set_routing_summary_provider({ nullptr, build_routing_summary });
+    const uint64_t saved_all_config_provider_calls = routing_provider_calls;
+    const uint64_t saved_all_config_source_bytes = routing_provider_source_bytes;
+    const size_t all_config_count = size_t(all_config_geometry.attention_layers) *
+        all_config_geometry.kv_heads;
+    routing_provider_calls = 0;
+    routing_provider_page_rebuilds = 0;
+    routing_provider_last_page = UINT32_MAX;
+    routing_provider_visits.clear();
+    for (llama_pos position = 0; position < 3 * 256; ++position) {
+        const auto begin_status = all_config_pager->begin_write(0, 1, position, ticket);
+        if (begin_status != llama_kv_pager_write_status::ok) {
+            std::cerr << "three_page_fixture_begin_failure position=" << position
+                      << " status=" << llama_kv_pager_write_status_name(begin_status) << "\n";
+        }
+        assert(begin_status == llama_kv_pager_write_status::ok);
+        assert(all_config_pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    routing_provider_fail_page = 1;
+    routing_provider_fail_layer = 0;
+    routing_provider_fail_head = 1;
+    assert(all_config_pager->seal_ready_pages() == 2);
+    assert(all_config_pager->catalogue_maintenance_pending());
+    assert(routing_provider_page_rebuilds == 3);
+    assert(routing_provider_visits.front().page == 0);
+    assert(routing_provider_visits[all_config_count].page == 1);
+    assert(routing_provider_visits[all_config_count + 1].layer == 0 &&
+            routing_provider_visits[all_config_count + 1].head == 1);
+    const auto * before_retry_store = all_config_pager->routing_summary_index().find(0, 0);
+    assert(before_retry_store != nullptr);
+    assert(before_retry_store->range_min(0) != nullptr);
+    assert(before_retry_store->range_min(1) == nullptr);
+    assert(before_retry_store->range_min(2) != nullptr);
+    routing_provider_fail_page = UINT32_MAX;
+    routing_provider_fail_layer = UINT32_MAX;
+    routing_provider_fail_head = UINT32_MAX;
+    const uint64_t before_retry_rebuilds = routing_provider_page_rebuilds;
+    assert(all_config_pager->seal_ready_pages() == 1);
+    assert(!all_config_pager->catalogue_maintenance_pending());
+    assert(routing_provider_page_rebuilds == before_retry_rebuilds + 1);
+    assert(all_config_pager->routing_summary_index().table_count() == all_config_count);
+    const auto * numeric_store = all_config_pager->routing_summary_index().find(0, 0);
+    assert(numeric_store != nullptr);
+    for (uint32_t page_index = 0; page_index < 3; ++page_index) {
+        const auto * mins = numeric_store->range_min(page_index);
+        const auto * maxs = numeric_store->range_max(page_index);
+        const auto * means = numeric_store->mean_k(page_index);
+        assert(mins != nullptr && maxs != nullptr && means != nullptr);
+        for (uint32_t block = 0; block < 4; ++block) {
+            for (uint32_t dim = 0; dim < all_config_geometry.key_length; ++dim) {
+                const size_t index = size_t(block) * all_config_geometry.key_length + dim;
+                const float scalar = float(page_index * 10 + block + dim % 4);
+                assert((*mins)[index] == scalar);
+                assert((*maxs)[index] == scalar + 1.0f);
+                if (block == 0) assert((*means)[dim] == scalar + 0.5f);
+            }
+        }
+    }
+    std::cout << "summary_page_major_atomic=pass changed_pages=3 configurations="
+              << all_config_count << " page_rebuilds=3 middle_config_failure_retry=pass "
+              << "ranges_means=scalar_oracle\n";
+    routing_provider_calls = saved_all_config_provider_calls;
+    routing_provider_source_bytes = saved_all_config_source_bytes;
 
     // Extending the tail advances only that page's content version. The
     // already-clean page is neither sampled nor republished.

@@ -1717,6 +1717,12 @@ private:
     struct pager_summary_cache {
         llama_kv_page_id identity;
         uint64_t content_version = 0;
+        llama_kv_routing_summary_form form = llama_kv_routing_summary_form::representatives;
+        uint32_t vector_dim = 0;
+        uint32_t subblock_tokens = 0;
+        uint64_t coordinate_identity = 0;
+        uint64_t rebuild_source_bytes = 0;
+        bool source_bytes_charged = false;
         bool valid = false;
         std::vector<pager_summary_cache_item> items;
     };
