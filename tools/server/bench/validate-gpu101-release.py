@@ -103,8 +103,8 @@ def main() -> int:
                                   ("page_tokens", 256), ("batch", 1024), ("ubatch", 256)):
                 if geometry.get(key) != expected:
                     errors.append(f"goal_miss geometry {key} must be {expected}")
-            if receipt.get("decision_task") not in {"101-12b", "101-12d"}:
-                errors.append("completed goal_miss must identify the canonical decision or retest task")
+            if receipt.get("decision_task") not in {"101-12b", "101-12d", "101-12e", "101-12h"}:
+                errors.append("completed goal_miss must identify the canonical decision, retest, or final review task")
         else:
             if selected.get("status") != "failed_before_complete_matrix":
                 errors.append("legacy incomplete goal_miss must state the selected matrix did not complete")
