@@ -71,33 +71,52 @@ def main() -> int:
                 scale_pos = positions.get("102-01")
                 if seq != sorted(seq) or scale_pos is None or seq[-1] + 1 != scale_pos:
                     errors.append("successors must be ordered immediately before 102-01")
+                predecessor = receipt.get("decision_task", "101-12")
                 for i, task_id in enumerate(ids):
                     task = tasks[positions[task_id]]
                     if task.get("status") in {"done", "deferred"}:
                         errors.append(f"{task_id}: successor is not runnable")
-                    expected = ["101-12"] if i == 0 else [ids[i - 1]]
+                    expected = [predecessor] if i == 0 else [ids[i - 1]]
                     if task.get("depends_on") != expected:
                         errors.append(f"{task_id}: dependency must be {expected}")
-            selected = receipt.get("selected", {})
+        selected = receipt.get("selected", {})
+        prompts = selected.get("per_prompt", {})
+        if set(prompts) != {"prompt_1", "prompt_2", "prompt_3"}:
+            errors.append("goal_miss requires all three selected prompt dispositions")
+        if receipt.get("measurement_complete"):
+            if selected.get("status") != "complete":
+                errors.append("completed goal_miss requires the full selected matrix")
+            for prompt_id, row in prompts.items():
+                if row.get("status") != "measured_goal_miss" or row.get("measured_samples") != 3 or row.get("errors") != 0:
+                    errors.append(f"{prompt_id}: completed selected rows must be error-free with three samples")
+                if not isinstance(row.get("fresh_prefill_tok_s_median"), (int, float)):
+                    errors.append(f"{prompt_id}: completed selected prefill median is missing")
+                if not isinstance(row.get("decode_tok_s_median"), (int, float)):
+                    errors.append(f"{prompt_id}: completed selected decode median is missing")
+                if not isinstance(row.get("mtp_acceptance_percent_median"), (int, float)):
+                    errors.append(f"{prompt_id}: completed selected MTP median is missing")
+            geometry = receipt.get("identity", {})
+            for key, expected in (("context_tokens", 8192), ("hot_tokens", 4096),
+                                  ("page_tokens", 256), ("batch", 1024), ("ubatch", 256)):
+                if geometry.get(key) != expected:
+                    errors.append(f"goal_miss geometry {key} must be {expected}")
+            if receipt.get("decision_task") != "101-12b":
+                errors.append("completed goal_miss must identify decision_task=101-12b")
+        else:
             if selected.get("status") != "failed_before_complete_matrix":
-                errors.append("goal_miss must state the selected matrix did not complete")
-            prompts = selected.get("per_prompt", {})
-            if set(prompts) != {"prompt_1", "prompt_2", "prompt_3"}:
-                errors.append("goal_miss requires all three selected prompt dispositions")
+                errors.append("legacy incomplete goal_miss must state the selected matrix did not complete")
             for prompt_id, row in prompts.items():
                 if row.get("measured_rows_completed") != 0 or row.get("prefill_tok_s") is not None:
                     errors.append(f"{prompt_id}: failed selected campaign cannot claim a median")
             if not str(selected.get("per_prompt", {}).get("prompt_1", {}).get("failure", "")).startswith("KV pager batch write reservation failed: no_victim"):
-                errors.append("goal_miss lacks the measured H4096 reservation failure")
+                errors.append("legacy goal_miss lacks the measured H4096 reservation failure")
             key = receipt.get("key_failure_artifacts", [])
             if not key:
-                errors.append("goal_miss requires hashed raw failure artifacts")
+                errors.append("legacy goal_miss requires hashed raw failure artifacts")
             for item in key:
                 path = Path(item.get("path", ""))
                 if not path.is_file() or digest(path) != item.get("sha256"):
                     errors.append(f"missing or changed raw failure artifact: {path}")
-                elif item not in key[:2] and path.name != "off-measured-1-p0.json":
-                    errors.append(f"unexpected diagnostic artifact: {path}")
         for name in ("pager_off_all_gpu", "cpu_main_kv_gpu_mtp"):
             control = receipt.get("controls", {}).get(name, {})
             rows = control.get("per_prompt", {})

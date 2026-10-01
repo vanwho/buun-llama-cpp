@@ -1,17 +1,56 @@
 {
   "schema_version": 1,
   "task": "101-12",
+  "decision_task": "101-12b",
+  "measurement_complete": true,
   "goal_status": "goal_miss",
-  "decision": "Canonical selected suite stopped after the first measured 400-token request failed at H4096 following warmup and slot erase. No selected three-prompt median is released; scale remains gated.",
+  "decision": "The corrected candidate completed all selected and matched control rows without errors. Every selected prefill median missed 500 tok/s; selected MTP missed prompts 1 and 3. Decode beat ordinary CPU-KV on all prompts, but the conjunctive release gate fails. Scale remains gated pending the scheduled repair, retest and repeated review chain.",
   "identity": {
-    "source_commit": "d1886106498436b5c90b229b094849cacbe8f118",
+    "source_commit": "8914d9e1b2dc86637e1d4d07770ffc5fa0dd988a",
     "binary": {
       "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
-      "sha256": "8257299b22690a7a7e25bd747a86f287b79487629d7b9b51942119d77ef1fe4f"
+      "sha256": "a464e9099821b424fe8e637b4bc325c38d6d2a7453ec22832310b67f4fba1fba"
     },
     "model": {
       "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
       "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "backend_reported_version": "version: 0.5.0-dev (build 14141, commit 75d0aba47) built with GNU 15.2.0 for Linux x86_64",
+    "backend_reported_source_commit": "75d0aba47c898386be9ec4c2107b607156ccc92d",
+    "candidate_runtime_identity": {
+      "profile": "qwen38-fast",
+      "pid": 1610667,
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --slot-save-path /srv/ai/paged-kv/data/sessions/hybrid-fast --cache-idle-slots --kv-unified --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "context": "8192",
+      "batch": "1024",
+      "ubatch": "256",
+      "target_kv_placement": "gpu",
+      "no_kv_offload": false,
+      "pager_mode": "selective",
+      "page_size_tokens": "256",
+      "mtp_placement": "gpu",
+      "mtp_type_k": "turbo4",
+      "mtp_type_v": "turbo4",
+      "spec_type": "draft-mtp",
+      "spec_draft_n_max": 2,
+      "loaded_dsos": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+      ],
+      "hot_pages": "16",
+      "vram_budget": null,
+      "host_budget": null,
+      "safety_headroom": null,
+      "pin_recent": null
     },
     "context_tokens": 8192,
     "hot_tokens": 4096,
@@ -19,7 +58,8 @@
     "page_tokens": 256,
     "batch": 1024,
     "ubatch": 256,
-    "route": "automatic selective pager; target and native MTP draft Turbo4 on GPU; nmax=2",
+    "route": "automatic selected pager route (mode selective; runtime metrics observed selected dense on the corrected smoke)",
+    "mtp": "native GPU target/draft Turbo4, draft nmax2",
     "prefix": {
       "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json",
       "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
@@ -30,22 +70,6 @@
         4113
       ],
       "cache_tokens_required": 0
-    },
-    "candidate_run_identity": {
-      "profile": "qwen38-fast",
-      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
-      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
-      "pid": 1533968,
-      "context": "8192",
-      "hot_pages": "16",
-      "page_size_tokens": "256",
-      "batch": "1024",
-      "ubatch": "256",
-      "pager_mode": "selective",
-      "mtp_placement": "gpu",
-      "mtp_type_k": "turbo4",
-      "mtp_type_v": "turbo4",
-      "spec_draft_n_max": 2
     }
   },
   "canonical_protocol": {
@@ -56,246 +80,725 @@
     ],
     "warmup_outputs": 40,
     "measured_outputs_per_prompt": 400,
+    "measured_rows_per_prompt": 3,
     "temperature": 0,
     "reasoning": "off",
-    "fresh_slot_each_row": true
-  },
-  "selected": {
-    "status": "failed_before_complete_matrix",
-    "per_prompt": {
+    "fresh_slot_each_row": true,
+    "shared_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+    "selected_request_actual_tokens": {
       "prompt_1": {
-        "warmup": "passed at 4115 fresh input tokens",
-        "measured_rows_completed": 0,
-        "first_measured": "failed",
-        "failure": "KV pager batch write reservation failed: no_victim sequence=0 positions=4085..4105 rows=21 frozen_history_pages=0 phase=1",
-        "prefill_tok_s": null,
-        "decode_tok_s": null,
-        "mtp_acceptance_percent": null
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "cached_input_tokens": [
+          0,
+          0,
+          0
+        ]
       },
       "prompt_2": {
-        "warmup": "not_run_after_prompt_1_failure",
-        "measured_rows_completed": 0,
-        "prefill_tok_s": null,
-        "decode_tok_s": null,
-        "mtp_acceptance_percent": null
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "output_tokens": [
+          160,
+          223,
+          167
+        ],
+        "cached_input_tokens": [
+          0,
+          0,
+          0
+        ]
       },
       "prompt_3": {
-        "warmup": "not_run_after_prompt_1_failure",
-        "measured_rows_completed": 0,
-        "prefill_tok_s": null,
-        "decode_tok_s": null,
-        "mtp_acceptance_percent": null
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "cached_input_tokens": [
+          0,
+          0,
+          0
+        ]
       }
-    },
-    "diagnostics": {
-      "isolated_fresh_400": {
-        "prefill_tok_s": 267.17285155045306,
-        "decode_tok_s": 31.621099658214746,
-        "mtp_acceptance_percent": 38.76923077,
-        "canonical_warmup_reset_sequence": false
+    }
+  },
+  "selected": {
+    "status": "complete",
+    "per_prompt": {
+      "prompt_1": {
+        "prompt_index": 0,
+        "status": "measured_goal_miss",
+        "measured_samples": 3,
+        "errors": 0,
+        "fresh_prefill_tok_s_median": 332.3867379064741,
+        "decode_tok_s_median": 36.99857198494093,
+        "ttft_seconds_median": 10.597048168012407,
+        "ttft_status": "supplementary fresh 400-token selected request; accurately timed to first content delta",
+        "mtp_acceptance_percent_median": 56.1461794,
+        "mtp_raw_draft_tokens": [
+          325,
+          272,
+          301
+        ],
+        "mtp_raw_accepted_tokens": [
+          125,
+          235,
+          169
+        ],
+        "mtp_raw_acceptance_percent": [
+          38.46153846,
+          86.39705882,
+          56.1461794
+        ],
+        "actual_input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "actual_output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "cached_input_tokens": [
+          0,
+          0,
+          0
+        ],
+        "request_seconds": [
+          23.23463,
+          20.421378,
+          23.171846
+        ],
+        "cpu_decode_tok_s_median": 25.589163912951378,
+        "dense_gpu_decode_tok_s_median": 84.25672086662273,
+        "selected_vs_cpu_decode_ratio": 1.4458687322024983,
+        "selected_vs_dense_gpu_decode_ratio": 0.43911716008399115,
+        "prefill_gate_pass": false,
+        "mtp_gate_floor": 75,
+        "mtp_gate_pass": false,
+        "decode_beats_cpu_kv": true,
+        "ttft_supplementary_probe_seconds": 10.597048168012407,
+        "request_local_pager_metrics": {
+          "llamacpp:kv_pager_seal_pages_scanned": 185.0,
+          "llamacpp:kv_pager_physical_write_capacity": -3840.0,
+          "llamacpp:kv_pager_host_valid_bytes": 67617800.0,
+          "llamacpp:kv_pager_target_tokens_processed": 4710.0,
+          "llamacpp:kv_pager_prefill_direct_routes": 15.0,
+          "llamacpp:kv_pager_acceptance_denominator": 325.0,
+          "llamacpp:kv_pager_graph_rebuild_count": 220.0,
+          "llamacpp:kv_pager_request_generation": 1.0,
+          "llamacpp:kv_pager_host_seal_d2h_bytes": 76269000.0,
+          "llamacpp:kv_pager_graph_submission_count": 290.0,
+          "llamacpp:kv_pager_seal_pages_changed": 17.0,
+          "llamacpp:kv_pager_acceptance_verification_steps": 163.0,
+          "llamacpp:kv_pager_snapshot_monotonic_us": 23000000.0,
+          "llamacpp:kv_pager_table_epoch": 9645.0,
+          "llamacpp:kv_pager_attention_trace_id": 15.0,
+          "llamacpp:kv_pager_waits": 290.0,
+          "llamacpp:kv_pager_slot_generation": 1.0,
+          "llamacpp:kv_pager_shape_epoch": 3.36037e+18,
+          "llamacpp:kv_pager_predicted_tokens": 325.0,
+          "llamacpp:kv_pager_emitted_tokens": 400.0,
+          "llamacpp:kv_pager_accepted_tokens": 129.0,
+          "llamacpp:kv_pager_graph_completion_count": 290.0,
+          "llamacpp:kv_pager_packed_copy_reuses": 2278.0,
+          "llamacpp:kv_pager_wait_time_us": 6896840.0,
+          "llamacpp:kv_pager_packed_copy_rows": 420222.0,
+          "llamacpp:kv_pager_valid_bytes": 67617800.0,
+          "llamacpp:kv_pager_host_metadata_bytes": 437528.0,
+          "llamacpp:kv_pager_graph_replay_count": 70.0,
+          "llamacpp:kv_pager_queue_time_us": 1474020.0,
+          "llamacpp:kv_pager_graph_construction_us": 375.0,
+          "llamacpp:kv_pager_seal_calls": 21.0,
+          "llamacpp:kv_pager_host_seal_d2h_calls": 1696.0,
+          "llamacpp:kv_pager_host_pageable_bytes": 76268500.0,
+          "llamacpp:kv_pager_host_pages": 16.0,
+          "llamacpp:kv_pager_table_rebuilds": 220.0,
+          "llamacpp:kv_pager_graph_capture_count": 220.0,
+          "llamacpp:kv_pager_attention_dropped_no_output": 15.0,
+          "llamacpp:kv_pager_resident_pages": 16.0,
+          "llamacpp:kv_pager_summary_build_calls": 1088.0,
+          "llamacpp:kv_pager_valid_rows": 4002.0,
+          "llamacpp:kv_pager_summary_build_bytes": 36765700.0,
+          "llamacpp:kv_pager_prefill_packed_routes": 5.0,
+          "llamacpp:kv_pager_host_seal_queued": 17.0,
+          "llamacpp:kv_pager_host_valid_rows": 4002.0,
+          "llamacpp:kv_pager_target_valid_bytes": 67617800.0,
+          "llamacpp:kv_pager_total_token_us": 18406810.0,
+          "llamacpp:kv_pager_descriptor_prepare_us": 21734.0,
+          "llamacpp:kv_pager_packed_copy_updates": 4461.0,
+          "llamacpp:kv_pager_store_copy_count": 192.0,
+          "llamacpp:kv_pager_target_valid_rows": 4002.0,
+          "llamacpp:kv_pager_table_epoch_changes": 290.0,
+          "llamacpp:kv_pager_mtp_verify_packed_routes": 163.0,
+          "llamacpp:kv_pager_host_seal_d2h_async_completions": 1696.0,
+          "llamacpp:kv_pager_inventory_copy_count": 3.0,
+          "llamacpp:kv_pager_table_upload_bytes": 24.0,
+          "llamacpp:kv_pager_attention_trace_epoch": 8383.0
+        },
+        "actual_route_supplementary_probe": {
+          "llamacpp:kv_pager_prefill_direct_routes": 15.0,
+          "llamacpp:kv_pager_prefill_packed_routes": 5.0,
+          "llamacpp:kv_pager_mtp_verify_direct_routes": 0.0,
+          "llamacpp:kv_pager_mtp_verify_packed_routes": 163.0
+        },
+        "supplementary_probe_actual_input_tokens": 4115,
+        "supplementary_probe_actual_output_tokens": 400,
+        "historical_h2d_useful_bytes_supplementary_probe": 0.0,
+        "ttft_seconds_supplementary_probe": 10.597048168012407
       },
-      "second_fresh_same_process": {
-        "prefill_tok_s": 267.201,
-        "decode_tok_s": 34.152,
-        "canonical_warmup_reset_sequence": false
+      "prompt_2": {
+        "prompt_index": 1,
+        "status": "measured_goal_miss",
+        "measured_samples": 3,
+        "errors": 0,
+        "fresh_prefill_tok_s_median": 388.4786234252421,
+        "decode_tok_s_median": 33.462222518728844,
+        "ttft_seconds_median": 12.442711299983785,
+        "ttft_status": "supplementary fresh 400-token selected request; accurately timed to first content delta",
+        "mtp_acceptance_percent_median": 45.0,
+        "mtp_raw_draft_tokens": [
+          120,
+          172,
+          126
+        ],
+        "mtp_raw_accepted_tokens": [
+          54,
+          70,
+          58
+        ],
+        "mtp_raw_acceptance_percent": [
+          45.0,
+          40.69767442,
+          46.03174603
+        ],
+        "actual_input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "actual_output_tokens": [
+          160,
+          223,
+          167
+        ],
+        "cached_input_tokens": [
+          0,
+          0,
+          0
+        ],
+        "request_seconds": [
+          15.343461,
+          17.43627,
+          15.532848
+        ],
+        "cpu_decode_tok_s_median": 18.622098520937037,
+        "dense_gpu_decode_tok_s_median": 62.854341349357,
+        "selected_vs_cpu_decode_ratio": 1.7969093269003429,
+        "selected_vs_dense_gpu_decode_ratio": 0.5323772678284722,
+        "prefill_gate_pass": false,
+        "mtp_gate_floor": 40,
+        "mtp_gate_pass": true,
+        "decode_beats_cpu_kv": true,
+        "ttft_supplementary_probe_seconds": 12.442711299983785,
+        "request_local_pager_metrics": {
+          "llamacpp:kv_pager_seal_pages_scanned": 153.0,
+          "llamacpp:kv_pager_physical_write_capacity": 3840.0,
+          "llamacpp:kv_pager_host_valid_bytes": 67702300.0,
+          "llamacpp:kv_pager_target_tokens_processed": 4317.0,
+          "llamacpp:kv_pager_prefill_direct_routes": 15.0,
+          "llamacpp:kv_pager_acceptance_denominator": 114.0,
+          "llamacpp:kv_pager_graph_rebuild_count": 75.0,
+          "llamacpp:kv_pager_request_generation": 1.0,
+          "llamacpp:kv_pager_host_seal_d2h_bytes": 72027000.0,
+          "llamacpp:kv_pager_graph_submission_count": 111.0,
+          "llamacpp:kv_pager_seal_pages_changed": 16.0,
+          "llamacpp:kv_pager_acceptance_verification_steps": 57.0,
+          "llamacpp:kv_pager_snapshot_monotonic_us": 16000000.0,
+          "llamacpp:kv_pager_table_epoch": 8742.0,
+          "llamacpp:kv_pager_attention_trace_id": 15.0,
+          "llamacpp:kv_pager_waits": 111.0,
+          "llamacpp:kv_pager_slot_generation": 1.0,
+          "llamacpp:kv_pager_shape_epoch": -3.36037e+18,
+          "llamacpp:kv_pager_predicted_tokens": 114.0,
+          "llamacpp:kv_pager_emitted_tokens": 151.0,
+          "llamacpp:kv_pager_accepted_tokens": 60.0,
+          "llamacpp:kv_pager_graph_completion_count": 111.0,
+          "llamacpp:kv_pager_packed_copy_reuses": 738.0,
+          "llamacpp:kv_pager_wait_time_us": 3622570.0,
+          "llamacpp:kv_pager_packed_copy_rows": 350856.0,
+          "llamacpp:kv_pager_valid_bytes": 67702300.0,
+          "llamacpp:kv_pager_host_metadata_bytes": 413220.0,
+          "llamacpp:kv_pager_graph_replay_count": 36.0,
+          "llamacpp:kv_pager_queue_time_us": 706950.0,
+          "llamacpp:kv_pager_graph_construction_us": 153.0,
+          "llamacpp:kv_pager_seal_calls": 19.0,
+          "llamacpp:kv_pager_host_seal_d2h_calls": 1600.0,
+          "llamacpp:kv_pager_host_pageable_bytes": 72027600.0,
+          "llamacpp:kv_pager_host_pages": 16.0,
+          "llamacpp:kv_pager_table_rebuilds": 75.0,
+          "llamacpp:kv_pager_graph_capture_count": 75.0,
+          "llamacpp:kv_pager_attention_dropped_no_output": 15.0,
+          "llamacpp:kv_pager_resident_pages": 16.0,
+          "llamacpp:kv_pager_summary_build_calls": 1024.0,
+          "llamacpp:kv_pager_valid_rows": 4007.0,
+          "llamacpp:kv_pager_summary_build_bytes": 34603300.0,
+          "llamacpp:kv_pager_prefill_packed_routes": 5.0,
+          "llamacpp:kv_pager_host_seal_queued": 16.0,
+          "llamacpp:kv_pager_host_valid_rows": 4007.0,
+          "llamacpp:kv_pager_target_valid_bytes": 67702300.0,
+          "llamacpp:kv_pager_total_token_us": 11734400.0,
+          "llamacpp:kv_pager_descriptor_prepare_us": 9655.0,
+          "llamacpp:kv_pager_packed_copy_updates": 1984.0,
+          "llamacpp:kv_pager_store_copy_count": 128.0,
+          "llamacpp:kv_pager_target_valid_rows": 4007.0,
+          "llamacpp:kv_pager_table_epoch_changes": 111.0,
+          "llamacpp:kv_pager_mtp_verify_packed_routes": 57.0,
+          "llamacpp:kv_pager_host_seal_d2h_async_completions": 1600.0,
+          "llamacpp:kv_pager_inventory_copy_count": 2.0,
+          "llamacpp:kv_pager_table_upload_bytes": 24.0,
+          "llamacpp:kv_pager_attention_trace_epoch": 9642.0
+        },
+        "actual_route_supplementary_probe": {
+          "llamacpp:kv_pager_prefill_direct_routes": 15.0,
+          "llamacpp:kv_pager_prefill_packed_routes": 5.0,
+          "llamacpp:kv_pager_mtp_verify_direct_routes": 0.0,
+          "llamacpp:kv_pager_mtp_verify_packed_routes": 57.0
+        },
+        "supplementary_probe_actual_input_tokens": 4112,
+        "supplementary_probe_actual_output_tokens": 151,
+        "historical_h2d_useful_bytes_supplementary_probe": 0.0,
+        "ttft_seconds_supplementary_probe": 12.442711299983785
+      },
+      "prompt_3": {
+        "prompt_index": 2,
+        "status": "measured_goal_miss",
+        "measured_samples": 3,
+        "errors": 0,
+        "fresh_prefill_tok_s_median": 332.169890725555,
+        "decode_tok_s_median": 34.90851519299072,
+        "ttft_seconds_median": 10.58767350204289,
+        "ttft_status": "supplementary fresh 400-token selected request; accurately timed to first content delta",
+        "mtp_acceptance_percent_median": 51.0,
+        "mtp_raw_draft_tokens": [
+          278,
+          300,
+          308
+        ],
+        "mtp_raw_accepted_tokens": [
+          215,
+          153,
+          150
+        ],
+        "mtp_raw_acceptance_percent": [
+          77.3381295,
+          51.0,
+          48.7012987
+        ],
+        "actual_input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "actual_output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "cached_input_tokens": [
+          0,
+          0,
+          0
+        ],
+        "request_seconds": [
+          19.398168,
+          23.818662,
+          23.998936
+        ],
+        "cpu_decode_tok_s_median": 21.405371546553113,
+        "dense_gpu_decode_tok_s_median": 71.3692759023518,
+        "selected_vs_cpu_decode_ratio": 1.6308296782922231,
+        "selected_vs_dense_gpu_decode_ratio": 0.4891252538522728,
+        "prefill_gate_pass": false,
+        "mtp_gate_floor": 60,
+        "mtp_gate_pass": false,
+        "decode_beats_cpu_kv": true,
+        "ttft_supplementary_probe_seconds": 10.58767350204289,
+        "request_local_pager_metrics": {
+          "llamacpp:kv_pager_seal_pages_scanned": 185.0,
+          "llamacpp:kv_pager_physical_write_capacity": -3840.0,
+          "llamacpp:kv_pager_host_valid_bytes": 67584000.0,
+          "llamacpp:kv_pager_target_tokens_processed": 4616.0,
+          "llamacpp:kv_pager_prefill_direct_routes": 15.0,
+          "llamacpp:kv_pager_acceptance_denominator": 288.0,
+          "llamacpp:kv_pager_graph_rebuild_count": 148.0,
+          "llamacpp:kv_pager_request_generation": 1.0,
+          "llamacpp:kv_pager_host_seal_d2h_bytes": 76235000.0,
+          "llamacpp:kv_pager_graph_submission_count": 235.0,
+          "llamacpp:kv_pager_seal_pages_changed": 17.0,
+          "llamacpp:kv_pager_acceptance_verification_steps": 144.0,
+          "llamacpp:kv_pager_snapshot_monotonic_us": 20000000.0,
+          "llamacpp:kv_pager_table_epoch": 9438.0,
+          "llamacpp:kv_pager_attention_trace_id": 15.0,
+          "llamacpp:kv_pager_waits": 235.0,
+          "llamacpp:kv_pager_slot_generation": 1.0,
+          "llamacpp:kv_pager_shape_epoch": 3.36037e+18,
+          "llamacpp:kv_pager_predicted_tokens": 288.0,
+          "llamacpp:kv_pager_emitted_tokens": 400.0,
+          "llamacpp:kv_pager_accepted_tokens": 184.0,
+          "llamacpp:kv_pager_graph_completion_count": 235.0,
+          "llamacpp:kv_pager_packed_copy_reuses": 2708.0,
+          "llamacpp:kv_pager_wait_time_us": 6027000.0,
+          "llamacpp:kv_pager_packed_copy_rows": 361550.0,
+          "llamacpp:kv_pager_valid_bytes": 67584000.0,
+          "llamacpp:kv_pager_host_metadata_bytes": 437520.0,
+          "llamacpp:kv_pager_graph_replay_count": 87.0,
+          "llamacpp:kv_pager_queue_time_us": 1098440.0,
+          "llamacpp:kv_pager_graph_construction_us": 286.0,
+          "llamacpp:kv_pager_seal_calls": 21.0,
+          "llamacpp:kv_pager_host_seal_d2h_calls": 1696.0,
+          "llamacpp:kv_pager_host_pageable_bytes": 76234800.0,
+          "llamacpp:kv_pager_host_pages": 16.0,
+          "llamacpp:kv_pager_table_rebuilds": 148.0,
+          "llamacpp:kv_pager_graph_capture_count": 148.0,
+          "llamacpp:kv_pager_attention_dropped_no_output": 15.0,
+          "llamacpp:kv_pager_resident_pages": 16.0,
+          "llamacpp:kv_pager_summary_build_calls": 1088.0,
+          "llamacpp:kv_pager_valid_rows": 4000.0,
+          "llamacpp:kv_pager_summary_build_bytes": 36765000.0,
+          "llamacpp:kv_pager_prefill_packed_routes": 5.0,
+          "llamacpp:kv_pager_host_seal_queued": 17.0,
+          "llamacpp:kv_pager_host_valid_rows": 4000.0,
+          "llamacpp:kv_pager_target_valid_bytes": 67584000.0,
+          "llamacpp:kv_pager_total_token_us": 16382100.0,
+          "llamacpp:kv_pager_descriptor_prepare_us": 14602.0,
+          "llamacpp:kv_pager_packed_copy_updates": 3014.0,
+          "llamacpp:kv_pager_store_copy_count": 192.0,
+          "llamacpp:kv_pager_target_valid_rows": 4000.0,
+          "llamacpp:kv_pager_table_epoch_changes": 235.0,
+          "llamacpp:kv_pager_mtp_verify_packed_routes": 144.0,
+          "llamacpp:kv_pager_host_seal_d2h_async_completions": 1696.0,
+          "llamacpp:kv_pager_inventory_copy_count": 3.0,
+          "llamacpp:kv_pager_table_upload_bytes": 24.0,
+          "llamacpp:kv_pager_attention_trace_epoch": 8745.0
+        },
+        "actual_route_supplementary_probe": {
+          "llamacpp:kv_pager_prefill_direct_routes": 15.0,
+          "llamacpp:kv_pager_prefill_packed_routes": 5.0,
+          "llamacpp:kv_pager_mtp_verify_direct_routes": 0.0,
+          "llamacpp:kv_pager_mtp_verify_packed_routes": 144.0
+        },
+        "supplementary_probe_actual_input_tokens": 4113,
+        "supplementary_probe_actual_output_tokens": 400,
+        "historical_h2d_useful_bytes_supplementary_probe": 0.0,
+        "ttft_seconds_supplementary_probe": 10.58767350204289
       }
     },
-    "runtime_geometry_from_candidate_identity": "L8192/H4096/P256, actual hot_pages=16; C=4112..4115 > H; all measured prefix cached_tokens=0 before the reservation failure."
+    "measurement_summary": "all three prompts have 3 measured rows, 0 cached tokens per row, and 0 errors",
+    "request_local_metrics": "Supplementary fresh measured requests after each canonical matrix, one per prompt with 400-token cap, captured exact TTFT and before/after Prometheus deltas for pager, replay, H2D, transfer, queue, routing, summary and scratch fields. These rows are telemetry attribution only and do not replace the 3-sample selected medians."
   },
   "controls": {
     "pager_off_all_gpu": {
       "status": "complete",
-      "geometry": "L8192/B1024/U256, page size 256, all-GPU, pager off, Turbo4 target and GPU native MTP nmax2",
+      "geometry": "L8192/B1024/U256, page size 256, all-GPU, pager off, Turbo4 target/draft, nmax2",
       "per_prompt": {
         "prompt_1": {
           "prompt_index": 0,
           "errors": 0,
-          "fresh_prefill_tok_s_median": 1632.238272675419,
-          "decode_tok_s_median": 84.34214798030678,
+          "fresh_prefill_tok_s_median": 1568.8986712591109,
+          "decode_tok_s_median": 84.25672086662273,
           "mtp_acceptance_percent_median": 78.19548872,
-          "samples": 3
+          "samples": 3,
+          "actual_input_tokens": [
+            4115,
+            4115,
+            4115
+          ],
+          "actual_output_tokens": [
+            379,
+            379,
+            386
+          ]
         },
         "prompt_2": {
           "prompt_index": 1,
           "errors": 0,
-          "fresh_prefill_tok_s_median": 1631.9934212249634,
-          "decode_tok_s_median": 62.758737157280244,
+          "fresh_prefill_tok_s_median": 1566.0824326074207,
+          "decode_tok_s_median": 62.854341349357,
           "mtp_acceptance_percent_median": 51.61290323,
-          "samples": 3
+          "samples": 3,
+          "actual_input_tokens": [
+            4112,
+            4112,
+            4112
+          ],
+          "actual_output_tokens": [
+            168,
+            166,
+            166
+          ]
         },
         "prompt_3": {
           "prompt_index": 2,
           "errors": 0,
-          "fresh_prefill_tok_s_median": 1632.9392390177588,
-          "decode_tok_s_median": 71.24645040006041,
+          "fresh_prefill_tok_s_median": 1569.549593073375,
+          "decode_tok_s_median": 71.3692759023518,
           "mtp_acceptance_percent_median": 63.32179931,
-          "samples": 3
+          "samples": 3,
+          "actual_input_tokens": [
+            4113,
+            4113,
+            4113
+          ],
+          "actual_output_tokens": [
+            400,
+            400,
+            400
+          ]
         }
       }
     },
     "cpu_main_kv_gpu_mtp": {
       "status": "complete",
-      "geometry": "L8192/B1024/U256, ordinary CPU main KV, GPU native MTP nmax2, Turbo4",
+      "geometry": "L8192/B1024/U256, page size 256, ordinary CPU main-KV, GPU native MTP, Turbo4 target/draft, nmax2",
       "per_prompt": {
         "prompt_1": {
           "prompt_index": 0,
           "errors": 0,
-          "fresh_prefill_tok_s_median": 674.2934748055118,
-          "decode_tok_s_median": 24.56204596101078,
+          "fresh_prefill_tok_s_median": 659.0159954312494,
+          "decode_tok_s_median": 25.589163912951378,
           "mtp_acceptance_percent_median": 80.37037037,
-          "samples": 3
+          "samples": 3,
+          "actual_input_tokens": [
+            4115,
+            4115,
+            4115
+          ],
+          "actual_output_tokens": [
+            386,
+            386,
+            386
+          ]
         },
         "prompt_2": {
           "prompt_index": 1,
           "errors": 0,
-          "fresh_prefill_tok_s_median": 675.1131331668864,
-          "decode_tok_s_median": 18.361799803825612,
+          "fresh_prefill_tok_s_median": 664.2814782912263,
+          "decode_tok_s_median": 18.622098520937037,
           "mtp_acceptance_percent_median": 50.0,
-          "samples": 3
+          "samples": 3,
+          "actual_input_tokens": [
+            4112,
+            4112,
+            4112
+          ],
+          "actual_output_tokens": [
+            168,
+            168,
+            168
+          ]
         },
         "prompt_3": {
           "prompt_index": 2,
           "errors": 0,
-          "fresh_prefill_tok_s_median": 673.7937322930512,
-          "decode_tok_s_median": 21.291161110536294,
+          "fresh_prefill_tok_s_median": 653.4009176208074,
+          "decode_tok_s_median": 21.405371546553113,
           "mtp_acceptance_percent_median": 65.03496503,
-          "samples": 3
+          "samples": 3,
+          "actual_input_tokens": [
+            4113,
+            4113,
+            4113
+          ],
+          "actual_output_tokens": [
+            400,
+            400,
+            400
+          ]
         }
       }
     }
   },
-  "raw_runs": {
+  "comparisons": {
+    "cpu_kv": "Selected decode exceeds CPU-KV decode for all three prompts; ratios are in selected.per_prompt.*.selected_vs_cpu_decode_ratio.",
+    "dense_gpu": "Selected decode and prefill trail the matched all-GPU control for all three prompts; prompt-specific decode ratios are in selected.per_prompt.*.selected_vs_dense_gpu_decode_ratio.",
+    "three_x": "No 3x selected speed claim is supported; measured ratios are recorded explicitly."
+  },
+  "runtime_peaks": {
+    "pager_off_all_gpu": {
+      "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu.monitor.jsonl",
+      "sha256": "d1c02906b559a31e187119ebb56002bf9d4d9f3c1975bd0eb2889fa339e4881f",
+      "samples": 45,
+      "gpu_memory_used_mib_peak": 14509.0,
+      "server_process_rss_kib_peak": 3085360,
+      "server_process_pinned_kib_peak": 0,
+      "server_process_data_kib_peak": 6449520,
+      "raw_passive_prometheus_samples": true
+    },
+    "cpu_main_kv_gpu_mtp": {
+      "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp.monitor.jsonl",
+      "sha256": "bea544892e26ca7911bcba4b976d0c386a26bbd0c2801953f10200b29598bc11",
+      "samples": 110,
+      "gpu_memory_used_mib_peak": 14509.0,
+      "server_process_rss_kib_peak": 14259528,
+      "server_process_pinned_kib_peak": 0,
+      "server_process_data_kib_peak": 6079692,
+      "raw_passive_prometheus_samples": true
+    },
     "selected": {
-      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k",
-      "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/run-config.json",
-        "sha256": "6685a54ef09dbbb22670fe24f8acf2891d8e3f23b3ffc947710cf28a5c9b53db"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/summary.json",
-        "sha256": "2437179185e98c3c59344bff6cc6583194deff103be45220d8ff2cbf34770198"
-      },
-      "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/records.jsonl",
-        "sha256": "9fa42545e5bccc4baffa957b54e58d10af2ea25157ad92716a9493c97fa13417"
-      }
-    },
-    "reproduction": {
-      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro",
-      "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/run-config.json",
-        "sha256": "1b943036454394215abe4f07c005d67fc62fb21dd40614c5960d44c8efa80450"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/summary.json",
-        "sha256": "21337d31971dc9c3c8e0a7b7416dfccdac30885ebb8b1fb04177e3fd9c6cc508"
-      },
-      "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/records.jsonl",
-        "sha256": "c2698083d1801bc1644496732d1af55ad80d70ecf76e19ab7170ce9780e86ef5"
-      }
-    },
-    "isolated": {
-      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request",
-      "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/run-config.json",
-        "sha256": "7b476c2f8588603fa30b00f80bd652b919ca1dfc58f26ba9f49bc34690e18991"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/summary.json",
-        "sha256": "f18b80ccf1d542e2bafa12e30aa401a8db2d24ba343d3c42867b59d1ff84b688"
-      },
-      "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/records.jsonl",
-        "sha256": "dbf4318df3673ef4e465df822c2251e2f6f81b01b54aeeeae508f9a8f4606cae"
-      }
-    },
-    "same_process_second": {
-      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh",
-      "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/run-config.json",
-        "sha256": "402910dffbb70bbc3f262bcbeccd6e1b911ddd52a30d93b354a9f90e626b3d81"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/summary.json",
-        "sha256": "2df1450aa65294ec3f364d2278b117826b59c18952fd9441c89ec94eefb478c8"
-      },
-      "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/records.jsonl",
-        "sha256": "a964d72875aab69ed144afa04b5b731c21a5a8f5d93f6408cd0dfa976105b670"
-      }
-    },
-    "all_gpu": {
-      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k",
-      "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/run-config.json",
-        "sha256": "d73b1a9471b5b8675f757dcb3df4e1c69d8b0e866bcbc7429f71fcf320b59ee4"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/summary.json",
-        "sha256": "271766ecba9f30aeda27bb7c49c5a6fc160bf554e414ecd2a9347a50f648f1df"
-      },
-      "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/records.jsonl",
-        "sha256": "6ef7f61b6f899d7bcaafb8defb3005ec9fc013c58c196e66999ea8083b03f2b4"
-      }
-    },
-    "cpu_kv": {
-      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k",
-      "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/run-config.json",
-        "sha256": "7d7241cc37e6776861cc1a705241ee3ead536eb83c2d0725db11ff80c68358b3"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/summary.json",
-        "sha256": "00ddf6d442317f75c930ec64fa53c94f719763bdb6bf55b83052f48602e80dcf"
-      },
-      "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/records.jsonl",
-        "sha256": "7ea1e5d80fd2c0c68faa60eeea0d23a798564ece3c0d00b3895eb2398365c3ed"
-      }
+      "status": "supplementary same-candidate selected telemetry probe, not a full-matrix sampler",
+      "monitor_samples": 30,
+      "gpu_memory_used_mib_peak": 14357.0,
+      "server_process_rss_kib_peak": 2412648,
+      "server_process_pinned_kib_peak": 0,
+      "server_process_data_kib_peak": 5776844,
+      "kv_pager_target_allocated_bytes": 69206000.0,
+      "kv_pager_live_allocation_peak_bytes": 69206000.0,
+      "kv_pager_scratch_high_water_bytes": 69206000.0,
+      "kv_pager_turbo4_scratch_bytes": 128.0,
+      "kv_pager_host_pinned_bytes": 0.0,
+      "raw_metrics_snapshot_path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/monitor.jsonl",
+      "raw_metrics_snapshot_sha256": "01607f0435dffa31ec06927304f65e1ddc07dda0e1db0b12a266754f653484ea"
     }
   },
-  "key_failure_artifacts": [
-    {
-      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/raw/off-measured-1-p0.json",
-      "sha256": "bad370901c2503e179a81fbdce0d6d24a7ea3a2764933e738dd1f04c41e28d99"
-    },
-    {
-      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/raw/off-measured-1-p0.json",
-      "sha256": "bad370901c2503e179a81fbdce0d6d24a7ea3a2764933e738dd1f04c41e28d99"
-    },
-    {
-      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/raw/off-measured-1-p0.json",
-      "sha256": "46b8826ee3063d2422011e7ed097de5001b833c23b9261715f97a15b5abefb47"
-    },
-    {
-      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/raw/off-measured-1-p0.json",
-      "sha256": "c3b924b6c42a0df19742c615e4f2fe5d851086caf6a45550d3f7d0bed7de784f"
-    }
-  ],
   "ordered_successors": [
-    "101-12a",
-    "101-12b"
+    "101-12c",
+    "101-12d",
+    "101-12e"
   ],
   "successor_contract": {
-    "101-12a": {
-      "kind": "source_repair_and_minimal_retest",
+    "101-12c": {
+      "kind": "source_directed_selected_prefill_repair",
       "depends_on": [
-        "101-12"
-      ],
-      "before_long_context_tests": true
+        "101-12b"
+      ]
     },
-    "101-12b": {
-      "kind": "canonical_speed_review",
+    "101-12d": {
+      "kind": "canonical_selected_and_matched_control_retest",
       "depends_on": [
-        "101-12a"
+        "101-12c"
+      ]
+    },
+    "101-12e": {
+      "kind": "repeated_speed_review_and_final_release_gate",
+      "depends_on": [
+        "101-12d"
       ],
-      "updates_scale_gate": "102-01 depends on 101-12b"
+      "updates_scale_gate": "102-01 depends on 101-12e"
+    }
+  },
+  "raw_runs": {
+    "selected": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/run-config.json",
+        "sha256": "3d599a317fbd80d6f26c74ba66039b0563f121c8ebf2be5d2da9a47144c9492f"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/summary.json",
+        "sha256": "c32efd2f254229da3e0f6e5861f1e4c84bc3c2ded8ddc29decf5a4cf1acd3da3"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-full/records.jsonl",
+        "sha256": "93dda113055ab78bc91bdb04a28cd11537a72ee12ab2b8b1ccd75f0f61b2373e"
+      },
+      "supplementary_warmup_smoke": {
+        "directory": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-smoke-corrected",
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-smoke-corrected/run-config.json",
+          "sha256": "18ff295e89cb3c355217faf45c77bb3737e440595239a908cf745c31a9b8a3f6"
+        },
+        "records": {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-smoke-corrected/records.jsonl",
+          "sha256": "4e132e8bf07cd920f18a45bd79e7895f08ae41bb87ea8600ed013c3c0ee6de0f"
+        }
+      },
+      "telemetry_probe": {
+        "directory": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented",
+        "probe_script": {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/probe.py",
+          "sha256": "b3e28e0052529cd43ba4f1b87aca0d75017b22cf0dafab52a5c0a8104113b105"
+        },
+        "records": {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/rows.jsonl",
+          "sha256": "b6e6f89b501d048a3b67f11e92ef55ac792f592910eb2eddb94f1530062e392d"
+        },
+        "monitor": {
+          "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/selected-instrumented/monitor.jsonl",
+          "sha256": "01607f0435dffa31ec06927304f65e1ddc07dda0e1db0b12a266754f653484ea"
+        }
+      }
+    },
+    "pager_off_all_gpu": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu/run-config.json",
+        "sha256": "707562e791129a6c1bd660593e1e6bd40632eaf2dc7374a59727e1208c161bdd"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu/summary.json",
+        "sha256": "7f7152c77f041b680c15febf89eea85969ce1fb9201646ca83176ba5d967559f"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu/records.jsonl",
+        "sha256": "df39a5250a1ae3b4f87f5decb907be17fa5e2ec167d7ab9d1e05762e16ad39e7"
+      },
+      "resource_monitor": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/pager-off-all-gpu.monitor.jsonl",
+        "sha256": "d1c02906b559a31e187119ebb56002bf9d4d9f3c1975bd0eb2889fa339e4881f",
+        "samples": 45,
+        "gpu_memory_used_mib_peak": 14509.0,
+        "server_process_rss_kib_peak": 3085360,
+        "server_process_pinned_kib_peak": 0,
+        "server_process_data_kib_peak": 6449520,
+        "raw_passive_prometheus_samples": true
+      }
+    },
+    "cpu_main_kv_gpu_mtp": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp/run-config.json",
+        "sha256": "9f97af64c09a9c4bef157cb99ad41f06a677e9183ae58c5b9501567a8bcbe4f5"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp/summary.json",
+        "sha256": "9eb5f6995af125ccf2fb9dc392df91d1d4e9218b843b2946ccd4c30de8327af7"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp/records.jsonl",
+        "sha256": "f3b3236c93ce9fb5ee66daac1fb1eb7347e7f25b9c76fdfcdb409d60647f260b"
+      },
+      "resource_monitor": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12b/attempt-01/cpu-main-kv-gpu-mtp.monitor.jsonl",
+        "sha256": "bea544892e26ca7911bcba4b976d0c386a26bbd0c2801953f10200b29598bc11",
+        "samples": 110,
+        "gpu_memory_used_mib_peak": 14509.0,
+        "server_process_rss_kib_peak": 14259528,
+        "server_process_pinned_kib_peak": 0,
+        "server_process_data_kib_peak": 6079692,
+        "raw_passive_prometheus_samples": true
+      }
     }
   },
   "deferred_verification": [
-    "Selected 3-prompt 3x400 matrix at the fixed H4096 geometry is deferred until 101-12a repairs the reservation failure.",
-    "Scale/occupancy task 102-01 is not released on goal_miss."
+    "102-01 scale/occupancy remains gated on goal_status=pass."
   ]
 }
