@@ -10,6 +10,7 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#include <tuple>
 #include <time.h>
 
 namespace {
@@ -111,6 +112,19 @@ uint64_t hash_id(uint64_t hash, const llama_kv_page_id & id) {
     hash = hash_mix(hash, id.meansub_digest);
     hash = hash_mix(hash, uint64_t(id.position_begin));
     return hash_mix(hash, uint64_t(id.position_end));
+}
+
+bool page_id_less(const llama_kv_page_id & a, const llama_kv_page_id & b) {
+    return std::tie(a.session_generation, a.sequence_id, a.sequence_generation,
+            a.logical_page, a.page_generation, a.representation_epoch,
+            a.model_identity, a.topology_identity, a.codec_digest,
+            a.codebook_digest, a.rotation_digest, a.meansub_digest,
+            a.position_begin, a.position_end) <
+        std::tie(b.session_generation, b.sequence_id, b.sequence_generation,
+            b.logical_page, b.page_generation, b.representation_epoch,
+            b.model_identity, b.topology_identity, b.codec_digest,
+            b.codebook_digest, b.rotation_digest, b.meansub_digest,
+            b.position_begin, b.position_end);
 }
 
 float fp16_outward_lower(float value) {
@@ -408,12 +422,14 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             page summary;
             summary.id = record.id;
             summary.content_version = record.content_version;
+            payload data;
+            data.has_radius = config.form == llama_kv_routing_summary_form::centroid_upper_bound;
             const uint64_t row_count = uint64_t(record.id.position_end - record.id.position_begin);
             const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
-                ? make_ranges(*it, row_count, config, summary.range_min,
-                    summary.range_max, summary.source_rows)
-                : make_vectors(*it, row_count, config, summary.vectors,
-                    summary.radius, summary.source_rows);
+                ? make_ranges(*it, row_count, config, data.range_min,
+                    data.range_max, data.source_rows)
+                : make_vectors(*it, row_count, config, data.vectors,
+                    data.radius, data.source_rows);
             if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
@@ -426,14 +442,31 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
                     status = llama_kv_routing_summary_status::invalid_page;
                     return {};
                 }
-                summary.vectors = it->mean_k_values;
+                data.vectors = it->mean_k_values;
             }
-            summary.source_bytes = it->source_bytes;
+            data.source_bytes = it->source_bytes;
+            uint64_t floats_hashed = 0;
+            summary.data = make_payload(std::move(data), floats_hashed);
+            if (!summary.data) {
+                status = llama_kv_routing_summary_status::invalid_page;
+                return {};
+            }
             result.pages_.push_back(std::move(summary));
         }
         if (result.pages_.empty()) {
             status = llama_kv_routing_summary_status::invalid_page;
             return {};
+        }
+        std::sort(result.pages_.begin(), result.pages_.end(),
+                [](const auto & a, const auto & b) { return page_id_less(a.id, b.id); });
+        result.accounting_.payload_floats_hashed = 0;
+        for (const auto & summary : result.pages_) {
+            if (!add(result.accounting_.payload_floats_hashed,
+                    summary.data->digest_float_count,
+                    result.accounting_.payload_floats_hashed)) {
+                status = llama_kv_routing_summary_status::overflow;
+                return {};
+            }
         }
         result.rebuild_accounting(config, start);
         if (config.byte_budget != 0 && result.accounting_.charged_bytes > config.byte_budget) {
@@ -446,6 +479,37 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
         status = llama_kv_routing_summary_status::overflow;
         return {};
     }
+}
+
+std::shared_ptr<const llama_kv_routing_summary_store::payload>
+llama_kv_routing_summary_store::make_payload(
+        payload && value, uint64_t & floats_hashed) {
+    floats_hashed = 0;
+    uint64_t float_count = 0;
+    uint64_t byte_count = 0;
+    if (!add(value.vectors.size(), value.range_min.size(), float_count) ||
+            !add(float_count, value.range_max.size(), float_count) ||
+            !add(float_count, value.has_radius ? 1 : 0, float_count) ||
+            !mul(float_count, sizeof(float), byte_count)) return {};
+    if (std::any_of(value.vectors.begin(), value.vectors.end(),
+                [](float v) { return !std::isfinite(v); }) ||
+            std::any_of(value.range_min.begin(), value.range_min.end(),
+                [](float v) { return !std::isfinite(v); }) ||
+            std::any_of(value.range_max.begin(), value.range_max.end(),
+                [](float v) { return !std::isfinite(v); }) || !std::isfinite(value.radius)) return {};
+    uint64_t hash = 1469598103934665603ull;
+    hash = hash_mix(hash, value.vectors.size());
+    hash = hash_mix(hash, value.range_min.size());
+    hash = hash_mix(hash, value.range_max.size());
+    for (const float v : value.vectors) hash = hash_float(hash, v);
+    for (const float v : value.range_min) hash = hash_float(hash, v);
+    for (const float v : value.range_max) hash = hash_float(hash, v);
+    if (value.has_radius) hash = hash_float(hash, value.radius);
+    value.byte_count = byte_count;
+    value.digest = hash == 0 ? 1 : hash;
+    value.digest_float_count = float_count;
+    floats_hashed = float_count;
+    return std::make_shared<const payload>(std::move(value));
 }
 
 llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
@@ -520,6 +584,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
         result.allocation_granularity_ = config.allocation_granularity;
         result.subblock_tokens_ = config.subblock_tokens;
         std::vector<page> updates;
+        uint64_t payload_floats_hashed = 0;
         updates.reserve(inputs.size());
         for (size_t i = 0; i < inputs.size(); ++i) {
             for (size_t j = i + 1; j < inputs.size(); ++j) {
@@ -542,12 +607,14 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             page summary;
             summary.id = inputs[i].id;
             summary.content_version = record->content_version;
+            payload data;
+            data.has_radius = config.form == llama_kv_routing_summary_form::centroid_upper_bound;
             const uint64_t row_count = uint64_t(record->id.position_end - record->id.position_begin);
             const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
-                ? make_ranges(inputs[i], row_count, config, summary.range_min,
-                    summary.range_max, summary.source_rows)
-                : make_vectors(inputs[i], row_count, config, summary.vectors,
-                    summary.radius, summary.source_rows);
+                ? make_ranges(inputs[i], row_count, config, data.range_min,
+                    data.range_max, data.source_rows)
+                : make_vectors(inputs[i], row_count, config, data.vectors,
+                    data.radius, data.source_rows);
             if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
@@ -560,9 +627,17 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
                     status = llama_kv_routing_summary_status::invalid_page;
                     return {};
                 }
-                summary.vectors = inputs[i].mean_k_values;
+                data.vectors = inputs[i].mean_k_values;
             }
-            summary.source_bytes = inputs[i].source_bytes;
+            data.source_bytes = inputs[i].source_bytes;
+            uint64_t digest_floats = 0;
+            summary.data = make_payload(std::move(data), digest_floats);
+            if (!summary.data || !add(payload_floats_hashed, digest_floats,
+                    payload_floats_hashed)) {
+                status = summary.data ? llama_kv_routing_summary_status::overflow
+                                      : llama_kv_routing_summary_status::invalid_page;
+                return {};
+            }
             updates.push_back(std::move(summary));
         }
         for (auto & summary : updates) {
@@ -573,9 +648,10 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
         }
         std::sort(result.pages_.begin(), result.pages_.end(),
                 [](const auto & lhs, const auto & rhs) {
-                    return lhs.id.logical_page < rhs.id.logical_page;
+                    return page_id_less(lhs.id, rhs.id);
                 });
         const uint64_t previous_build_count = accounting_.build_count;
+        result.accounting_.payload_floats_hashed = payload_floats_hashed;
         result.rebuild_accounting(config, start);
         result.accounting_.build_count = previous_build_count + inputs.size();
         if (config.byte_budget != 0 && result.accounting_.charged_bytes > config.byte_budget) {
@@ -611,8 +687,10 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::reconcile(
                 [&](const auto & summary) {
                     const auto it = std::find_if(inventory.begin(), inventory.end(),
                             [&](const auto & page) { return same_logical(page.id, summary.id); });
-                    return it == inventory.end() || it->id != summary.id;
+                    return it == inventory.end() || it->id != summary.id ||
+                        it->content_version != summary.content_version;
                 }), result.pages_.end());
+        result.accounting_.payload_floats_hashed = 0;
         result.rebuild_accounting({}, std::chrono::steady_clock::now());
         result.accounting_.invalidation_count = accounting_.invalidation_count + before - result.pages_.size();
         result.accounting_.build_count = previous_build_count;
@@ -638,6 +716,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::invalidate_page(
         result.pages_.erase(std::remove_if(result.pages_.begin(), result.pages_.end(),
                 [&](const auto & page) { return page.id.logical_page == logical_page; }),
                 result.pages_.end());
+        result.accounting_.payload_floats_hashed = 0;
         result.rebuild_accounting({}, std::chrono::steady_clock::now());
         result.accounting_.invalidation_count = accounting_.invalidation_count +
             (old_size - result.pages_.size());
@@ -666,6 +745,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::invalidate_pages(
                     return std::find(page_ids.begin(), page_ids.end(), page.id) != page_ids.end();
                 }),
                 result.pages_.end());
+        result.accounting_.payload_floats_hashed = 0;
         result.rebuild_accounting({}, std::chrono::steady_clock::now());
         result.accounting_.invalidation_count = accounting_.invalidation_count +
             (old_size - result.pages_.size());
@@ -694,7 +774,8 @@ const std::vector<float> * llama_kv_routing_summary_store::range_min(
     const auto it = std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
         return page.id.logical_page == logical_page;
     });
-    return it == pages_.end() || it->range_min.empty() ? nullptr : &it->range_min;
+    return it == pages_.end() || !it->data || it->data->range_min.empty()
+        ? nullptr : &it->data->range_min;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::range_max(
@@ -702,21 +783,24 @@ const std::vector<float> * llama_kv_routing_summary_store::range_max(
     const auto it = std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
         return page.id.logical_page == logical_page;
     });
-    return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
+    return it == pages_.end() || !it->data || it->data->range_max.empty()
+        ? nullptr : &it->data->range_max;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::range_min(
         const llama_kv_page_id & id) const noexcept {
     const auto it = std::find_if(pages_.begin(), pages_.end(),
             [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() || it->range_min.empty() ? nullptr : &it->range_min;
+    return it == pages_.end() || !it->data || it->data->range_min.empty()
+        ? nullptr : &it->data->range_min;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::range_max(
         const llama_kv_page_id & id) const noexcept {
     const auto it = std::find_if(pages_.begin(), pages_.end(),
             [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
+    return it == pages_.end() || !it->data || it->data->range_max.empty()
+        ? nullptr : &it->data->range_max;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::mean_k(
@@ -724,18 +808,18 @@ const std::vector<float> * llama_kv_routing_summary_store::mean_k(
     const auto it = std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
         return page.id.logical_page == logical_page;
     });
-    return it == pages_.end() || it->vectors.empty() ||
+    return it == pages_.end() || !it->data || it->data->vectors.empty() ||
             (form_ != llama_kv_routing_summary_form::mean_k &&
-             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->vectors;
+             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->data->vectors;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::mean_k(
         const llama_kv_page_id & id) const noexcept {
     const auto it = std::find_if(pages_.begin(), pages_.end(),
             [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() || it->vectors.empty() ||
+    return it == pages_.end() || !it->data || it->data->vectors.empty() ||
             (form_ != llama_kv_routing_summary_form::mean_k &&
-             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->vectors;
+             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->data->vectors;
 }
 
 uint64_t llama_kv_routing_summary_store::content_version(
@@ -761,40 +845,24 @@ void llama_kv_routing_summary_store::rebuild_accounting(
         }
     }
 #endif
-    uint64_t vectors = 0, payload = 0, metadata = 0, logical = 0, charged = 0;
-    const uint64_t vector_count = form_ == llama_kv_routing_summary_form::representatives
-        ? representative_count_ : 1;
-    uint64_t radius_bytes = 0;
-    if (form_ == llama_kv_routing_summary_form::minmax_ranges) {
-        const uint64_t subblocks = valid_subblock(VBR_GENERATION_PAGE_CELLS, subblock_tokens_)
-            ? VBR_GENERATION_PAGE_CELLS / subblock_tokens_ : 0;
-        if (subblocks == 0 || !mul(pages_.size(), subblocks, vectors) ||
-            !mul(vectors, vector_dim_, vectors) || !mul(vectors, 2, vectors) ||
-            !mul(vectors, sizeof(float), payload)) {
-            accounting_ = {};
-            return;
-        }
-        uint64_t mean_values = 0;
-        if (!mul(uint64_t(std::count_if(pages_.begin(), pages_.end(), [](const auto & page) {
-                        return !page.vectors.empty(); })), vector_dim_, mean_values) ||
-                !mul(mean_values, sizeof(float), mean_values) || !add(payload, mean_values, payload)) {
-            accounting_ = {};
-            return;
-        }
-    } else if (!mul(pages_.size(), vector_count, vectors) || !mul(vectors, vector_dim_, vectors) ||
-        !mul(vectors, sizeof(float), payload) ||
-        (form_ == llama_kv_routing_summary_form::centroid_upper_bound &&
-         !mul(pages_.size(), sizeof(float), radius_bytes)) ||
-        (form_ == llama_kv_routing_summary_form::centroid_upper_bound && !add(payload, radius_bytes, payload)) ||
-        !mul(pages_.size(), sizeof(llama_kv_page_id), metadata) || !add(payload, metadata, logical)) {
+    uint64_t payload = 0, metadata = 0, logical = 0, charged = 0;
+    if (!mul(pages_.size(), sizeof(llama_kv_page_id), metadata)) {
         accounting_ = {};
         return;
     }
-    if (form_ == llama_kv_routing_summary_form::minmax_ranges &&
-        (!mul(pages_.size(), sizeof(llama_kv_page_id), metadata) || !add(payload, metadata, logical))) {
-        accounting_ = {};
-        return;
+    // Count each immutable backing allocation once, even if descriptors share it.
+    for (size_t i = 0; i < pages_.size(); ++i) {
+        if (!pages_[i].data) { accounting_ = {}; return; }
+        bool seen = false;
+        for (size_t j = 0; j < i; ++j) {
+            if (pages_[j].data.get() == pages_[i].data.get()) { seen = true; break; }
+        }
+        if (!seen && !add(payload, pages_[i].data->byte_count, payload)) {
+            accounting_ = {};
+            return;
+        }
     }
+    if (!add(payload, metadata, logical)) { accounting_ = {}; return; }
     const uint64_t granularity = config.allocation_granularity != 0
         ? config.allocation_granularity : allocation_granularity_;
     const uint64_t remainder = logical % granularity;
@@ -811,36 +879,27 @@ void llama_kv_routing_summary_store::rebuild_accounting(
         std::chrono::steady_clock::now() - start).count());
     accounting_.build_count = pages_.size();
     for (const auto & page : pages_) {
-        if (!add(accounting_.source_bytes, page.source_bytes, accounting_.source_bytes)) {
+        if (!page.data) { accounting_ = {}; return; }
+        if (!add(accounting_.source_bytes, page.data->source_bytes, accounting_.source_bytes)) {
             accounting_.source_bytes = UINT64_MAX;
         }
-        if (!add(accounting_.source_rows, page.source_rows, accounting_.source_rows)) {
+        if (!add(accounting_.source_rows, page.data->source_rows, accounting_.source_rows)) {
             accounting_.source_rows = UINT64_MAX;
         }
     }
     uint64_t hash = 1469598103934665603ull;
-    uint64_t payload_floats_hashed = 0;
     hash = hash_mix(hash, LLAMA_KV_ROUTING_SUMMARY_VERSION);
     hash = hash_mix(hash, uint32_t(form_));
     hash = hash_mix(hash, layer_index_);
     hash = hash_mix(hash, head_index_);
+    hash = hash_mix(hash, representative_count_);
+    hash = hash_mix(hash, vector_dim_);
     hash = hash_mix(hash, coordinate_identity_);
     hash = hash_mix(hash, subblock_tokens_);
     for (const auto & page : pages_) {
         hash = hash_id(hash, page.id);
-        for (const float value : page.vectors) {
-            hash = hash_float(hash, value);
-            ++payload_floats_hashed;
-        }
-        for (const float value : page.range_min) {
-            hash = hash_float(hash, value);
-            ++payload_floats_hashed;
-        }
-        for (const float value : page.range_max) {
-            hash = hash_float(hash, value);
-            ++payload_floats_hashed;
-        }
-        hash = hash_float(hash, page.radius);
+        hash = hash_mix(hash, page.content_version);
+        hash = hash_mix(hash, page.data->digest);
     }
     accounting_.content_hash = hash == 0 ? 1 : hash;
     if (profile) {
@@ -857,7 +916,7 @@ void llama_kv_routing_summary_store::rebuild_accounting(
                 " payload_floats_hashed=%" PRIu64 " digest_wall_us=%" PRId64
                 " digest_thread_us=%" PRIu64 "\n",
                 config.layer_index, config.head_index, pages_.size(), payload,
-                payload_floats_hashed,
+                accounting_.payload_floats_hashed,
                 std::max<int64_t>(0, ggml_time_us() - wall_start_us),
                 thread_end_us >= thread_start_us ? thread_end_us - thread_start_us : 0);
     }
@@ -892,7 +951,8 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
         // A pager may retain one index across sequences. Pages outside this
         // query's sequence are ignored; a matching logical page with a new
         // authenticated identity is stale evidence and must fail closed.
-        if (it != inventory.end() && it->id != summary_page.id) {
+        if (it != inventory.end() && (it->id != summary_page.id ||
+                it->content_version != summary_page.content_version)) {
             result.status = llama_kv_routing_summary_status::stale_summary;
             return result;
         }
@@ -925,18 +985,18 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
                 ? representative_count_ : 1;
             float best = -std::numeric_limits<float>::infinity();
             if (form_ == llama_kv_routing_summary_form::minmax_ranges) {
-                if (!llama_kv_routing_summary_score_ranges(query.data(), page.range_min.data(),
-                        page.range_max.data(), uint32_t(page.range_min.size() / vector_dim_),
+                if (!llama_kv_routing_summary_score_ranges(query.data(), page.data->range_min.data(),
+                        page.data->range_max.data(), uint32_t(page.data->range_min.size() / vector_dim_),
                         vector_dim_, best)) {
                     result.status = llama_kv_routing_summary_status::invalid_argument;
                     return result;
                 }
-                result.comparisons += uint64_t(page.range_min.size() / vector_dim_) * vector_dim_;
+                result.comparisons += uint64_t(page.data->range_min.size() / vector_dim_) * vector_dim_;
             } else {
                 for (uint32_t representative = 0; representative < vector_count; ++representative) {
                     float dot = 0.0f;
                     for (uint32_t d = 0; d < vector_dim_; ++d) {
-                        dot += page.vectors[size_t(representative) * vector_dim_ + d] * query[d];
+                        dot += page.data->vectors[size_t(representative) * vector_dim_ + d] * query[d];
                     }
                     best = std::max(best, dot);
                     ++result.comparisons;
@@ -944,7 +1004,7 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
             }
             const bool upper_bound = form_ == llama_kv_routing_summary_form::centroid_upper_bound;
             result.top_pages.push_back({ page.id.logical_page, page.id.page_generation,
-                    upper_bound ? best + page.radius * query_norm : best, upper_bound });
+                    upper_bound ? best + page.data->radius * query_norm : best, upper_bound });
         }
         result.pages_scored = result.top_pages.size();
         std::sort(result.top_pages.begin(), result.top_pages.end(), score_order);
