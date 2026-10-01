@@ -61,8 +61,11 @@ def main() -> int:
         if ids:
             errors.append("passing release must not carry repair successors")
     elif receipt.get("goal_status") == "goal_miss":
-        if not isinstance(ids, list) or len(ids) < 2 or len(set(ids)) != len(ids):
-            errors.append("goal_miss requires ordered repair and retest/review task IDs")
+        decision_task = receipt.get("decision_task", "101-12")
+        measurement_retest = decision_task == "101-12d"
+        if (not isinstance(ids, list) or len(set(ids)) != len(ids)
+                or (ids != ["101-12e"] if measurement_retest else len(ids) < 2)):
+            errors.append("goal_miss requires the final review after a retest, or an ordered repair/retest chain")
         else:
             if any(task_id not in positions for task_id in ids):
                 errors.append("goal_miss successor task is absent from WORK_STATE")
@@ -71,7 +74,7 @@ def main() -> int:
                 scale_pos = positions.get("102-01")
                 if seq != sorted(seq) or scale_pos is None or seq[-1] + 1 != scale_pos:
                     errors.append("successors must be ordered immediately before 102-01")
-                predecessor = receipt.get("decision_task", "101-12")
+                predecessor = decision_task
                 for i, task_id in enumerate(ids):
                     task = tasks[positions[task_id]]
                     if task.get("status") in {"done", "deferred"}:
@@ -100,8 +103,8 @@ def main() -> int:
                                   ("page_tokens", 256), ("batch", 1024), ("ubatch", 256)):
                 if geometry.get(key) != expected:
                     errors.append(f"goal_miss geometry {key} must be {expected}")
-            if receipt.get("decision_task") != "101-12b":
-                errors.append("completed goal_miss must identify decision_task=101-12b")
+            if receipt.get("decision_task") not in {"101-12b", "101-12d"}:
+                errors.append("completed goal_miss must identify the canonical decision or retest task")
         else:
             if selected.get("status") != "failed_before_complete_matrix":
                 errors.append("legacy incomplete goal_miss must state the selected matrix did not complete")
