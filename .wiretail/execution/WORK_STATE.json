@@ -31175,7 +31175,7 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "gpu-execution-101-20260930",
-      "commit": "75d0aba47c898386be9ec4c2107b607156ccc92d",
+      "commit": "be4fe9da2e3c077a5d35a4c11eafcbe908372a7f",
       "id": "101-12a",
       "title": "Repair H4096 batch-write reservation after slot reset",
       "packet": ".wiretail/execution/tasks/101-12a.md",
