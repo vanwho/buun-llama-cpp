@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "task": "101-12d",
+  "source_commit": "8a5a3091f598c8952f13a904f44b7dce467685e7",
+  "summary": "Completed the frozen selected GPU101 retest and both matched controls on the repaired candidate. All matrices completed with zero errors; selected fresh-prefill medians missed the 500 tok/s gate and selected MTP medians missed all three configured floors. Final release review is owned by 101-12e.",
+  "build_provenance": {
+    "source_tree_commit_at_measurement": "8a5a3091f598c8952f13a904f44b7dce467685e7",
+    "binary_source_commit_prefix": "b6877d0ef",
+    "server_binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "server_binary_sha256": "d6242076cd05d65289939ea251549367350fe4845cbe936c6b518d6d92ff797d",
+    "libllama_sha256": "67ea4b07a275af63278816333af180c9b13d0df1d8b912bfd0b60f0d2fe93103",
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "geometry": {
+      "L": 8192,
+      "H": 4096,
+      "P": 256,
+      "B": 1024,
+      "U": 256
+    },
+    "shared_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
+  },
+  "deferred_verification": [
+    "Final release review and any next repair/retest chain are owned by 101-12e."
+  ],
+  "checks": {
+    "canonical_selected_and_matched_control_retest": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-gpu101-release.py",
+        "--receipt",
+        ".wiretail/execution/evidence/GPU101_RELEASE.json"
+      ],
+      "commands": [
+        [
+          "bash",
+          "-lc",
+          "BENCH_ENDPOINT=http://127.0.0.1:8080/v1/chat/completions BENCH_SHARED_PREFIX_MESSAGES_FILE=/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json BENCH_SERVER_BIN=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server BENCH_CONTEXT=8192 BENCH_BATCH=1024 BENCH_UBATCH=256 BENCH_DEVICE=auto BENCH_PAGE_SIZE=256 BENCH_MTP=native BENCH_CLEAN=0 BENCH_CLEAR_SLOT=1 BENCH_MODES=off BENCH_PAGER_MODE=selective BENCH_KV_HOT_PAGES=16 /srv/ai/benchmarks/run-profile-benchmark.sh fast /srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final --context 8192 --batch 1024 --ubatch 256"
+        ],
+        [
+          "bash",
+          "-lc",
+          "BENCH_ENDPOINT=http://127.0.0.1:8080/v1/chat/completions BENCH_SHARED_PREFIX_MESSAGES_FILE=/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json BENCH_SERVER_BIN=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server BENCH_CONTEXT=8192 BENCH_BATCH=1024 BENCH_UBATCH=256 BENCH_DEVICE=auto BENCH_PAGE_SIZE=256 BENCH_MTP=native BENCH_CLEAN=0 BENCH_CLEAR_SLOT=1 BENCH_MODES=off BENCH_PAGER_MODE=off BENCH_NO_KV_OFFLOAD=0 /srv/ai/benchmarks/run-profile-benchmark.sh fast /srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final --context 8192 --batch 1024 --ubatch 256"
+        ],
+        [
+          "bash",
+          "-lc",
+          "BENCH_ENDPOINT=http://127.0.0.1:8080/v1/chat/completions BENCH_SHARED_PREFIX_MESSAGES_FILE=/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json BENCH_SERVER_BIN=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server BENCH_CONTEXT=8192 BENCH_BATCH=1024 BENCH_UBATCH=256 BENCH_DEVICE=auto BENCH_PAGE_SIZE=256 BENCH_MTP=native BENCH_CLEAN=0 BENCH_CLEAR_SLOT=1 BENCH_MODES=off BENCH_PAGER_MODE=off BENCH_NO_KV_OFFLOAD=1 /srv/ai/benchmarks/run-profile-benchmark.sh fast /srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final --context 8192 --batch 1024 --ubatch 256 --no-kv-offload"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe/probe.py"
+        ],
+        [
+          "python3",
+          ".wiretail/build/101-12d-aggregate.py"
+        ],
+        [
+          "python3",
+          "tools/server/bench/validate-gpu101-release.py",
+          "--receipt",
+          ".wiretail/execution/evidence/GPU101_RELEASE.json"
+        ]
+      ],
+      "metrics": {
+        "goal_status": "goal_miss",
+        "measurement_complete": true,
+        "selected_samples_per_prompt": 3,
+        "selected_errors": 0,
+        "pager_off_control_samples_per_prompt": 3,
+        "pager_off_control_errors": 0,
+        "cpu_main_kv_control_samples_per_prompt": 3,
+        "cpu_main_kv_control_errors": 0,
+        "supplemental_selected_telemetry_requests": 3,
+        "shared_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+        "successor": "101-12e"
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "4c184a22e1ace42cfa895dd658399ed9a94b2811a28b53fa1df3857115f26285"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "240c9a96b8e863bc3d246a1b38a63b9ea0d12cf540b2ea78b79e4829550c146b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12d-release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": ".wiretail/build/101-12d-aggregate.py",
+          "sha256": "5a5ee1004ce489e60d3693ad5aac4a4df5f64db02806e9a167ccf9f014d67224"
+        },
+        {
+          "path": ".wiretail/build/101-12d-aggregate-summary.json",
+          "sha256": "a13e52a517a293d1ea08bb3203ace2a2c10f2ba75621bb588442f7f0533b2930"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final/run-config.json",
+          "sha256": "226d655ea98934d3969b9c61eee1e20c42df015038e1f053ed310c86d08c478a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final/summary.json",
+          "sha256": "bb97f7e748692e20a8adf49d83d45400d17e621575c226cb9a0cf04d1dae6e1c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final/records.jsonl",
+          "sha256": "29603bd066c9e513ce575ac7431f3605569d333ce92842b4edb6785549efc02f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final-runner.log",
+          "sha256": "69a9de2319ab5fb2f0679b1f1bdf578feb2b9889d4b8d84cc2ef0ce7311befe8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final.monitor.jsonl",
+          "sha256": "b2ba0914038ed0ca2a67aa542bdcaecb29f9bc84ce3f2825bc1091f57b2070bf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final.monitor.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final/run-config.json",
+          "sha256": "ee0553103dd7c9210b720d66651acf4ad18145085e5fcddda09ce076a6adebbe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final/summary.json",
+          "sha256": "00c5e47f4c5b16bff65eab8afe1c7abd4027de1c30840f3e3f3fc0525e73227d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final/records.jsonl",
+          "sha256": "9a4dee87e8299efacd83c2091a7c0f5406319cf5e58ff92a09f4a47793df62ae"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final-runner.log",
+          "sha256": "ed1bdf1c15729bb4d9c0f289e3c47971b6a28e4a4a53f52acae0538fbd1ada61"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final.monitor.jsonl",
+          "sha256": "ed132b64aea7eafc55f7ec811f143c172b18183ac47bd1df33b8f0ff1a468822"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final.monitor.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final/run-config.json",
+          "sha256": "d3f3111a8ad36a3cf81ecf3f1cab6761f61907da35757ae99b0086f44aaf3465"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final/summary.json",
+          "sha256": "985490be4fde5abb0532af77246f9c049a31a38fdd7ad64446dad07b11bb3bc9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final/records.jsonl",
+          "sha256": "f1a63a0501bdd1dda2cde0d789c8104df53434c7b9f6909f205456ad07fb7378"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final-runner.log",
+          "sha256": "9b897cc37ad9c8da7aa748eb9e6b0afcaa57a1414fb7a759503ea15fddbb5933"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final.monitor.jsonl",
+          "sha256": "df4d8d5786a4f061f88bfc9a21f3b053d9bf3e886f777733cd3986c1090c929c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final.monitor.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe/probe.py",
+          "sha256": "1fc3ed39c9946d42139daa236ad392ddd38d371a61ed0a5d5c447be1292b139b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe/rows.jsonl",
+          "sha256": "371ea2946125f9b31b8ec4f8e3470804c568b3e7b14e3d2ed404a58584122626"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe/probe-summary.json",
+          "sha256": "f990050d132f8b4309a1090ce34e086d7dcbc3d76d9fa871259e3b3a0570aa05"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe/probe.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe.monitor.jsonl",
+          "sha256": "544029fe6b5cc94ce492f52ad18629c5d1b3ce98e63f14a8e75a7badec409daf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-probe.monitor.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-reload-smoke/run-config.json",
+          "sha256": "9d2bb63213f0c7afeb58171bca7e4d22f62ffa4a877c0b9e1f9a6edb2683ca72"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-reload-smoke/records.jsonl",
+          "sha256": "46dd35e176d14d9989ce89881dd52856857f6a3619d5afdfabbba4ddbb5cfb8e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-telemetry-reload-smoke-runner.log",
+          "sha256": "7172022c1a6e5e90eac35f375a9ea89765e226f9979be19aa83a9390ec9c0b3d"
+        }
+      ]
+    }
+  }
+}

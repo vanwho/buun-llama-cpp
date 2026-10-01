@@ -1,38 +1,39 @@
-# GPU101 canonical release decision — 101-12b
+# GPU101 canonical retest — 101-12d
 
-**Decision: `goal_miss`. Scale remains gated.** The corrected H4096 candidate completed the selected suite and both matched controls, with no request errors. Every selected prefill median missed 500 tok/s; selected MTP missed prompts 1 and 3. Selected decode beat CPU-KV on all prompts.
+Outcome: **goal_miss**. The complete selected matrix and both matched controls used the repaired candidate. All 3x400-cap measured requests per matrix completed with HTTP 200 and no errors. The selected fresh-prefill medians remain below the 500 tok/s gate; final release review is owned by 101-12e. No long occupancy ran.
 
-Candidate: source tree `8914d9e1b2dc86637e1d4d07770ffc5fa0dd988a`, runtime binary SHA-256 `a464e9099821b424fe8e637b4bc325c38d6d2a7453ec22832310b67f4fba1fba`, model SHA-256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`. Geometry L8192/H4096/P256/B1024/U256; frozen prefix SHA-256 `8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20`; selected mode automatic selective pager; target/draft GPU Turbo4 MTP nmax2.
+## Identity and protocol
 
-## Per-prompt medians
+- Source commit: `8a5a3091f598c8952f13a904f44b7dce467685e7`; server SHA-256 `d6242076cd05d65289939ea251549367350fe4845cbe936c6b518d6d92ff797d`; libllama SHA-256 `67ea4b07a275af63278816333af180c9b13d0df1d8b912bfd0b60f0d2fe93103`.
+- Model: `/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf` SHA-256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`.
+- L8192/H4096/P256/B1024/U256; automatic selective pager; target/draft Turbo4; native GPU MTP nmax2; temperature 0; reasoning off.
+- Frozen shared-prefix SHA-256 `8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20`; each row erased slot 0; production cache mode, no isolated clean-cache run.
+- Prompts: Python sorted merge, mmap/read paragraph, Bash directory watcher. Each matrix contains 3 warmups and 9 measured rows; selected prompt inputs were 4115/4112/4113 tokens with zero cached input tokens.
 
-| Prompt | Selected prefill tok/s | Selected decode tok/s | Selected MTP accepted/drafted median % | CPU-KV decode tok/s | Dense-GPU decode tok/s | Selected/CPU decode | Selected/dense decode | Gate |
-|---|---:|---:|---:|---:|---:|---:|---:|---|
-| prompt_1 | 332.39 | 37.00 | 56.15 | 25.59 | 84.26 | 1.45x | 0.44x | miss |
-| prompt_2 | 388.48 | 33.46 | 45.00 | 18.62 | 62.85 | 1.80x | 0.53x | miss |
-| prompt_3 | 332.17 | 34.91 | 51.00 | 21.41 | 71.37 | 1.63x | 0.49x | miss |
+## Selected measurements
 
-Each selected prompt has three 400-token measured rows after one 40-token warmup, fresh slot erase before every row, 0 cached input tokens, and exact input counts 4115/4112/4113. Raw MTP drafted and accepted arrays are in `GPU101_RELEASE.json`.
+| Prompt | Fresh prefill tok/s median | Decode tok/s median | MTP acceptance median | Supplemental TTFT s | Disposition |
+|---:|---:|---:|---:|---:|---|
+| 1 | 331.28 | 34.69 | 48.88% | 10.732 | measured_goal_miss |
+| 2 | 386.66 | 34.30 | 48.44% | 12.447 | measured_goal_miss |
+| 3 | 331.21 | 37.11 | 57.05% | 10.964 | measured_goal_miss |
 
 ## Matched controls
 
-Pager-off all-GPU medians: prefill 1568.90, 1566.08, 1569.55 tok/s; decode 84.26, 62.85, 71.37 tok/s.
-Ordinary CPU-main-KV/GPU-MTP medians: prefill 659.02, 664.28, 653.40 tok/s; decode 25.59, 18.62, 21.41 tok/s.
+| Prompt | Pager-off all-GPU prefill | Pager-off all-GPU decode | CPU-main-KV prefill | CPU-main-KV decode |
+|---:|---:|---:|---:|---:|
+| 1 | 1566.34 | 84.13 | 659.75 | 25.06 |
+| 2 | 1562.65 | 61.70 | 661.72 | 18.60 |
+| 3 | 1564.67 | 71.12 | 662.30 | 21.50 |
 
-Both controls completed 12 rows with zero errors and share the selected candidate, frozen prefix, L/B/U and output protocol. All run configs, summaries and complete rows are SHA-256 referenced in the JSON receipt.
+## Telemetry and memory
 
-## Successors and limits
+The separate three-request selected probe recorded exact Prometheus before/after deltas for route, replay, query, transfer, H2D, wait, and scratch counters. H2D useful-byte deltas: 0.0, 0.0, 0.0. Full request deltas are in `selected.request_local_metrics` and the raw probe rows. Passive samplers recorded RAM RSS/data/pinned and GPU VRAM peaks for all three matrices; selected pager allocation, pinned-host, Turbo4 scratch, and scratch high-water peaks are in `runtime_peaks.selected.kv_pager_metrics_peak`.
 
-Runnable tasks 101-12c/101-12d/101-12e now own one selected-path repair, the canonical retest and repeated final release review. 102-01 depends on 101-12e and cannot proceed until `goal_status=pass`.
+## Raw evidence
 
+Raw root: `/srv/ai/paged-kv/results/forward/101-12d/attempt-01`. The JSON receipt indexes and hashes each run configuration, summary, record stream, runtime monitor, runner log, and selected telemetry probe. The two invalid setup attempts remain preserved but are excluded.
 
+## Gate and next owner
 
-| Prompt | Supplementary TTFT s | Direct prefill subroutes | Packed prefill subroutes | Packed MTP verify subroutes | Wait us | Queue us | Graph replays | H2D useful bytes |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| prompt_1 | 10.597 | 15 | 5 | 163 | 6896840 | 1474020 | 70 | 0 |
-| prompt_2 | 12.443 | 15 | 5 | 57 | 3622570 | 706950 | 36 | 0 |
-| prompt_3 | 10.588 | 15 | 5 | 144 | 6027000 | 1098440 | 87 | 0 |
-
-A separate same-candidate selected telemetry probe ran one fresh 400-token-capped request per prompt after the matched matrices. TTFT was 10.597/12.443/10.588 seconds; exact before/after pager, wait, graph replay, summary, transfer and H2D counters are retained in the raw JSONL. The supplementary selected process peaks were GPU memory 14,357 MiB, process RSS 2,412,648 KiB, VmPin 0 KiB, VmData 5,776,844 KiB; pager target allocation 69,206,000 bytes, live allocation and scratch high-water values are in `runtime_peaks.selected`. These are labeled supplementary telemetry, not full-matrix maxima. No occupancy campaign ran.
-
-Raw results: `/srv/ai/paged-kv/results/forward/101-12b/attempt-01/`.
+The candidate missed the selected fresh-prefill gate on all prompts and also missed MTP acceptance floors. 101-12e owns the repeated release review and must schedule another concrete repair/retest chain before 102-01 if the miss remains. The GPU101 scale gate remains closed until a complete passing release.
