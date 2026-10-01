@@ -1,5 +1,6 @@
 #include "llama-kv-routing-summary.h"
 
+#include <algorithm>
 #include <cassert>
 #include <limits>
 
@@ -51,6 +52,17 @@ static llama_kv_routing_page_input sparse_input(const llama_kv_page_record & pag
     }
     result.source_bytes = 4 * sizeof(float) * 4;
     return result;
+}
+
+static llama_kv_residency_snapshot many_pages(uint32_t count,
+        llama_kv_residency_table & table) {
+    auto tx = table.begin();
+    for (uint32_t i = 0; i < count; ++i) {
+        assert(table.replace(tx, make_page(i, i, llama_pos((i + 1) * VBR_GENERATION_PAGE_CELLS))) ==
+                llama_kv_residency_status::ok);
+    }
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    return table.snapshot();
 }
 
 int main() {
@@ -125,6 +137,11 @@ int main() {
     llama_kv_routing_summary_config too_small = config;
     too_small.byte_budget = store.accounting().charged_bytes - 1;
     assert(!llama_kv_routing_summary_store::build(snap, inputs, too_small, status).valid());
+    assert(status == llama_kv_routing_summary_status::insufficient_budget);
+    auto overflow_budget = config;
+    overflow_budget.allocation_granularity = std::numeric_limits<uint64_t>::max();
+    overflow_budget.byte_budget = std::numeric_limits<uint64_t>::max() - 1;
+    assert(!llama_kv_routing_summary_store::build(snap, inputs, overflow_budget, status).valid());
     assert(status == llama_kv_routing_summary_status::insufficient_budget);
 
     auto missing = inputs;
@@ -267,5 +284,104 @@ int main() {
     auto reconciled = incremental.reconcile(incremental_table.snapshot(), status);
     assert(status == llama_kv_routing_summary_status::ok && !reconciled.contains(0) && reconciled.contains(1));
     assert(reconciled.accounting().invalidation_count == 1);
+
+    // Immutable per-page payloads keep old snapshots stable and make digest
+    // work proportional to the changed page, independent of catalogue size.
+    auto delta_mean_config = config;
+    delta_mean_config.form = llama_kv_routing_summary_form::mean_k;
+    for (const uint32_t count : { 2u, 16u, 64u }) {
+        llama_kv_residency_table table(count);
+        const auto before = many_pages(count, table);
+        std::vector<llama_kv_routing_page_input> page_inputs;
+        for (const auto & page : before.pages()) {
+            page_inputs.push_back(input(page, float(page.id.logical_page + 1)));
+        }
+        const auto original = llama_kv_routing_summary_store::build(
+                before, page_inputs, delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok && original.valid());
+        assert(original.accounting().payload_floats_hashed == count * 4);
+        const auto original_hash = original.content_hash();
+        const auto * retained_page = original.mean_k(0);
+        assert(retained_page != nullptr);
+        const float retained_value = (*retained_page)[0];
+
+        auto reversed_inputs = page_inputs;
+        std::reverse(reversed_inputs.begin(), reversed_inputs.end());
+        const auto reversed = llama_kv_routing_summary_store::build(
+                before, reversed_inputs, delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok &&
+                reversed.content_hash() == original_hash);
+        auto reversed_inventory = before.pages();
+        std::reverse(reversed_inventory.begin(), reversed_inventory.end());
+        const auto permuted = llama_kv_routing_summary_store::build(
+                before, reversed_inventory, reversed_inputs, delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok &&
+                permuted.content_hash() == original_hash);
+
+        auto tx = table.begin();
+        auto changed = tx.pages().back();
+        ++changed.content_version;
+        assert(table.update(tx, changed) == llama_kv_residency_status::ok);
+        assert(table.publish(tx) == llama_kv_residency_status::ok);
+        const auto after = table.snapshot();
+        assert(original.score(after, { 1, 0, 0, 0 }, count).status ==
+                llama_kv_routing_summary_status::stale_summary);
+        const auto stale_removed = original.reconcile(after, status);
+        assert(status == llama_kv_routing_summary_status::ok &&
+                !stale_removed.contains(count - 1) && stale_removed.contains(0));
+        const auto changed_store = original.update_page(after, after.pages(),
+                input(after.pages().back(), 100.0f), delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok && changed_store.valid());
+        assert(changed_store.accounting().payload_floats_hashed == 4);
+        assert(changed_store.content_hash() != original_hash);
+        assert(original.accounting().payload_bytes == count * 4 * sizeof(float));
+        assert(changed_store.accounting().payload_bytes == count * 4 * sizeof(float));
+        assert(changed_store.mean_k(0) == retained_page);
+        assert(original.mean_k(0) == retained_page && (*retained_page)[0] == retained_value);
+        assert(changed_store.mean_k(count - 1) != original.mean_k(count - 1));
+        assert(changed_store.content_version(after.pages().back().id) == changed.content_version);
+
+        const auto epoch_hash = changed_store.content_hash();
+        auto residency_tx = table.begin();
+        auto resident = residency_tx.pages()[0];
+        ++resident.pin_count;
+        assert(table.update(residency_tx, resident) == llama_kv_residency_status::ok);
+        assert(table.publish(residency_tx) == llama_kv_residency_status::ok);
+        const auto epoch_only = changed_store.reconcile(table.snapshot(), status);
+        assert(status == llama_kv_routing_summary_status::ok);
+        assert(epoch_only.content_hash() == epoch_hash);
+        assert(epoch_only.accounting().payload_floats_hashed == 0);
+
+        const auto removed = changed_store.invalidate_page(after, count - 1, status);
+        assert(status == llama_kv_routing_summary_status::ok && !removed.contains(count - 1));
+        assert(changed_store.contains(count - 1));
+        assert(changed_store.mean_k(0) == retained_page && (*retained_page)[0] == retained_value);
+        assert(removed.accounting().payload_floats_hashed == 0);
+    }
+
+    // Config and authenticated page identity remain part of the table digest.
+    auto other_coordinates = mean_config;
+    other_coordinates.coordinate_identity = 0xabcdu;
+    const auto coordinate_store = llama_kv_routing_summary_store::build(
+            snap, inputs, other_coordinates, status);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(coordinate_store.content_hash() != means.content_hash());
+
+    llama_kv_residency_table codec_table(8);
+    auto codec_tx = codec_table.begin();
+    auto codec_inputs = inputs;
+    for (size_t i = 0; i < snap.pages().size(); ++i) {
+        auto record = snap.pages()[i];
+        if (i == 0) {
+            ++record.id.codec_digest;
+            codec_inputs[i].id = record.id;
+        }
+        assert(codec_table.replace(codec_tx, record) == llama_kv_residency_status::ok);
+    }
+    assert(codec_table.publish(codec_tx) == llama_kv_residency_status::ok);
+    const auto codec_store = llama_kv_routing_summary_store::build(
+            codec_table.snapshot(), codec_inputs, mean_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && codec_store.valid());
+    assert(codec_store.content_hash() != means.content_hash());
     return 0;
 }

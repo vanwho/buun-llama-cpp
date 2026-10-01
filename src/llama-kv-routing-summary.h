@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <chrono>
 #include <vector>
 
@@ -12,7 +13,7 @@
 // the KV page. Query producers apply the transpose of the mature FA
 // reconstruction (including active InnerQ calibration) before scoring, so
 // no inverse rotation is applied while sealing a page.
-constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 6;
+constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 7;
 
 enum class llama_kv_routing_summary_form : uint8_t {
     representatives = 0,
@@ -152,6 +153,9 @@ struct llama_kv_routing_summary_accounting {
     uint64_t build_time_us = 0;
     uint64_t build_count = 0;
     uint64_t invalidation_count = 0;
+    // Floats read to construct payload digests for the most recent store
+    // operation. Reconcile/epoch-only updates leave this at zero.
+    uint64_t payload_floats_hashed = 0;
     uint64_t content_hash = 0;
 };
 
@@ -279,20 +283,30 @@ public:
             uint32_t top_k) const noexcept;
 
 private:
+    struct payload {
+        std::vector<float> vectors;
+        float radius = 0.0f;
+        bool has_radius = false;
+        uint64_t source_bytes = 0;
+        uint64_t source_rows = 0;
+        std::vector<float> range_min;
+        std::vector<float> range_max;
+        uint64_t byte_count = 0;
+        uint64_t digest = 0;
+        uint64_t digest_float_count = 0;
+    };
+
     void rebuild_accounting(
             const llama_kv_routing_summary_config & config,
             std::chrono::steady_clock::time_point start) noexcept;
+    static std::shared_ptr<const payload> make_payload(
+            payload && value, uint64_t & floats_hashed);
 
     struct page {
         llama_kv_page_id id;
         // Retained summaries remain authoritative after device eviction.
         uint64_t content_version = 0;
-        std::vector<float> vectors;
-        float radius = 0.0f;
-        uint64_t source_bytes = 0;
-        uint64_t source_rows = 0;
-        std::vector<float> range_min;
-        std::vector<float> range_max;
+        std::shared_ptr<const payload> data;
     };
 
     uint64_t snapshot_epoch_ = 0;
