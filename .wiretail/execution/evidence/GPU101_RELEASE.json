@@ -1,0 +1,301 @@
+{
+  "schema_version": 1,
+  "task": "101-12",
+  "goal_status": "goal_miss",
+  "decision": "Canonical selected suite stopped after the first measured 400-token request failed at H4096 following warmup and slot erase. No selected three-prompt median is released; scale remains gated.",
+  "identity": {
+    "source_commit": "d1886106498436b5c90b229b094849cacbe8f118",
+    "binary": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "sha256": "8257299b22690a7a7e25bd747a86f287b79487629d7b9b51942119d77ef1fe4f"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "context_tokens": 8192,
+    "hot_tokens": 4096,
+    "hot_pages": 16,
+    "page_tokens": 256,
+    "batch": 1024,
+    "ubatch": 256,
+    "route": "automatic selective pager; target and native MTP draft Turbo4 on GPU; nmax=2",
+    "prefix": {
+      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json",
+      "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+      "calibration": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/calibration.json",
+      "rendered_prompt_tokens": [
+        4115,
+        4112,
+        4113
+      ],
+      "cache_tokens_required": 0
+    },
+    "candidate_run_identity": {
+      "profile": "qwen38-fast",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "pid": 1533968,
+      "context": "8192",
+      "hot_pages": "16",
+      "page_size_tokens": "256",
+      "batch": "1024",
+      "ubatch": "256",
+      "pager_mode": "selective",
+      "mtp_placement": "gpu",
+      "mtp_type_k": "turbo4",
+      "mtp_type_v": "turbo4",
+      "spec_draft_n_max": 2
+    }
+  },
+  "canonical_protocol": {
+    "prompts": [
+      "Python sorted merge",
+      "mmap versus read paragraph",
+      "Bash directory watcher"
+    ],
+    "warmup_outputs": 40,
+    "measured_outputs_per_prompt": 400,
+    "temperature": 0,
+    "reasoning": "off",
+    "fresh_slot_each_row": true
+  },
+  "selected": {
+    "status": "failed_before_complete_matrix",
+    "per_prompt": {
+      "prompt_1": {
+        "warmup": "passed at 4115 fresh input tokens",
+        "measured_rows_completed": 0,
+        "first_measured": "failed",
+        "failure": "KV pager batch write reservation failed: no_victim sequence=0 positions=4085..4105 rows=21 frozen_history_pages=0 phase=1",
+        "prefill_tok_s": null,
+        "decode_tok_s": null,
+        "mtp_acceptance_percent": null
+      },
+      "prompt_2": {
+        "warmup": "not_run_after_prompt_1_failure",
+        "measured_rows_completed": 0,
+        "prefill_tok_s": null,
+        "decode_tok_s": null,
+        "mtp_acceptance_percent": null
+      },
+      "prompt_3": {
+        "warmup": "not_run_after_prompt_1_failure",
+        "measured_rows_completed": 0,
+        "prefill_tok_s": null,
+        "decode_tok_s": null,
+        "mtp_acceptance_percent": null
+      }
+    },
+    "diagnostics": {
+      "isolated_fresh_400": {
+        "prefill_tok_s": 267.17285155045306,
+        "decode_tok_s": 31.621099658214746,
+        "mtp_acceptance_percent": 38.76923077,
+        "canonical_warmup_reset_sequence": false
+      },
+      "second_fresh_same_process": {
+        "prefill_tok_s": 267.201,
+        "decode_tok_s": 34.152,
+        "canonical_warmup_reset_sequence": false
+      }
+    },
+    "runtime_geometry_from_candidate_identity": "L8192/H4096/P256, actual hot_pages=16; C=4112..4115 > H; all measured prefix cached_tokens=0 before the reservation failure."
+  },
+  "controls": {
+    "pager_off_all_gpu": {
+      "status": "complete",
+      "geometry": "L8192/B1024/U256, page size 256, all-GPU, pager off, Turbo4 target and GPU native MTP nmax2",
+      "per_prompt": {
+        "prompt_1": {
+          "prompt_index": 0,
+          "errors": 0,
+          "fresh_prefill_tok_s_median": 1632.238272675419,
+          "decode_tok_s_median": 84.34214798030678,
+          "mtp_acceptance_percent_median": 78.19548872,
+          "samples": 3
+        },
+        "prompt_2": {
+          "prompt_index": 1,
+          "errors": 0,
+          "fresh_prefill_tok_s_median": 1631.9934212249634,
+          "decode_tok_s_median": 62.758737157280244,
+          "mtp_acceptance_percent_median": 51.61290323,
+          "samples": 3
+        },
+        "prompt_3": {
+          "prompt_index": 2,
+          "errors": 0,
+          "fresh_prefill_tok_s_median": 1632.9392390177588,
+          "decode_tok_s_median": 71.24645040006041,
+          "mtp_acceptance_percent_median": 63.32179931,
+          "samples": 3
+        }
+      }
+    },
+    "cpu_main_kv_gpu_mtp": {
+      "status": "complete",
+      "geometry": "L8192/B1024/U256, ordinary CPU main KV, GPU native MTP nmax2, Turbo4",
+      "per_prompt": {
+        "prompt_1": {
+          "prompt_index": 0,
+          "errors": 0,
+          "fresh_prefill_tok_s_median": 674.2934748055118,
+          "decode_tok_s_median": 24.56204596101078,
+          "mtp_acceptance_percent_median": 80.37037037,
+          "samples": 3
+        },
+        "prompt_2": {
+          "prompt_index": 1,
+          "errors": 0,
+          "fresh_prefill_tok_s_median": 675.1131331668864,
+          "decode_tok_s_median": 18.361799803825612,
+          "mtp_acceptance_percent_median": 50.0,
+          "samples": 3
+        },
+        "prompt_3": {
+          "prompt_index": 2,
+          "errors": 0,
+          "fresh_prefill_tok_s_median": 673.7937322930512,
+          "decode_tok_s_median": 21.291161110536294,
+          "mtp_acceptance_percent_median": 65.03496503,
+          "samples": 3
+        }
+      }
+    }
+  },
+  "raw_runs": {
+    "selected": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/run-config.json",
+        "sha256": "6685a54ef09dbbb22670fe24f8acf2891d8e3f23b3ffc947710cf28a5c9b53db"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/summary.json",
+        "sha256": "2437179185e98c3c59344bff6cc6583194deff103be45220d8ff2cbf34770198"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/records.jsonl",
+        "sha256": "9fa42545e5bccc4baffa957b54e58d10af2ea25157ad92716a9493c97fa13417"
+      }
+    },
+    "reproduction": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/run-config.json",
+        "sha256": "1b943036454394215abe4f07c005d67fc62fb21dd40614c5960d44c8efa80450"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/summary.json",
+        "sha256": "21337d31971dc9c3c8e0a7b7416dfccdac30885ebb8b1fb04177e3fd9c6cc508"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/records.jsonl",
+        "sha256": "c2698083d1801bc1644496732d1af55ad80d70ecf76e19ab7170ce9780e86ef5"
+      }
+    },
+    "isolated": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/run-config.json",
+        "sha256": "7b476c2f8588603fa30b00f80bd652b919ca1dfc58f26ba9f49bc34690e18991"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/summary.json",
+        "sha256": "f18b80ccf1d542e2bafa12e30aa401a8db2d24ba343d3c42867b59d1ff84b688"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/records.jsonl",
+        "sha256": "dbf4318df3673ef4e465df822c2251e2f6f81b01b54aeeeae508f9a8f4606cae"
+      }
+    },
+    "same_process_second": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/run-config.json",
+        "sha256": "402910dffbb70bbc3f262bcbeccd6e1b911ddd52a30d93b354a9f90e626b3d81"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/summary.json",
+        "sha256": "2df1450aa65294ec3f364d2278b117826b59c18952fd9441c89ec94eefb478c8"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/records.jsonl",
+        "sha256": "a964d72875aab69ed144afa04b5b731c21a5a8f5d93f6408cd0dfa976105b670"
+      }
+    },
+    "all_gpu": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/run-config.json",
+        "sha256": "d73b1a9471b5b8675f757dcb3df4e1c69d8b0e866bcbc7429f71fcf320b59ee4"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/summary.json",
+        "sha256": "271766ecba9f30aeda27bb7c49c5a6fc160bf554e414ecd2a9347a50f648f1df"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/records.jsonl",
+        "sha256": "6ef7f61b6f899d7bcaafb8defb3005ec9fc013c58c196e66999ea8083b03f2b4"
+      }
+    },
+    "cpu_kv": {
+      "directory": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k",
+      "run_config": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/run-config.json",
+        "sha256": "7d7241cc37e6776861cc1a705241ee3ead536eb83c2d0725db11ff80c68358b3"
+      },
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/summary.json",
+        "sha256": "00ddf6d442317f75c930ec64fa53c94f719763bdb6bf55b83052f48602e80dcf"
+      },
+      "records": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/records.jsonl",
+        "sha256": "7ea1e5d80fd2c0c68faa60eeea0d23a798564ece3c0d00b3895eb2398365c3ed"
+      }
+    }
+  },
+  "key_failure_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/raw/off-measured-1-p0.json",
+      "sha256": "bad370901c2503e179a81fbdce0d6d24a7ea3a2764933e738dd1f04c41e28d99"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/raw/off-measured-1-p0.json",
+      "sha256": "bad370901c2503e179a81fbdce0d6d24a7ea3a2764933e738dd1f04c41e28d99"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-isolated-request/raw/off-measured-1-p0.json",
+      "sha256": "46b8826ee3063d2422011e7ed097de5001b833c23b9261715f97a15b5abefb47"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-second-fresh/raw/off-measured-1-p0.json",
+      "sha256": "c3b924b6c42a0df19742c615e4f2fe5d851086caf6a45550d3f7d0bed7de784f"
+    }
+  ],
+  "ordered_successors": [
+    "101-12a",
+    "101-12b"
+  ],
+  "successor_contract": {
+    "101-12a": {
+      "kind": "source_repair_and_minimal_retest",
+      "depends_on": [
+        "101-12"
+      ],
+      "before_long_context_tests": true
+    },
+    "101-12b": {
+      "kind": "canonical_speed_review",
+      "depends_on": [
+        "101-12a"
+      ],
+      "updates_scale_gate": "102-01 depends on 101-12b"
+    }
+  },
+  "deferred_verification": [
+    "Selected 3-prompt 3x400 matrix at the fixed H4096 geometry is deferred until 101-12a repairs the reservation failure.",
+    "Scale/occupancy task 102-01 is not released on goal_miss."
+  ]
+}
