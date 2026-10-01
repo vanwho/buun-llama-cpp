@@ -32068,7 +32068,7 @@
         ".wiretail/execution/forward/TESTING.md",
         ".wiretail/execution/handoffs/101-16.md"
       ],
-      "commit": "f075b710d39dc4c2c5c91adfd2636afd77382749",
+      "commit": "f86975b16452d0a213b875dbc35321a08198e8ee",
       "token_usage": {
         "schema_version": 2,
         "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
