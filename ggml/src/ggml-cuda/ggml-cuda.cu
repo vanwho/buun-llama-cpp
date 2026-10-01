@@ -1891,6 +1891,7 @@ static void * ggml_backend_cuda_step_capture_end(ggml_backend_t backend) {
     cuda_ctx->external_capture = false;
     cudaGraph_t graph = nullptr;
     const cudaError_t err = cudaStreamEndCapture(cuda_ctx->stream(), &graph);
+    ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
     {
         std::lock_guard<std::mutex> lock(ggml_cuda_lock);
         if (ggml_cuda_lock_counter.fetch_sub(1, std::memory_order_relaxed) == 1) {
@@ -8367,8 +8368,11 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend, 
         }
 #endif
         GGML_LOG_ERROR("%s: CUDA pool allocation failed (out of VRAM), failing graph compute\n", __func__);
+        ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
         return GGML_STATUS_ALLOC_FAILED;
     }
+
+    ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
 
     return GGML_STATUS_SUCCESS;
 }

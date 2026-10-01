@@ -206,6 +206,13 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
         { 2, 4, 257, 256, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages_257, 2, 257, 256, n_physical_pages));
+    const ggml_cuda_fattn_turbo4_page pages_permuted[3] = {
+        { 0, 0,   0, 256,   0 },
+        { 1, 4, 256, 256, 256 },
+        { 2, 3, 512,   1, 512 },
+    };
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(
+        pages_permuted, 3, n_rows, 256, n_physical_pages));
     const auto make_row_lookup = [](const ggml_cuda_fattn_turbo4_page * page_table,
             uint32_t page_count, uint32_t row_count) {
         std::vector<ggml_cuda_fattn_turbo4_row_lookup> result(row_count,
@@ -442,8 +449,98 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     };
     replay(pages_257, 2, 257, "multigroup graph replay partial");
     replay(pages, 3, n_rows, "multigroup graph replay full");
+    // Keep node shapes and all device addresses fixed while changing the
+    // selected physical page descriptors. This catches graph captures that
+    // accidentally retain host-side descriptor content.
+    replay(pages_permuted, 3, n_rows, "multigroup graph replay permuted pages");
     cudaGraphExecDestroy(graph_exec);
     cudaGraphDestroy(graph);
+
+    // Speculative verification alternates among Q1/Q2/Q3. These are separate
+    // graph shapes, each warmed, captured by the CUDA driver, and replayed
+    // with changed descriptor contents. Sideband copies and graph launches
+    // share one stream, so the new inputs follow the previous replay's reads.
+    uint64_t verify_capture_count = 0;
+    uint64_t verify_launch_count = 0;
+    for (const uint32_t query_count : { 1u, 2u, 3u }) {
+        params.n_query_tokens = query_count;
+        params.pages_host = pages_257;
+        active_pages = 2;
+        active_rows = 257;
+        cuda_check(cudaMemcpy(pages_device, pages_257, sizeof(pages_257), cudaMemcpyHostToDevice),
+            "verify graph warmup pages");
+        cuda_check(cudaMemcpy(row_lookup_device, row_lookup_257.data(),
+            row_lookup_257.size() * sizeof(row_lookup_257[0]), cudaMemcpyHostToDevice),
+            "verify graph warmup lookup");
+        cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice),
+            "verify graph warmup page count");
+        cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice),
+            "verify graph warmup row count");
+        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+            ggml_cuda_fattn_turbo4_paged_status::ok);
+        cuda_check(cudaStreamSynchronize(stream), "verify graph warmup synchronize");
+
+        cudaGraph_t verify_graph = nullptr;
+        cudaGraphExec_t verify_graph_exec = nullptr;
+        cuda_check(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
+            "verify graph begin capture");
+        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+            ggml_cuda_fattn_turbo4_paged_status::ok);
+        cuda_check(cudaStreamEndCapture(stream, &verify_graph), "verify graph end capture");
+        ++verify_capture_count;
+        cuda_check(cudaGraphInstantiate(&verify_graph_exec, verify_graph, nullptr, nullptr, 0),
+            "verify graph instantiate");
+
+        const auto replay_verify = [&](const ggml_cuda_fattn_turbo4_page * page_table,
+                uint32_t page_count, uint32_t row_count, const char * label) {
+            active_pages = page_count;
+            active_rows = row_count;
+            const auto expected = cpu_interleaved_turbo4_oracle(q_host,
+                q_head_stride, q_query_stride, k_host, v_host, page_table,
+                page_count, row_count, native_positions, native_mask,
+                query_positions, query_count, n_head_q, n_head_kv,
+                head_bytes, row_bytes, page_stride, params.scale);
+            cuda_check(cudaMemcpyAsync(output_device, replay_canary.data(),
+                replay_canary.size() * sizeof(float), cudaMemcpyHostToDevice, stream), label);
+            cuda_check(cudaMemcpyAsync(pages_device, page_table, sizeof(pages),
+                cudaMemcpyHostToDevice, stream), label);
+            const auto & lookup = page_count == 2 ? row_lookup_257 : row_lookup;
+            cuda_check(cudaMemcpyAsync(row_lookup_device, lookup.data(),
+                lookup.size() * sizeof(lookup[0]), cudaMemcpyHostToDevice, stream), label);
+            cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages,
+                sizeof(active_pages), cudaMemcpyHostToDevice, stream), label);
+            cuda_check(cudaMemcpyAsync(active_rows_device, &active_rows,
+                sizeof(active_rows), cudaMemcpyHostToDevice, stream), label);
+            cuda_check(cudaGraphLaunch(verify_graph_exec, stream), label);
+            ++verify_launch_count;
+            cuda_check(cudaStreamSynchronize(stream), label);
+            std::vector<float> actual(replay_canary.size());
+            cuda_check(cudaMemcpy(actual.data(), output_device,
+                actual.size() * sizeof(float), cudaMemcpyDeviceToHost), label);
+            for (uint32_t query = 0; query < max_query_tokens; ++query) {
+                for (uint32_t head = 0; head < n_head_q; ++head) {
+                    const float * values = reinterpret_cast<const float *>(
+                        reinterpret_cast<const char *>(actual.data()) +
+                        size_t(query) * output_query_stride + size_t(head) * output_head_stride);
+                    for (uint32_t d = 0; d < 256; ++d) {
+                        if (query < query_count) {
+                            const float expected_value = expected[
+                                (size_t(query) * n_head_q + head) * 256 + d];
+                            assert(std::isfinite(values[d]));
+                            assert(std::fabs(values[d] - expected_value) < 3.0e-3f);
+                        } else {
+                            assert(std::isnan(values[d]));
+                        }
+                    }
+                }
+            }
+        };
+        replay_verify(pages, 3, n_rows, "verify graph replay pages");
+        replay_verify(pages_permuted, 3, n_rows, "verify graph replay permuted pages");
+        cudaGraphExecDestroy(verify_graph_exec);
+        cudaGraphDestroy(verify_graph);
+    }
+    assert(verify_capture_count == 3 && verify_launch_count == 6);
 
     cudaFree(active_rows_device);
     cudaFree(active_pages_device);
@@ -457,7 +554,9 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     cudaFree(k_device);
     cudaFree(q_device);
     std::fprintf(stderr, "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,4,16,17,64,128; GQA=24/4; interleaved rows)\n");
-    std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (active rows 257 -> 513; stable capacities)\n");
+    std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (driver captures=4 graph_launches=%llu"
+        " descriptor permutations, tail rows 257 -> 513, sparse causal gaps, Q=1,2,3,16; finite oracle parity)\n",
+        static_cast<unsigned long long>(verify_launch_count + 3));
 }
 
 // This is deliberately independent of the CUDA implementation.  The fixture
