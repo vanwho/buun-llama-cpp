@@ -1,0 +1,381 @@
+{
+  "schema_version": 1,
+  "task": "101-01",
+  "source_commit": "389b09016907c3e907c3c499738936d6be44257e",
+  "candidate": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "sha256": "8d66334886f13f727c6d81f00a0cc44abe43c1806075ebe3997c24358a8be860",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "build_version": "0.5.0-dev build 14082 commit 389b09016",
+    "dirty_source_diff_sha256": "2760a91ee6178425283e980e64b6cf460c62c4f8a4d05af84ec7fbf86184371b"
+  },
+  "workload": {
+    "frozen_prefix_sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067",
+    "rendered_prompt": "final prompt2",
+    "reasoning": "off",
+    "temperature": 0,
+    "warmup_output_tokens": 40,
+    "measured_output_tokens": 80,
+    "request_body_sha256": {
+      "pager_off": "26cb0006b16ca506fef34792439edebced036aec737eade625befc2778413079",
+      "selective": "26cb0006b16ca506fef34792439edebced036aec737eade625befc2778413079"
+    },
+    "request_body_bytes": {
+      "pager_off": 17518,
+      "selective": 17518
+    }
+  },
+  "configuration": {
+    "context_tokens": 8192,
+    "hot_capacity_tokens": 4096,
+    "page_tokens": 256,
+    "batch_tokens": 1024,
+    "ubatch_tokens": 256,
+    "gpu_hot_pages": 16,
+    "logical_pages": 32,
+    "host_pages": 16,
+    "target_kv": "Turbo4 GPU",
+    "draft_kv": "Turbo4 GPU",
+    "mtp": "native GPU",
+    "mtp_nmax": 2,
+    "slots": 1,
+    "cache": "fresh/reset; no cached prompt tokens",
+    "gdn_snapshot_frontiers": [
+      1130,
+      4299,
+      4322
+    ],
+    "gdn_snapshot_bytes": [
+      158135304,
+      161557824,
+      161582664
+    ],
+    "actual_page_metrics": {
+      "kv_pager_page_capacity": "16",
+      "kv_pager_context_tokens": "8192",
+      "kv_pager_page_tokens": "256",
+      "kv_pager_logical_pages": "32",
+      "kv_pager_resident_pages": "16",
+      "kv_pager_host_pages": "16",
+      "kv_pager_attention_pages": "16",
+      "kv_pager_attention_tokens": "4096",
+      "kv_pager_requested_context_tokens": "8192",
+      "kv_pager_resolved_context_tokens": "8192",
+      "kv_pager_accepted_target_tokens": "4096",
+      "kv_pager_admitted_tokens": "4096",
+      "kv_pager_transfer_destination_pages": "1",
+      "kv_pager_requested_ubatch": "256",
+      "kv_pager_effective_ubatch": "256"
+    },
+    "derived_generation_reserve": {
+      "configured_generation_tail": "auto",
+      "minimum_tail_pages": 1,
+      "transfer_destination_slack_pages": 1,
+      "generation_pages": 2,
+      "generation_tokens": 512,
+      "retrieval_pages": 14,
+      "retrieval_tokens": 3584,
+      "derivation": "src/llama-kv-pager-config.cpp::llama_kv_pager_derive_turn_geometry; automatic tail selects one page and measured transfer_destination_pages=1"
+    }
+  },
+  "matched_rows": {
+    "pager_off": {
+      "prompt_tokens": 4326,
+      "cached_tokens": 0,
+      "completion_tokens": 80,
+      "prompt_ms": 2659.656,
+      "prefill_tok_s": 1626.5261372147374,
+      "decode_tok_s": 66.15911182648559,
+      "draft_tokens": 56,
+      "accepted_tokens": 36,
+      "mtp_acceptance_percent": 64.28571429,
+      "http_code": 200,
+      "request_start": "2026-10-01T01:38:14+02:00",
+      "request_end": "2026-10-01T01:38:18+02:00"
+    },
+    "selective": {
+      "prompt_tokens": 4326,
+      "cached_tokens": 0,
+      "completion_tokens": 80,
+      "prompt_ms": 21400.512,
+      "prefill_tok_s": 202.1446963511901,
+      "decode_tok_s": 38.708507787024814,
+      "draft_tokens": 55,
+      "accepted_tokens": 39,
+      "mtp_acceptance_percent": 70.90909091,
+      "http_code": 200,
+      "request_start": "2026-10-01T01:39:26+02:00",
+      "request_end": "2026-10-01T01:39:50+02:00"
+    },
+    "selective_vs_off_prefill_ratio": 0.1242800172257561,
+    "selective_speed_goal_tok_s": 500,
+    "selective_goal_met": false,
+    "finding": "Selective alone is slow: about 8.05x below matched pager-off prefill; both rows are successful fresh requests."
+  },
+  "profile_off": {
+    "default_environment": "LLAMA_HOTPATH_PROFILE unset",
+    "off_on_predicate_fixture": "passed: null,0,true false;1 true",
+    "success_row_context_ubatch_records": 0,
+    "success_row_context_fence_records": 0,
+    "detailed_context_timing_disabled": true
+  },
+  "gpu_attribution": {
+    "tool": "Nsight Systems 2025.5.2",
+    "exact_candidate_profiled": true,
+    "trace_sha256": "f7510b1954474c210384e0e2c255a371319c0058a8f19b8c465b24fa0459ad7f",
+    "request_interval_summary": {
+      "trace": "nsys-selected-v2.nsys-rep",
+      "candidate_pid": 319644,
+      "request_local_window": "2026-10-01T01:56:55+02:00 to 2026-10-01T01:57:14+02:00",
+      "window_source": "system journal task launch at 01:56:55, prompt complete at 01:57:12, pager error at 01:57:13; \u00b11s boundary uncertainty",
+      "window_ns": 19000000000,
+      "gpu_kernel_count": 32359,
+      "gpu_memcpy_count": 35788,
+      "gpu_memset_count": 378,
+      "graph_count_overlapping": 43,
+      "kernel_sum_ns": 1002454121,
+      "memcpy_sum_ns": 95473946,
+      "gpu_busy_union_ns": 1098109669,
+      "gpu_busy_union_percent": 5.779524573684211,
+      "top_kernel_owners": [
+        {
+          "name": "void mul_mat_q<(ggml_type)23, (int)128, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 1378,
+          "ns": 244747775
+        },
+        {
+          "name": "void gated_delta_net_cuda<(int)128, (bool)0, (bool)1, (bool)1, (bool)0>(const float *, const float *, const float *, const float *, const float *, const float *, float *, float *, long, long, long, long, long, long, long, long, long, long, long, long, uint3, uint3, float, long, int, ggml_cuda_gdn_norm, const int *)",
+          "count": 595,
+          "ns": 153005816
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)21, (int)64, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 330,
+          "ns": 104468360
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)12, (int)128, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 341,
+          "ns": 45110812
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)13, (int)128, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 332,
+          "ns": 41760982
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)18, (int)64, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 119,
+          "ns": 36606188
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)14, (int)128, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 115,
+          "ns": 27648698
+        },
+        {
+          "name": "void unary_gated_op_kernel<&op_silu, float>(const T2 *, const T2 *, T2 *, long, long, long, long)",
+          "count": 1378,
+          "ns": 20867895
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)23, (int)112, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 211,
+          "ns": 20023291
+        },
+        {
+          "name": "void mul_mat_vec_q<(ggml_type)23, (int)3, (bool)0, (bool)0, (bool)0, (int)0, (bool)0, (bool)0>(const void *, const void *, const int *, ggml_cuda_mmvq_fusion_args_device, float *, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, uint3, unsigned int, unsigned int, unsigned int, unsigned int)",
+          "count": 422,
+          "ns": 19822305
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)22, (int)64, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 49,
+          "ns": 18741049
+        },
+        {
+          "name": "void mul_mat_q<(ggml_type)11, (int)64, (bool)0, (mmq_stream_mode)0>(const char *, const int *, const int *, const int *, float *, float *, const float *, uint3, int, int, int, int, int, uint3, uint3, int, int, int, uint3, uint3, int, int, int, uint3)",
+          "count": 57,
+          "ns": 17619190
+        }
+      ],
+      "cuda_api_counts_and_inclusive_ns": {
+        "cudaMemcpyAsync_v3020": {
+          "count": 35835,
+          "ns": 158622536
+        },
+        "cudaStreamSynchronize_v3020": {
+          "count": 11381,
+          "ns": 1734578933
+        },
+        "cudaEventRecord_v3020": {
+          "count": 33485,
+          "ns": 13331712
+        },
+        "cudaEventSynchronize_v3020": {
+          "count": 1536,
+          "ns": 1442976
+        },
+        "cudaMalloc_v3020": {
+          "count": 176,
+          "ns": 13000158
+        },
+        "cudaMemGetInfo_v3020": {
+          "count": 171,
+          "ns": 1292335
+        },
+        "cudaMallocHost_v3020": {
+          "count": 7,
+          "ns": 33818584
+        },
+        "cudaStreamWaitEvent_v3020": {
+          "count": 31949,
+          "ns": 11599877
+        },
+        "cudaDeviceSynchronize_v3020": {
+          "count": 2,
+          "ns": 105379
+        },
+        "cudaGraphInstantiate_v12000": {
+          "count": 6,
+          "ns": 21950406
+        },
+        "cudaGraphExecUpdate_v10020": {
+          "count": 8,
+          "ns": 726197
+        },
+        "cudaGraphLaunch_v10000": {
+          "count": 43,
+          "ns": 6361487
+        },
+        "cudaMemcpy2DAsync_v3020": {
+          "count": 6,
+          "ns": 17490
+        },
+        "cudaGraphDestroy_v10000": {
+          "count": 3,
+          "ns": 46720
+        },
+        "cudaGraphExecDestroy_v10000": {
+          "count": 1,
+          "ns": 44839
+        }
+      },
+      "kernel_family_totals": {
+        "quantized_matmul": {
+          "count": 8646,
+          "duration_ns": 640117885
+        },
+        "gdn": {
+          "count": 595,
+          "duration_ns": 153005816
+        },
+        "turbo4_dequant": {
+          "count": 454,
+          "duration_ns": 6016996
+        },
+        "attention": {
+          "count": 451,
+          "duration_ns": 19634337
+        }
+      },
+      "memcpy_directions": [
+        {
+          "direction": "host_to_device",
+          "count": 1461,
+          "bytes": 288379108,
+          "duration_ns": 12045290
+        },
+        {
+          "direction": "device_to_host",
+          "count": 2228,
+          "bytes": 1144184480,
+          "duration_ns": 52157475
+        },
+        {
+          "direction": "device_to_device",
+          "count": 32099,
+          "bytes": 1307939448,
+          "duration_ns": 31271181
+        }
+      ],
+      "cuda_trace_device_id": 0
+    },
+    "profiled_request_outcome": "prefill completed for 4326 tokens; decode ended with KV pager batch write reservation no_victim; do not treat as a completed profiled row",
+    "kernel_placement": "CUDA device 0 records quantized matmul, gated_delta_net_cuda, flash_attn, and k_turbo4_dequant_f16; large matmuls/GDN/attention execute on GPU",
+    "actual_q_per_microbatch": "not directly logged; effective U=256 and exact prompt total=4326 imply at most 17 prefill microbatches (16x256 +230), schedule is inferred rather than a per-call trace",
+    "profile_env_1_live_log": "environment set to 1; verbose service replay completed or failed as recorded in raw logs but did not emit context_ubatch/context_fence lines; fixture covers gate truth table"
+  },
+  "raw_artifacts": {
+    "pager_off_records": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/pager-off-fresh/records.jsonl",
+      "sha256": "feb87184cfac1fbf06dd9b263d509b525e4f8fb451eda8d0ea15444c52383757",
+      "label": "fresh pager-off benchmark records"
+    },
+    "pager_off_config": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/pager-off-fresh/run-config.json",
+      "sha256": "77ef079f06b98e33c3a5b039f2f5895ac6fa540349c3be4665ed2767c5fe85f2",
+      "label": "pager-off configuration and runtime identity"
+    },
+    "pager_off_measured_request": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/pager-off-fresh/raw/wire-requests/measured-1-p1.json",
+      "sha256": "26cb0006b16ca506fef34792439edebced036aec737eade625befc2778413079",
+      "label": "exact pager-off wire body"
+    },
+    "selective_records": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/records.jsonl",
+      "sha256": "f9014f1e5af9fd6aa72e8c418dcab753d4f7546b297ba74826f1eb8ab1021e1f",
+      "label": "fresh selective benchmark records"
+    },
+    "selective_config": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/run-config.json",
+      "sha256": "da49f12e8d646e63cba760a36e90fe4b7f6d8e3e81a81a9c204d7ecbb464f878",
+      "label": "selective configuration and runtime identity"
+    },
+    "selective_measured_request": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/raw/wire-requests/measured-1-p1.json",
+      "sha256": "26cb0006b16ca506fef34792439edebced036aec737eade625befc2778413079",
+      "label": "exact selective wire body"
+    },
+    "selective_metrics": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/raw/off-measured-1-p1.mtp-after.prom",
+      "sha256": "c62666d8d264a7e78197bd102058dd8eeadbc8bb6a704b578a45f76072e8a14f",
+      "label": "selective pager/MTP counters"
+    },
+    "nsys_report": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/nsys-selected-v2.nsys-rep",
+      "sha256": "f7510b1954474c210384e0e2c255a371319c0058a8f19b8c465b24fa0459ad7f",
+      "label": "Nsight Systems candidate report"
+    },
+    "nsys_request_window": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-selected-v2-request-window.json",
+      "sha256": "b9bb6004e08ce1936acf2e1d2c94fdf5f7d8a88a836d37a2b17d897dd6ff4836",
+      "label": "bounded CUDA attribution summary"
+    },
+    "nsys_request_journal": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-selected-v2-request.journal.log",
+      "sha256": "21d6480ae4713b9d821fc060091ffab75e899598911ce69b4471b5c7d8c2043b",
+      "label": "profiled request journal interval"
+    },
+    "profiled_sse_error": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-live-request-v4.sse",
+      "sha256": "1b4aca9d763270d194bd3a8b7120d0c7b8f9f1a2e2018fdf3d2d7192fbd3ca31",
+      "label": "SSE response including pager no_victim error"
+    },
+    "profile_on_journal": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/hotpath-profile-on-verbose-replay-v2.journal.log",
+      "sha256": "16f06bc8c5b589e267867b51032a00b8353727f49f0fbfd9550cd7e7f0d712fa",
+      "label": "explicit env=1 verbose replay journal"
+    },
+    "build_log": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/build.log",
+      "sha256": "8c5786fee994e03daf6fe3e0da586dbc27d4f2c685cd104ab05ae9fddb45b589",
+      "label": "incremental build output"
+    },
+    "fixture_log": {
+      "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/test-kv-attention-execution.log",
+      "sha256": "731edc8a75362e637d18acd189548c15023a1a9167c4d9a6b9841b3c8e5ac643",
+      "label": "focused execution fixture output"
+    }
+  }
+}

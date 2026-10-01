@@ -1915,11 +1915,9 @@ static bool prefill_page_wave_boundary(
     return prefill_page_number(previous_position + 1, page_tokens) != previous_page;
 }
 
-static bool llama_context_hotpath_profile_enabled(llama_kv_pager_mode mode) noexcept {
-    const char * value = std::getenv("LLAMA_HOTPATH_PROFILE");
-    return (value != nullptr && std::strcmp(value, "1") == 0) ||
-        mode == llama_kv_pager_mode::selective ||
-        mode == llama_kv_pager_mode::exact;
+static bool llama_context_hotpath_profile_enabled() noexcept {
+    return llama_kv_attention_hotpath_profile_enabled(
+            std::getenv("LLAMA_HOTPATH_PROFILE"));
 }
 
 uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
@@ -2535,7 +2533,7 @@ void llama_context::synchronize() {
         has_evaluated_once = true;
     }
 
-    if (llama_context_hotpath_profile_enabled(kv_pager.mode)) {
+    if (llama_context_hotpath_profile_enabled()) {
         const int64_t total_fence_us = std::max<int64_t>(
                 0, ggml_time_us() - wait_start_us);
         LLAMA_LOG_INFO("hotpath stage=context_fence in_flight=%d backend_wait_us=%" PRId64
@@ -6552,7 +6550,7 @@ bool llama_context::set_adapter_cvec(
 }
 
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
-    const bool hotpath_profile = llama_context_hotpath_profile_enabled(kv_pager.mode);
+    const bool hotpath_profile = llama_context_hotpath_profile_enabled();
     const int64_t ubatch_start_us = hotpath_profile ? ggml_time_us() : 0;
     int64_t apply_us = 0;
     int64_t attention_prepare_us = 0;
