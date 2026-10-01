@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "task": "101-08",
+  "source_commit": "89092e93931edc5fda2db20d108a79a77d7b731e",
+  "summary": "Bounded device-owned MTP prompt hidden handoff and carry parity passed CPU/CUDA fixtures and live prompt-1 verification with positive proposals, measured hidden transfer bytes, no fallback, and finite log probabilities.",
+  "checks": {
+    "mtp_device_prefill_handoff_and_carry_parity": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "fast",
+        "/srv/ai/paged-kv/results/v10/101-08/attempt2-transfer-stats",
+        "--mode",
+        "selective",
+        "--device",
+        "cuda0",
+        "--page-size",
+        "256",
+        "--batch",
+        "1024",
+        "--ubatch",
+        "256",
+        "--context",
+        "8192",
+        "--mtp",
+        "native",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "16",
+        "--progress-bound",
+        "240"
+      ],
+      "environment": {
+        "BENCH_SERVER_BIN": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "BENCH_ENDPOINT": "http://127.0.0.1:8080/v1/chat/completions",
+        "BENCH_MTP": "native",
+        "BENCH_MODES": "off",
+        "BENCH_WARMUPS": "0",
+        "BENCH_MEASURED": "1",
+        "BENCH_MAX_TOKENS": "16",
+        "BENCH_CLEAN": "1"
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/101-08-attempt2-transfer-stats-build.log",
+          "sha256": "dc03e62a0dc0d365bb037c838c6abf83b453638b5d257011ccf383e7ebeafab4"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-08-attempt2-transfer-stats-state.log",
+          "sha256": "4c447021bc8b5b2c11ce01b989645d697e0f35426d0d77532c72de4d8061f86a"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-08-attempt2-transfer-stats-cuda.log",
+          "sha256": "c5de4aa1f0281e7b2072f7a398ffef9cbb346213f9a53bf708d1f4b282c51313"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-08-attempt2-transfer-stats-live.log",
+          "sha256": "cec4f92eec2be8423652534c691951aa5fa7bef27d643dec8deb6b9b96dd2cb2"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-08-attempt2-transfer-stats-journal.log",
+          "sha256": "bd43a52aac6cbefee3787b560cda09d5c396b86680670103099ca7f5ee6a37ab"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-08-attempt2-finite-logprobs.json",
+          "sha256": "7b4c355b1041ffb5ac8eea7769d402ec2fea8b75df9687cca28ffcef5d07073e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-08/attempt2-transfer-stats/records.jsonl",
+          "sha256": "f07f11f97d56699a05faec826c2e491e958c7e70c6a5dde45f23976eb7297956"
+        }
+      ],
+      "metrics": {
+        "cpu_fixture": "four_microbatch_shifted_hidden_oracle_pass; cancellation/stale_generation_pass; reject_0_1_2_and_replay_cases_pass",
+        "cuda_fixture": "RTX 4080; rows=1024; ubatch=256; graph_slots=2; d2d_bytes=32768; d2h_bytes=32800; shifted_oracle/completion_event/stale_generation_refusal=pass",
+        "live_http_status": 200,
+        "live_prompt_tokens": 30,
+        "live_completion_tokens": 16,
+        "live_draft_proposals": 10,
+        "live_accepted_proposals": 10,
+        "live_device_handoff": true,
+        "live_fallback_reason": "none",
+        "live_hidden_transfer_per_process_call_bytes": {
+          "target_d2h_range": [
+            20480,
+            61440
+          ],
+          "target_h2d": 0,
+          "draft_d2h": 0,
+          "draft_h2d": 20480,
+          "interpretation": "device-resident shifted rows; one carry row uploaded; target CPU materialization only for requested verification/carry state"
+        },
+        "finite_logits_evidence": {
+          "endpoint_logprobs_http_status": 200,
+          "logprob_count": 4,
+          "all_finite": true
+        },
+        "local_commands": [
+          "cmake --build build-cuda --target llama-server test-speculative-mtp-state test-cuda-mtp-hidden-owner -j6",
+          "build-cuda/bin/test-speculative-mtp-state",
+          "build-cuda/bin/test-cuda-mtp-hidden-owner",
+          "git diff --check"
+        ]
+      }
+    }
+  },
+  "build_provenance": {
+    "source_commit": "89092e93931edc5fda2db20d108a79a77d7b731e",
+    "tracked_worktree_diff_sha256": "0e54ae2f438b982cb2685e1805af0591270db92d3b8d5e4cd61c9514cb2fb836",
+    "untracked_cuda_fixture_sha256": "ff557a7d143ac1fd942e0b8267d35e582418fc8373745923d2e0bedea4e8b935",
+    "server_binary": {
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "035cb6f31a1f0ec1a7123564145e40a5b471c3a1282947d1eb0b550ad9e32bcd"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "build_command": [
+      "cmake",
+      "--build",
+      "build-cuda",
+      "--target",
+      "llama-server",
+      "test-speculative-mtp-state",
+      "test-cuda-mtp-hidden-owner",
+      "-j6"
+    ]
+  }
+}

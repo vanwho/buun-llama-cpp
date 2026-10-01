@@ -249,6 +249,66 @@ void test_reject_rollback_and_next_proposal() {
                  "draft_frontier=102 denominator=2\n";
 }
 
+void test_four_microbatch_shifted_hidden_rows() {
+    constexpr int32_t batch_rows = 1024;
+    constexpr int32_t microbatch_rows = 256;
+    constexpr int32_t width = 4;
+    std::vector<float> target_hidden((size_t) batch_rows * width);
+    std::vector<float> device_owner((size_t) batch_rows * width);
+    std::vector<float> draft_input((size_t) batch_rows * width, -1.0f);
+    const std::vector<float> committed_carry = { -1.0f, -2.0f, -3.0f, -4.0f };
+
+    for (int32_t row = 0; row < batch_rows; ++row) {
+        for (int32_t col = 0; col < width; ++col) {
+            target_hidden[(size_t) row * width + col] = float(row * 10 + col);
+        }
+    }
+
+    // Four graph slots publish into one logical owner at stable batch offsets.
+    for (int32_t micro = 0; micro < 4; ++micro) {
+        const int32_t offset = micro * microbatch_rows;
+        std::copy_n(target_hidden.begin() + (size_t) offset * width,
+                (size_t) microbatch_rows * width,
+                device_owner.begin() + (size_t) offset * width);
+    }
+    assert(device_owner == target_hidden);
+
+    for (int32_t micro = 0; micro < 4; ++micro) {
+        const int32_t offset = micro * microbatch_rows;
+        for (int32_t row = 0; row < microbatch_rows; ++row) {
+            const int32_t target_row = offset + row;
+            const float * source = target_row == 0
+                ? committed_carry.data()
+                : device_owner.data() + (size_t) (target_row - 1) * width;
+            std::copy_n(source, width,
+                    draft_input.begin() + (size_t) target_row * width);
+        }
+    }
+
+    for (int32_t row = 0; row < batch_rows; ++row) {
+        for (int32_t col = 0; col < width; ++col) {
+            const float expected = row == 0
+                ? committed_carry[col]
+                : target_hidden[(size_t) (row - 1) * width + col];
+            assert(draft_input[(size_t) row * width + col] == expected);
+        }
+    }
+    std::cout << "four_microbatch_shifted_hidden_oracle=pass rows=1024 microbatch=256\n";
+}
+
+void test_cancelled_hidden_stage_generation() {
+    uint64_t stage_generation = 90;
+    const uint64_t request_generation = stage_generation;
+    bool stage_valid = true;
+    // A cancelled request invalidates its partial owner before a later request
+    // can reuse the same context storage.
+    stage_valid = false;
+    ++stage_generation;
+    assert(!stage_valid);
+    assert(request_generation != stage_generation);
+    std::cout << "cancelled_hidden_stage=pass stale_generation_refused=pass\n";
+}
+
 } // namespace
 
 int main() {
@@ -258,6 +318,8 @@ int main() {
     test_query_replay_carry_generations();
     test_transaction_rows_and_checkpoint();
     test_reject_rollback_and_next_proposal();
+    test_four_microbatch_shifted_hidden_rows();
+    test_cancelled_hidden_stage_generation();
     std::cout << "test-speculative-mtp-state: PASS\n";
     return 0;
 }

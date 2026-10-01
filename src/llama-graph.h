@@ -173,6 +173,10 @@ public:
     virtual ~llm_graph_input_i() = default;
 
     virtual void set_input(const llama_ubatch * ubatch) = 0;
+    virtual void set_input_mtp_handoff(const llama_ubatch * ubatch, int32_t host_hidden_row) {
+        GGML_UNUSED(host_hidden_row);
+        set_input(ubatch);
+    }
 
     // return true if the resulting input tensors using the provided graph parameters would be
     //   the same as the previous input tensors that we have currently stored in the object
@@ -223,10 +227,12 @@ public:
 // similar to llm_graph_input_embd but with an additional hidden state input
 class llm_graph_input_embd_h : public llm_graph_input_i {
 public:
-    llm_graph_input_embd_h(int64_t n_embd) : n_embd(n_embd) {}
+    llm_graph_input_embd_h(int64_t n_embd, ggml_backend_sched_t sched = nullptr) : n_embd(n_embd), sched(sched) {}
     virtual ~llm_graph_input_embd_h() = default;
 
     void set_input(const llama_ubatch * ubatch) override;
+    void set_input_mtp_handoff(const llama_ubatch * ubatch, int32_t host_hidden_row) override;
+    void set_hidden_backend(ggml_tensor * tensor);
 
     bool can_reuse(const llm_graph_params & params) override;
 
@@ -235,6 +241,7 @@ public:
     ggml_tensor * h      = nullptr; // F32 [n_embd, n_batch]
 
     const int64_t n_embd = 0;
+    ggml_backend_sched_t sched = nullptr;
 };
 
 class llm_graph_input_pos : public llm_graph_input_i {
@@ -1230,7 +1237,7 @@ public:
 
     void reset();
 
-    void set_inputs(const llama_ubatch * ubatch);
+    void set_inputs(const llama_ubatch * ubatch, int32_t mtp_host_hidden_row = -2);
     void set_outputs(const llm_graph_params & params);
 
     // try to update the existing graph result using the new graph parameters in order to reuse it

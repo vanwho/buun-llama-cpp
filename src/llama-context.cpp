@@ -1038,6 +1038,14 @@ llama_context::~llama_context() {
     // scheduler and memory tree are still alive, so deferred VBR work reaches its normal fence and
     // pending asynchronous copies into the output buffers finish before those buffers are freed.
     synchronize();
+    if (embeddings_nextn_device_consumed_event != nullptr) {
+        if (embeddings_nextn_device_event_recorded) {
+            ggml_backend_event_synchronize(embeddings_nextn_device_consumed_event);
+            embeddings_nextn_device_event_recorded = false;
+        }
+        ggml_backend_event_free(embeddings_nextn_device_consumed_event);
+        embeddings_nextn_device_consumed_event = nullptr;
+    }
 
     // kv_pager_owner is declared before the backend members, so ordinary
     // reverse declaration-order destruction would tear down the CUDA backend
@@ -3781,7 +3789,52 @@ float * llama_context::get_embeddings_seq(llama_seq_id seq_id) {
 float * llama_context::get_embeddings_nextn() {
     output_reorder();
 
+    for (int32_t row = 0; row < embeddings_nextn_output_rows; ++row) {
+        if (!materialize_embeddings_nextn_host_row(row)) {
+            return nullptr;
+        }
+    }
+
     return embd_nextn.data;
+}
+
+bool llama_context::materialize_embeddings_nextn_host_row(int32_t row) {
+    if (row < 0 || row >= (int32_t) embeddings_nextn_host_valid.size() ||
+            embd_nextn.data == nullptr) {
+        return false;
+    }
+    if (embeddings_nextn_host_valid[row]) {
+        return true;
+    }
+    if (embeddings_nextn_device_tensor == nullptr ||
+            (size_t) row >= embeddings_nextn_host_source_rows.size()) {
+        return false;
+    }
+    const int32_t source_row = embeddings_nextn_host_source_rows[row];
+    if (source_row < 0 || source_row >= embeddings_nextn_device_valid_rows) {
+        return false;
+    }
+    const uint32_t n_embd = model.hparams.n_embd_out();
+    const size_t row_bytes = (size_t) n_embd * sizeof(float);
+    ggml_backend_tensor_get_async(embeddings_nextn_device_backend,
+            embeddings_nextn_device_tensor,
+            embd_nextn.data + (size_t) row * n_embd,
+            (size_t) source_row * embeddings_nextn_device_tensor->nb[1], row_bytes);
+    ggml_backend_sched_synchronize(sched.get());
+    embeddings_nextn_host_valid[row] = 1;
+    embeddings_nextn_d2h_bytes += row_bytes;
+    LLAMA_LOG_INFO("mtp_hidden_transfer: direction=d2h bytes=%zu total_bytes=%" PRIu64 " fallback_reason=cpu_consumer_requested_row\n",
+            row_bytes, embeddings_nextn_d2h_bytes);
+    return true;
+}
+
+void llama_context::get_embeddings_nextn_transfer_bytes(uint64_t * d2h, uint64_t * h2d) const {
+    if (d2h != nullptr) {
+        *d2h = embeddings_nextn_d2h_bytes;
+    }
+    if (h2d != nullptr) {
+        *h2d = embeddings_nextn_h2d_bytes;
+    }
 }
 
 float * llama_context::get_embeddings_nextn_ith(int32_t i) {
@@ -3799,10 +3852,16 @@ float * llama_context::get_embeddings_nextn_ith(int32_t i) {
             if (i < 0 || (size_t)(i + 1) * n_embd > embd_nextn.size) {
                 throw std::runtime_error(format("out of range [0, %zu)", embd_nextn.size / n_embd));
             }
+            if (!materialize_embeddings_nextn_host_row(i)) {
+                throw std::runtime_error("device nextn row is not available for host materialization");
+            }
             return embd_nextn.data + (size_t) i * n_embd;
         }
 
         const int64_t j = output_resolve_row(i);
+        if (!materialize_embeddings_nextn_host_row((int32_t) j)) {
+            throw std::runtime_error("masked nextn row is not available for host materialization");
+        }
         return embd_nextn.data + j*n_embd;
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("%s: invalid nextn embeddings id %d, reason: %s\n", __func__, i, err.what());
@@ -3816,34 +3875,55 @@ float * llama_context::get_embeddings_nextn_ith(int32_t i) {
 
 bool llama_context::set_embeddings_nextn_device(
         llama_context * source, int32_t source_offset, int32_t destination_offset,
-        int32_t n_rows) {
-    auto * source_res = source != nullptr ? source->gf_res_prev_active : nullptr;
-    auto * destination_res = get_gf_res_prev();
+        int32_t n_rows, const llama_pos * expected_positions,
+        const llama_seq_id * expected_sequences) {
     if (source == nullptr || source_offset < 0 || destination_offset < 0 || n_rows <= 0 ||
-            source_res == nullptr || destination_res == nullptr) {
+            source->embeddings_nextn_device_tensor == nullptr ||
+            source->embeddings_nextn_device_consumed_event == nullptr ||
+            source_offset + n_rows > source->embeddings_nextn_device_valid_rows ||
+            destination_offset + n_rows > cparams.n_batch) {
+        if (source != nullptr) {
+            const char * reason = source->embeddings_nextn_device_tensor == nullptr
+                ? "owner_missing" : source->embeddings_nextn_device_consumed_event == nullptr
+                ? "completion_event_missing" : source_offset + n_rows >
+                    source->embeddings_nextn_device_valid_rows
+                ? "valid_interval_too_short" : "invalid_request_bounds";
+            LLAMA_LOG_WARN("%s: h_nextn device request refused: reason=%s valid_rows=%d source_offset=%d rows=%d generation=%" PRIu64 "\n",
+                    __func__, reason, source->embeddings_nextn_device_valid_rows,
+                    source_offset, n_rows, source->embeddings_nextn_device_generation);
+        }
+        return false;
+    }
+    if (expected_positions == nullptr || expected_sequences == nullptr) {
+        return false;
+    }
+    const llama_seq_id seq_id = source->embeddings_nextn_device_sequences[source_offset];
+    if (seq_id < 0 || expected_sequences[0] != seq_id) {
+        return false;
+    }
+    for (int32_t i = 1; i < n_rows; ++i) {
+        if (source->embeddings_nextn_device_sequences[source_offset + i] != seq_id ||
+                expected_sequences[i] != seq_id) {
+            LLAMA_LOG_WARN("%s: h_nextn device request refused: reason=sequence_mismatch row=%d expected_seq=%d actual_seq=%d\n",
+                    __func__, i, (int) expected_sequences[i],
+                    (int) source->embeddings_nextn_device_sequences[source_offset + i]);
+            return false;
+        }
+    }
+    GGML_UNUSED(expected_positions);
+
+    ggml_tensor * source_tensor = source->embeddings_nextn_device_tensor;
+    if (source_tensor == nullptr || source_tensor->type != GGML_TYPE_F32 ||
+            source_tensor->buffer == nullptr) {
         return false;
     }
 
-    ggml_tensor * source_tensor = source_res->get_h_nextn();
-    ggml_tensor * destination_tensor = ggml_graph_get_tensor(
-            destination_res->get_gf(), "mtp_h_input");
-    if (source_tensor == nullptr || destination_tensor == nullptr ||
-            source_tensor->type != GGML_TYPE_F32 || destination_tensor->type != GGML_TYPE_F32 ||
-            source_tensor->buffer == nullptr || destination_tensor->buffer == nullptr ||
-            source_tensor->ne[0] != destination_tensor->ne[0] ||
-            source_offset + n_rows > source_tensor->ne[1] ||
-            destination_offset + n_rows > destination_tensor->ne[1]) {
-        return false;
-    }
-
-    const ggml_backend_t source_backend = ggml_backend_sched_get_tensor_backend(
-            source->sched.get(), source_tensor);
-    const ggml_backend_t destination_backend = ggml_backend_sched_get_tensor_backend(
-            sched.get(), destination_tensor);
-    if (source_backend == nullptr || destination_backend == nullptr ||
+    const ggml_backend_t source_backend = source->embeddings_nextn_device_backend;
+    if (source_backend == nullptr ||
             ggml_backend_buffer_is_host(source_tensor->buffer) ||
-            ggml_backend_buffer_is_host(destination_tensor->buffer) ||
-            ggml_backend_get_device(source_backend) != ggml_backend_get_device(destination_backend)) {
+            ggml_backend_get_device(source_backend) == nullptr) {
+        LLAMA_LOG_WARN("%s: h_nextn device request refused: reason=source_backend_unavailable\n",
+                __func__);
         return false;
     }
 
@@ -3851,7 +3931,34 @@ bool llama_context::set_embeddings_nextn_device(
     embeddings_nextn_device_request.source_offset = source_offset;
     embeddings_nextn_device_request.destination_offset = destination_offset;
     embeddings_nextn_device_request.n_rows = n_rows;
+    embeddings_nextn_device_request.source_generation = source->embeddings_nextn_device_generation;
+    LLAMA_LOG_INFO("MTP h_nextn device owner bound: rows=%d source_offset=%d destination_offset=%d valid_rows=%d capacity=%d generation=%" PRIu64 " d2h_bytes=%" PRIu64 " h2d_bytes=%" PRIu64 " fallback_reason=none\n",
+            n_rows, source_offset, destination_offset,
+            source->embeddings_nextn_device_valid_rows,
+            source->embeddings_nextn_device_capacity,
+            source->embeddings_nextn_device_generation,
+            source->embeddings_nextn_d2h_bytes,
+            source->embeddings_nextn_h2d_bytes);
     return true;
+}
+
+bool llama_context::mark_embeddings_nextn_device_consumed(llama_context * consumer) {
+    if (consumer == nullptr || embeddings_nextn_device_consumed_event == nullptr ||
+            embeddings_nextn_device_tensor == nullptr || consumer->sched == nullptr ||
+            embeddings_nextn_device_backend == nullptr) {
+        return false;
+    }
+    const ggml_backend_dev_t owner_device =
+            ggml_backend_get_device(embeddings_nextn_device_backend);
+    for (int i = 0; i < ggml_backend_sched_get_n_backends(consumer->sched.get()); ++i) {
+        ggml_backend_t backend = ggml_backend_sched_get_backend(consumer->sched.get(), i);
+        if (backend != nullptr && ggml_backend_get_device(backend) == owner_device) {
+            ggml_backend_event_record(embeddings_nextn_device_consumed_event, backend);
+            embeddings_nextn_device_event_recorded = true;
+            return true;
+        }
+    }
+    return false;
 }
 
 // Readers return data from the active DFlash slot; multi-slot callers must
@@ -6690,29 +6797,114 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     const int64_t set_inputs_start_us = hotpath_profile ? ggml_time_us() : 0;
     try {
         // FIXME this call causes a crash if any model inputs were not used in the graph and were therefore not allocated
-        res->set_inputs(&ubatch);
+        int32_t mtp_host_hidden_row = -2;
+        if (embeddings_nextn_device_request.source != nullptr) {
+            const auto & request = embeddings_nextn_device_request;
+            const int32_t batch_begin = embeddings_nextn_device_decode_token_offset;
+            const int32_t batch_end = batch_begin + (int32_t) ubatch.n_tokens;
+            const int32_t request_end = request.destination_offset + request.n_rows;
+            const int32_t copy_begin = std::max(batch_begin, request.destination_offset);
+            const int32_t copy_end = std::min(batch_end, request_end);
+            ggml_tensor * source_tensor = request.source->embeddings_nextn_device_tensor;
+            ggml_backend_t source_backend = request.source->embeddings_nextn_device_backend;
+            ggml_tensor * destination_tensor = ggml_graph_get_tensor(
+                    res->get_gf(), "mtp_h_input");
+            ggml_backend_t destination_backend = destination_tensor != nullptr
+                ? ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor)
+                : nullptr;
+            const bool covers_batch = copy_begin == batch_begin + (batch_begin == 0 ? 1 : 0) &&
+                copy_end == batch_end;
+            const bool can_handoff = covers_batch && source_tensor != nullptr &&
+                source_backend != nullptr && destination_tensor != nullptr &&
+                destination_backend != nullptr &&
+                request.source_generation == request.source->embeddings_nextn_device_generation &&
+                source_tensor->type == GGML_TYPE_F32 && destination_tensor->type == GGML_TYPE_F32 &&
+                source_tensor->buffer != nullptr && destination_tensor->buffer != nullptr &&
+                source_tensor->ne[0] == destination_tensor->ne[0] &&
+                ggml_backend_get_device(source_backend) == ggml_backend_get_device(destination_backend) &&
+                !ggml_backend_buffer_is_host(source_tensor->buffer) &&
+                !ggml_backend_buffer_is_host(destination_tensor->buffer);
+            if (can_handoff) {
+                mtp_host_hidden_row = batch_begin == 0 ? 0 : -1;
+            }
+        }
+        res->set_inputs(&ubatch, mtp_host_hidden_row);
+        if (mtp_host_hidden_row != -1 && ubatch.embd != nullptr) {
+            ggml_tensor * mtp_input = ggml_graph_get_tensor(res->get_gf(), "mtp_h_input");
+            ggml_backend_t mtp_backend = mtp_input != nullptr
+                ? ggml_backend_sched_get_tensor_backend(sched.get(), mtp_input)
+                : nullptr;
+            if (mtp_input != nullptr && mtp_backend != nullptr &&
+                    mtp_input->buffer != nullptr &&
+                    !ggml_backend_buffer_is_host(mtp_input->buffer)) {
+                const uint64_t n_embd = (uint64_t) mtp_input->ne[0];
+                const uint64_t n_upload_rows = mtp_host_hidden_row == -2
+                    ? ubatch.n_tokens : 1;
+                embeddings_nextn_h2d_bytes += n_embd * n_upload_rows * sizeof(float);
+                LLAMA_LOG_INFO("mtp_hidden_transfer: direction=h2d bytes=%" PRIu64 " total_bytes=%" PRIu64 " fallback_reason=%s\n",
+                        n_embd * n_upload_rows * sizeof(float), embeddings_nextn_h2d_bytes,
+                        mtp_host_hidden_row == -2 ? "host_hidden_fallback" : "committed_carry_row");
+            }
+        }
 
         if (embeddings_nextn_device_request.source != nullptr) {
             const auto request = embeddings_nextn_device_request;
-            embeddings_nextn_device_request = {};
-
-            auto * source_res = request.source->gf_res_prev_active;
-            GGML_ASSERT(source_res != nullptr);
-            ggml_tensor * source_tensor = source_res->get_h_nextn();
-            ggml_tensor * destination_tensor = ggml_graph_get_tensor(
-                    res->get_gf(), "mtp_h_input");
-            ggml_tensor * source_view = ggml_view_2d(
-                    source_res->get_ctx(), source_tensor,
-                    source_tensor->ne[0], request.n_rows,
-                    source_tensor->nb[1], (size_t) request.source_offset * source_tensor->nb[1]);
-            ggml_tensor * destination_view = ggml_view_2d(
-                    res->get_ctx(), destination_tensor,
-                    destination_tensor->ne[0], request.n_rows,
-                    destination_tensor->nb[1], (size_t) request.destination_offset * destination_tensor->nb[1]);
-            ggml_backend_tensor_copy_async(
-                    ggml_backend_sched_get_tensor_backend(request.source->sched.get(), source_tensor),
-                    ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor),
-                    source_view, destination_view);
+            const int32_t batch_begin = embeddings_nextn_device_decode_token_offset;
+            const int32_t batch_end = batch_begin + (int32_t) ubatch.n_tokens;
+            const int32_t request_end = request.destination_offset + request.n_rows;
+            const int32_t copy_begin = std::max(batch_begin, request.destination_offset);
+            const int32_t copy_end = std::min(batch_end, request_end);
+            if (copy_begin < copy_end) {
+                ggml_tensor * source_tensor = request.source->embeddings_nextn_device_tensor;
+                ggml_backend_t source_backend = request.source->embeddings_nextn_device_backend;
+                ggml_tensor * destination_tensor = ggml_graph_get_tensor(
+                        res->get_gf(), "mtp_h_input");
+                const int32_t n_copy = copy_end - copy_begin;
+                const int32_t source_offset = request.source_offset +
+                    copy_begin - request.destination_offset;
+                const int32_t destination_offset = copy_begin - batch_begin;
+                ggml_backend_t destination_backend = destination_tensor != nullptr
+                    ? ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor)
+                    : nullptr;
+                const bool compatible = source_tensor != nullptr && source_backend != nullptr &&
+                    request.source_generation == request.source->embeddings_nextn_device_generation &&
+                    destination_tensor != nullptr && destination_backend != nullptr &&
+                    source_tensor->type == GGML_TYPE_F32 && destination_tensor->type == GGML_TYPE_F32 &&
+                    source_tensor->buffer != nullptr && destination_tensor->buffer != nullptr &&
+                    source_tensor->ne[0] == destination_tensor->ne[0] &&
+                    source_offset + n_copy <= source_tensor->ne[1] &&
+                    destination_offset + n_copy <= destination_tensor->ne[1] &&
+                    ggml_backend_get_device(source_backend) == ggml_backend_get_device(destination_backend) &&
+                    !ggml_backend_buffer_is_host(source_tensor->buffer) &&
+                    !ggml_backend_buffer_is_host(destination_tensor->buffer);
+                if (compatible) {
+                    ggml_init_params view_params = { 4 * ggml_tensor_overhead(), nullptr, true };
+                    ggml_context * view_ctx = ggml_init(view_params);
+                    ggml_tensor * source_view = ggml_view_2d(
+                            view_ctx, source_tensor,
+                            source_tensor->ne[0], n_copy,
+                            source_tensor->nb[1], (size_t) source_offset * source_tensor->nb[1]);
+                    ggml_tensor * destination_view = ggml_view_2d(
+                            view_ctx, destination_tensor,
+                            destination_tensor->ne[0], n_copy,
+                            destination_tensor->nb[1], (size_t) destination_offset * destination_tensor->nb[1]);
+                    ggml_backend_tensor_copy_async(source_backend,
+                            destination_backend, source_view, destination_view);
+                    ggml_free(view_ctx);
+                } else {
+                    LLAMA_LOG_WARN("%s: device h_nextn handoff fallback: reason=backend_or_tensor_incompatible request_generation=%" PRIu64 " source_generation=%" PRIu64 " source_offset=%d destination_offset=%d rows=%d source_tensor=%p destination_tensor=%p source_backend=%s destination_backend=%s\n",
+                            __func__, request.source_generation,
+                            request.source->embeddings_nextn_device_generation,
+                            source_offset, destination_offset, n_copy,
+                            (void *) source_tensor, (void *) destination_tensor,
+                            source_backend != nullptr ? ggml_backend_name(source_backend) : "none",
+                            destination_backend != nullptr ? ggml_backend_name(destination_backend) : "none");
+                    embeddings_nextn_device_request = {};
+                }
+                if (copy_end == request_end) {
+                    embeddings_nextn_device_request = {};
+                }
+            }
         }
     } catch (...) {
         // set_inputs can reject a selected packed allocation or graph lease
@@ -7259,6 +7451,33 @@ int llama_context::decode(const llama_batch & batch_inp) {
     int64_t n_outputs_prev = 0;
     int64_t n_tokens_prev  = 0;
 
+    // The device stage is one owner for this logical decode. Its capacity is
+    // bounded by n_batch plus the caller-owned carry row.
+    embeddings_nextn_device_valid_rows = 0;
+    if (embeddings_nextn_device_request.source != nullptr &&
+            embeddings_nextn_device_request.source_generation !=
+                embeddings_nextn_device_request.source->embeddings_nextn_device_generation) {
+        embeddings_nextn_device_request = {};
+    }
+    embeddings_nextn_d2h_bytes = 0;
+    embeddings_nextn_h2d_bytes = 0;
+    if (embeddings_nextn_device_event_recorded) {
+        ggml_backend_event_synchronize(embeddings_nextn_device_consumed_event);
+        embeddings_nextn_device_event_recorded = false;
+    }
+    embeddings_nextn_device_positions.clear();
+    embeddings_nextn_device_sequences.clear();
+    embeddings_nextn_output_rows = cparams.embeddings_nextn_masked
+        ? (int32_t) n_outputs_all : (int32_t) n_tokens_all;
+    embeddings_nextn_host_valid.assign(n_tokens_all, 0);
+    embeddings_nextn_host_source_rows.resize(n_tokens_all);
+    for (uint32_t row = 0; row < n_tokens_all; ++row) {
+        embeddings_nextn_host_source_rows[row] = (int32_t) row;
+    }
+    if (++embeddings_nextn_device_generation == 0) {
+        ++embeddings_nextn_device_generation;
+    }
+
     // device-staged draft capture is valid only when the whole batch lands in one
     // ubatch (stage rows then mirror batch rows); reset per decode
     dflash_stage_valid_n = 0;
@@ -7397,6 +7616,7 @@ int llama_context::decode(const llama_batch & batch_inp) {
 
         ggml_status status;
 
+        embeddings_nextn_device_decode_token_offset = (int32_t) n_tokens_prev;
         const auto * res = process_ubatch(ubatch, ctx_type_to_graph_type(cparams.ctx_type), mctx.get(), status);
 
         if (!res) {
@@ -7578,16 +7798,110 @@ int llama_context::decode(const llama_batch & batch_inp) {
             const bool masked    = cparams.embeddings_nextn_masked;
             const int64_t n_rows = masked ? n_outputs       : (int64_t) ubatch.n_tokens;
             const int64_t offset = masked ? n_outputs_prev  : n_tokens_prev;
+            bool device_stage_captured = false;
 
-            if (embd_nextn.data && t_h_nextn && n_rows > 0 && cparams.pooling_type == LLAMA_POOLING_TYPE_NONE) {
+            // Keep every unmasked target h_nextn row in a context-owned device
+            // tensor. The graph result is only valid until its arena slot is
+            // reused by a later microbatch.
+            if (t_h_nextn && !cparams.embeddings_nextn_masked &&
+                    cparams.pooling_type == LLAMA_POOLING_TYPE_NONE &&
+                    t_h_nextn->type == GGML_TYPE_F32 &&
+                    t_h_nextn->ne[1] >= ubatch.n_tokens &&
+                    n_tokens_prev + ubatch.n_tokens <= cparams.n_batch) {
+                ggml_backend_t backend_h = ggml_backend_sched_get_tensor_backend(sched.get(), t_h_nextn);
+                const int32_t capacity = cparams.n_batch + 1;
+                if (backend_h != nullptr &&
+                        (embeddings_nextn_device_tensor == nullptr ||
+                         ggml_backend_get_device(embeddings_nextn_device_backend) ==
+                            ggml_backend_get_device(backend_h)) &&
+                        (embeddings_nextn_device_tensor == nullptr ||
+                         embeddings_nextn_device_capacity >= capacity)) {
+                    if (embeddings_nextn_device_tensor == nullptr) {
+                        ggml_init_params stage_params = {
+                            3 * ggml_tensor_overhead(), nullptr, true,
+                        };
+                        ggml_context * stage_ctx = ggml_init(stage_params);
+                        ggml_tensor * stage = ggml_new_tensor_2d(
+                                stage_ctx, GGML_TYPE_F32, t_h_nextn->ne[0], capacity);
+                        ggml_format_name(stage, "embeddings_nextn_device_batch");
+                        ggml_backend_buffer_t stage_buf = ggml_backend_alloc_ctx_tensors_from_buft(
+                                stage_ctx, ggml_backend_get_default_buffer_type(backend_h));
+                        ggml_backend_event_t consumed_event = ggml_backend_event_new(
+                                ggml_backend_get_device(backend_h));
+                        if (stage_buf != nullptr && consumed_event != nullptr) {
+                            embeddings_nextn_device_ctx.reset(stage_ctx);
+                            embeddings_nextn_device_buf.reset(stage_buf);
+                            embeddings_nextn_device_tensor = stage;
+                            embeddings_nextn_device_backend = backend_h;
+                            embeddings_nextn_device_consumed_event = consumed_event;
+                            embeddings_nextn_device_capacity = capacity;
+                            LLAMA_LOG_INFO("%s: allocated device h_nextn batch owner: rows=%d width=%" PRId64 " bytes=%zu backend=%s\n",
+                                    __func__, capacity, stage->ne[0],
+                                    ggml_backend_buffer_get_size(stage_buf),
+                                    ggml_backend_name(backend_h));
+                        } else {
+                            if (consumed_event != nullptr) {
+                                ggml_backend_event_free(consumed_event);
+                            }
+                            if (stage_buf != nullptr) {
+                                ggml_backend_buffer_free(stage_buf);
+                            }
+                            ggml_free(stage_ctx);
+                        }
+                    }
+                    if (embeddings_nextn_device_tensor != nullptr &&
+                            ggml_backend_get_device(embeddings_nextn_device_backend) ==
+                                ggml_backend_get_device(backend_h)) {
+                        ggml_init_params view_params = {
+                            4 * ggml_tensor_overhead(), nullptr, true,
+                        };
+                        ggml_context * view_ctx = ggml_init(view_params);
+                        const size_t offset_bytes = (size_t) n_tokens_prev * t_h_nextn->nb[1];
+                        ggml_tensor * source_view = ggml_view_2d(
+                                view_ctx, t_h_nextn, t_h_nextn->ne[0], ubatch.n_tokens,
+                                t_h_nextn->nb[1], 0);
+                        ggml_tensor * stage_view = ggml_view_2d(
+                                view_ctx, embeddings_nextn_device_tensor,
+                                embeddings_nextn_device_tensor->ne[0], ubatch.n_tokens,
+                                embeddings_nextn_device_tensor->nb[1], offset_bytes);
+                        ggml_backend_tensor_copy_async(backend_h,
+                                embeddings_nextn_device_backend, source_view, stage_view);
+                        ggml_free(view_ctx);
+                        device_stage_captured = true;
+
+                        embeddings_nextn_device_valid_rows =
+                                (int32_t) n_tokens_prev + (int32_t) ubatch.n_tokens;
+                        embeddings_nextn_device_positions.resize(embeddings_nextn_device_valid_rows);
+                        embeddings_nextn_device_sequences.resize(
+                                embeddings_nextn_device_valid_rows);
+                        for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+                            const int32_t row = (int32_t) n_tokens_prev + i;
+                            embeddings_nextn_device_positions[row] =
+                                    ubatch.pos[(size_t) i * ubatch.n_pos];
+                            embeddings_nextn_device_sequences[row] =
+                                    ubatch.n_seq_id[i] == 1 ? ubatch.seq_id[i][0] : -1;
+                        }
+                    }
+                }
+            }
+
+            if (embd_nextn.data && t_h_nextn && n_rows > 0 &&
+                    cparams.pooling_type == LLAMA_POOLING_TYPE_NONE &&
+                    !device_stage_captured) {
                 ggml_backend_t backend_h = ggml_backend_sched_get_tensor_backend(sched.get(), t_h_nextn);
                 GGML_ASSERT(backend_h != nullptr);
-
-                const uint32_t n_embd  = hparams.n_embd_out();
-                float * embd_nextn_out = embd_nextn.data + offset*n_embd;
-
-                GGML_ASSERT((offset + n_rows)*n_embd <= (int64_t) embd_nextn.size);
-                ggml_backend_tensor_get_async(backend_h, t_h_nextn, embd_nextn_out, 0, n_rows*n_embd*sizeof(float));
+                const uint32_t n_embd = hparams.n_embd_out();
+                float * embd_nextn_out = embd_nextn.data + offset * n_embd;
+                GGML_ASSERT((offset + n_rows) * n_embd <= (int64_t) embd_nextn.size);
+                ggml_backend_tensor_get_async(backend_h, t_h_nextn, embd_nextn_out, 0,
+                        n_rows * n_embd * sizeof(float));
+                for (int64_t row = 0; row < n_rows; ++row) {
+                    const int64_t host_row = offset + row;
+                    if (host_row >= 0 && host_row < (int64_t) embeddings_nextn_host_valid.size()) {
+                        embeddings_nextn_host_valid[host_row] = 1;
+                        embeddings_nextn_d2h_bytes += (uint64_t) n_embd * sizeof(float);
+                    }
+                }
             }
         }
 
@@ -7701,6 +8015,15 @@ int llama_context::decode(const llama_batch & batch_inp) {
     // rollback/commit owner in the server, so they leave this disabled.
     if (!kv_attention_mtp_verification_) {
         note_kv_pager_accepted_tokens(n_tokens_all);
+    }
+
+    if (cparams.embeddings_nextn && embeddings_nextn_output_rows > 0) {
+        const char * fallback_reason = embeddings_nextn_device_valid_rows >=
+                (int32_t) n_tokens_all ? "none" : "device_stage_unavailable_or_incompatible";
+        LLAMA_LOG_INFO("mtp_hidden_transfer: rows=%d d2h_bytes=%" PRIu64
+                " h2d_bytes=%" PRIu64 " fallback_reason=%s\n",
+                embeddings_nextn_output_rows, embeddings_nextn_d2h_bytes,
+                embeddings_nextn_h2d_bytes, fallback_reason);
     }
 
     return 0;
@@ -7932,6 +8255,11 @@ void llama_context::output_reorder() {
             for (uint64_t k = 0; k < n_embd_out; k++) {
                 std::swap(embd_nextn.data[i0*n_embd_out + k], embd_nextn.data[i1*n_embd_out + k]);
             }
+        }
+        if (i0 < embeddings_nextn_host_valid.size() &&
+                i1 < embeddings_nextn_host_valid.size()) {
+            std::swap(embeddings_nextn_host_valid[i0], embeddings_nextn_host_valid[i1]);
+            std::swap(embeddings_nextn_host_source_rows[i0], embeddings_nextn_host_source_rows[i1]);
         }
 
         if (embd_layer_inp.size() > 0) {
@@ -10517,9 +10845,23 @@ float * llama_get_embeddings_nextn_ith(llama_context * ctx, int32_t i) {
 
 bool llama_set_embeddings_nextn_device(
         llama_context * ctx, llama_context * source,
-        int32_t source_offset, int32_t destination_offset, int32_t n_rows) {
+        int32_t source_offset, int32_t destination_offset, int32_t n_rows,
+        const llama_pos * expected_positions, const llama_seq_id * expected_sequences) {
     return ctx != nullptr && ctx->set_embeddings_nextn_device(
-            source, source_offset, destination_offset, n_rows);
+            source, source_offset, destination_offset, n_rows,
+            expected_positions, expected_sequences);
+}
+
+bool llama_mark_embeddings_nextn_device_consumed(
+        llama_context * source, llama_context * consumer) {
+    return source != nullptr && source->mark_embeddings_nextn_device_consumed(consumer);
+}
+
+void llama_get_embeddings_nextn_transfer_bytes(
+        llama_context * ctx, uint64_t * d2h, uint64_t * h2d) {
+    if (ctx != nullptr) {
+        ctx->get_embeddings_nextn_transfer_bytes(d2h, h2d);
+    }
 }
 
 void llama_set_kv_attention_mtp_verification(llama_context * ctx, bool enabled) {

@@ -2886,6 +2886,9 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         auto * ctx_dft = this->params.ctx_dft;
 
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
+        bool device_hidden_handoff_used = false;
+        const char * hidden_handoff_fallback_reason = is_mem_shared
+            ? "shared_memory" : "not_attempted";
 
         // pending_h is an activation, not part of either serialized sequence
         // image. A restored/rewound nonzero frontier therefore cannot replay
@@ -2908,11 +2911,18 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         }
                         const int32_t n_rows = i_batch_end[seq_id] -
                             i_batch_beg[seq_id] + 1;
-                        verify_h_rows[seq_id] = n_rows;
-                        verify_starts[seq_id] = batch_in.pos[i_batch_beg[seq_id]];
-                        verify_tokens[seq_id].resize(n_rows);
-                        verify_positions[seq_id].resize(n_rows);
-                        verify_h[seq_id].resize((size_t) n_rows * n_embd);
+                        const bool keep_verification_rows = n_rows <= params.n_max + 1;
+                        verify_h_rows[seq_id] = keep_verification_rows ? n_rows : 0;
+                        verify_starts[seq_id] = keep_verification_rows
+                            ? batch_in.pos[i_batch_beg[seq_id]] : -1;
+                        if (keep_verification_rows) {
+                            verify_tokens[seq_id].resize(n_rows);
+                            verify_positions[seq_id].resize(n_rows);
+                            verify_h[seq_id].resize((size_t) n_rows * n_embd);
+                        } else {
+                            verify_tokens[seq_id].clear();
+                            verify_positions[seq_id].clear();
+                        }
                         // This is a new target-only recovery transaction.  Its
                         // predecessor row is the carry selected by the previous
                         // acceptance, not the predecessor saved by the prior
@@ -2922,23 +2932,30 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         std::memcpy(
                             verify_input_h[seq_id].data(),
                             pending_h[seq_id].data(), row_bytes);
-                        for (int32_t i = 0; i < n_rows; ++i) {
-                            verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
-                            verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
-                            const float * h = llama_get_embeddings_nextn_ith(
-                                ctx_tgt, i_batch_beg[seq_id] + i);
-                            if (!h) {
+                        if (keep_verification_rows) {
+                            for (int32_t i = 0; i < n_rows; ++i) {
+                                verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
+                                verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
+                                const float * h = llama_get_embeddings_nextn_ith(
+                                    ctx_tgt, i_batch_beg[seq_id] + i);
+                                if (!h) {
+                                    return false;
+                                }
+                                std::memcpy(
+                                    verify_h[seq_id].data() + (size_t) i * n_embd,
+                                    h, row_bytes);
+                            }
+                            std::memcpy(pending_h[seq_id].data(),
+                                    verify_h[seq_id].data() + (size_t) (n_rows - 1) * n_embd,
+                                    row_bytes);
+                        } else {
+                            const float * last_h = llama_get_embeddings_nextn_ith(
+                                    ctx_tgt, i_batch_end[seq_id]);
+                            if (!last_h) {
                                 return false;
                             }
-                            std::memcpy(
-                                verify_h[seq_id].data() + (size_t) i * n_embd,
-                                h, row_bytes);
+                            std::memcpy(pending_h[seq_id].data(), last_h, row_bytes);
                         }
-                        std::memcpy(
-                            pending_h[seq_id].data(),
-                            verify_h[seq_id].data() +
-                                (size_t) (n_rows - 1) * n_embd,
-                            row_bytes);
                         pending_h_lifecycle[seq_id].target_process_refreshed();
                     }
                 }
@@ -2984,11 +3001,31 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             const bool one_contiguous_sequence = active_sequences == 1 &&
                 i_batch_beg[contiguous_seq] == 0 &&
                 i_batch_end[contiguous_seq] == n_tokens - 1;
+            std::vector<llama_pos> handoff_positions;
+            std::vector<llama_seq_id> handoff_sequences;
+            if (one_contiguous_sequence && n_tokens > 1) {
+                handoff_positions.reserve(n_tokens - 1);
+                handoff_sequences.reserve(n_tokens - 1);
+                for (int32_t row = 0; row < n_tokens - 1; ++row) {
+                    handoff_positions.push_back(batch_in.pos[row]);
+                    handoff_sequences.push_back(batch_in.seq_id[row][0]);
+                }
+            }
             const bool device_handoff = one_contiguous_sequence && n_tokens > 1 &&
-                llama_set_embeddings_nextn_device(ctx_dft, ctx_tgt, 0, 1, n_tokens - 1);
+                llama_set_embeddings_nextn_device(ctx_dft, ctx_tgt, 0, 1, n_tokens - 1,
+                        handoff_positions.data(), handoff_sequences.data());
+            device_hidden_handoff_used = device_handoff;
+            hidden_handoff_fallback_reason = device_handoff ? "none" :
+                one_contiguous_sequence ? "device_stage_invalid_or_incompatible" :
+                "multi_sequence_or_noncontiguous";
             if (device_handoff) {
-                SPC_TRC("MTP device hidden handoff: rows=%d\n", n_tokens - 1);
+                SPC_INF("MTP device hidden handoff bound: rows=%d target_rows=%d\n",
+                        n_tokens - 1, n_tokens);
             } else {
+                if (one_contiguous_sequence && n_tokens > 1) {
+                    SPC_WRN("MTP device hidden handoff unavailable: reason=%s; using materialized host rows\n",
+                            "device_stage_invalid_or_incompatible");
+                }
                 std::vector<int32_t> previous_row(n_tokens, -1);
                 std::vector<int32_t> last_row(n_seq, -1);
                 for (int32_t k = 0; k < n_tokens; ++k) {
@@ -3060,6 +3097,11 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             if (chain_heads) {
                 llama_set_nextn_layer_offset(ctx_dft, 0); // restore default for non-draft decodes
             }
+            if (device_handoff &&
+                    !llama_mark_embeddings_nextn_device_consumed(ctx_tgt, ctx_dft)) {
+                SPC_WRN("%s\n", "MTP device hidden handoff completion event unavailable; synchronizing draft context");
+                llama_synchronize(ctx_dft);
+            }
             if (!ok) {
                 return false;
             }
@@ -3071,23 +3113,57 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             }
 
             const int32_t n_rows = i_batch_end[seq_id] - i_batch_beg[seq_id] + 1;
-            verify_h_rows[seq_id] = n_rows;
-            verify_starts[seq_id] = batch_in.pos[i_batch_beg[seq_id]];
-            verify_tokens[seq_id].resize(n_rows);
-            verify_positions[seq_id].resize(n_rows);
-            verify_h[seq_id].resize((size_t) n_rows * n_embd);
-
-            for (int32_t i = 0; i < n_rows; ++i) {
-                verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
-                verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
-                const float * h = llama_get_embeddings_nextn_ith(ctx_tgt, i_batch_beg[seq_id] + i);
-                std::memcpy(verify_h[seq_id].data() + (size_t) i * n_embd, h, row_bytes);
+            const bool keep_verification_rows = n_rows <= params.n_max + 1;
+            verify_h_rows[seq_id] = keep_verification_rows ? n_rows : 0;
+            verify_starts[seq_id] = keep_verification_rows
+                ? batch_in.pos[i_batch_beg[seq_id]] : -1;
+            if (keep_verification_rows) {
+                verify_tokens[seq_id].resize(n_rows);
+                verify_positions[seq_id].resize(n_rows);
+                verify_h[seq_id].resize((size_t) n_rows * n_embd);
+            } else {
+                verify_tokens[seq_id].clear();
+                verify_positions[seq_id].clear();
             }
 
-            std::memcpy(pending_h[seq_id].data(),
-                    verify_h[seq_id].data() + (size_t) (n_rows - 1) * n_embd, row_bytes);
+            if (keep_verification_rows) {
+                for (int32_t i = 0; i < n_rows; ++i) {
+                    verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
+                    verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
+                    const float * h = llama_get_embeddings_nextn_ith(ctx_tgt,
+                            i_batch_beg[seq_id] + i);
+                    if (!h) {
+                        return false;
+                    }
+                    std::memcpy(verify_h[seq_id].data() + (size_t) i * n_embd, h, row_bytes);
+                }
+                std::memcpy(pending_h[seq_id].data(),
+                        verify_h[seq_id].data() + (size_t) (n_rows - 1) * n_embd, row_bytes);
+            } else {
+                const float * last_h = llama_get_embeddings_nextn_ith(
+                        ctx_tgt, i_batch_end[seq_id]);
+                if (!last_h) {
+                    return false;
+                }
+                std::memcpy(pending_h[seq_id].data(), last_h, row_bytes);
+            }
             pending_h_lifecycle[seq_id].target_process_refreshed();
         }
+
+        uint64_t hidden_d2h_bytes = 0;
+        uint64_t hidden_h2d_bytes = 0;
+        uint64_t draft_d2h_bytes = 0;
+        uint64_t draft_h2d_bytes = 0;
+        llama_get_embeddings_nextn_transfer_bytes(ctx_tgt,
+                &hidden_d2h_bytes, &hidden_h2d_bytes);
+        llama_get_embeddings_nextn_transfer_bytes(ctx_dft,
+                &draft_d2h_bytes, &draft_h2d_bytes);
+        SPC_INF("mtp_hidden_transfer: target_d2h_bytes=%" PRIu64
+                " target_h2d_bytes=%" PRIu64 " draft_d2h_bytes=%" PRIu64
+                " draft_h2d_bytes=%" PRIu64 " device_handoff=%s fallback_reason=%s\n",
+                hidden_d2h_bytes, hidden_h2d_bytes, draft_d2h_bytes,
+                draft_h2d_bytes, device_hidden_handoff_used ? "yes" : "no",
+                hidden_handoff_fallback_reason);
 
         return true;
     }

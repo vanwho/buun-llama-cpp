@@ -1757,3 +1757,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-07`
 - Commit at update: `689853fd8`
 - Summary: verified bounded asynchronous KV sealing and zero generation history H2D/selector work
+
+## 2026-10-01T05:25:18+00:00 — 101-08 — done
+
+- Branch: `codex/task-101-08`
+- Commit at update: `89092e939`
+- Summary: Implemented bounded device-owned MTP hidden handoff and carry; CPU/CUDA fixtures and live prompt-1 MTP plus finite-logprob proof passed, and V10 receipt validated.
