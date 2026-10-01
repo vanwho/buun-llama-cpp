@@ -1859,3 +1859,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-17`
 - Commit at update: `f075b710d`
 - Summary: Extended bounded prefill waves to fully resident cached contiguous input; CUDA fixtures and managed multi-page prompt passed.
+
+## 2026-10-01T19:37:36+00:00 — 101-18 — done
+
+- Branch: `codex/task-101-18`
+- Commit at update: `a0086f056`
+- Summary: Measured final owner-repaired candidate; replay and natural promotion pass, canonical release recorded as goal_miss for 101-12h.
