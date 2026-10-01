@@ -1835,3 +1835,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-13`
 - Commit at update: `2d9c5511f`
 - Summary: verified current CPU/GPU attribution and multi-page reproduction
+
+## 2026-10-01T17:39:17+00:00 — 101-14 — done
+
+- Branch: `codex/task-101-14`
+- Commit at update: `414083308`
+- Summary: Verified page-major one-rebuild-per-page collection, atomic summary publication failure/retry, scalar range/mean parity, focused CUDA tests, and the bounded prompt2 retake with V10 receipt.

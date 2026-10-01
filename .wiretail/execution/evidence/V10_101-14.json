@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "task": "101-14",
+  "source_commit": "4140833085b6c06622cc12731b78b08a43a9a5c4",
+  "summary": "Changed routing summary collection to page-major and staged atomic publication; added one-rebuild-per-page, scalar parity, failure/retry and prompt2 retake evidence.",
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "1cf10d9ea62b91cced9ceca7994724f558e1973aecf25d9e8da0119d88a49fa4",
+    "libllama_sha256": "8361970365fca2e0fcaac2b9c4857327b5abe142afb9cacee67d4d246178e03f",
+    "server_impl_sha256": "e6c433ce1a40a6f9fa15e6869621bd36a4821b4d62fb13ce3edfbcddb0e24ed8",
+    "cuda_backend_sha256": "74c3a757f1a61dd79884a03f42c46d516bbb3828cd64f1ff9cc5e7e0ba73e4bd",
+    "pid": 1901250,
+    "start_time": "2026-10-01T19:33:22+02:00",
+    "argv": "-m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-kv-device gpu"
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "source_diff_sha256": "dac1ac53cd819ea78bf2e3e01c32cd2a5c3787d253ae2fee5e17ea1f7b037a82",
+  "checks": {
+    "page_major_summary_once_and_atomic_publication": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "-u",
+        "LLAMA_HOTPATH_PROFILE",
+        "build-cuda/bin/test-kv-pager"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-kv-pager",
+          "test-kv-routing-summary",
+          "llama-server",
+          "-j",
+          "8"
+        ],
+        [
+          "env",
+          "-u",
+          "LLAMA_HOTPATH_PROFILE",
+          "build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "env",
+          "LLAMA_HOTPATH_PROFILE=0",
+          "build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "build-cuda/bin/test-kv-routing-summary"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/run-prompt2-retake.py"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/build/101-14/final-build.log",
+          "sha256": "813fe1d95bd44f353e6a0860afd7a1c49c68f8594d767bc691d8e90a2c6fd7d2"
+        },
+        {
+          "path": ".wiretail/build/101-14/test-kv-pager.log",
+          "sha256": "67580b947e21e5d019fa34e8729c9a802f73167c7484e43d0add27d0fcc41c05"
+        },
+        {
+          "path": ".wiretail/build/101-14/test-kv-pager-profile-zero.log",
+          "sha256": "67580b947e21e5d019fa34e8729c9a802f73167c7484e43d0add27d0fcc41c05"
+        },
+        {
+          "path": ".wiretail/build/101-14/test-kv-routing-summary.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/build/101-14/diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/run-prompt2-retake.py",
+          "sha256": "ca1b430e62386867ebca37641bd914bf62a016cfdf063c34beadfcbd3d536b27"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/frozen-prefix-messages.json",
+          "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/warmup.request.json",
+          "sha256": "f680a228d48ccb60b0ecc59f4d34bd377e46cc04216794a69bed4d0d1106de7b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/warmup.sse",
+          "sha256": "f6be407dcbc8cd42829bb2a2a591745526697c755e4c4c147ad2b7056e1dd237"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/warmup.timing.json",
+          "sha256": "a9f5d489debdb21c28150da3575d7ee02190617bec8c9bd412c85b05fbd7df3a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/measured.request.json",
+          "sha256": "e4487344d08ee5c0401e92071e34ef5efb961f4666a88be49bc3e7ef8e5767d6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/measured.sse",
+          "sha256": "8f3e0e33536f2a9cd082427fd9e8d84a1c571ebc648a213e2c20ac6f6b1d96d5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/measured.timing.json",
+          "sha256": "c5cd06b34fb62f3533f5f99156223f9a220021131a10d2f9c503f54e541e050f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/measured-after.slots.json",
+          "sha256": "5b137ebe25ba78286e99bf951cdd4f12636bec31e9d663dd2d77fd6cd18e35fe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw/retake-comparison.json",
+          "sha256": "c3340b187422b12b13d0aec1d31b9fd562c8ab979b148f3998c591736385c650"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-13/attempt-01/raw/retry-v3/measured.sse",
+          "sha256": "0bed45e353c3d8b5d405cc832a32ee9d03bbd584ced819637bb15019d2073fcc"
+        }
+      ]
+    }
+  },
+  "profile": {
+    "context_tokens": 8192,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "turbo4",
+    "draft_kv": "turbo4",
+    "mtp": "native_gpu",
+    "draft_n_max": 2,
+    "page_tokens": 256,
+    "hot_pages": 16
+  },
+  "fixture": {
+    "two_page_two_config": {
+      "changed_pages": 2,
+      "configurations": 2,
+      "provider_invocations": 4,
+      "one_page_cache_rebuilds": 2
+    },
+    "three_page_all_config": {
+      "changed_pages": 3,
+      "configurations": 64,
+      "one_page_cache_rebuilds": 3,
+      "middle_config_failure": "page excluded from all groups and queued",
+      "retry": "page published on next seal",
+      "range_mean_values": "match scalar fixture oracle"
+    },
+    "retake": {
+      "prompt_tokens": 4112,
+      "output_cap": 80,
+      "prompt_ms_101_13": 19953.12,
+      "prompt_tps_101_13": 206.08305868956836,
+      "prompt_ms_101_14": 4755.869,
+      "prompt_tps_101_14": 864.6159093112111,
+      "prompt_time_delta_percent": -76.16476283372924,
+      "cpu_gpu_gap_remeasured": false,
+      "nsys_activity_fraction_101_13": 0.0708
+    }
+  },
+  "deferred_verification": [
+    "No new Nsight trace was captured for the permitted prompt2 retake; CPU/GPU idle-gap change is unmeasured and is not inferred from request timing."
+  ],
+  "raw_result_root": "/srv/ai/paged-kv/results/forward/101-14/attempt-01/raw"
+}
