@@ -374,6 +374,7 @@ static void test_full_256k_capacity_plan() {
 }
 
 static uint64_t routing_provider_calls = 0;
+static uint64_t routing_provider_source_bytes = 0;
 
 static bool build_routing_summary(
         void *, const llama_kv_page_record & page,
@@ -389,6 +390,7 @@ static bool build_routing_summary(
         output.rotated_k_rows[i * config.vector_dim] = float(page.id.logical_page + 1);
     }
     output.source_bytes = output.rotated_k_rows.size() * sizeof(float);
+    routing_provider_source_bytes += output.source_bytes;
     return config.representative_count == output.row_indices.size();
 }
 
@@ -1978,6 +1980,7 @@ int main() {
             summary_config, geometry(1024), resources(2048, 128), write_backend, status);
     assert(summary_pager && status == llama_kv_pager_status::ok);
     routing_provider_calls = 0;
+    routing_provider_source_bytes = 0;
     summary_pager->set_routing_summary_provider({ nullptr, build_routing_summary });
     for (llama_pos position = 0; position <= 256; ++position) {
         assert(summary_pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
@@ -1988,6 +1991,8 @@ int main() {
     assert(initial_seal_scan_count == 1);
     const uint64_t initial_summary_calls = routing_provider_calls;
     assert(initial_summary_calls == 64);
+    assert(summary_pager->summary_build_calls() == 64);
+    assert(summary_pager->summary_build_bytes() == routing_provider_source_bytes);
     assert(summary_pager->seal_ready_pages() == 0);
     assert(summary_pager->seal_pages_scanned() == initial_seal_scan_count);
     assert(routing_provider_calls == initial_summary_calls);
