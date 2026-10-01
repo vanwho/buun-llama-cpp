@@ -1763,3 +1763,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-08`
 - Commit at update: `89092e939`
 - Summary: Implemented bounded device-owned MTP hidden handoff and carry; CPU/CUDA fixtures and live prompt-1 MTP plus finite-logprob proof passed, and V10 receipt validated.
+
+## 2026-10-01T06:51:11+00:00 — 101-09 — done
+
+- Branch: `codex/task-101-09`
+- Commit at update: `1cc63f0a2`
+- Summary: Page-aware selected dense route and CUDA fixture passed; three canonical MTP pairs and target-only residual divergence measured and recorded in V10 receipt.

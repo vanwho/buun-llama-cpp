@@ -436,6 +436,8 @@ struct common_speculative_impl {
 
     virtual void configure_sampling(llama_seq_id, const common_params_sampling &) {}
     virtual const common_speculative_proposal * get_proposal(llama_seq_id) const { return nullptr; }
+    virtual bool get_mtp_reject_trace(
+            llama_seq_id, size_t, common_speculative_mtp_reject_trace &) const { return false; }
 
     // (optional) serialize/restore per-seq internal state (e.g. eagle3's deferred boundary).
     virtual bool get_state(llama_seq_id /*seq_id*/, std::vector<uint8_t> & /*data*/) const { return false; }
@@ -2567,6 +2569,19 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     std::vector<proposal_policy> proposal_sampling;
     std::vector<std::mt19937> proposal_rngs;
     std::vector<common_speculative_proposal> proposals;
+    std::vector<std::vector<common_speculative_mtp_reject_trace>> reject_trace;
+    std::vector<uint64_t> pending_h_generation;
+    bool reject_trace_enabled = false;
+
+    bool get_mtp_reject_trace(llama_seq_id seq_id, size_t index,
+            common_speculative_mtp_reject_trace & trace) const override {
+        if (!reject_trace_enabled || seq_id < 0 || seq_id >= (llama_seq_id) reject_trace.size() ||
+                index >= reject_trace[seq_id].size()) {
+            return false;
+        }
+        trace = reject_trace[seq_id][index];
+        return true;
+    }
 
     void configure_sampling(llama_seq_id seq_id, const common_params_sampling & sampling) override {
         if (seq_id < 0 || seq_id >= (llama_seq_id) n_seq) {
@@ -2765,6 +2780,11 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         proposal_sampling.resize(n_seq);
         proposal_rngs.resize(n_seq);
         proposals.resize(n_seq);
+        reject_trace.resize(n_seq);
+        pending_h_generation.assign(n_seq, 0);
+        const char * reject_trace_env = getenv("LLAMA_MTP_FIRST_REJECT_TRACE");
+        reject_trace_enabled = reject_trace_env != nullptr &&
+            reject_trace_env[0] != '\0' && std::strcmp(reject_trace_env, "0") != 0;
         smpls.resize(n_seq);
         backend_chains.assign(n_seq, nullptr);
         for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
@@ -2957,6 +2977,9 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                             std::memcpy(pending_h[seq_id].data(), last_h, row_bytes);
                         }
                         pending_h_lifecycle[seq_id].target_process_refreshed();
+                        if (++pending_h_generation[seq_id] == 0) {
+                            ++pending_h_generation[seq_id];
+                        }
                     }
                 }
                 return true;
@@ -3148,6 +3171,9 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                 std::memcpy(pending_h[seq_id].data(), last_h, row_bytes);
             }
             pending_h_lifecycle[seq_id].target_process_refreshed();
+            if (++pending_h_generation[seq_id] == 0) {
+                ++pending_h_generation[seq_id];
+            }
         }
 
         uint64_t hidden_d2h_bytes = 0;
@@ -3243,6 +3269,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             }
 
             proposals[seq_id].clear();
+            reject_trace[seq_id].clear();
             const float * carry = pending_h_lifecycle[seq_id].draft_carry(
                     pending_h[seq_id].data());
             if (carry == nullptr) {
@@ -3336,10 +3363,26 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                     continue;
                 }
 
-                common_sampler_accept(smpl, id, true);
-
                 auto & dp = dparams.at(seq_id);
                 auto & result = *dp.result;
+
+                if (reject_trace_enabled && reject_trace[seq_id].size() <
+                        (size_t) std::max(0, params.n_max)) {
+                    common_speculative_mtp_reject_trace row;
+                    row.position = common_speculative_mtp_draft_position(
+                            dp.pos0, result.size(), is_mem_shared);
+                    row.proposal = id;
+                    row.carry_generation = pending_h_generation[seq_id];
+                    const size_t n_candidates = std::min<size_t>(8, cur_p->size);
+                    for (size_t candidate = 0; candidate < n_candidates; ++candidate) {
+                        row.candidate_ids.push_back(cur_p->data[candidate].id);
+                        row.candidate_logits.push_back(cur_p->data[candidate].logit);
+                        row.candidate_probs.push_back(cur_p->data[candidate].p);
+                    }
+                    reject_trace[seq_id].push_back(std::move(row));
+                }
+
+                common_sampler_accept(smpl, id, true);
 
                 result.push_back(id);
 
@@ -3447,6 +3490,9 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         const int32_t i_h = common_speculative_mtp_carry_row(n_rows, n_accepted);
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
         std::memcpy(pending_h[seq_id].data(), verify_h[seq_id].data() + (size_t) i_h * n_embd, row_bytes);
+        if (++pending_h_generation[seq_id] == 0) {
+            ++pending_h_generation[seq_id];
+        }
     }
 
     bool get_state(llama_seq_id seq_id, std::vector<uint8_t> & data) const override {
@@ -7169,6 +7215,16 @@ const common_speculative_proposal * common_speculative_get_proposal(
         return nullptr;
     }
     return impl->get_proposal(seq_id);
+}
+
+bool common_speculative_get_mtp_reject_trace(
+        const common_speculative * spec, llama_seq_id seq_id,
+        size_t rejected_index, common_speculative_mtp_reject_trace & trace) {
+    if (spec == nullptr || seq_id < 0 || seq_id >= (llama_seq_id) spec->impl_last.size()) {
+        return false;
+    }
+    const auto * impl = spec->impl_last[seq_id];
+    return impl != nullptr && impl->get_mtp_reject_trace(seq_id, rejected_index, trace);
 }
 
 void common_speculative_accept(common_speculative * spec, uint16_t n_accepted) {

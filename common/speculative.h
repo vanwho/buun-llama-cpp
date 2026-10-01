@@ -29,6 +29,15 @@ struct common_speculative_proposal {
     size_t matching_prefix_size(llama_seq_id seq, const llama_tokens & draft) const;
 };
 
+struct common_speculative_mtp_reject_trace {
+    llama_pos position = -1;
+    llama_token proposal = LLAMA_TOKEN_NULL;
+    llama_tokens candidate_ids;
+    std::vector<float> candidate_logits;
+    std::vector<float> candidate_probs;
+    uint64_t carry_generation = 0;
+};
+
 // comma separated list the provided types
 std::string common_speculative_type_name_str(const std::vector<enum common_speculative_type> & types);
 
@@ -407,6 +416,12 @@ bool common_speculative_last_draft_model_decode_succeeded(const common_speculati
 const common_speculative_proposal * common_speculative_get_proposal(
         const common_speculative * spec,
         llama_seq_id               seq_id);
+
+// Bounded draft-side candidates retained only when
+// LLAMA_MTP_FIRST_REJECT_TRACE is enabled; queried only at the first rejection.
+bool common_speculative_get_mtp_reject_trace(
+        const common_speculative * spec, llama_seq_id seq_id,
+        size_t rejected_index, common_speculative_mtp_reject_trace & trace);
 
 // fork: logit/state management
 void   common_speculative_update_logits(common_speculative * spec, llama_seq_id seq_id, llama_context * ctx, const llama_tokens & batch_tokens, int n_accepted);

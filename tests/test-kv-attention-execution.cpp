@@ -236,12 +236,28 @@ static void test_routes_epochs_and_fences() {
            route_metrics.selected_page_ids[1] == 2);
     const auto selected_mtp = metadata(snapshot(), 2, 1);
     const auto mtp = execution.prepare(selected_mtp,
-            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch, {}, false, true);
+            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch, {}, true, true);
     assert(mtp.route == llama_kv_attention_execution_route::selected_packed);
     assert(execution.metrics().mtp_verify_routes.selected_packed == 1);
     execution.complete_one_graph();
     assert(llama_kv_attention_execution_phase_name(
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
+
+    // A complete resident view under paging uses the selected dense graph so
+    // its physical page map and valid native prefix are explicit. The
+    // incomplete view above remains selected-packed.
+    llama_kv_attention_execution all_resident(
+            llama_kv_attention_execution_mode::selective);
+    // A complete resident page may have valid suffix rows past this query.
+    const auto complete_view = metadata(snapshot(), 2, 1, { 0, 1, 2 }, 2);
+    for (const auto phase : { llama_kv_attention_execution_phase::prefill,
+                              llama_kv_attention_execution_phase::decode,
+                              llama_kv_attention_execution_phase::mtp_verify }) {
+        const auto complete = all_resident.prepare(complete_view, phase, 4, 8,
+                true, scratch, {}, true, true);
+        assert(complete.route == llama_kv_attention_execution_route::selected_dense);
+        all_resident.complete_one_graph();
+    }
 
     execution.set_route_override("auto");
     const auto dense = execution.prepare(selected_prefill,
@@ -792,8 +808,8 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(metadata(snapshot(), 3, 1),
             llama_kv_attention_execution_phase::prefill, true, false, false) ==
            llama_kv_attention_execution_route::selected_direct);
-    // A genuinely contiguous selected view uses mature dense FA before the
-    // paged consumer, even when both capability contracts are available.
+    // A genuinely complete resident view under paging uses the page-aware
+    // selected dense path.
     assert(execution.planned_route(metadata(snapshot(), 1, 1, { 0 }, 255),
             llama_kv_attention_execution_phase::decode, true, true, true) ==
            llama_kv_attention_execution_route::selected_dense);
@@ -810,7 +826,7 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(bounded_mtp_history,
             llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
            llama_kv_attention_execution_route::selected_packed);
-    std::fprintf(stdout, "mtp_sparse_history_route=pass complete=dense bounded=packed\n");
+    std::fprintf(stdout, "mtp_sparse_history_route=pass complete=selected_dense bounded=packed\n");
     const auto standard_dense = metadata(snapshot(), 1, 1, { 0 }, 255, 16, 4,
             GGML_TYPE_Q4_0, GGML_TYPE_Q4_0);
     const auto standard_dense_view = llama_kv_attention_dense_view_check(standard_dense, 8);
