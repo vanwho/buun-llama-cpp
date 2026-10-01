@@ -1925,6 +1925,16 @@ extern "C" {
             struct ggml_tensor  * b,  // source
             struct ggml_tensor  * c); // row indices
 
+    // Copy encoded rows from a row-indexed source into indexed destination rows.
+    // Source and destination types and encoded row sizes must match. This is a
+    // byte-storage operation; it never decodes or quantizes rows.
+    GGML_API struct ggml_tensor * ggml_set_rows_from_rows(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * dst,
+            struct ggml_tensor  * src,
+            struct ggml_tensor  * dst_indices,
+            struct ggml_tensor  * src_indices);
+
     GGML_API struct ggml_tensor * ggml_diag(
         struct ggml_context     * ctx,
         struct ggml_tensor      * a);

@@ -5318,6 +5318,33 @@ void ggml_compute_forward_set_rows(
         const ggml_compute_params * params,
         ggml_tensor * dst) {
 
+    if (dst->src[3] != nullptr) {
+        const ggml_tensor * src = dst->src[0];
+        const ggml_tensor * dst_indices = dst->src[1];
+        const ggml_tensor * src_indices = dst->src[3];
+        GGML_ASSERT(src->type == dst->type && ggml_is_matrix(src) && ggml_is_matrix(dst));
+        GGML_ASSERT(src->nb[1] == dst->nb[1]);
+        GGML_ASSERT(dst_indices->ne[0] == src_indices->ne[0]);
+        const int64_t count = dst_indices->ne[0];
+        const int64_t per_thread = (count + params->nth - 1) / params->nth;
+        const int64_t begin = per_thread * params->ith;
+        const int64_t end = std::min(begin + per_thread, count);
+        const size_t row_bytes = ggml_row_size(src->type, src->ne[0]);
+        for (int64_t i = begin; i < end; ++i) {
+            const int64_t src_row = src_indices->type == GGML_TYPE_I64
+                ? ((const int64_t *) src_indices->data)[i]
+                : ((const int32_t *) src_indices->data)[i];
+            const int64_t dst_row = dst_indices->type == GGML_TYPE_I64
+                ? ((const int64_t *) dst_indices->data)[i]
+                : ((const int32_t *) dst_indices->data)[i];
+            if (src_row < 0 || dst_row < 0) continue;
+            GGML_ASSERT(src_row < src->ne[1] && dst_row < dst->ne[1]);
+            memcpy((char *) dst->data + dst_row * dst->nb[1],
+                   (const char *) src->data + src_row * src->nb[1], row_bytes);
+        }
+        return;
+    }
+
     const ggml_tensor * src0 = dst->src[0];
     const ggml_tensor * src1 = dst->src[1];
 
