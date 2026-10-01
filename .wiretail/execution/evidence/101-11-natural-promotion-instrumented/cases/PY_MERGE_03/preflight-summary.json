@@ -1,0 +1,58 @@
+{
+  "all_fit": true,
+  "completion_reserve_tokens": 256,
+  "context_tokens": 8192,
+  "hot_tokens": 4096,
+  "requests": [
+    {
+      "completion_reserve_tokens": 256,
+      "context_safety_reserve_tokens": 128,
+      "context_tokens": 8192,
+      "fits": true,
+      "message_count": 1,
+      "placeholder_prior_replies": [],
+      "planned_completion_tokens": 256,
+      "planned_prior_reply_reserve_tokens": 0,
+      "remaining_completion_tokens": 5907,
+      "rendered_prompt_sha256": "d80edd75f9c40bb598d0991acfc72abfdab5ff6f1425925ef1646b0ffa89bbc1",
+      "rendered_prompt_tokens": 2157,
+      "request_index": 0,
+      "stage": "source_file"
+    },
+    {
+      "completion_reserve_tokens": 256,
+      "context_safety_reserve_tokens": 128,
+      "context_tokens": 8192,
+      "fits": true,
+      "message_count": 3,
+      "placeholder_prior_replies": [
+        "The preallocated merge writes each output position exactly once."
+      ],
+      "planned_completion_tokens": 256,
+      "planned_prior_reply_reserve_tokens": 256,
+      "remaining_completion_tokens": 1397,
+      "rendered_prompt_sha256": "fc1e5b782eef97412cca2de1bcfc8cc6ac4f308652960ee314e3cea2772ec947",
+      "rendered_prompt_tokens": 6411,
+      "request_index": 1,
+      "stage": "bash_pressure"
+    },
+    {
+      "completion_reserve_tokens": 256,
+      "context_safety_reserve_tokens": 128,
+      "context_tokens": 8192,
+      "fits": true,
+      "message_count": 5,
+      "placeholder_prior_replies": [
+        "The preallocated merge writes each output position exactly once.",
+        "I have reviewed the Bash examples."
+      ],
+      "planned_completion_tokens": 256,
+      "planned_prior_reply_reserve_tokens": 512,
+      "remaining_completion_tokens": 1081,
+      "rendered_prompt_sha256": "287f12af1ef42c33cf8177699c0a094fbb5035b19caf73f3e2c3a321d42b71f4",
+      "rendered_prompt_tokens": 6471,
+      "request_index": 2,
+      "stage": "natural_recall"
+    }
+  ]
+}

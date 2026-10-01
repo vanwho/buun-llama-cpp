@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "task": "101-11",
+  "source_commit": "d1886106498436b5c90b229b094849cacbe8f118",
+  "summary": "Passed natural cold promotion of the Python03 answer-bearing page on the final Turbo4 route, query-only replay, and frozen GPU Turbo4 MTP history.",
+  "build_provenance": {
+    "source_commit": "d1886106498436b5c90b229b094849cacbe8f118",
+    "tracked_worktree_diff_sha256": "0cc983747d025a7b359b0522e1906aae6272e348427d6b31dc5f73a862794cc3",
+    "tracked_worktree_diff_scope": [
+      "src",
+      "tools/server"
+    ],
+    "source_files": {
+      "src/llama-kv-cache.cpp": "16fd6a90709d940c7662cae09ad9c77d35ec85bdaaf1a30febe96fa35be9142b",
+      "src/llama-kv-live-policy.cpp": "32a0237d2f0c95c92d5319047d1126efe931befbe74d53f8828b721224fa8305",
+      "src/llama-kv-live-policy.h": "9eb7bee06d94057c31c6bdcf73e0eae182b577de11c9684ac4185c3f3c490207",
+      "src/llama-kv-pager.h": "77a5eb120706101a5f09d03010b72dbe4682602adc676e67edc0925da5395675",
+      "src/llama-kv-residency-transaction.cpp": "6723303adada0c88357e3f258214e798d8f8a11945efe3b912fa3fc5dbda8e8b",
+      "tools/server/bench/pager_promotion.py": "8389acd26c3070de4c9335f7d8fcca23b0dc02710f83409d58313c733b2836ea",
+      "tools/server/bench/run-pager-promotion.py": "08942f3c285deba21aace28ac6744f2ee77e3189eb32ce74260c0160741a71a5",
+      "tools/server/bench/test_pager_promotion.py": "4638da6692d2a230f50f5d8ab8a8aa155d8cdd9fb379a194615fe1a268ae8ace",
+      "tools/server/server-context.cpp": "f2b9f75a1509681d526084b0f340a48d347dcebedc8b7ba8235e46cd840d2707",
+      "tools/server/server-task.h": "498d3f97758b96afc9c3d143fdb3e13071f832293108692be78a984c4e1ac94d"
+    },
+    "server_binary": {
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "8257299b22690a7a7e25bd747a86f287b79487629d7b9b51942119d77ef1fe4f"
+    },
+    "server_dso": {
+      "path": "build-cuda/bin/libllama-server-impl.so",
+      "sha256": "25096716473fe521cf521909f34e5311f6554a634b948a1722378153b513caab"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "candidate": {
+      "pid": 1453577,
+      "start_time_ticks": 35824899,
+      "settings": {
+        "--device": null,
+        "--kv-hot-pages": "16",
+        "--kv-page-size": "256",
+        "--kv-pager": "selective",
+        "--kv-pin-recent": null,
+        "--spec-draft-kv-device": "gpu",
+        "--spec-draft-n-max": "2",
+        "--spec-draft-type-k": "turbo4",
+        "--spec-draft-type-v": "turbo4",
+        "--spec-type": "draft-mtp",
+        "-b": "1024",
+        "-c": "8192",
+        "-ctk": "turbo4",
+        "-ctv": "turbo4",
+        "-m": "/srv/ai/models/text/current.gguf",
+        "-ngl": "999",
+        "-np": "1",
+        "-ub": "256"
+      }
+    },
+    "build_command": [
+      "cmake",
+      "--build",
+      "build-cuda",
+      "--target",
+      "llama-server",
+      "test-kv-pager",
+      "test-kv-policy",
+      "test-cuda-kv-promotion",
+      "-j6"
+    ],
+    "build_log": {
+      "path": ".wiretail/execution/evidence/101-11-rebuild-selector-five-transfer-eight.log",
+      "sha256": "3ae800b95fa06387c91e112a294cd41109fd0734fceb4868f7228fba8956a961"
+    }
+  },
+  "checks": {
+    "final_natural_promotion_and_frozen_mtp_history": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        ".wiretail/execution/evidence/101-11-natural-promotion-selector-five-transfer-eight",
+        "--server-binary",
+        "build-cuda/bin/llama-server",
+        "--selector-trace-page",
+        "5"
+      ],
+      "setup_commands": [
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ]
+      ],
+      "environment": {
+        "gpu": "NVIDIA GeForce RTX 4080",
+        "context_tokens": 8192,
+        "hot_tokens": 4096,
+        "target_kv": "turbo4",
+        "target_v": "turbo4",
+        "mtp_placement": "gpu",
+        "mtp_k": "turbo4",
+        "mtp_v": "turbo4",
+        "draft_n_max": 2,
+        "page_tokens": 256,
+        "fixture_ids": null,
+        "one_model_allocation": true
+      },
+      "metrics": {
+        "campaign_status": "pass",
+        "acceptance_status": "pass",
+        "execution_status": "complete",
+        "target_identity": {
+          "content_version": 256,
+          "generation": 7,
+          "logical_page_id": 5,
+          "position_begin": 1280,
+          "position_end": 1536,
+          "sequence_generation": 1,
+          "sequence_id": 0
+        },
+        "cold_before_final_request": true,
+        "host_backed_before_final_request": true,
+        "nonresident_before_final_request": true,
+        "natural_selector_rank_zero_based": 4,
+        "natural_selector_candidate_count": 5,
+        "selector_budget": 5,
+        "target_candidate_in_budget": true,
+        "candidate_authenticated": true,
+        "policy_admitted": true,
+        "query_commit_selected_count": 12,
+        "atomic_h2d_pages": 8,
+        "atomic_h2d_plan_valid": true,
+        "target_in_h2d_plan": true,
+        "h2d_bytes": 34603008,
+        "h2d_completed": true,
+        "mapping_published": true,
+        "target_attention_used": true,
+        "target_events": [
+          {
+            "content_version": 256,
+            "event_sequence": 0,
+            "generation": 7,
+            "logical_page_id": 5,
+            "request_generation": 3,
+            "request_id": "chatcmpl-4jYcxsWgIMAp78YKMhRGvpL6O9Umh4iu",
+            "stage": "page_cold_before_request"
+          },
+          {
+            "content_version": 256,
+            "event_sequence": 36,
+            "generation": 7,
+            "logical_page_id": 5,
+            "request_generation": 3,
+            "request_id": "chatcmpl-4jYcxsWgIMAp78YKMhRGvpL6O9Umh4iu",
+            "stage": "page_selected"
+          },
+          {
+            "content_version": 256,
+            "event_sequence": 37,
+            "generation": 7,
+            "logical_page_id": 5,
+            "request_generation": 3,
+            "request_id": "chatcmpl-4jYcxsWgIMAp78YKMhRGvpL6O9Umh4iu",
+            "stage": "h2d_completed"
+          },
+          {
+            "content_version": 256,
+            "event_sequence": 38,
+            "generation": 7,
+            "logical_page_id": 5,
+            "request_generation": 3,
+            "request_id": "chatcmpl-4jYcxsWgIMAp78YKMhRGvpL6O9Umh4iu",
+            "stage": "mapping_published"
+          },
+          {
+            "content_version": 256,
+            "event_sequence": 242,
+            "generation": 7,
+            "logical_page_id": 5,
+            "request_generation": 3,
+            "request_id": "chatcmpl-4jYcxsWgIMAp78YKMhRGvpL6O9Umh4iu",
+            "stage": "target_consumed"
+          },
+          {
+            "content_version": 256,
+            "event_sequence": 240,
+            "generation": 7,
+            "logical_page_id": 5,
+            "request_generation": 3,
+            "request_id": "chatcmpl-4jYcxsWgIMAp78YKMhRGvpL6O9Umh4iu",
+            "stage": "draft_consumed"
+          }
+        ],
+        "query_replay_verified": true,
+        "frozen_history_generation_before": 3,
+        "frozen_history_generation_after": 3,
+        "historical_reselection_after_first_token": 0,
+        "historical_h2d_after_first_token": 0,
+        "mtp_counters_delta": {
+          "accepted": 71,
+          "committed": 133,
+          "draft_restores": 35,
+          "drafted": 124,
+          "rejected": 53,
+          "restore_failures": 0,
+          "target_restores": 35
+        },
+        "first_turn_answer_quality": "pass",
+        "final_answer_quality": "pass",
+        "target_attention_query_generation": 162,
+        "target_attention_publication_epoch": 18001,
+        "target_attention_trace_snapshot_index": 5,
+        "target_attention_event_sequence": 242
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/101-11-natural-promotion-selector-five-transfer-eight.log",
+          "sha256": "b60b6857b468b7dd4da41da377267dba53bd6918d322b021fc056b62b6b2361e"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-natural-promotion-selector-five-transfer-eight/campaign-progress.json",
+          "sha256": "574e2258aadc5a98b8b4f9fc7fc7b76b4e367e1e4914d61e4fc230aedbc0582a"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-natural-promotion-selector-five-transfer-eight/candidate-identity.json",
+          "sha256": "1b9a15d5412641fe1e9b65335916b0bc8b0d5224a1e0f4d249665d5748c7e0d2"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-natural-promotion-selector-five-transfer-eight/cases/PY_MERGE_03/request-03/selector-trace-poll-snapshots.json",
+          "sha256": "a92027be712961e55a4ce339d8e4c72e1abcb7f774ced835dfd996051e3145c5"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-natural-promotion-selector-five-transfer-eight/cases/PY_MERGE_03/request-03/completion-response.raw",
+          "sha256": "40c0e04a0ab08cf2de943bf12f2628fbc41f33c534293ce40d5f07c5d7cc0fb4"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-rebuild-selector-five-transfer-eight.log",
+          "sha256": "3ae800b95fa06387c91e112a294cd41109fd0734fceb4868f7228fba8956a961"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-pager-selector-five-transfer-eight.log",
+          "sha256": "a3ebb1d0ab08fe094b72f4dd1fa666443e0f9163e76126060ca97397dfd657f6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-policy-selector-five-transfer-eight.log",
+          "sha256": "3a98c7c4952b7819266ac3fbcfe93616a1b02993d8411819acf0571ff5da8fc8"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-cuda-selector-five-transfer-eight.log",
+          "sha256": "add5e1c4c26a45835fb02c9d77f16873047ca8fafa44f4df19514ac3d2cb27c3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-11-planner-selector-five-transfer-eight.log",
+          "sha256": "b53b61335ca4d77d039dcd8ebc9b87ab52ae98f80f44b38be5fcc31929537321"
+        }
+      ]
+    }
+  }
+}

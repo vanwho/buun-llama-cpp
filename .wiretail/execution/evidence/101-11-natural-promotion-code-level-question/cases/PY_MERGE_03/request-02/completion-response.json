@@ -1,0 +1,48 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Acknowledged. I have reviewed the Bash watcher examples.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790858234,
+  "id": "chatcmpl-ui1OhCsdSQQGNsUcLscQxmu1vhm7Fk2J",
+  "model": "qwen38-fast-turbo4-mtp",
+  "mtp_request_counters": {
+    "accepted": 8,
+    "committed": 12,
+    "draft_restores": 0,
+    "drafted": 8,
+    "rejected": 0,
+    "restore_failures": 0,
+    "target_restores": 0
+  },
+  "object": "chat.completion",
+  "system_fingerprint": "b14133-d18861064",
+  "timings": {
+    "cache_n": 2278,
+    "draft_n": 8,
+    "draft_n_accepted": 8,
+    "kv_bpv": 4.125,
+    "predicted_ms": 246.383,
+    "predicted_n": 12,
+    "predicted_per_second": 44.64593742263062,
+    "predicted_per_token_ms": 22.398454545454545,
+    "prompt_ms": 18145.474,
+    "prompt_n": 3189,
+    "prompt_per_second": 175.7463045605753,
+    "prompt_per_token_ms": 5.690020068987143
+  },
+  "usage": {
+    "completion_tokens": 12,
+    "prompt_tokens": 5467,
+    "prompt_tokens_details": {
+      "cached_tokens": 2278
+    },
+    "total_tokens": 5479
+  }
+}

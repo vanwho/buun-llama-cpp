@@ -1,0 +1,58 @@
+{
+  "all_fit": true,
+  "completion_reserve_tokens": 256,
+  "context_tokens": 8192,
+  "hot_tokens": 4096,
+  "requests": [
+    {
+      "completion_reserve_tokens": 256,
+      "context_safety_reserve_tokens": 128,
+      "context_tokens": 8192,
+      "fits": true,
+      "message_count": 1,
+      "placeholder_prior_replies": [],
+      "planned_completion_tokens": 256,
+      "planned_prior_reply_reserve_tokens": 0,
+      "remaining_completion_tokens": 5909,
+      "rendered_prompt_sha256": "9a74224f7374b1670f28c3c2278bd32a0a0732f733c0438d2e3074fe486872df",
+      "rendered_prompt_tokens": 2155,
+      "request_index": 0,
+      "stage": "source_file"
+    },
+    {
+      "completion_reserve_tokens": 256,
+      "context_safety_reserve_tokens": 128,
+      "context_tokens": 8192,
+      "fits": true,
+      "message_count": 3,
+      "placeholder_prior_replies": [
+        "merge_sorted_lists_01.py grows the result with append() and extends the unconsumed input suffixes."
+      ],
+      "planned_completion_tokens": 256,
+      "planned_prior_reply_reserve_tokens": 256,
+      "remaining_completion_tokens": 2441,
+      "rendered_prompt_sha256": "70b8ba3c3179eaec92ac1dd21534c0902247789e61447553c4a0b8bb8adc6b4d",
+      "rendered_prompt_tokens": 5367,
+      "request_index": 1,
+      "stage": "bash_pressure"
+    },
+    {
+      "completion_reserve_tokens": 256,
+      "context_safety_reserve_tokens": 128,
+      "context_tokens": 8192,
+      "fits": true,
+      "message_count": 5,
+      "placeholder_prior_replies": [
+        "merge_sorted_lists_01.py grows the result with append() and extends the unconsumed input suffixes.",
+        "I have reviewed the Bash examples."
+      ],
+      "planned_completion_tokens": 256,
+      "planned_prior_reply_reserve_tokens": 512,
+      "remaining_completion_tokens": 2123,
+      "rendered_prompt_sha256": "e1ec66617dea714586e2327f1518d7e11f9e73653c37103a7bbbc86bdde01c88",
+      "rendered_prompt_tokens": 5429,
+      "request_index": 2,
+      "stage": "natural_recall"
+    }
+  ]
+}
