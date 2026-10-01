@@ -1,0 +1,13 @@
+pid=2003132
+exe=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server
+argv=['/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server', '-m', '/srv/ai/models/text/current.gguf', '--alias', 'qwen38-fast-turbo4-mtp', '-ngl', '999', '--fit', 'off', '-fa', 'on', '-c', '8192', '-np', '1', '-ctk', 'turbo4', '-ctv', 'turbo4', '-b', '1024', '-ub', '256', '--context-shift', '--poll', '0', '--host', '0.0.0.0', '--port', '8080', '--api-key-file', '<redacted>', '<redacted>', '--metrics', '--reasoning-preserve', '--kv-pager', 'selective', '--kv-page-size', '256', '--kv-hot-pages', '16', '--cache-ram', '12288', '--ctx-checkpoints', '8', '--checkpoint-min-step', '8192', '--slot-save-path', '/srv/ai/paged-kv/data/sessions/hybrid-fast', '--cache-idle-slots', '--kv-unified', '--spec-draft-kv-device', 'gpu', '--spec-type', 'draft-mtp', '--spec-draft-n-max', '2', '--spec-draft-type-k', 'turbo4', '--spec-draft-type-v', 'turbo4']
+exe_sha256=60127625fa9bf923ba44afc54ef8b83e66ef915adc95f33825e8576c384702a8
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3 sha256=a9b0b7c5061d0400de45bc9938c2f5b860f1c26c7f9a101d1e08070829ed82cd
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3 sha256=fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3 sha256=8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3 sha256=e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0 sha256=43f303b4a3162875bf527d2ae5d3a0932b2429cbd8908e3d2f4a14bb3d8cf786
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so sha256=6a5f75af691101dcd96f341e4b563bdabfbef3abe5fd95f553b69c92a2a6ca6b
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0 sha256=de58a3d256b8e1d7ca1721d9a0762a95eee0697f2a80e469d39068167e3f3e66
+dso=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0 sha256=de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c
+model_link=/srv/ai/models/text/current.gguf resolved=/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf size=14252845984 mtime_ns=1787343253539256200

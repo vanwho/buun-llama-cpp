@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "task": "101-17",
+  "source_commit": "f075b710d39dc4c2c5c91adfd2636afd77382749",
+  "source_diff_sha256": "ca76b0b6d261c5ace8772325d728f86c02e1b0d2e8f92766eb399ea6cf9a2733",
+  "summary": "Extended capacity-bounded prefill submission to cached contiguous single-sequence input when every touched page is already resident and fully committed; cold and irregular inputs retain conservative fences.",
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "60127625fa9bf923ba44afc54ef8b83e66ef915adc95f33825e8576c384702a8"
+  },
+  "checks": {
+    "capacity_driven_prefill_wave_and_source_lease_safety": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-kv-attention-execution"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "test-kv-attention-execution",
+        "test-kv-pager",
+        "test-cuda-kv-promotion",
+        "llama-server",
+        "-j8"
+      ],
+      "additional_commands": [
+        [
+          "./build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "./build-cuda/bin/test-cuda-kv-promotion"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ],
+        [
+          "python3",
+          "-"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "candidate": {
+        "path": "build-cuda/bin/llama-server",
+        "sha256": "60127625fa9bf923ba44afc54ef8b83e66ef915adc95f33825e8576c384702a8"
+      },
+      "coverage": {
+        "cached_wave_admission": {
+          "eligible_contiguous_single_sequence_resident_pages": true,
+          "rejected_irregular_layout": true,
+          "rejected_absent_resident_pages": true,
+          "rejected_incomplete_resident_span": true,
+          "production_page_check": "Each requested position must be within [position_begin, position_end) and have a physical slot."
+        },
+        "pager_fixture": {
+          "bounded_queue_pages": 2,
+          "copy_backpressure_waits": 192,
+          "submitted_chunks": 256,
+          "events": 256,
+          "overwritten_version_rejected": true,
+          "exact_host_roundtrip": "verified",
+          "cancel_and_rollback": "pass"
+        },
+        "cuda_promotion_fixture": {
+          "generation_history_h2d_submitted": 0,
+          "stale_resident_version_rejected": true,
+          "clean_eviction_host_bytes_retained": true
+        },
+        "live_server": {
+          "device": "NVIDIA GeForce RTX 4080",
+          "candidate_identity_verified": true,
+          "batch": 1024,
+          "ubatch": 256,
+          "page_tokens": 256,
+          "hot_pages": 16,
+          "fresh_prompt_tokens": 7439,
+          "fresh_cache_tokens": 0,
+          "exact_replay_cache_tokens": 7439,
+          "exact_replay_prompt_tokens": 0,
+          "fresh_prompt_tokens_per_second": 1426.516,
+          "multi_page_prompt_submissions": true
+        }
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/build-final2.log",
+          "sha256": "ca305cdf37b3712f6c916062669b31900b80d2f0f8503af263092b8919cca689"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/test-kv-attention-execution-final.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/test-kv-pager-final.log",
+          "sha256": "67580b947e21e5d019fa34e8729c9a802f73167c7484e43d0add27d0fcc41c05"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/test-cuda-kv-promotion-final.log",
+          "sha256": "add5e1c4c26a45835fb02c9d77f16873047ca8fafa44f4df19514ac3d2cb27c3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/server-prefill-final.json",
+          "sha256": "01dc030c2c90661e3302707ff0a2c1652abe45376866b12b63f02269a047bea9"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/server-hotpath-final.log",
+          "sha256": "fec74ab5789a8874a96391515b7570c59b4ed591250415a3ca142855bc6f8cff"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/server-identity-final.txt",
+          "sha256": "8f18a9c11b9f13d33231e57ed477ea8235c8bf7e821c25f20b5ec5b8b93bb1a6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/service-restart-final.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/diff-check-final.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-17/source.diff",
+          "sha256": "ca76b0b6d261c5ace8772325d728f86c02e1b0d2e8f92766eb399ea6cf9a2733"
+        }
+      ]
+    }
+  },
+  "deferred_verification": {
+    "status": "limited_observation",
+    "detail": "The managed exact-cache replay used zero prompt tokens, so a multi-page cached compute was not separately observable. Cached admission/veto behavior is covered by the deterministic execution fixture; the CUDA server exercised a 7,439-token multi-page fresh prompt."
+  },
+  "raw_result_root": ".wiretail/execution/evidence/raw/101-17"
+}

@@ -1853,3 +1853,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-16`
 - Commit at update: `7ad4bfed1`
 - Summary: Verified actual CUDA graph capture/replay and ordered selected page inputs; fixed capture-time scratch pool retirement
+
+## 2026-10-01T19:02:53+00:00 — 101-17 — done
+
+- Branch: `codex/task-101-17`
+- Commit at update: `f075b710d`
+- Summary: Extended bounded prefill waves to fully resident cached contiguous input; CUDA fixtures and managed multi-page prompt passed.
