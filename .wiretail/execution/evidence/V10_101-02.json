@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "task": "101-02",
+  "source_commit": "404223c61d5a96cf6fd94e678dbd440a5db3f5c3",
+  "build_identity": {
+    "candidate": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "candidate_sha256": "e78dbd09665b9f4d2b2ff259d37ce1eb3b49a7badfeeb41a69db4533a47312f6",
+    "dirty": true,
+    "source_diff_sha256": "cfaf952f6d76bb8ff420a874118d973ca1adc701af5c6ef04945694f6c3447aa",
+    "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9"
+  },
+  "checks": {
+    "matched_turbo4_fused_decode_finite_and_dispatched": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "GGML_CUDA_DISABLE_GRAPHS=1",
+        "build-cuda/bin/test-cuda-fattn-paged-turbo4"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/cuda-fixture-final.log",
+          "sha256": "3e549537cb651cfb9246fc82b005dbcbd70dbac5e7d8b45c37ad3394b73a1efd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/q1-q3-h4096-microbench.log",
+          "sha256": "3ed3f0e781bcb044ddf4e4acfbf7d749671407f83583cebeaed8a32b60a6601c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/response.json",
+          "sha256": "e7799ccee88a2b0c12770c4c7580b3223d0bc4b8c185b8e200f6d6dc9de52f69"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/metrics-before.prom",
+          "sha256": "d5729324fd0d1ba932e6a36918c1f572586a8c8bd6a8596cceedba86a1136e7c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/metrics-after.prom",
+          "sha256": "d4d12a8a35f4539da5366a8d2b73a138f6202a1fc6824a164e418405c406d52a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/microbench-summary.json",
+          "sha256": "f142e41e509b6869f712ed6f0ab2fb80ff84e0e6beb7df473fbd17a59bfbd26d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/candidate-identity.json",
+          "sha256": "13c95f560ade5866f16cf654b0fee9f51e19df05814b4e842bd20c76cd33650d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/live-prompt1-journal.log",
+          "sha256": "3f41a8fae54138e7508f3499b3036b614dbf248dc80be329a46ef42f726ad0ba"
+        }
+      ],
+      "runtime_summary": {
+        "candidate_sha256": "e78dbd09665b9f4d2b2ff259d37ce1eb3b49a7badfeeb41a69db4533a47312f6",
+        "live_prompt": "canonical prompt1",
+        "prompt_tokens": 4326,
+        "completion_tokens": 80,
+        "mtp_drafted": 58,
+        "mtp_accepted": 34,
+        "microbench_history_rows": 4096,
+        "microbench": {
+          "Q1": {
+            "family": "matched Turbo4 fused MMA",
+            "prep_ms": 11.007,
+            "kernel_ms": 0.026,
+            "f16_kv_scratch_bytes": 0
+          },
+          "Q3": {
+            "family": "matched Turbo4 fused MMA",
+            "prep_ms": 0.143,
+            "kernel_ms": 0.027,
+            "f16_kv_scratch_bytes": 0
+          },
+          "materialize_control_Q1": {
+            "prep_ms": 0.103,
+            "kernel_ms": 0.029,
+            "f16_kv_scratch_bytes": 4194304
+          },
+          "materialize_control_Q3": {
+            "prep_ms": 0.119,
+            "kernel_ms": 0.031,
+            "f16_kv_scratch_bytes": 4194304
+          }
+        },
+        "dispatch_observed_by_numerical_fixture": true
+      }
+    },
+    "matched_turbo4_q1_q3_h4096_microbench": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "GGML_CUDA_DISABLE_GRAPHS=1",
+        "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+        "--microbench-q1-q3-h4096"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/q1-q3-h4096-microbench.log",
+          "sha256": "3ed3f0e781bcb044ddf4e4acfbf7d749671407f83583cebeaed8a32b60a6601c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/microbench-summary.json",
+          "sha256": "f142e41e509b6869f712ed6f0ab2fb80ff84e0e6beb7df473fbd17a59bfbd26d"
+        }
+      ]
+    },
+    "canonical_prompt1_live_mtp": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/response.json",
+          "sha256": "e7799ccee88a2b0c12770c4c7580b3223d0bc4b8c185b8e200f6d6dc9de52f69"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/metrics-before.prom",
+          "sha256": "d5729324fd0d1ba932e6a36918c1f572586a8c8bd6a8596cceedba86a1136e7c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/metrics-after.prom",
+          "sha256": "d4d12a8a35f4539da5366a8d2b73a138f6202a1fc6824a164e418405c406d52a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/microbench-summary.json",
+          "sha256": "f142e41e509b6869f712ed6f0ab2fb80ff84e0e6beb7df473fbd17a59bfbd26d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/candidate-identity.json",
+          "sha256": "13c95f560ade5866f16cf654b0fee9f51e19df05814b4e842bd20c76cd33650d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-02/attempt-01/live/live-prompt1-journal.log",
+          "sha256": "3f41a8fae54138e7508f3499b3036b614dbf248dc80be329a46ef42f726ad0ba"
+        }
+      ]
+    }
+  }
+}

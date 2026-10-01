@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <limits>
@@ -557,7 +558,11 @@ static float time_dense_fa(
         bool pack_rows,
         const std::vector<float> * mask_host = nullptr,
         std::vector<float> * output_capture = nullptr,
-        size_t * graph_buffer_bytes = nullptr) {
+        size_t * graph_buffer_bytes = nullptr,
+        bool numerical_only = false,
+        bool force_materialize = false,
+        double * preparation_ms = nullptr) {
+    const auto preparation_start = std::chrono::steady_clock::now();
     const uint32_t query_count = uint32_t(q_host.size() / (size_t(n_head_q) * 256));
     ggml_init_params init_params = { 64u * 1024u * 1024u, nullptr, true };
     ggml_context * ctx = ggml_init(init_params);
@@ -635,28 +640,48 @@ static float time_dense_fa(
         ggml_backend_tensor_set(k, packed_k.data(), 0, packed_k.size());
         ggml_backend_tensor_set(v, packed_v.data(), 0, packed_v.size());
     }
+    if (preparation_ms != nullptr) {
+        *preparation_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - preparation_start).count();
+    }
 
     const cudaStream_t stream = static_cast<ggml_backend_cuda_context *>(backend->context)->stream();
     cudaEvent_t start = nullptr;
     cudaEvent_t stop = nullptr;
     cuda_check(cudaEventCreate(&start), "dense timing start allocation");
     cuda_check(cudaEventCreate(&stop), "dense timing stop allocation");
-    for (uint32_t i = 0; i < 5; ++i) {
-        assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    const char * previous_fused = std::getenv("GGML_TURBO_MMA_FUSED");
+    const std::string previous_fused_value = previous_fused == nullptr ? std::string() : previous_fused;
+    if (force_materialize) {
+        setenv("GGML_TURBO_MMA_FUSED", "0", 1);
+    } else {
+        setenv("GGML_TURBO_MMA_FUSED", "1", 1);
     }
     std::vector<float> samples;
-    for (uint32_t sample = 0; sample < 7; ++sample) {
-        cuda_check(cudaEventRecord(start, stream), "dense timing start record");
-        for (uint32_t i = 0; i < 20; ++i) {
+    if (numerical_only) {
+        assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+        if (!force_materialize) {
+            assert(ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+        } else {
+            assert(!ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+        }
+    } else {
+        for (uint32_t i = 0; i < 5; ++i) {
             assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
         }
-        cuda_check(cudaEventRecord(stop, stream), "dense timing stop record");
-        cuda_check(cudaEventSynchronize(stop), "dense timing stop synchronize");
-        float elapsed_ms = 0.0f;
-        cuda_check(cudaEventElapsedTime(&elapsed_ms, start, stop), "dense timing readback");
-        samples.push_back(elapsed_ms / 20.0f);
+        for (uint32_t sample = 0; sample < 7; ++sample) {
+            cuda_check(cudaEventRecord(start, stream), "dense timing start record");
+            for (uint32_t i = 0; i < 20; ++i) {
+                assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+            }
+            cuda_check(cudaEventRecord(stop, stream), "dense timing stop record");
+            cuda_check(cudaEventSynchronize(stop), "dense timing synchronize");
+            float elapsed_ms = 0.0f;
+            cuda_check(cudaEventElapsedTime(&elapsed_ms, start, stop), "dense timing readback");
+            samples.push_back(elapsed_ms / 20.0f);
+        }
+        std::sort(samples.begin(), samples.end());
     }
-    std::sort(samples.begin(), samples.end());
     if (output_capture != nullptr) {
         output_capture->resize(size_t(256) * query_count * n_head_q);
         ggml_backend_tensor_get(output, output_capture->data(), 0,
@@ -664,9 +689,107 @@ static float time_dense_fa(
     }
     cudaEventDestroy(stop);
     cudaEventDestroy(start);
+    if (previous_fused == nullptr) {
+        unsetenv("GGML_TURBO_MMA_FUSED");
+    } else {
+        setenv("GGML_TURBO_MMA_FUSED", previous_fused_value.c_str(), 1);
+    }
     ggml_backend_buffer_free(buffer);
     ggml_free(ctx);
-    return samples[samples.size() / 2];
+    return numerical_only ? 0.0f : samples[samples.size() / 2];
+}
+
+static void run_contiguous_turbo4_fused_parity(ggml_backend_t backend) {
+    constexpr uint32_t head_dim = 256;
+    constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
+    const size_t page_stride = 256 * row_bytes;
+    for (const uint32_t n_rows : { 256u, 257u, 1024u }) {
+        for (const uint32_t gqa_ratio : { 1u, 2u, 4u, 8u }) {
+            const uint32_t n_head_kv = 1;
+            const uint32_t n_head_q = n_head_kv * gqa_ratio;
+            const uint32_t n_physical_pages = (n_rows + 255) / 256;
+            std::vector<uint8_t> k_storage(size_t(n_rows) * n_head_kv * row_bytes);
+            std::vector<uint8_t> v_storage(k_storage.size());
+            for (uint32_t row = 0; row < n_rows; ++row) {
+                for (uint32_t block = 0; block < 2; ++block) {
+                    auto * k = reinterpret_cast<block_turbo4_0 *>(k_storage.data() +
+                        size_t(row) * row_bytes + block * sizeof(block_turbo4_0));
+                    auto * v = reinterpret_cast<block_turbo4_0 *>(v_storage.data() +
+                        size_t(row) * row_bytes + block * sizeof(block_turbo4_0));
+                    *reinterpret_cast<uint16_t *>(&k->norm) = 0x3c00;
+                    *reinterpret_cast<uint16_t *>(&v->norm) = 0x3c00;
+                    for (uint32_t i = 0; i < sizeof(k->qs); ++i) {
+                        const uint8_t klo = uint8_t((row * 3 + block * 5 + i) & 0xf);
+                        const uint8_t khi = uint8_t((row * 7 + block * 2 + i + 1) & 0xf);
+                        const uint8_t vlo = uint8_t((row * 5 + block * 3 + i + 4) & 0xf);
+                        const uint8_t vhi = uint8_t((row * 2 + block * 7 + i + 9) & 0xf);
+                        k->qs[i] = uint8_t(klo | (khi << 4));
+                        v->qs[i] = uint8_t(vlo | (vhi << 4));
+                    }
+                }
+            }
+            const std::vector<ggml_cuda_fattn_turbo4_page> no_pages;
+            std::vector<int64_t> native_positions(n_rows);
+            for (uint32_t row = 0; row < n_rows; ++row) {
+                // A permutation with gaps exercises mask rows independently of physical order.
+                native_positions[row] = 3 + int64_t((uint64_t(row) * 7 % n_rows) * 2);
+            }
+            for (uint32_t query_count = 1; query_count <= 4; ++query_count) {
+                std::vector<float> q_host(size_t(query_count) * n_head_q * head_dim);
+                for (size_t i = 0; i < q_host.size(); ++i) {
+                    q_host[i] = 0.12f * std::sin(float(i * 13 + n_rows));
+                }
+                std::vector<float> mask(size_t(n_rows) * query_count, -INFINITY);
+                for (uint32_t query = 0; query < query_count; ++query) {
+                    const uint32_t current_row = n_rows - query_count + query;
+                    const int64_t query_position = native_positions[current_row];
+                    for (uint32_t row = 0; row < n_rows; ++row) {
+                        if (native_positions[row] <= query_position) {
+                            mask[size_t(query) * n_rows + row] = 0.0f;
+                        }
+                    }
+                }
+                std::vector<float> fused;
+                std::vector<float> materialized;
+                time_dense_fa(backend, q_host, k_storage, v_storage, k_storage, v_storage,
+                    no_pages.data(), 0, n_rows, n_physical_pages, n_head_q, n_head_kv,
+                    page_stride, row_bytes, false, &mask, &fused, nullptr, true, false);
+                time_dense_fa(backend, q_host, k_storage, v_storage, k_storage, v_storage,
+                    no_pages.data(), 0, n_rows, n_physical_pages, n_head_q, n_head_kv,
+                    page_stride, row_bytes, false, &mask, &materialized, nullptr, true, true);
+                assert(fused.size() == materialized.size());
+                for (size_t i = 0; i < fused.size(); ++i) {
+                    assert(std::isfinite(fused[i]));
+                    assert(std::isfinite(materialized[i]));
+                    assert(std::fabs(fused[i] - materialized[i]) < 3.0e-3f);
+                }
+            }
+            std::fprintf(stderr,
+                "matched Turbo4 fused MMA parity: L=%u Q=1..4 GQA=%u:1 finite and materialize-MMA matched\n",
+                n_rows, gqa_ratio);
+        }
+    }
+
+    std::vector<uint8_t> storage(size_t(256) * row_bytes);
+    for (uint32_t row = 0; row < 256; ++row) {
+        auto * block = reinterpret_cast<block_turbo4_0 *>(storage.data() + size_t(row) * row_bytes);
+        *reinterpret_cast<uint16_t *>(&block[0].norm) = 0x3c00;
+        *reinterpret_cast<uint16_t *>(&block[1].norm) = 0x3c00;
+        std::memset(block[0].qs, 0x88, sizeof(block[0].qs));
+        std::memset(block[1].qs, 0x88, sizeof(block[1].qs));
+    }
+    const std::vector<float> q(256, 0.0f);
+    const std::vector<float> all_masked(256, -INFINITY);
+    std::vector<float> output;
+    const std::vector<ggml_cuda_fattn_turbo4_page> no_pages;
+    time_dense_fa(backend, q, storage, storage, storage, storage, no_pages.data(), 0,
+        256, 1, 1, 1, page_stride, row_bytes, false, &all_masked, &output,
+        nullptr, true, false);
+    for (const float value : output) {
+        assert(std::isfinite(value));
+        assert(std::fabs(value) < 1.0e-6f);
+    }
+    std::fprintf(stderr, "matched Turbo4 fused MMA parity: all-masked query is finite zero\n");
 }
 
 static void run_split_tail_growth_regression(ggml_backend_t backend) {
@@ -888,7 +1011,8 @@ static void time_large_prefill_cases(
         ggml_backend_t backend,
         cudaStream_t stream,
         cudaEvent_t timing_start,
-        cudaEvent_t timing_stop) {
+        cudaEvent_t timing_stop,
+        bool q1_q3_4096_only = false) {
     constexpr uint32_t n_head_q = 4;
     constexpr uint32_t n_head_kv = 1;
     constexpr uint32_t max_query_tokens = 128;
@@ -896,6 +1020,9 @@ static void time_large_prefill_cases(
     constexpr size_t page_stride = 256 * row_bytes;
 
     for (const uint32_t n_rows : { 2048u, 4096u, 8192u }) {
+        if (q1_q3_4096_only && n_rows != 4096) {
+            continue;
+        }
         const uint32_t n_pages = n_rows / 256;
         const uint32_t n_physical_pages = n_pages;
         std::vector<ggml_cuda_fattn_turbo4_page> pages(n_pages);
@@ -981,7 +1108,9 @@ static void time_large_prefill_cases(
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
         const std::vector<uint8_t> packed_v = pack_selected_storage(v_host, pages.data(),
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
-        for (const uint32_t query_count : { 16u, 64u, 128u }) {
+        for (const uint32_t query_count : q1_q3_4096_only
+                ? std::vector<uint32_t>{}
+                : std::vector<uint32_t>{16u, 64u, 128u}) {
             params.n_query_tokens = query_count;
             const float direct_ms = time_paged_attention(backend, params, stream,
                 timing_start, timing_stop, 5, 20);
@@ -999,6 +1128,52 @@ static void time_large_prefill_cases(
             std::fprintf(stderr, "  fused paged MMA direct: %.3f ms\n", direct_ms);
             std::fprintf(stderr, "  contiguous Turbo4 FA:   %.3f ms\n", contiguous_ms);
             std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
+        }
+
+        // The repaired contiguous dispatch specifically serves decode and
+        // native-MTP verification. Measure those Q=1/Q=3 shapes over the
+        // requested 4K history, separating host graph/input preparation from
+        // CUDA-event kernel time. The materialized control reports the F16
+        // K/V scratch footprint that the fused family avoids.
+        for (const uint32_t query_count : { 1u, 3u }) {
+            params.n_query_tokens = query_count;
+            const std::vector<float> q_timing(q_host.begin(),
+                q_host.begin() + size_t(query_count) * n_head_q * 256);
+            std::vector<float> causal_mask(size_t(n_rows) * query_count, -INFINITY);
+            for (uint32_t query = 0; query < query_count; ++query) {
+                const int64_t query_position = query_positions[query];
+                for (uint32_t row = 0; row < n_rows; ++row) {
+                    if (int64_t(row) <= query_position) {
+                        causal_mask[size_t(query) * n_rows + row] = 0.0f;
+                    }
+                }
+            }
+            double fused_preparation_ms = 0.0;
+            const float fused_kernel_ms = time_dense_fa(backend, q_timing,
+                k_host, v_host, packed_k, packed_v, pages.data(), n_pages,
+                n_rows, n_physical_pages, n_head_q, n_head_kv, page_stride,
+                row_bytes, false, &causal_mask, nullptr, nullptr, false, false,
+                &fused_preparation_ms);
+            assert(ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+
+            double materialize_preparation_ms = 0.0;
+            const float materialize_kernel_ms = time_dense_fa(backend, q_timing,
+                k_host, v_host, packed_k, packed_v, pages.data(), n_pages,
+                n_rows, n_physical_pages, n_head_q, n_head_kv, page_stride,
+                row_bytes, false, &causal_mask, nullptr, nullptr, false, true,
+                &materialize_preparation_ms);
+            assert(!ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+            const size_t f16_kv_scratch_bytes = size_t(n_rows) * 256 * n_head_kv *
+                sizeof(uint16_t) * 2;
+            std::fprintf(stderr,
+                "matched Turbo4 Q1/Q3 H4096 microbench: family=fused_mma Q=%u "
+                "prep_ms=%.3f kernel_ms=%.3f f16_kv_scratch_bytes=0\n",
+                query_count, fused_preparation_ms, fused_kernel_ms);
+            std::fprintf(stderr,
+                "matched Turbo4 Q1/Q3 H4096 materialize control: family=f16_materialize_mma Q=%u "
+                "prep_ms=%.3f kernel_ms=%.3f f16_kv_scratch_bytes=%zu\n",
+                query_count, materialize_preparation_ms, materialize_kernel_ms,
+                f16_kv_scratch_bytes);
         }
 
         cudaFree(query_positions_device);
@@ -1289,9 +1464,11 @@ static void run_cuda_prefill_long_context_regression(ggml_backend_t backend) {
 
 int main(int argc, char ** argv) {
     const bool run_timing = argc == 2 && std::string(argv[1]) == "--timing";
+    const bool run_q1_q3_microbench = argc == 2 &&
+        std::string(argv[1]) == "--microbench-q1-q3-h4096";
     const bool run_long_context = argc == 2 &&
         std::string(argv[1]) == "--prefill-long-context-regression";
-    assert(argc == 1 || run_timing || run_long_context);
+    assert(argc == 1 || run_timing || run_q1_q3_microbench || run_long_context);
     assert(ggml_cuda_fattn_turbo4_page_table_valid(nullptr, 0, 0) == false);
     assert(ggml_cuda_fattn_turbo4_query_tile_for_count(1) == 1);
     assert(ggml_cuda_fattn_turbo4_query_tile_for_count(2) == 2);
@@ -1303,6 +1480,24 @@ int main(int argc, char ** argv) {
 
     ggml_backend_t backend = ggml_backend_cuda_init(0);
     assert(backend != nullptr);
+
+    if (run_q1_q3_microbench) {
+        const cudaStream_t stream = static_cast<ggml_backend_cuda_context *>(backend->context)->stream();
+        cudaEvent_t timing_start = nullptr;
+        cudaEvent_t timing_stop = nullptr;
+        cuda_check(cudaEventCreate(&timing_start), "Q1/Q3 microbench start allocation");
+        cuda_check(cudaEventCreate(&timing_stop), "Q1/Q3 microbench stop allocation");
+        time_large_prefill_cases(backend, stream, timing_start, timing_stop, true);
+        cuda_check(cudaDeviceSynchronize(), "Q1/Q3 H4096 microbench completion");
+        cudaEventDestroy(timing_stop);
+        cudaEventDestroy(timing_start);
+        ggml_backend_free(backend);
+        return 0;
+    }
+
+    if (!run_timing && !run_long_context) {
+        run_contiguous_turbo4_fused_parity(backend);
+    }
 
     if (run_long_context) {
         run_cuda_prefill_long_context_regression(backend);

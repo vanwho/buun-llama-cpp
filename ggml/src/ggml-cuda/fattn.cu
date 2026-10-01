@@ -447,6 +447,12 @@ static void ggml_cuda_flash_attn_ext_mma_turbo_switch_ncols1(ggml_backend_cuda_c
     ggml_cuda_flash_attn_ext_mma_turbo_case<DKQ, DV, 4, 8, type_K, type_V>(ctx, dst);
 }
 
+static bool ggml_cuda_turbo4_fused_last_dispatch = false;
+
+bool ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma() noexcept {
+    return ggml_cuda_turbo4_fused_last_dispatch;
+}
+
 // Turbo MMA fused dispatch: ncols2 selection based on GQA ratio.
 template <int DKQ, int DV, ggml_type type_K, ggml_type type_V>
 static void ggml_cuda_flash_attn_ext_mma_turbo_switch_ncols2(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
@@ -4277,6 +4283,7 @@ size_t ggml_cuda_flash_attn_ext_get_alloc_size(int device, const ggml_tensor * d
 }
 
 void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    ggml_cuda_turbo4_fused_last_dispatch = false;
     ggml_cuda_set_device(ctx.device);
     turbo_vanilla_cb_load_fattn();  // TURBO_CB_T2/3/4/8 vanilla-book override (this TU's copies)
     turbo1_tcq_load_cb_fattn();  // E7: turbo1_tcq K/V decode codebooks (TURBO1_TCQ_CB_K/_V, cold-start = turbo2 anchor)
@@ -4305,14 +4312,15 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     const bool turbo_prefill_vec = turbo_prefill_vec_override;
     // Fused MMA turbo: reads raw turbo bytes directly in the MMA kernel, no intermediate fp16 buffers.
     // Phase 1: turbo4_0 matched K/V at D=128. Set GGML_TURBO_MMA_FUSED=0 to disable.
-    static const bool turbo_mma_fused = [] {
-        const char * e = getenv("GGML_TURBO_MMA_FUSED");
-        if (e && atoi(e) == 0) {
+    const char * turbo_mma_fused_env = getenv("GGML_TURBO_MMA_FUSED");
+    const bool turbo_mma_fused = turbo_mma_fused_env == nullptr || atoi(turbo_mma_fused_env) != 0;
+    if (!turbo_mma_fused && turbo_mma_fused_env != nullptr) {
+        static bool reported_disabled = false;
+        if (!reported_disabled) {
             fprintf(stderr, "GGML_TURBO_MMA_FUSED=0: fused turbo MMA kernel disabled\n");
-            return false;
+            reported_disabled = true;
         }
-        return true;
-    }();
+    }
     // turbo1_tcq handling below; removed 1-bit variants have no instances (dequant-to-f16 codec only); exclude it so it
     // does not enter the fused path and fall through with no kernel launched.
     const bool turbo_matched = K->type == V->type && turbo_kv && K->type != GGML_TYPE_TURBO1_TCQ;
@@ -4322,6 +4330,28 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     const bool t1_fused_ok = !g_turbo_innerq_calibrated;
     const bool turbo1_tcq_matched = K->type == GGML_TYPE_TURBO1_TCQ && V->type == GGML_TYPE_TURBO1_TCQ &&
                                     (Q->ne[0] == 128 || Q->ne[0] == 256) && t1_fused_ok;
+    const ggml_tensor * fused_mask = dst->src[3];
+    const size_t turbo4_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, Q->ne[0]);
+    const bool matched_turbo4_fused_capable =
+        K->type == GGML_TYPE_TURBO4_0 && V->type == GGML_TYPE_TURBO4_0 &&
+        (Q->ne[0] == 128 || Q->ne[0] == 256) &&
+        K->ne[0] == Q->ne[0] && V->ne[0] == Q->ne[0] && Q->ne[1] >= 1 && Q->ne[1] <= 4 &&
+        Q->ne[2] % K->ne[2] == 0 &&
+        Q->nb[0] == sizeof(float) && Q->nb[1] % sizeof(float2) == 0 &&
+        Q->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        Q->nb[3] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        K->nb[0] == sizeof(block_turbo4_0) && V->nb[0] == sizeof(block_turbo4_0) &&
+        K->nb[1] >= turbo4_row_bytes && V->nb[1] >= turbo4_row_bytes &&
+        K->nb[1] % sizeof(block_turbo4_0) == 0 && V->nb[1] % sizeof(block_turbo4_0) == 0 &&
+        K->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        V->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        K->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        V->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        fused_mask != nullptr && fused_mask->type == GGML_TYPE_F16 &&
+        fused_mask->nb[0] == sizeof(ggml_fp16_t) &&
+        fused_mask->nb[1] % sizeof(ggml_fp16_t) == 0 &&
+        fused_mask->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        fused_mask->ne[0] >= K->ne[1] && fused_mask->ne[1] >= Q->ne[1];
     // Asymmetric fused pairs, D=256 only (dense Qwen geometry). Both sides stay WHT-rotated like
     // the matched path (Q pre-rotated below, V un-rotated at graph level). The set = the q6 sweet
     // spot (t8k/t4v) + the ADJACENT-TIER pairs of the dynamic VBR degrade ladder. NOTE the priced
@@ -4349,11 +4379,15 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     // The fused turbo MMA loaders are not finite for the Qwen3.5 GQA control
     // graph's mixed turbo tiers. Keep the native GPU cache, but use the proven
     // GPU materialize/vector paths until those loaders have a finite proof.
-    if (turbo_mma_fused && !turbo_kv && (turbo_matched || turbo_fused_asym || turbo1_tcq_matched) && Q->ne[1] <= 4 &&
+    if (turbo_mma_fused &&
+        ((matched_turbo4_fused_capable &&
+          (turing_mma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) ||
+           amd_wmma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc))) ||
+         (!turbo_kv && (turbo_matched || turbo_fused_asym || turbo1_tcq_matched) && Q->ne[1] <= 4 &&
         (Q->ne[0] == 128 || Q->ne[0] == 256) &&
         (turing_mma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) ||
          // AMD RDNA WMMA: trying D=128 AND D=256 (gemma) after lifting the upstream DKQ<=128 cap.
-         amd_wmma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc))) {
+         amd_wmma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc))))) {
         cudaStream_t stream = ctx.stream();
         int device;
         CUDA_CHECK(cudaGetDevice(&device));
@@ -4376,9 +4410,9 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
             }
         }
 
-        // Pre-rotate Q: ALL fused turbo K types (incl. turbo1_tcq since 2026-07-02) keep K in the
-        // WHT-rotated domain — the stored trellis/LUT coeffs are consumed directly and Q is
-        // rotated once to match. Only V is decoded to the original domain inside the loader.
+        // Pre-rotate Q for fused turbo K: the loaders consume the stored WHT-rotated K directly.
+        // Turbo V is also accumulated in its stored rotated domain; the graph's inverse WHT on
+        // the attention result restores V once. Keep this paired transform contract intact.
         ggml_tensor Q_rot_fused;
         ggml_tensor * orig_q_fused = nullptr;
         // f16 K is stored in the ORIGINAL (unrotated) domain, so Q must NOT be WHT-rotated for it
@@ -4439,6 +4473,10 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
         else TURBO_FUSED_DISPATCH(GGML_TYPE_TURBO3_0,   GGML_TYPE_TURBO3_0)
         else TURBO_FUSED_DISPATCH(GGML_TYPE_TURBO2_0,   GGML_TYPE_TURBO2_0)
 #undef TURBO_FUSED_DISPATCH
+
+        if (matched_turbo4_fused_capable) {
+            ggml_cuda_turbo4_fused_last_dispatch = true;
+        }
 
         if (orig_q_fused) dst->src[0] = orig_q_fused;
         return;

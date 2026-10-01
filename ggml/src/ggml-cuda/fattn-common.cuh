@@ -1739,7 +1739,7 @@ static __global__ void flash_attn_stream_k_fixup_uniform(
     }
 
     // Write back final result:
-    *dst = dst_val / rowsum;
+    *dst = rowsum > 0.0f ? dst_val / rowsum : 0.0f;
 }
 
 // General fixup kernel for the case where the number of blocks per tile is not uniform across tiles
@@ -1850,7 +1850,7 @@ static __global__ void flash_attn_stream_k_fixup_general(
     }
 
     // Write back final result:
-    *dst = dst_val / rowsum;
+    *dst = rowsum > 0.0f ? dst_val / rowsum : 0.0f;
 }
 
 template<int D> // D == head size
@@ -1902,13 +1902,14 @@ static __global__ void flash_attn_combine_results(
     float VKQ_numerator   = 0.0f;
     float VKQ_denominator = 0.0f;
     for (int l = 0; l < parallel_blocks; ++l) {
-        const float KQ_max_scale = expf(meta[l].x - kqmax);
+        const float KQ_max_scale = isfinite(kqmax) && isfinite(meta[l].x)
+            ? expf(meta[l].x - kqmax) : 0.0f;
 
         VKQ_numerator   += KQ_max_scale * VKQ_parts[l*D + tid];
         VKQ_denominator += KQ_max_scale * meta[l].y;
     }
 
-    dst[tid] = VKQ_numerator / VKQ_denominator;
+    dst[tid] = VKQ_denominator > 0.0f ? VKQ_numerator / VKQ_denominator : 0.0f;
 }
 
 void ggml_cuda_flash_attn_ext_compact_mask(
