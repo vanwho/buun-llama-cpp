@@ -1871,3 +1871,33 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12h`
 - Commit at update: `b3b238bc1`
 - Summary: Independently recalculated 101-18 raw rows; corrected prefill report (all prompts pass 750), preserved prior release evidence, recorded truthful MTP goal_miss, and scheduled 101-12i repair plus 101-12j exact retake/final review before 102-01.
+
+## 2026-10-01T19:58:43+00:00 — 101-12i — in_progress
+
+- Branch: `codex/task-101-12i`
+- Commit at update: `31137bcce`
+- Summary: Candidate identity verified; first-rejection hooks found but disabled. Checkpointed raw diagnostic plan before live capture.
+
+## 2026-10-01T20:01:32+00:00 — 101-12i — in_progress
+
+- Branch: `codex/task-101-12i`
+- Commit at update: `31137bcce`
+- Summary: First profile diagnostic exited before service mutation due to missing BENCH_ENDPOINT; trace env cleanup succeeded. Corrected wrapper config and retrying.
+
+## 2026-10-01T20:03:58+00:00 — 101-12i — in_progress
+
+- Branch: `codex/task-101-12i`
+- Commit at update: `31137bcce`
+- Summary: Managed diagnostics required the current immutable bundle; created read-only bundle from exact live candidate/mapped DSOs and validated its manifest. Retry exact suite with endpoint and bundle env configured.
+
+## 2026-10-01T20:09:20+00:00 — 101-12i — in_progress
+
+- Branch: `codex/task-101-12i`
+- Commit at update: `31137bcce`
+- Summary: Immutable bundle validation passed, but managed launch segfaulted at 70 MiB before model load. Captured journal evidence; stopping only the task-owned runner/activation loop and restoring the known 101-18 profile.
+
+## 2026-10-01T20:26:05+00:00 — 101-12i — done
+
+- Branch: `codex/task-101-12i`
+- Commit at update: `31137bcce`
+- Summary: Captured and validated bounded first-rejection traces for dense/selected resident and C>H routes. No single source owner was demonstrated, so no speculative target-view repair or policy change was made; V10 evidence records the attribution limit and paired <=80-output rows.

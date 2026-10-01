@@ -1,0 +1,2236 @@
+{
+  "candidate": {
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
+    "build_commit": "a0086f056f20efa519100718f010bc15c2efb830",
+    "build_receipt_sha256": "690d8e7870d4dbf32a539b653393d6dcbcaac6f5e1064a96a039f35d2b432666",
+    "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+  },
+  "checks": {
+    "mtp_selected_history_divergence_owner_and_repair": {
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-validation.json",
+          "sha256": "615cc62eda0281f52fd742714962392fb4381a58121cf9c8d1e48408ad3208da"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-validation.log",
+          "sha256": "9a60390cd7d558a217e1cfd160eaed211df81115814a67762bf4a5c83aebac36"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/first-rejection-manifest.json",
+          "sha256": "5e4b3b842d241074648ef9be783180488491fc31c16f571704e0a94f7d5ca5a0"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/orchestrator-attempt05.log",
+          "sha256": "65008f8f521f622c10adce8ebe613de17bdceb1402e96f147fd8ed7bf3293150"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident-mtp-traces.log",
+          "sha256": "27962721837f155d399f70f3c8f33f22b4138a1bdeefb130c5e98e574aafb43f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse-mtp-traces.log",
+          "sha256": "db08fbdb503499ff2c976a902eb4996cd7f9f834843925ccfe088da998082db2"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident-mtp-traces.log",
+          "sha256": "0eba94252d5588aeb07329633604a661a1b90a23cc265778a360b4faae711090"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse-mtp-traces.log",
+          "sha256": "3b9ae5cf68bd26a87edabd7477343db6b2646d6bc8b98e74d08a42b033019c39"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/build-receipt.json",
+          "sha256": "690d8e7870d4dbf32a539b653393d6dcbcaac6f5e1064a96a039f35d2b432666"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
+          "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "5c22119e7206098025303b33054e85e4a6ae9d5b4d561cfc7e132029e9ab5b40"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/raw-q0-measured-1.sse",
+          "sha256": "0fdf6f76943b1faa7bb19e0d216db0aa452d253d4ab8097416761dde786b7cca"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/raw-q1-measured-1.sse",
+          "sha256": "26787ab455687d4ae57f1f2aacb86020da70bb533d365545c2857d01c350ae9c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-resident/raw-q2-measured-1.sse",
+          "sha256": "98d349df5457a4c23e2a0afcebee286c19d90bf938ab27f49e5eaadff943bf3f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "7c67674e938dbe1fffa6904afcce1b0bcd4f40461a32b9212481dfdcaf39ca1d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/raw-q0-measured-1.sse",
+          "sha256": "c435ad5b56cc3b327503e4c00627eb44c17defc7a1ad8e47629ebee8cab76a62"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/raw-q1-measured-1.sse",
+          "sha256": "e0cbfaaa701ad4a0ec0ee494b38ff1a8b38aa4a66836c29a4b57900a06348422"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/dense-sparse/raw-q2-measured-1.sse",
+          "sha256": "2e686b6831de80fdaad227fc9fcde75f7ba3aba553262064dda41562a4338324"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "b530bd52fc14607a0232cdfaccd77c16297c110a52ad55d2e43728728ef7f940"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/raw-q0-measured-1.sse",
+          "sha256": "513f5bcefca84b1bbfc98e7eb6dc79b1d12bcef500bfb093ff86541812118419"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/raw-q1-measured-1.sse",
+          "sha256": "2bf354055e45add1125c7cd126ac973954e1ce9aaef5a8537eef398350a3bf46"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-resident/raw-q2-measured-1.sse",
+          "sha256": "5e6c55ce56fe555492b3cd26c6f90c87a0d1dcc91d7a7f77350637b8592f3271"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "2c8ddd234c3c999fe33ec58ca20c7922e5ffa4cd60599cd06c6bf8a9ba189f26"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/raw-q0-measured-1.sse",
+          "sha256": "eb603ad00d155413bb7c22415bf30917437de476c5b00f4a8bf5222e04e3600d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/raw-q1-measured-1.sse",
+          "sha256": "67bad8c89cefc50c28f77d12783202b372f3a19362974590f67acb6e68b20387"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12i/selected-sparse/raw-q2-measured-1.sse",
+          "sha256": "5010a944f2d9bcf1bd6a1af4527917058907c0f0a53a24d3b25824da140fcbc8"
+        }
+      ],
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/raw/101-12i/run_first_rejection.py"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "validation_command": [
+        "python3",
+        ".wiretail/execution/evidence/raw/101-12i/validate_first_rejection.py"
+      ],
+      "validation_exit_code": 0
+    }
+  },
+  "diagnosis": {
+    "kind": "bounded_measured_attribution_limit",
+    "policy_enabled": false,
+    "source_repair": "none; no single correctness owner demonstrated by paired first-rejection traces",
+    "summary": "All first-rejection rows were finite and frontier/carry/causal-row invariants passed. Selected-route acceptance changed by prompt in both C<=H and C>H; the short paired run did not isolate a C>H-only target/draft history owner. Some route pairs diverged in token prefix before later first rejections; exact target score vectors and backend mask bits at an identical first-mismatch prefix are not exposed by existing hooks. Do not enable a selected target-view follower without that evidence."
+  },
+  "geometry": {
+    "batch": 1024,
+    "context": 8192,
+    "draft": "Turbo4 MTP nmax2 GPU",
+    "hot_pages": 16,
+    "page_size": 256,
+    "ubatch": 256
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "paired_rows": {
+    "dense-resident": {
+      "attribution_sha256": "5c22119e7206098025303b33054e85e4a6ae9d5b4d561cfc7e132029e9ab5b40",
+      "first_rejections": [
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "56",
+          "draft_position": "3537",
+          "draft_top8": [
+            [
+              17167,
+              22.71675,
+              0.453353
+            ],
+            [
+              1061,
+              22.63792,
+              0.4189896
+            ],
+            [
+              11396,
+              21.20438,
+              0.09991378
+            ],
+            [
+              13131,
+              19.07196,
+              0.01184472
+            ],
+            [
+              94724,
+              18.43843,
+              0.006286198
+            ],
+            [
+              561,
+              18.01161,
+              0.004102234
+            ],
+            [
+              37539,
+              17.9429,
+              0.003829834
+            ],
+            [
+              26804,
+              16.21205,
+              0.0006783929
+            ]
+          ],
+          "draft_top8_probability_sum": 0.9989977589,
+          "draft_valid_frontier": "3538",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "17167",
+          "rejected_index": "0",
+          "seq": "0",
+          "staged_hidden_generation": "36",
+          "state_event": {
+            "draft_input_positions": [
+              3519,
+              3520
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 0,
+            "proposal_positions": [
+              3519,
+              3520
+            ],
+            "request_counters": {
+              "accepted": 12,
+              "committed": 18,
+              "draft_restores": 0,
+              "drafted": 14,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "dense",
+            "selected_page_ids": [],
+            "step": 7,
+            "target_input_positions": [
+              3518,
+              3519,
+              3520
+            ],
+            "target_input_token_ids": [
+              1103,
+              25,
+              198
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "0",
+          "target_finite": "yes",
+          "target_kv_max": 3538,
+          "target_kv_min": 3538,
+          "target_kv_range": "[3538,3538]",
+          "target_row": "0",
+          "target_top8": [
+            [
+              1061,
+              25.19603,
+              0.5789333
+            ],
+            [
+              17167,
+              24.43843,
+              0.2713965
+            ],
+            [
+              11396,
+              23.60306,
+              0.1177086
+            ],
+            [
+              13131,
+              21.78038,
+              0.01902089
+            ],
+            [
+              94724,
+              20.35818,
+              0.004587507
+            ],
+            [
+              37539,
+              19.83673,
+              0.0027234
+            ],
+            [
+              561,
+              19.50282,
+              0.001950276
+            ],
+            [
+              15767,
+              19.39698,
+              0.001754416
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "106",
+          "draft_position": "3505",
+          "draft_top8": [
+            [
+              851,
+              29.78827,
+              0.8016225
+            ],
+            [
+              76,
+              28.34235,
+              0.1888065
+            ],
+            [
+              2117,
+              24.68803,
+              0.004886104
+            ],
+            [
+              10223,
+              24.16719,
+              0.002902468
+            ],
+            [
+              3693,
+              23.03246,
+              0.0009331644
+            ],
+            [
+              1043,
+              22.14492,
+              0.0003841529
+            ],
+            [
+              24205,
+              21.09068,
+              0.0001338612
+            ],
+            [
+              15690,
+              20.92481,
+              0.0001134013
+            ]
+          ],
+          "draft_top8_probability_sum": 0.9997821518,
+          "draft_valid_frontier": "3505",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "851",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "69",
+          "state_event": {
+            "draft_input_positions": [
+              3504,
+              3505
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 0,
+            "proposal_positions": [
+              3504,
+              3505
+            ],
+            "request_counters": {
+              "accepted": 2,
+              "committed": 3,
+              "draft_restores": 0,
+              "drafted": 4,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "dense",
+            "selected_page_ids": [],
+            "step": 2,
+            "target_input_positions": [
+              3503,
+              3504,
+              3505
+            ],
+            "target_input_token_ids": [
+              1881,
+              1510,
+              851
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 3505,
+          "target_kv_min": 3505,
+          "target_kv_range": "[3505,3505]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              76,
+              28.10759,
+              0.9252994
+            ],
+            [
+              851,
+              25.58556,
+              0.07429882
+            ],
+            [
+              3693,
+              19.79737,
+              0.0002276146
+            ],
+            [
+              2117,
+              18.25515,
+              4.868801e-05
+            ],
+            [
+              68463,
+              17.4828,
+              2.249026e-05
+            ],
+            [
+              69,
+              16.86796,
+              1.216118e-05
+            ],
+            [
+              15690,
+              16.74032,
+              1.070385e-05
+            ],
+            [
+              24205,
+              16.69044,
+              1.018303e-05
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "185",
+          "draft_position": "3501",
+          "draft_top8": [
+            [
+              579,
+              19.71374,
+              0.8474052
+            ],
+            [
+              369,
+              16.78946,
+              0.04550866
+            ],
+            [
+              567,
+              16.54984,
+              0.03581171
+            ],
+            [
+              513,
+              16.10257,
+              0.02289716
+            ],
+            [
+              279,
+              16.08625,
+              0.02252653
+            ],
+            [
+              353,
+              15.68938,
+              0.0151473
+            ],
+            [
+              488,
+              14.90353,
+              0.006903074
+            ],
+            [
+              264,
+              13.33339,
+              0.001435948
+            ]
+          ],
+          "draft_top8_probability_sum": 0.997635582,
+          "draft_valid_frontier": "3502",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "579",
+          "rejected_index": "0",
+          "seq": "0",
+          "staged_hidden_generation": "120",
+          "state_event": {
+            "draft_input_positions": [
+              3501,
+              3502
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 0,
+            "proposal_positions": [
+              3501,
+              3502
+            ],
+            "request_counters": {
+              "accepted": 0,
+              "committed": 0,
+              "draft_restores": 0,
+              "drafted": 2,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "dense",
+            "selected_page_ids": [],
+            "step": 1,
+            "target_input_positions": [
+              3500,
+              3501,
+              3502
+            ],
+            "target_input_token_ids": [
+              8160,
+              579,
+              264
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "0",
+          "target_finite": "yes",
+          "target_kv_max": 3502,
+          "target_kv_min": 3502,
+          "target_kv_range": "[3502,3502]",
+          "target_row": "0",
+          "target_top8": [
+            [
+              369,
+              22.63725,
+              0.7933027
+            ],
+            [
+              579,
+              21.1384,
+              0.1772138
+            ],
+            [
+              513,
+              18.73086,
+              0.01595575
+            ],
+            [
+              725,
+              18.55175,
+              0.01333919
+            ],
+            [
+              11,
+              12.9608,
+              4.977488e-05
+            ],
+            [
+              353,
+              11.09156,
+              7.677306e-06
+            ],
+            [
+              9867,
+              11.05146,
+              7.375585e-06
+            ],
+            [
+              26156,
+              11.01451,
+              7.107969e-06
+            ]
+          ],
+          "target_verify_rows": "3"
+        }
+      ],
+      "paired_short_row": [
+        {
+          "acceptance_percent": 75.0,
+          "accepted_tokens": 42,
+          "case_id": "q0-measured-1",
+          "decode_tokens_per_second": 79.65926003605841,
+          "draft_tokens": 56
+        },
+        {
+          "acceptance_percent": 59.64912280701754,
+          "accepted_tokens": 34,
+          "case_id": "q1-measured-1",
+          "decode_tokens_per_second": 68.0174882433063,
+          "draft_tokens": 57
+        },
+        {
+          "acceptance_percent": 60.0,
+          "accepted_tokens": 33,
+          "case_id": "q2-measured-1",
+          "decode_tokens_per_second": 67.02663078338011,
+          "draft_tokens": 55
+        }
+      ],
+      "trace_sha256": "27962721837f155d399f70f3c8f33f22b4138a1bdeefb130c5e98e574aafb43f"
+    },
+    "dense-sparse": {
+      "attribution_sha256": "7c67674e938dbe1fffa6904afcce1b0bcd4f40461a32b9212481dfdcaf39ca1d",
+      "first_rejections": [
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "294",
+          "draft_position": "6041",
+          "draft_top8": [
+            [
+              10300,
+              26.52399,
+              0.9849309
+            ],
+            [
+              11140,
+              22.19391,
+              0.01296809
+            ],
+            [
+              50915,
+              19.51476,
+              0.0008898876
+            ],
+            [
+              2582,
+              18.79918,
+              0.0004350744
+            ],
+            [
+              39914,
+              18.50768,
+              0.0003250636
+            ],
+            [
+              27379,
+              17.71944,
+              0.000147788
+            ],
+            [
+              829,
+              17.49913,
+              0.0001185654
+            ],
+            [
+              17839,
+              17.24874,
+              9.230358e-05
+            ]
+          ],
+          "draft_top8_probability_sum": 0.99990767258,
+          "draft_valid_frontier": "6041",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "10300",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "188",
+          "state_event": {
+            "draft_input_positions": [
+              6019,
+              6020
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 0,
+            "proposal_positions": [
+              6019,
+              6020
+            ],
+            "request_counters": {
+              "accepted": 12,
+              "committed": 18,
+              "draft_restores": 0,
+              "drafted": 14,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "dense",
+            "selected_page_ids": [],
+            "step": 7,
+            "target_input_positions": [
+              6018,
+              6019,
+              6020
+            ],
+            "target_input_token_ids": [
+              1103,
+              25,
+              198
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 6041,
+          "target_kv_min": 6041,
+          "target_kv_range": "[6041,6041]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              11140,
+              26.66611,
+              0.9054772
+            ],
+            [
+              10300,
+              23.68437,
+              0.04591184
+            ],
+            [
+              1879,
+              23.29068,
+              0.03097026
+            ],
+            [
+              2582,
+              21.92081,
+              0.007870817
+            ],
+            [
+              829,
+              21.76033,
+              0.006703858
+            ],
+            [
+              2397,
+              19.91849,
+              0.001062727
+            ],
+            [
+              10804,
+              19.37431,
+              0.0006167229
+            ],
+            [
+              34217,
+              19.22593,
+              0.0005316747
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "336",
+          "draft_position": "6001",
+          "draft_top8": [
+            [
+              1156,
+              28.36645,
+              0.9998176
+            ],
+            [
+              3296,
+              19.38074,
+              0.0001251634
+            ],
+            [
+              9640,
+              17.52684,
+              1.96036e-05
+            ],
+            [
+              1534,
+              16.92417,
+              1.073003e-05
+            ],
+            [
+              4087,
+              16.86684,
+              1.013219e-05
+            ],
+            [
+              846,
+              16.61323,
+              7.862485e-06
+            ],
+            [
+              6007,
+              15.64679,
+              2.99117e-06
+            ],
+            [
+              17313,
+              15.4685,
+              2.502705e-06
+            ]
+          ],
+          "draft_top8_probability_sum": 0.9999965855799999,
+          "draft_valid_frontier": "6002",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "1156",
+          "rejected_index": "0",
+          "seq": "0",
+          "staged_hidden_generation": "216",
+          "state_event": {
+            "draft_input_positions": [
+              6001,
+              6002
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 0,
+            "proposal_positions": [
+              6001,
+              6002
+            ],
+            "request_counters": {
+              "accepted": 0,
+              "committed": 0,
+              "draft_restores": 0,
+              "drafted": 2,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "dense",
+            "selected_page_ids": [],
+            "step": 1,
+            "target_input_positions": [
+              6000,
+              6001,
+              6002
+            ],
+            "target_input_token_ids": [
+              760,
+              1156,
+              369
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "0",
+          "target_finite": "yes",
+          "target_kv_max": 6002,
+          "target_kv_min": 6002,
+          "target_kv_range": "[6002,6002]",
+          "target_row": "0",
+          "target_top8": [
+            [
+              5839,
+              28.13839,
+              0.8781509
+            ],
+            [
+              15346,
+              26.11022,
+              0.1155435
+            ],
+            [
+              6007,
+              23.03611,
+              0.005341672
+            ],
+            [
+              1328,
+              21.00946,
+              0.0007039085
+            ],
+            [
+              1510,
+              19.84754,
+              0.0002202422
+            ],
+            [
+              28241,
+              16.76239,
+              1.00701e-05
+            ],
+            [
+              6463,
+              16.41426,
+              7.109552e-06
+            ],
+            [
+              1822,
+              16.10013,
+              5.192994e-06
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "436",
+          "draft_position": "6026",
+          "draft_top8": [
+            [
+              498,
+              24.86914,
+              0.9316754
+            ],
+            [
+              361,
+              22.20942,
+              0.06518744
+            ],
+            [
+              71309,
+              18.10897,
+              0.001079842
+            ],
+            [
+              198,
+              17.48487,
+              0.0005785182
+            ],
+            [
+              220,
+              17.29218,
+              0.0004771248
+            ],
+            [
+              491,
+              16.93207,
+              0.000332843
+            ],
+            [
+              5036,
+              16.81109,
+              0.0002949157
+            ],
+            [
+              271,
+              16.11435,
+              0.0001469297
+            ]
+          ],
+          "draft_top8_probability_sum": 0.9997730134,
+          "draft_valid_frontier": "6026",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "498",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "280",
+          "state_event": {
+            "draft_input_positions": [
+              6019,
+              6020
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 0,
+            "proposal_positions": [
+              6019,
+              6020
+            ],
+            "request_counters": {
+              "accepted": 12,
+              "committed": 18,
+              "draft_restores": 0,
+              "drafted": 14,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "dense",
+            "selected_page_ids": [],
+            "step": 7,
+            "target_input_positions": [
+              6018,
+              6019,
+              6020
+            ],
+            "target_input_token_ids": [
+              198,
+              2,
+              23791
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 6026,
+          "target_kv_min": 6026,
+          "target_kv_range": "[6026,6026]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              361,
+              27.03012,
+              0.6163201
+            ],
+            [
+              498,
+              26.30576,
+              0.2986897
+            ],
+            [
+              593,
+              25.01542,
+              0.08219255
+            ],
+            [
+              62732,
+              20.85677,
+              0.001284569
+            ],
+            [
+              9758,
+              20.26131,
+              0.0007081921
+            ],
+            [
+              52321,
+              18.87973,
+              0.0001778843
+            ],
+            [
+              672,
+              18.62702,
+              0.0001381614
+            ],
+            [
+              71309,
+              18.43242,
+              0.0001137292
+            ]
+          ],
+          "target_verify_rows": "3"
+        }
+      ],
+      "paired_short_row": [
+        {
+          "acceptance_percent": 88.67924528301887,
+          "accepted_tokens": 47,
+          "case_id": "q0-measured-1",
+          "decode_tokens_per_second": 89.69444848132538,
+          "draft_tokens": 53
+        },
+        {
+          "acceptance_percent": 57.142857142857146,
+          "accepted_tokens": 32,
+          "case_id": "q1-measured-1",
+          "decode_tokens_per_second": 65.15845463940569,
+          "draft_tokens": 56
+        },
+        {
+          "acceptance_percent": 98.07692307692308,
+          "accepted_tokens": 51,
+          "case_id": "q2-measured-1",
+          "decode_tokens_per_second": 102.89781075138849,
+          "draft_tokens": 52
+        }
+      ],
+      "trace_sha256": "db08fbdb503499ff2c976a902eb4996cd7f9f834843925ccfe088da998082db2"
+    },
+    "selected-resident": {
+      "attribution_sha256": "b530bd52fc14607a0232cdfaccd77c16297c110a52ad55d2e43728728ef7f940",
+      "first_rejections": [
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "38",
+          "draft_position": "3511",
+          "draft_top8": [
+            [
+              18078,
+              27.15926,
+              0.6780145
+            ],
+            [
+              11,
+              26.27097,
+              0.2789091
+            ],
+            [
+              65342,
+              24.15642,
+              0.03366081
+            ],
+            [
+              16793,
+              22.40674,
+              0.005851235
+            ],
+            [
+              92085,
+              21.776,
+              0.003114005
+            ],
+            [
+              58,
+              19.10498,
+              0.0002154331
+            ],
+            [
+              13787,
+              18.29221,
+              9.557215e-05
+            ],
+            [
+              50246,
+              18.04875,
+              7.491992e-05
+            ]
+          ],
+          "draft_top8_probability_sum": 0.99993557517,
+          "draft_valid_frontier": "3511",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "18078",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "27",
+          "state_event": {
+            "draft_input_positions": [
+              3510,
+              3511
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 7202,
+            "proposal_positions": [
+              3510,
+              3511
+            ],
+            "request_counters": {
+              "accepted": 6,
+              "committed": 9,
+              "draft_restores": 0,
+              "drafted": 8,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "selected packed",
+            "selected_page_ids": [
+              13
+            ],
+            "step": 4,
+            "target_input_positions": [
+              3509,
+              3510,
+              3511
+            ],
+            "target_input_token_ids": [
+              25,
+              1103,
+              18078
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 3511,
+          "target_kv_min": 3511,
+          "target_kv_range": "[3511,3511]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              11,
+              29.72011,
+              0.9690855
+            ],
+            [
+              18078,
+              26.23733,
+              0.02977206
+            ],
+            [
+              92085,
+              22.75613,
+              0.0009161027
+            ],
+            [
+              65342,
+              20.59406,
+              0.0001054313
+            ],
+            [
+              58,
+              20.22785,
+              7.310159e-05
+            ],
+            [
+              8,
+              18.96805,
+              2.073971e-05
+            ],
+            [
+              13787,
+              18.08919,
+              8.612301e-06
+            ],
+            [
+              20897,
+              17.76229,
+              6.210773e-06
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "110",
+          "draft_position": "3505",
+          "draft_top8": [
+            [
+              851,
+              29.55604,
+              0.9447309
+            ],
+            [
+              76,
+              26.65422,
+              0.05188756
+            ],
+            [
+              2117,
+              23.35455,
+              0.0019144
+            ],
+            [
+              10223,
+              22.34909,
+              0.0007004343
+            ],
+            [
+              3693,
+              21.29019,
+              0.0002429378
+            ],
+            [
+              1043,
+              21.17711,
+              0.0002169616
+            ],
+            [
+              68463,
+              20.33826,
+              9.377259e-05
+            ],
+            [
+              15690,
+              20.15618,
+              7.816275e-05
+            ]
+          ],
+          "draft_top8_probability_sum": 0.99986512904,
+          "draft_valid_frontier": "3505",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "851",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "73",
+          "state_event": {
+            "draft_input_positions": [
+              3504,
+              3505
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 14454,
+            "proposal_positions": [
+              3504,
+              3505
+            ],
+            "request_counters": {
+              "accepted": 2,
+              "committed": 3,
+              "draft_restores": 0,
+              "drafted": 4,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "selected packed",
+            "selected_page_ids": [
+              13
+            ],
+            "step": 2,
+            "target_input_positions": [
+              3503,
+              3504,
+              3505
+            ],
+            "target_input_token_ids": [
+              1881,
+              1510,
+              851
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 3505,
+          "target_kv_min": 3505,
+          "target_kv_range": "[3505,3505]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              76,
+              28.14139,
+              0.9330425
+            ],
+            [
+              851,
+              25.50295,
+              0.06668748
+            ],
+            [
+              3693,
+              19.30139,
+              0.0001351258
+            ],
+            [
+              2117,
+              18.35654,
+              5.252855e-05
+            ],
+            [
+              68463,
+              16.96183,
+              1.302213e-05
+            ],
+            [
+              24205,
+              16.4614,
+              7.894947e-06
+            ],
+            [
+              7545,
+              16.22765,
+              6.249313e-06
+            ],
+            [
+              69,
+              16.21515,
+              6.171643e-06
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "202",
+          "draft_position": "3519",
+          "draft_top8": [
+            [
+              271,
+              26.3256,
+              0.6554689
+            ],
+            [
+              198,
+              25.68238,
+              0.3445137
+            ],
+            [
+              23791,
+              14.82373,
+              6.627574e-06
+            ],
+            [
+              1368,
+              13.8251,
+              2.441476e-06
+            ],
+            [
+              561,
+              13.75549,
+              2.277303e-06
+            ],
+            [
+              37539,
+              13.48096,
+              1.730597e-06
+            ],
+            [
+              318,
+              13.29154,
+              1.431968e-06
+            ],
+            [
+              4558,
+              12.98976,
+              1.058934e-06
+            ]
+          ],
+          "draft_top8_probability_sum": 0.999998167852,
+          "draft_valid_frontier": "3520",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "271",
+          "rejected_index": "0",
+          "seq": "0",
+          "staged_hidden_generation": "132",
+          "state_event": {
+            "draft_input_positions": [
+              3519,
+              3520
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 21767,
+            "proposal_positions": [
+              3519,
+              3520
+            ],
+            "request_counters": {
+              "accepted": 12,
+              "committed": 18,
+              "draft_restores": 0,
+              "drafted": 14,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "selected packed",
+            "selected_page_ids": [
+              13
+            ],
+            "step": 7,
+            "target_input_positions": [
+              3518,
+              3519,
+              3520
+            ],
+            "target_input_token_ids": [
+              13,
+              271,
+              62312
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "0",
+          "target_finite": "yes",
+          "target_kv_max": 3520,
+          "target_kv_min": 3520,
+          "target_kv_range": "[3520,3520]",
+          "target_row": "0",
+          "target_top8": [
+            [
+              198,
+              22.69355,
+              0.8413274
+            ],
+            [
+              271,
+              21.02456,
+              0.1585379
+            ],
+            [
+              653,
+              12.71665,
+              3.908865e-05
+            ],
+            [
+              23791,
+              12.31075,
+              2.6048e-05
+            ],
+            [
+              695,
+              11.36738,
+              1.014082e-05
+            ],
+            [
+              1358,
+              10.80198,
+              5.7613e-06
+            ],
+            [
+              1368,
+              10.13784,
+              2.965448e-06
+            ],
+            [
+              561,
+              9.977794,
+              2.526866e-06
+            ]
+          ],
+          "target_verify_rows": "3"
+        }
+      ],
+      "paired_short_row": [
+        {
+          "acceptance_percent": 67.85714285714286,
+          "accepted_tokens": 38,
+          "case_id": "q0-measured-1",
+          "decode_tokens_per_second": 69.85957341445297,
+          "draft_tokens": 56
+        },
+        {
+          "acceptance_percent": 57.142857142857146,
+          "accepted_tokens": 32,
+          "case_id": "q1-measured-1",
+          "decode_tokens_per_second": 62.34369685495778,
+          "draft_tokens": 56
+        },
+        {
+          "acceptance_percent": 83.63636363636364,
+          "accepted_tokens": 46,
+          "case_id": "q2-measured-1",
+          "decode_tokens_per_second": 84.22165861230427,
+          "draft_tokens": 55
+        }
+      ],
+      "trace_sha256": "0eba94252d5588aeb07329633604a661a1b90a23cc265778a360b4faae711090"
+    },
+    "selected-sparse": {
+      "attribution_sha256": "2c8ddd234c3c999fe33ec58ca20c7922e5ffa4cd60599cd06c6bf8a9ba189f26",
+      "first_rejections": [
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "266",
+          "draft_position": "6010",
+          "draft_top8": [
+            [
+              10300,
+              23.03285,
+              0.8967321
+            ],
+            [
+              1103,
+              20.67794,
+              0.0851022
+            ],
+            [
+              498,
+              17.52108,
+              0.00362185
+            ],
+            [
+              198,
+              17.48115,
+              0.003480091
+            ],
+            [
+              9774,
+              17.40745,
+              0.003232819
+            ],
+            [
+              328,
+              17.19563,
+              0.002615706
+            ],
+            [
+              264,
+              17.11985,
+              0.002424824
+            ],
+            [
+              220,
+              16.402,
+              0.001182829
+            ]
+          ],
+          "draft_top8_probability_sum": 0.9983924190000001,
+          "draft_valid_frontier": "6011",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "10300",
+          "rejected_index": "0",
+          "seq": "0",
+          "staged_hidden_generation": "171",
+          "state_event": {
+            "draft_input_positions": [
+              6010,
+              6011
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 34032,
+            "proposal_positions": [
+              6010,
+              6011
+            ],
+            "request_counters": {
+              "accepted": 6,
+              "committed": 9,
+              "draft_restores": 0,
+              "drafted": 8,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "selected packed",
+            "selected_page_ids": [
+              23
+            ],
+            "step": 4,
+            "target_input_positions": [
+              6009,
+              6010,
+              6011
+            ],
+            "target_input_token_ids": [
+              25,
+              10300,
+              11
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "0",
+          "target_finite": "yes",
+          "target_kv_max": 6011,
+          "target_kv_min": 6011,
+          "target_kv_range": "[6011,6011]",
+          "target_row": "0",
+          "target_top8": [
+            [
+              1103,
+              30.51101,
+              0.9998658
+            ],
+            [
+              359,
+              20.67198,
+              5.332179e-05
+            ],
+            [
+              1697,
+              20.53247,
+              4.637841e-05
+            ],
+            [
+              328,
+              20.09207,
+              2.985763e-05
+            ],
+            [
+              10300,
+              17.59603,
+              2.460569e-06
+            ],
+            [
+              13992,
+              16.51267,
+              8.327979e-07
+            ],
+            [
+              498,
+              15.39004,
+              2.710127e-07
+            ],
+            [
+              7080,
+              14.39132,
+              9.982787e-08
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "337",
+          "draft_position": "6005",
+          "draft_top8": [
+            [
+              851,
+              29.34454,
+              0.9049783
+            ],
+            [
+              76,
+              27.07938,
+              0.09394965
+            ],
+            [
+              1043,
+              22.06031,
+              0.0006210681
+            ],
+            [
+              2117,
+              20.99133,
+              0.000213248
+            ],
+            [
+              10223,
+              19.77812,
+              6.338635e-05
+            ],
+            [
+              68463,
+              19.46394,
+              4.62965e-05
+            ],
+            [
+              16759,
+              19.45489,
+              4.587947e-05
+            ],
+            [
+              3693,
+              19.13618,
+              3.335858e-05
+            ]
+          ],
+          "draft_top8_probability_sum": 0.999951187,
+          "draft_valid_frontier": "6005",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "851",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "216",
+          "state_event": {
+            "draft_input_positions": [
+              6004,
+              6005
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 46314,
+            "proposal_positions": [
+              6004,
+              6005
+            ],
+            "request_counters": {
+              "accepted": 2,
+              "committed": 3,
+              "draft_restores": 0,
+              "drafted": 4,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "selected packed",
+            "selected_page_ids": [
+              23
+            ],
+            "step": 2,
+            "target_input_positions": [
+              6003,
+              6004,
+              6005
+            ],
+            "target_input_token_ids": [
+              1881,
+              1510,
+              851
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 6005,
+          "target_kv_min": 6005,
+          "target_kv_range": "[6005,6005]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              76,
+              27.76204,
+              0.8885673
+            ],
+            [
+              851,
+              25.68386,
+              0.1112107
+            ],
+            [
+              3693,
+              18.52775,
+              8.675334e-05
+            ],
+            [
+              2117,
+              17.85334,
+              4.419709e-05
+            ],
+            [
+              68463,
+              16.45729,
+              1.094203e-05
+            ],
+            [
+              69,
+              16.37839,
+              1.011193e-05
+            ],
+            [
+              2428,
+              15.74461,
+              5.365173e-06
+            ],
+            [
+              7545,
+              15.70411,
+              5.152271e-06
+            ]
+          ],
+          "target_verify_rows": "3"
+        },
+        {
+          "causal_row_mapping": "pass",
+          "draft_carry_generation": "431",
+          "draft_position": "6026",
+          "draft_top8": [
+            [
+              498,
+              21.25551,
+              0.5819689
+            ],
+            [
+              361,
+              20.84709,
+              0.3868343
+            ],
+            [
+              198,
+              17.40581,
+              0.01238785
+            ],
+            [
+              220,
+              17.21407,
+              0.01022641
+            ],
+            [
+              71309,
+              15.87755,
+              0.002687087
+            ],
+            [
+              491,
+              15.28529,
+              0.001486171
+            ],
+            [
+              1137,
+              15.17491,
+              0.00133085
+            ],
+            [
+              271,
+              15.05552,
+              0.001181085
+            ]
+          ],
+          "draft_top8_probability_sum": 0.998102653,
+          "draft_valid_frontier": "6026",
+          "finite_mask": "target all finite; top-8 draft finite",
+          "proposed_token": "498",
+          "rejected_index": "1",
+          "seq": "0",
+          "staged_hidden_generation": "275",
+          "state_event": {
+            "draft_input_positions": [
+              6019,
+              6020
+            ],
+            "draft_state_restored_before_verification": false,
+            "logits_finite_count": [
+              248320,
+              248320,
+              248320
+            ],
+            "logits_nan_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_neg_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "logits_pos_inf_count": [
+              0,
+              0,
+              0
+            ],
+            "page_table_epoch": 58655,
+            "proposal_positions": [
+              6019,
+              6020
+            ],
+            "request_counters": {
+              "accepted": 12,
+              "committed": 18,
+              "draft_restores": 0,
+              "drafted": 14,
+              "rejected": 0,
+              "restore_failures": 0,
+              "target_restores": 0
+            },
+            "route": "selected packed",
+            "selected_page_ids": [
+              23
+            ],
+            "step": 7,
+            "target_input_positions": [
+              6018,
+              6019,
+              6020
+            ],
+            "target_input_token_ids": [
+              198,
+              2,
+              23791
+            ],
+            "target_output_rows": [
+              0,
+              1,
+              2
+            ],
+            "target_state_restored_before_verification": false
+          },
+          "target_causal_row": "1",
+          "target_finite": "yes",
+          "target_kv_max": 6026,
+          "target_kv_min": 6026,
+          "target_kv_range": "[6026,6026]",
+          "target_row": "1",
+          "target_top8": [
+            [
+              361,
+              26.59956,
+              0.5092418
+            ],
+            [
+              498,
+              26.36223,
+              0.4016573
+            ],
+            [
+              593,
+              24.81921,
+              0.08584756
+            ],
+            [
+              9758,
+              20.53476,
+              0.001183089
+            ],
+            [
+              62732,
+              20.42293,
+              0.001057914
+            ],
+            [
+              52321,
+              19.00932,
+              0.0002573507
+            ],
+            [
+              672,
+              18.38358,
+              0.0001376488
+            ],
+            [
+              71309,
+              18.28773,
+              0.0001250672
+            ]
+          ],
+          "target_verify_rows": "3"
+        }
+      ],
+      "paired_short_row": [
+        {
+          "acceptance_percent": 74.54545454545455,
+          "accepted_tokens": 41,
+          "case_id": "q0-measured-1",
+          "decode_tokens_per_second": 74.17338921687924,
+          "draft_tokens": 55
+        },
+        {
+          "acceptance_percent": 65.45454545454545,
+          "accepted_tokens": 36,
+          "case_id": "q1-measured-1",
+          "decode_tokens_per_second": 66.71993000319242,
+          "draft_tokens": 55
+        },
+        {
+          "acceptance_percent": 78.18181818181819,
+          "accepted_tokens": 43,
+          "case_id": "q2-measured-1",
+          "decode_tokens_per_second": 77.57174895818196,
+          "draft_tokens": 55
+        }
+      ],
+      "trace_sha256": "3b9ae5cf68bd26a87edabd7477343db6b2646d6bc8b98e74d08a42b033019c39"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "31137bcce02494737ff4c1416e079eceee99a970",
+  "task": "101-12i"
+}

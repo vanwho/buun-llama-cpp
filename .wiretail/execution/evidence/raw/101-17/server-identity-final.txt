@@ -1,7 +1,0 @@
-pid= 2016873
-exe= /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server
-argv= ['/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server', '-m', '/srv/ai/models/text/current.gguf', '--alias', 'qwen38-fast-turbo4-mtp', '-ngl', '999', '--fit', 'off', '-fa', 'on', '-c', '8192', '-np', '1', '-ctk', 'turbo4', '-ctv', 'turbo4', '-b', '1024', '-ub', '256', '--context-shift', '--poll', '0', '--host', '0.0.0.0', '--port', '8080', '--api-key-file', '<api-key-file-path>', '--metrics', '--reasoning-preserve', '--kv-pager', 'selective', '--kv-page-size', '256', '--kv-hot-pages', '16', '--cache-ram', '12288', '--ctx-checkpoints', '8', '--checkpoint-min-step', '8192', '--slot-save-path', '/srv/ai/paged-kv/data/sessions/hybrid-fast', '--cache-idle-slots', '--kv-unified', '--spec-draft-kv-device', 'gpu', '--spec-type', 'draft-mtp', '--spec-draft-n-max', '2', '--spec-draft-type-k', 'turbo4', '--spec-draft-type-v', 'turbo4']
-sha256= 60127625fa9bf923ba44afc54ef8b83e66ef915adc95f33825e8576c384702a8 path= /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server
-sha256= 6a5f75af691101dcd96f341e4b563bdabfbef3abe5fd95f553b69c92a2a6ca6b path= /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so
-model= /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf bytes= 14252845984 mtime_ns= 1787343253539256200
-gpu= NVIDIA GeForce RTX 4080

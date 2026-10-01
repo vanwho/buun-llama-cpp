@@ -1,7 +1,0 @@
-Attempt 1: cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 -j8
-failed at NVCC compile, expected ")" at PRIu64 format macro in the new CUDA fixture output. Replaced the macro use with %llu and an explicit cast.
-
-Attempt 2: GGML_CUDA_GRAPH_DIAGNOSTICS=1 ./build-cuda/bin/test-cuda-fattn-paged-turbo4
-exit 134. Real backend graph capture called cudaDeviceSynchronize from ggml_backend_cuda_vmm_pool_free while kv_dequant_scratch_try replaced an in-use VMM scratch pool. Initial candidate-discard change did not address this old-pool retirement case.
-
-Attempt 3: same CUDA fixture command after deferring replaced VMM scratch pools until graph capture ends. Exit 0. Full output is cuda-fixture.log; build output is build.log.

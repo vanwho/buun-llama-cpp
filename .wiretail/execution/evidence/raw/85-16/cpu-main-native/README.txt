@@ -1,2 +1,0 @@
-# default fast profile benchmark
-
