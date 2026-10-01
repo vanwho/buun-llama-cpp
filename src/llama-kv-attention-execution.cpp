@@ -875,6 +875,28 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
+    // Batched Turbo4 measurements found two coarse prefill regions: the
+    // mature dense materialize path is faster when the full attended view is
+    // contiguous; for selected views, direct pages win for Q>=256 and for
+    // Q>=32 at histories up to 1K. At 4K/Q32 the packed route is faster than
+    // direct pages. Keep this decision at graph planning time; never time a
+    // route on a token launch.
+    if (phase == llama_kv_attention_execution_phase::prefill &&
+            metadata.n_query_tokens() >= 32) {
+        const uint32_t query_count = metadata.n_query_tokens();
+        if (query_count >= 256 && direct_capable &&
+                production_direct_shape(metadata, phase)) {
+            return llama_kv_attention_execution_route::selected_direct;
+        }
+        if (dense_capable) {
+            return llama_kv_attention_execution_route::selected_dense;
+        }
+        if (direct_capable && production_direct_shape(metadata, phase) &&
+                metadata.get_n_kv() <= 1024) {
+            return llama_kv_attention_execution_route::selected_direct;
+        }
+    }
+
     // Native MTP verification over a fully resident history can use the same
     // selected dense route as ordinary decode. The rollback owner trims the
     // target and draft state only after the graph has completed.

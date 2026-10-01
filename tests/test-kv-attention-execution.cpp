@@ -783,6 +783,45 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(standard_dense,
             llama_kv_attention_execution_phase::decode, false, true, false) ==
            llama_kv_attention_execution_route::selected_dense);
+
+    const auto batched_small = metadata(snapshot(), 32, 1);
+    const auto batched_large_q = metadata(snapshot(), 256, 1);
+    assert(execution.planned_route(batched_small,
+            llama_kv_attention_execution_phase::prefill, true, false, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+    assert(execution.planned_route(batched_large_q,
+            llama_kv_attention_execution_phase::prefill, true, false, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+    assert(execution.planned_route(batched_small,
+            llama_kv_attention_execution_phase::prefill, true, true, true) ==
+           llama_kv_attention_execution_route::selected_dense);
+    assert(execution.planned_route(batched_large_q,
+            llama_kv_attention_execution_phase::prefill, true, true, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+
+    llama_kv_residency_table large_table(16);
+    auto large_tx = large_table.begin();
+    std::vector<uint32_t> all_pages;
+    for (uint32_t i = 0; i < 16; ++i) {
+        assert(large_table.replace(large_tx, page(i, i, llama_pos((i + 1) * 256))) ==
+               llama_kv_residency_status::ok);
+        all_pages.push_back(i);
+    }
+    assert(large_table.publish(large_tx) == llama_kv_residency_status::ok);
+    const auto batched_4k = metadata(large_table.snapshot(), 32, 1,
+            all_pages, 4095, 16, 4);
+    assert(batched_4k.get_n_kv() == 4096);
+    assert(execution.planned_route(batched_4k,
+            llama_kv_attention_execution_phase::prefill, true, false, true) ==
+           llama_kv_attention_execution_route::selected_packed);
+    assert(execution.planned_route(batched_4k,
+            llama_kv_attention_execution_phase::prefill, true, true, true) ==
+           llama_kv_attention_execution_route::selected_dense);
+    assert(execution.planned_route(metadata(large_table.snapshot(), 256, 1,
+                all_pages, 4351, 16, 4),
+            llama_kv_attention_execution_phase::prefill, true, false, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+
     llama_kv_attention_execution packed_execution(llama_kv_attention_execution_mode::selective);
     packed_execution.set_route_override("packed");
     assert(packed_execution.planned_route(selected,

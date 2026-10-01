@@ -540,6 +540,116 @@ static std::vector<uint8_t> pack_selected_storage(
     return packed;
 }
 
+static std::vector<float> run_direct_contiguous_turbo4(
+        ggml_backend_t backend,
+        const std::vector<float> & q_host,
+        const std::vector<uint8_t> & k_host,
+        const std::vector<uint8_t> & v_host,
+        const std::vector<int64_t> & native_positions,
+        uint32_t n_rows,
+        uint32_t n_head_q,
+        uint32_t query_count,
+        size_t row_bytes,
+        size_t page_stride,
+        bool reference_kernel = false) {
+    constexpr uint32_t page_tokens = 256;
+    const uint32_t n_pages = (n_rows + page_tokens - 1) / page_tokens;
+    const uint32_t n_physical_pages = n_pages;
+    std::vector<ggml_cuda_fattn_turbo4_page> pages(n_pages);
+    for (uint32_t page = 0; page < n_pages; ++page) {
+        const uint32_t compact = page * page_tokens;
+        pages[page] = { page, page, compact,
+            std::min(page_tokens, n_rows - compact), int64_t(compact) };
+    }
+    std::vector<int64_t> query_positions(query_count);
+    for (uint32_t query = 0; query < query_count; ++query) {
+        query_positions[query] = native_positions[n_rows - query_count + query];
+    }
+
+    float * q_device = nullptr;
+    char * k_device = nullptr;
+    char * v_device = nullptr;
+    float * output_device = nullptr;
+    ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+    int64_t * native_positions_device = nullptr;
+    int64_t * query_positions_device = nullptr;
+    cuda_check(cudaMalloc(&q_device, q_host.size() * sizeof(float)), "direct contiguous q allocation");
+    cuda_check(cudaMalloc(&k_device, k_host.size()), "direct contiguous k allocation");
+    cuda_check(cudaMalloc(&v_device, v_host.size()), "direct contiguous v allocation");
+    cuda_check(cudaMalloc(&output_device, q_host.size() * sizeof(float)), "direct contiguous output allocation");
+    cuda_check(cudaMalloc(&pages_device, pages.size() * sizeof(pages[0])), "direct contiguous pages allocation");
+    cuda_check(cudaMalloc(&native_positions_device, native_positions.size() * sizeof(int64_t)),
+        "direct contiguous native positions allocation");
+    cuda_check(cudaMalloc(&query_positions_device, query_positions.size() * sizeof(int64_t)),
+        "direct contiguous query positions allocation");
+    cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice),
+        "direct contiguous q copy");
+    cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice),
+        "direct contiguous k copy");
+    cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice),
+        "direct contiguous v copy");
+    cuda_check(cudaMemcpy(pages_device, pages.data(), pages.size() * sizeof(pages[0]), cudaMemcpyHostToDevice),
+        "direct contiguous pages copy");
+    cuda_check(cudaMemcpy(native_positions_device, native_positions.data(),
+        native_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice),
+        "direct contiguous native positions copy");
+    cuda_check(cudaMemcpy(query_positions_device, query_positions.data(),
+        query_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice),
+        "direct contiguous query positions copy");
+
+    ggml_cuda_fattn_turbo4_paged_params params;
+    params.q = q_device;
+    params.output = output_device;
+    params.q_head_stride_bytes = 256 * sizeof(float);
+    params.q_query_stride_bytes = size_t(n_head_q) * params.q_head_stride_bytes;
+    params.output_head_stride_bytes = 256 * sizeof(float);
+    params.output_query_stride_bytes = size_t(n_head_q) * params.output_head_stride_bytes;
+    params.type_k = GGML_TYPE_TURBO4_0;
+    params.type_v = GGML_TYPE_TURBO4_0;
+    params.head_dim_k = 256;
+    params.head_dim_v = 256;
+    params.k = k_device;
+    params.v = v_device;
+    params.k_row_stride_bytes = row_bytes;
+    params.k_head_stride_bytes = size_t(n_physical_pages) * page_stride;
+    params.k_page_stride_bytes = page_stride;
+    params.v_row_stride_bytes = row_bytes;
+    params.v_head_stride_bytes = size_t(n_physical_pages) * page_stride;
+    params.v_page_stride_bytes = page_stride;
+    params.pages_host = pages.data();
+    params.pages_device = pages_device;
+    params.native_positions_device = native_positions_device;
+    params.query_positions_device = query_positions_device;
+    params.n_pages = n_pages;
+    params.n_physical_pages = n_physical_pages;
+    params.n_rows = n_rows;
+    params.n_query_tokens = query_count;
+    params.query_tile_tokens = 0;
+    params.n_head_q = n_head_q;
+    params.n_head_kv = 1;
+    params.n_batch = 1;
+    params.scale = 1.0f / std::sqrt(256.0f);
+    params.causal = true;
+    params.reference_kernel = reference_kernel;
+    params.explicit_native_metadata = true;
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+        ggml_cuda_fattn_turbo4_paged_status::ok);
+    assert(ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() == !reference_kernel);
+    cuda_check(cudaDeviceSynchronize(), "direct contiguous synchronize");
+    std::vector<float> output(q_host.size());
+    cuda_check(cudaMemcpy(output.data(), output_device, output.size() * sizeof(float), cudaMemcpyDeviceToHost),
+        "direct contiguous output readback");
+
+    cudaFree(query_positions_device);
+    cudaFree(native_positions_device);
+    cudaFree(pages_device);
+    cudaFree(output_device);
+    cudaFree(v_device);
+    cudaFree(k_device);
+    cudaFree(q_device);
+    return output;
+}
+
 static float time_dense_fa(
         ggml_backend_t backend,
         const std::vector<float> & q_host,
@@ -734,7 +844,10 @@ static void run_contiguous_turbo4_fused_parity(ggml_backend_t backend) {
                 // A permutation with gaps exercises mask rows independently of physical order.
                 native_positions[row] = 3 + int64_t((uint64_t(row) * 7 % n_rows) * 2);
             }
-            for (uint32_t query_count = 1; query_count <= 4; ++query_count) {
+            const std::vector<uint32_t> query_counts = n_rows == 1024
+                ? std::vector<uint32_t>{ 1u, 3u, 31u, 32u, 33u, 255u, 256u, 257u }
+                : std::vector<uint32_t>{ 1u, 2u, 3u, 4u };
+            for (const uint32_t query_count : query_counts) {
                 std::vector<float> q_host(size_t(query_count) * n_head_q * head_dim);
                 for (size_t i = 0; i < q_host.size(); ++i) {
                     q_host[i] = 0.12f * std::sin(float(i * 13 + n_rows));
@@ -763,10 +876,50 @@ static void run_contiguous_turbo4_fused_parity(ggml_backend_t backend) {
                     assert(std::isfinite(materialized[i]));
                     assert(std::fabs(fused[i] - materialized[i]) < 3.0e-3f);
                 }
+                if (n_rows == 1024 && gqa_ratio == 1 &&
+                        (query_count == 32 || query_count == 256)) {
+                    const std::vector<float> direct = run_direct_contiguous_turbo4(
+                        backend, q_host, k_storage, v_storage, native_positions,
+                        n_rows, n_head_q, query_count, row_bytes, page_stride);
+                    float max_direct_fused_diff = 0.0f;
+                    float max_direct_materialize_diff = 0.0f;
+                    uint32_t max_diff_query = 0;
+                    uint32_t max_diff_head = 0;
+                    uint32_t max_diff_d = 0;
+                    for (uint32_t query = 0; query < query_count; ++query) {
+                        for (uint32_t head = 0; head < n_head_q; ++head) {
+                            for (uint32_t d = 0; d < head_dim; ++d) {
+                                const size_t dense_index =
+                                    (size_t(head) * query_count + query) * head_dim + d;
+                                const size_t direct_index =
+                                    (size_t(query) * n_head_q + head) * head_dim + d;
+                                assert(std::isfinite(direct[direct_index]));
+                                const float diff = std::fabs(direct[direct_index] - fused[dense_index]);
+                                if (diff > max_direct_fused_diff) {
+                                    max_direct_fused_diff = diff;
+                                    max_diff_query = query;
+                                    max_diff_head = head;
+                                    max_diff_d = d;
+                                }
+                                max_direct_materialize_diff = std::max(max_direct_materialize_diff,
+                                    std::fabs(direct[direct_index] - materialized[dense_index]));
+                            }
+                        }
+                    }
+                    std::fprintf(stderr,
+                        "Turbo4 identical-row route parity: L=%u Q=%u max_direct_packed=%.6f "
+                        "max_direct_materialize=%.6f at=(%u,%u,%u) direct=%.6f packed=%.6f tolerance=3e-3\n", n_rows,
+                        query_count, max_direct_fused_diff, max_direct_materialize_diff,
+                        max_diff_query, max_diff_head, max_diff_d,
+                        direct[(size_t(max_diff_query) * n_head_q + max_diff_head) * head_dim + max_diff_d],
+                        fused[(size_t(max_diff_head) * query_count + max_diff_query) * head_dim + max_diff_d]);
+                    assert(max_direct_fused_diff < 3.0e-3f);
+                    assert(max_direct_materialize_diff < 3.0e-3f);
+                }
             }
             std::fprintf(stderr,
-                "matched Turbo4 fused MMA parity: L=%u Q=1..4 GQA=%u:1 finite and materialize-MMA matched\n",
-                n_rows, gqa_ratio);
+                "matched Turbo4 fused MMA parity: L=%u Q=1,2,3,4%s GQA=%u:1 finite and materialize-MMA matched\n",
+                n_rows, n_rows == 1024 ? ",31,32,33,255,256,257" : "", gqa_ratio);
         }
     }
 
@@ -1012,17 +1165,20 @@ static void time_large_prefill_cases(
         cudaStream_t stream,
         cudaEvent_t timing_start,
         cudaEvent_t timing_stop,
-        bool q1_q3_4096_only = false) {
+        bool q1_q3_4096_only = false,
+        bool q32_q256_cost_only = false) {
     constexpr uint32_t n_head_q = 4;
     constexpr uint32_t n_head_kv = 1;
-    constexpr uint32_t max_query_tokens = 128;
+    constexpr uint32_t max_query_tokens = 256;
     constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t page_stride = 256 * row_bytes;
 
-    for (const uint32_t n_rows : { 2048u, 4096u, 8192u }) {
-        if (q1_q3_4096_only && n_rows != 4096) {
-            continue;
-        }
+    const std::vector<uint32_t> attended_shapes = q32_q256_cost_only
+        ? std::vector<uint32_t>{ 1024u, 4096u }
+        : std::vector<uint32_t>{ 2048u, 4096u, 8192u };
+    for (const uint32_t attended_rows : attended_shapes) {
+        if (q1_q3_4096_only && attended_rows != 4096) continue;
+        const uint32_t n_rows = attended_rows + (q32_q256_cost_only ? max_query_tokens : 0);
         const uint32_t n_pages = n_rows / 256;
         const uint32_t n_physical_pages = n_pages;
         std::vector<ggml_cuda_fattn_turbo4_page> pages(n_pages);
@@ -1042,7 +1198,8 @@ static void time_large_prefill_cases(
         for (uint32_t row = 0; row < n_rows; ++row) native_positions[row] = row;
         std::vector<int64_t> query_positions(max_query_tokens);
         for (uint32_t query = 0; query < max_query_tokens; ++query) {
-            query_positions[query] = int64_t(n_rows - max_query_tokens + query);
+            query_positions[query] = int64_t(n_rows -
+                (q1_q3_4096_only ? 128u : max_query_tokens) + query);
         }
 
         float * q_device = nullptr;
@@ -1103,12 +1260,14 @@ static void time_large_prefill_cases(
         params.n_head_kv = n_head_kv;
         params.n_batch = 1;
         params.scale = 1.0f / std::sqrt(256.0f);
+        params.causal = q32_q256_cost_only;
+        params.explicit_native_metadata = q32_q256_cost_only;
 
         const std::vector<uint8_t> packed_k = pack_selected_storage(k_host, pages.data(),
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
         const std::vector<uint8_t> packed_v = pack_selected_storage(v_host, pages.data(),
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
-        for (const uint32_t query_count : q1_q3_4096_only
+        for (const uint32_t query_count : (q1_q3_4096_only || q32_q256_cost_only)
                 ? std::vector<uint32_t>{}
                 : std::vector<uint32_t>{16u, 64u, 128u}) {
             params.n_query_tokens = query_count;
@@ -1130,12 +1289,59 @@ static void time_large_prefill_cases(
             std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
         }
 
+        if (q32_q256_cost_only) {
+            for (const uint32_t query_count : { 32u, 256u }) {
+                const size_t appended_encoded_bytes = size_t(query_count) * row_bytes * 2;
+                params.n_query_tokens = query_count;
+                const std::vector<float> q_timing(q_host.begin(),
+                    q_host.begin() + size_t(query_count) * n_head_q * 256);
+                std::vector<float> causal_mask(size_t(n_rows) * query_count, -INFINITY);
+                for (uint32_t query = 0; query < query_count; ++query) {
+                    const int64_t query_position = query_positions[query];
+                    for (uint32_t row = 0; row < n_rows; ++row) {
+                        if (int64_t(row) <= query_position) {
+                            causal_mask[size_t(query) * n_rows + row] = 0.0f;
+                        }
+                    }
+                }
+                const float direct_ms = time_paged_attention(backend, params, stream,
+                    timing_start, timing_stop, 5, 20);
+                double fused_preparation_ms = 0.0;
+                const float fused_kernel_ms = time_dense_fa(backend, q_timing,
+                    k_host, v_host, packed_k, packed_v, pages.data(), n_pages,
+                    n_rows, n_physical_pages, n_head_q, n_head_kv, page_stride,
+                    row_bytes, false, &causal_mask, nullptr, nullptr, false, false,
+                    &fused_preparation_ms);
+                assert(ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+                double materialize_preparation_ms = 0.0;
+                const float materialize_kernel_ms = time_dense_fa(backend, q_timing,
+                    k_host, v_host, packed_k, packed_v, pages.data(), n_pages,
+                    n_rows, n_physical_pages, n_head_q, n_head_kv, page_stride,
+                    row_bytes, false, &causal_mask, nullptr, nullptr, false, true,
+                    &materialize_preparation_ms);
+                assert(!ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+                assert(direct_ms >= 0.0f && fused_kernel_ms >= 0.0f &&
+                    materialize_kernel_ms >= 0.0f);
+                std::fprintf(stderr,
+                    "batched Turbo4 cost: A=%u U=%u warmups=5 iterations=20 "
+                    "direct_kernel_ms=%.3f packed_fused_prep_ms=%.3f "
+                    "packed_fused_kernel_ms=%.3f materialize_prep_ms=%.3f "
+                    "materialize_kernel_ms=%.3f current_append_encoded_bytes=%zu "
+                    "fused_f16_kv_scratch_bytes=0 materialized_f16_kv_scratch_bytes=%zu\n",
+                    attended_rows, query_count, direct_ms, fused_preparation_ms,
+                    fused_kernel_ms, materialize_preparation_ms, materialize_kernel_ms,
+                    appended_encoded_bytes, size_t(n_rows) * 256 * n_head_kv *
+                        sizeof(uint16_t) * 2);
+            }
+        }
+
         // The repaired contiguous dispatch specifically serves decode and
         // native-MTP verification. Measure those Q=1/Q=3 shapes over the
         // requested 4K history, separating host graph/input preparation from
         // CUDA-event kernel time. The materialized control reports the F16
         // K/V scratch footprint that the fused family avoids.
-        for (const uint32_t query_count : { 1u, 3u }) {
+        for (const uint32_t query_count : q32_q256_cost_only
+                ? std::vector<uint32_t>{} : std::vector<uint32_t>{ 1u, 3u }) {
             params.n_query_tokens = query_count;
             const std::vector<float> q_timing(q_host.begin(),
                 q_host.begin() + size_t(query_count) * n_head_q * 256);
@@ -1466,9 +1672,12 @@ int main(int argc, char ** argv) {
     const bool run_timing = argc == 2 && std::string(argv[1]) == "--timing";
     const bool run_q1_q3_microbench = argc == 2 &&
         std::string(argv[1]) == "--microbench-q1-q3-h4096";
+    const bool run_q32_q256_cost = argc == 2 &&
+        std::string(argv[1]) == "--microbench-q32-q256";
     const bool run_long_context = argc == 2 &&
         std::string(argv[1]) == "--prefill-long-context-regression";
-    assert(argc == 1 || run_timing || run_q1_q3_microbench || run_long_context);
+    assert(argc == 1 || run_timing || run_q1_q3_microbench ||
+        run_q32_q256_cost || run_long_context);
     assert(ggml_cuda_fattn_turbo4_page_table_valid(nullptr, 0, 0) == false);
     assert(ggml_cuda_fattn_turbo4_query_tile_for_count(1) == 1);
     assert(ggml_cuda_fattn_turbo4_query_tile_for_count(2) == 2);
@@ -1489,6 +1698,20 @@ int main(int argc, char ** argv) {
         cuda_check(cudaEventCreate(&timing_stop), "Q1/Q3 microbench stop allocation");
         time_large_prefill_cases(backend, stream, timing_start, timing_stop, true);
         cuda_check(cudaDeviceSynchronize(), "Q1/Q3 H4096 microbench completion");
+        cudaEventDestroy(timing_stop);
+        cudaEventDestroy(timing_start);
+        ggml_backend_free(backend);
+        return 0;
+    }
+
+    if (run_q32_q256_cost) {
+        const cudaStream_t stream = static_cast<ggml_backend_cuda_context *>(backend->context)->stream();
+        cudaEvent_t timing_start = nullptr;
+        cudaEvent_t timing_stop = nullptr;
+        cuda_check(cudaEventCreate(&timing_start), "batched cost start allocation");
+        cuda_check(cudaEventCreate(&timing_stop), "batched cost stop allocation");
+        time_large_prefill_cases(backend, stream, timing_start, timing_stop, false, true);
+        cuda_check(cudaDeviceSynchronize(), "batched Turbo4 cost completion");
         cudaEventDestroy(timing_stop);
         cudaEventDestroy(timing_start);
         ggml_backend_free(backend);
