@@ -18,12 +18,22 @@ EXPECTED_SCHEMA = "attention-promotion-fixtures-v1"
 EXPECTED_TOKENS_PER_FILE = 1024
 EXPECTED_FILES_PER_FAMILY = 8
 DEFAULT_TARGET_FIXTURE_ID = "PY_MERGE_03"
+DEFAULT_SOURCE_FIXTURE_IDS = ("PY_MERGE_01", DEFAULT_TARGET_FIXTURE_ID)
+DEFAULT_PRESSURE_FIXTURE_IDS = tuple(f"BASH_WATCH_{index:02d}" for index in range(2, 5))
 RECALL_PROBE_ANCHORS = {"PY_MERGE_03": "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once."}
-SERVER_CONTEXT_TOKENS = 16384
+SERVER_CONTEXT_TOKENS = 8192
 GPU_HOT_TOKENS = 4096
 PAGE_SIZE_TOKENS = 256
 GENERATION_CONTEXT_RESERVE_TOKENS = 128
-GENERATION_COMPLETION_LIMIT_TOKENS = 64
+GENERATION_COMPLETION_LIMIT_TOKENS = 256
+PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS = 1024
+
+SOURCE_QUESTION = (
+    "Between merge_sorted_lists_01.py and merge_sorted_lists_03.py, which file "
+    "grows the output list with append() and copies any leftover suffix with "
+    "extend()? Explain briefly.")
+PRESSURE_QUESTION = (
+    "I have finished reviewing these Bash watcher examples. Please acknowledge briefly.")
 
 
 def response_budget(prompt_tokens: int, context_tokens: int = SERVER_CONTEXT_TOKENS) -> int:
@@ -33,19 +43,10 @@ def response_budget(prompt_tokens: int, context_tokens: int = SERVER_CONTEXT_TOK
     if not isinstance(context_tokens, int) or isinstance(context_tokens, bool) or context_tokens <= 0:
         raise ValueError("context_tokens must be a positive integer")
     available = context_tokens - prompt_tokens - GENERATION_CONTEXT_RESERVE_TOKENS
-    if available <= 0:
-        raise ValueError("rendered prompt leaves no safe completion space in the server context")
+    if available <= GENERATION_COMPLETION_LIMIT_TOKENS:
+        raise ValueError("rendered prompt leaves less than 256 tokens for completion and context reserve")
     return min(available, GENERATION_COMPLETION_LIMIT_TOKENS)
 
-PYTHON_QUESTION = ("Among these five Python implementations, which one uses an exactly "
-                   "preallocated result list and writes each result position once, the "
-                   "most allocation-efficient choice for producing a merged list? Reply "
-                   "with only the exact filename.")
-BASH_QUESTION = ("Among these five Bash watchers, which one is the leanest for a single "
-                 "nonrecursive directory when it reports CREATE and MOVED_TO events "
-                 "without an extra per-event file test? Reply with only the exact filename.")
-PYTHON_WINNER = "merge_sorted_lists_03.py"
-BASH_WINNER = "watch_directory_new_files_01.sh"
 SUPPORTED_CATEGORIES = {"python_sorted_merge", "mmap_vs_read", "bash_directory_watch"}
 
 @dataclass(frozen=True)
@@ -186,31 +187,54 @@ def _file_context(fixture: PromotionFixture) -> str:
             "--- END FILE CONTENT ---")
 
 
-def build_promotion_steps(catalog: Sequence[PromotionFixture], target_id: str = DEFAULT_TARGET_FIXTURE_ID
-                          ) -> tuple[PromotionStep, ...]:
-    """Build the exact Python comparison, Bash comparison, Python repeat turns."""
+def build_promotion_steps(
+        catalog: Sequence[PromotionFixture],
+        target_id: str = DEFAULT_TARGET_FIXTURE_ID,
+        python_fixture_ids: Sequence[str] = DEFAULT_SOURCE_FIXTURE_IDS,
+        bash_fixture_ids: Sequence[str] = DEFAULT_PRESSURE_FIXTURE_IDS,
+        source_question: str = SOURCE_QUESTION,
+        pressure_question: str = PRESSURE_QUESTION,
+        recall_question: str | None = None) -> tuple[PromotionStep, ...]:
+    """Build a bounded source, pressure, and natural-recall sequence."""
     by_id = {item.fixture_id: item for item in catalog}
-    python_ids = ("PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04",
-                  "PY_MERGE_05", "PY_MERGE_03")
-    bash_ids = tuple(f"BASH_WATCH_{index:02d}" for index in range(1, 6))
-    if target_id != DEFAULT_TARGET_FIXTURE_ID:
-        raise ValueError("the two-topic campaign target is fixed at PY_MERGE_03")
+    python_ids = tuple(python_fixture_ids)
+    bash_ids = tuple(bash_fixture_ids)
+    if not python_ids or target_id not in python_ids:
+        raise ValueError("the answer-bearing Python target must be in the selected source files")
+    if not bash_ids or len(set(python_ids + bash_ids)) != len(python_ids + bash_ids):
+        raise ValueError("selected source and pressure fixture IDs must be nonempty and unique")
+    if any(not isinstance(question, str) or not question.strip() for question in
+           (source_question, pressure_question)) or \
+            (recall_question is not None and
+             (not isinstance(recall_question, str) or not recall_question.strip())):
+        raise ValueError("promotion questions must be nonempty")
     try:
         python_fixtures = tuple(by_id[key] for key in python_ids)
         bash_fixtures = tuple(by_id[key] for key in bash_ids)
     except KeyError as error:
         raise ValueError(f"missing required campaign fixture {error.args[0]}") from error
-    first = "\n\n".join(_file_context(item) for item in python_fixtures) + "\n\n" + PYTHON_QUESTION
-    second = "\n\n".join(_file_context(item) for item in bash_fixtures) + "\n\n" + BASH_QUESTION
-    appended_python = python_ids
-    appended_bash = bash_ids
+    if any(item.category != "python_sorted_merge" for item in python_fixtures) or \
+            any(item.category != "bash_directory_watch" for item in bash_fixtures):
+        raise ValueError("selected source/pressure fixture IDs have the wrong content family")
+    recall_question = recall_question or (
+        f"In {target_id} ({by_id[target_id].filename}), the `write` cursor "
+        "assigns `out[write]`. What does the comment say about how many times "
+        "each preallocated output position is written, and how do the cursor increments "
+        "guarantee that?")
+    source_id = python_ids[0]
+    source_answer = (
+        "merge_sorted_lists_01.py grows the result with append() and extends "
+        "the unconsumed input suffixes.")
+    first = "\n\n".join(_file_context(item) for item in python_fixtures) + "\n\n" + source_question
+    second = "\n\n".join(_file_context(item) for item in bash_fixtures) + "\n\n" + pressure_question
     return (
-        PromotionStep(0, "compare_python", "PY_MERGE_03", "PY_MERGE_01",
-                      appended_python, PYTHON_QUESTION, first, PYTHON_WINNER, False),
-        PromotionStep(1, "compare_bash", "BASH_WATCH_01", "BASH_WATCH_01",
-                      appended_bash, BASH_QUESTION, second, BASH_WINNER, True),
-        PromotionStep(2, "repeat_python", "PY_MERGE_03", None, (), PYTHON_QUESTION,
-                      PYTHON_QUESTION, PYTHON_WINNER, True),
+        PromotionStep(0, "source_file", source_id, source_id, python_ids,
+                      source_question, first, source_answer, False),
+        PromotionStep(1, "bash_pressure", bash_ids[0], bash_ids[0], bash_ids,
+                      pressure_question, second,
+                      "I have reviewed the Bash examples.", True),
+        PromotionStep(2, "natural_recall", target_id, None, (), recall_question,
+                      recall_question, by_id[target_id].expected_answer, True),
     )
 
 
@@ -308,9 +332,18 @@ def _step_json(step: PromotionStep) -> dict[str, Any]:
     }
 
 
-def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str = DEFAULT_TARGET_FIXTURE_ID
+def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str = DEFAULT_TARGET_FIXTURE_ID,
+                    python_fixture_ids: Sequence[str] = DEFAULT_SOURCE_FIXTURE_IDS,
+                    bash_fixture_ids: Sequence[str] = DEFAULT_PRESSURE_FIXTURE_IDS
                     ) -> dict[str, Any]:
-    steps = build_promotion_steps(catalog, target_id)
+    steps = build_promotion_steps(catalog, target_id, python_fixture_ids, bash_fixture_ids)
+    selected = {item.fixture_id: item for item in catalog}
+    fixture_tokens = sum(selected[fixture_id].token_count_no_bos
+                         for fixture_id in tuple(python_fixture_ids) + tuple(bash_fixture_ids))
+    prior_reply_reserve = (len(steps) - 1) * GENERATION_COMPLETION_LIMIT_TOKENS
+    required_tokens = fixture_tokens + prior_reply_reserve + \
+        GENERATION_COMPLETION_LIMIT_TOKENS + GENERATION_CONTEXT_RESERVE_TOKENS + \
+        PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS
     return {
         "schema": "pager-promotion-prompt-plan-v1",
         "geometry": {
@@ -319,6 +352,17 @@ def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str = DEFAUL
             "page_size_tokens": PAGE_SIZE_TOKENS,
             "hot_pages": GPU_HOT_TOKENS // PAGE_SIZE_TOKENS,
         },
+        "token_budget": {
+            "selected_fixture_tokens_no_bos": fixture_tokens,
+            "planned_prior_reply_tokens": prior_reply_reserve,
+            "final_completion_reserve_tokens": GENERATION_COMPLETION_LIMIT_TOKENS,
+            "context_safety_reserve_tokens": GENERATION_CONTEXT_RESERVE_TOKENS,
+            "query_and_render_allowance_tokens": PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS,
+            "estimated_required_tokens": required_tokens,
+            "context_limit_tokens": SERVER_CONTEXT_TOKENS,
+            "fits_with_context_reserve": required_tokens < SERVER_CONTEXT_TOKENS,
+            "fixture_pressure_exceeds_hot_capacity": fixture_tokens > GPU_HOT_TOKENS,
+        },
         "target_fixture_id_local_only": target_id,
         "promotion_scope": {
             "kind": "all_pages_of_python_winner_fixture",
@@ -326,7 +370,9 @@ def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str = DEFAUL
             "all_file_pages_must_be_cold": False,
         },
         "request_count": len(steps),
-        "sequence_policy": "same-slot cumulative messages; actual prior replies; free-form output",
+        "selected_python_fixture_ids": list(python_fixture_ids),
+        "selected_bash_fixture_ids": list(bash_fixture_ids),
+        "sequence_policy": "same-slot cumulative messages; actual prior replies; 256-token free-form output budget",
         "steps": [_step_json(step) for step in steps],
     }
 

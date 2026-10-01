@@ -1,0 +1,4 @@
+Based on the code provided in `merge_sorted_lists_03.py`:
+
+1.  **Allocation:** The line `out = [0] * (len(left) + len(right))` establishes a list of the correct total length, filled with placeholder zeros. This pre-allocates memory for the merged result.
+2.  **Filling:** The merge uses a two-pointer technique to fill the allocated positions. It iterates through the `left` and `right` lists, comparing their current elements, and places the smaller element into the next available slot in the `out` list. Once one list is exhausted, the remaining elements from the other list are copied into the remaining slots.

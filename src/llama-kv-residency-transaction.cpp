@@ -1,6 +1,8 @@
 #include "llama-kv-residency-transaction.h"
+#include "llama-impl.h"
 
 #include <algorithm>
+#include <exception>
 #include <limits>
 #include <memory>
 #include <new>
@@ -664,7 +666,17 @@ llama_kv_residency_execute_transaction(
         result.status = llama_kv_residency_transaction_status::committed;
         result.rollback_complete = true;
         return result;
+    } catch (const std::exception & error) {
+        LLAMA_LOG_ERROR("%s: residency transaction exception: %s\n", __func__, error.what());
+        if (!table_published) {
+            rollback_resources();
+        }
+        result.status = table_published
+            ? llama_kv_residency_transaction_status::committed
+            : llama_kv_residency_transaction_status::internal_error;
+        return result;
     } catch (...) {
+        LLAMA_LOG_ERROR("%s: residency transaction exception: unknown\n", __func__);
         if (!table_published) {
             rollback_resources();
         }

@@ -1,6 +1,8 @@
 #include "llama-kv-live-policy.h"
+#include "llama-impl.h"
 
 #include <algorithm>
+#include <cinttypes>
 #include <cmath>
 #include <limits>
 #include <unordered_map>
@@ -223,8 +225,14 @@ bool llama_kv_live_policy_rank_query_candidates(
 
 bool llama_kv_live_policy_prepare_query_target(
         const llama_kv_live_policy_boundary & boundary,
-        std::vector<llama_kv_page_record> & target) noexcept {
+        std::vector<llama_kv_page_record> & target,
+        const char ** failure_reason) noexcept {
     target.clear();
+    if (failure_reason != nullptr) *failure_reason = nullptr;
+    const auto reject = [&](const char * reason) {
+        if (failure_reason != nullptr) *failure_reason = reason;
+        return false;
+    };
     try {
         const auto & commit = boundary.query_commit;
         if (!commit.enabled || commit.query_generation == 0 || commit.turn_id == 0 ||
@@ -246,7 +254,9 @@ bool llama_kv_live_policy_prepare_query_target(
             boundary.retrieval.session_generation != commit.session_generation ||
             boundary.retrieval.sequence_generation != commit.sequence_generation ||
             boundary.retrieval.sequence_id != commit.sequence_id ||
-            boundary.retrieval.representation_epoch != commit.representation_epoch) return false;
+            boundary.retrieval.representation_epoch != commit.representation_epoch) {
+            return reject("invalid_or_stale_query");
+        }
 
         const auto get = [&](const llama_kv_page_id & id) -> const llama_kv_live_policy_page * {
             const auto found = std::find_if(boundary.pages.begin(), boundary.pages.end(),
@@ -258,7 +268,9 @@ bool llama_kv_live_policy_prepare_query_target(
             inventory_rollback_generation = std::max<uint64_t>(
                     inventory_rollback_generation, page.record.id.page_generation);
         }
-        if (commit.rollback_generation != inventory_rollback_generation) return false;
+        if (commit.rollback_generation != inventory_rollback_generation) {
+            return reject("rollback_generation_mismatch");
+        }
         std::vector<const llama_kv_live_policy_page *> retrieval;
         retrieval.reserve(commit.selected.size());
         for (size_t i = 0; i < commit.selected.size(); ++i) {
@@ -271,9 +283,13 @@ bool llama_kv_live_policy_prepare_query_target(
                 item.identity.sequence_generation != commit.sequence_generation ||
                 item.identity.sequence_id != commit.sequence_id ||
                 item.identity.representation_epoch != commit.representation_epoch ||
-                (!page->record.host_valid && page->record.physical_slot == UINT32_MAX)) return false;
+                (!page->record.host_valid && page->record.physical_slot == UINT32_MAX)) {
+                return reject("stale_or_unbacked_candidate");
+            }
             for (size_t j = 0; j < i; ++j) {
-                if (same_logical_page(commit.selected[j].identity, item.identity)) return false;
+                if (same_logical_page(commit.selected[j].identity, item.identity)) {
+                    return reject("duplicate_candidate");
+                }
             }
             retrieval.push_back(page);
         }
@@ -311,18 +327,24 @@ bool llama_kv_live_policy_prepare_query_target(
             }
         }
         if (generation_mandatory > commit.generation_budget ||
-            retrieval_mandatory > commit.retrieval_budget) return false;
+            retrieval_mandatory > commit.retrieval_budget) {
+            return reject("mandatory_pages_exceed_budget");
+        }
         const uint32_t remaining_retrieval = commit.retrieval_budget - retrieval_mandatory;
         const size_t selected_history = std::count_if(retrieval.begin(), retrieval.end(),
                 [&](const auto * page) {
             return std::find(mandatory_ids.begin(), mandatory_ids.end(),
                     page->record.id) == mandatory_ids.end();
         });
-        if (selected_history > remaining_retrieval) return false;
+        if (selected_history > remaining_retrieval) {
+            return reject("selected_history_exceeds_budget");
+        }
         // A selected resident may already be mandatory (for example the
         // current generated page). Count it once when checking capacity; the
         // ordered target below also deduplicates these identities.
-        if (mandatory.size() + selected_history > boundary.hot_capacity) return false;
+        if (mandatory.size() + selected_history > boundary.hot_capacity) {
+            return reject("target_exceeds_hot_capacity");
+        }
 
         std::vector<const llama_kv_live_policy_page *> ordered;
         std::vector<llama_kv_page_id> ordered_ids;
@@ -346,21 +368,23 @@ bool llama_kv_live_policy_prepare_query_target(
         for (const auto * page : ordered) {
             if (page->record.physical_slot == UINT32_MAX) continue;
             const uint32_t slot = page->record.physical_slot;
-            if (slot >= used.size() || used[slot]) return false;
+            if (slot >= used.size() || used[slot]) return reject("resident_slot_conflict");
             const auto resident = std::find_if(boundary.snapshot.pages().begin(),
                     boundary.snapshot.pages().end(), [&](const auto & current) {
                 return current.id == page->record.id;
             });
             if (resident == boundary.snapshot.pages().end() ||
                 resident->physical_slot != slot ||
-                resident->content_version != page->record.content_version) return false;
+                resident->content_version != page->record.content_version) {
+                return reject("resident_snapshot_mismatch");
+            }
             used[slot] = true;
         }
         target.reserve(ordered.size());
         for (const auto * page : ordered) {
             auto record = page->record;
             if (record.physical_slot == UINT32_MAX) {
-                if (!record.host_valid) return false;
+                if (!record.host_valid) return reject("missing_host_backing");
                 uint32_t slot = UINT32_MAX;
                 for (uint32_t i = 0; i < used.size(); ++i) if (!used[i]) { slot = i; break; }
                 if (slot == UINT32_MAX) {
@@ -384,7 +408,9 @@ bool llama_kv_live_policy_prepare_query_target(
                         }
                     }
                 }
-                if (slot == UINT32_MAX || slot >= used.size()) return false;
+                if (slot == UINT32_MAX || slot >= used.size()) {
+                    return reject("no_reusable_physical_slot");
+                }
                 record.physical_slot = slot;
                 record.state = llama_kv_page_state::gpu_host_clean;
                 record.dirty = false;
@@ -396,7 +422,7 @@ bool llama_kv_live_policy_prepare_query_target(
         return true;
     } catch (...) {
         target.clear();
-        return false;
+        return reject("allocation_failure");
     }
 }
 
@@ -748,6 +774,13 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
                 return output;
             }
             if (!record.host_valid) {
+                output.failure_stage = 1;
+                output.failure_page = record.id;
+                output.failure_page_content_version = record.content_version;
+                LLAMA_LOG_INFO("%s: selected cold target lacks host validity logical=%u layer=%u position=%" PRId64 " page_generation=%" PRIu64 " content_version=%" PRIu64 "\n",
+                        __func__, record.id.logical_page, record.id.attention_layer,
+                        record.id.position_begin, record.id.page_generation,
+                        record.content_version);
                 output.status = llama_kv_live_policy_status::missing_host_source;
                 return output;
             }
@@ -827,6 +860,13 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
                             [&](const auto & page) { return page.page == target.id; });
                 });
         if (!has_promotion) {
+            output.failure_stage = 2;
+            output.failure_page = target.id;
+            output.failure_page_content_version = target.content_version;
+            LLAMA_LOG_INFO("%s: cold target lacks matching H2D plan logical=%u layer=%u position=%" PRId64 " page_generation=%" PRIu64 " content_version=%" PRIu64 "\n",
+                    __func__, target.id.logical_page, target.id.attention_layer,
+                    target.id.position_begin, target.id.page_generation,
+                    target.content_version);
             output.status = llama_kv_live_policy_status::missing_host_source;
             return output;
         }

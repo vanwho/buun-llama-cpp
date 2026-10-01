@@ -1,0 +1,10 @@
+{
+  "answer": "2 plus 2 equals 4.",
+  "completion_tokens": 9,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "max_tokens": 256,
+  "prompt_tokens": 27,
+  "response_sha256": "4689200e4e61c7dd1971835d36428ad1d94944e06accbc292f5da4f649118cff",
+  "service_pid": 1034757
+}

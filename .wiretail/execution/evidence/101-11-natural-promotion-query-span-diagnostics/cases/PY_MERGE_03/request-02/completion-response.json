@@ -1,0 +1,48 @@
+{
+  "choices": [
+    {
+      "finish_reason": "length",
+      "index": 0,
+      "message": {
+        "content": "Acknowledged. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I have reviewed the context. I",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790845074,
+  "id": "chatcmpl-QC5Rrh0Y9ZrNGjyX12MqiArqwSALdpFL",
+  "model": "qwen38-fast-turbo4-mtp",
+  "mtp_request_counters": {
+    "accepted": 142,
+    "committed": 233,
+    "draft_restores": 22,
+    "drafted": 181,
+    "rejected": 39,
+    "restore_failures": 0,
+    "target_restores": 22
+  },
+  "object": "chat.completion",
+  "system_fingerprint": "b14131-a051f2e79",
+  "timings": {
+    "cache_n": 2412,
+    "draft_n": 181,
+    "draft_n_accepted": 142,
+    "kv_bpv": 4.125,
+    "predicted_ms": 6944.597,
+    "predicted_n": 256,
+    "predicted_per_second": 36.71919335276043,
+    "predicted_per_token_ms": 27.233713725490194,
+    "prompt_ms": 35823.23,
+    "prompt_n": 4244,
+    "prompt_per_second": 118.47061250479088,
+    "prompt_per_token_ms": 8.440911875589068
+  },
+  "usage": {
+    "completion_tokens": 256,
+    "prompt_tokens": 6656,
+    "prompt_tokens_details": {
+      "cached_tokens": 2412
+    },
+    "total_tokens": 6912
+  }
+}

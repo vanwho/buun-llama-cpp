@@ -1,0 +1,48 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The code allocates a new list of the combined length and uses a write loop to fill it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the write loop fills it. The output-list allocation creates a new list of the combined length, and the",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790853337,
+  "id": "chatcmpl-0NAODEHh3McDt0aPZLbui6QXDcVAx7Ce",
+  "model": "qwen38-fast-turbo4-mtp",
+  "mtp_request_counters": {
+    "accepted": 59,
+    "committed": 160,
+    "draft_restores": 76,
+    "drafted": 202,
+    "rejected": 143,
+    "restore_failures": 0,
+    "target_restores": 76
+  },
+  "object": "chat.completion",
+  "system_fingerprint": "b14133-d18861064",
+  "timings": {
+    "cache_n": 5605,
+    "draft_n": 202,
+    "draft_n_accepted": 59,
+    "kv_bpv": 4.125,
+    "predicted_ms": 9199.931,
+    "predicted_n": 236,
+    "predicted_per_second": 25.543669838393352,
+    "predicted_per_token_ms": 39.14864255319149,
+    "prompt_ms": 773.966,
+    "prompt_n": 50,
+    "prompt_per_second": 64.60232103219005,
+    "prompt_per_token_ms": 15.47932
+  },
+  "usage": {
+    "completion_tokens": 236,
+    "prompt_tokens": 5655,
+    "prompt_tokens_details": {
+      "cached_tokens": 5605
+    },
+    "total_tokens": 5891
+  }
+}

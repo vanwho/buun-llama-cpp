@@ -1,0 +1,48 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "It writes each position **exactly once**.\n\nThe cursor loops guarantee this by maintaining two pointers (one for each input list) that only move forward. At each step, the algorithm compares the elements at the current positions of both lists, selects the smaller one (or the one from the first list in case of a tie), places it in the next available position in the output list, and advances the corresponding cursor. Because the cursors never move backward and each output position is filled by exactly one element from one of the inputs, every position in the output list is written exactly once.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790853738,
+  "id": "chatcmpl-QPsqCMurvv7TbbgXfHxhHh9cvShkbVgA",
+  "model": "qwen38-fast-turbo4-mtp",
+  "mtp_request_counters": {
+    "accepted": 50,
+    "committed": 94,
+    "draft_restores": 24,
+    "drafted": 88,
+    "rejected": 38,
+    "restore_failures": 0,
+    "target_restores": 24
+  },
+  "object": "chat.completion",
+  "system_fingerprint": "b14133-d18861064",
+  "timings": {
+    "cache_n": 5605,
+    "draft_n": 88,
+    "draft_n_accepted": 50,
+    "kv_bpv": 4.125,
+    "predicted_ms": 3683.788,
+    "predicted_n": 119,
+    "predicted_per_second": 32.0322450694774,
+    "predicted_per_token_ms": 31.218542372881355,
+    "prompt_ms": 809.686,
+    "prompt_n": 54,
+    "prompt_per_second": 66.69252031034253,
+    "prompt_per_token_ms": 14.994185185185186
+  },
+  "usage": {
+    "completion_tokens": 119,
+    "prompt_tokens": 5659,
+    "prompt_tokens_details": {
+      "cached_tokens": 5605
+    },
+    "total_tokens": 5778
+  }
+}

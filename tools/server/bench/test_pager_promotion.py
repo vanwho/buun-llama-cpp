@@ -9,9 +9,11 @@ import sys
 import unittest
 
 from pager_promotion import (
-    BASH_QUESTION, BASH_WINNER, DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT,
-    PYTHON_QUESTION, PYTHON_WINNER, assess_natural_retrieval, build_case_plan,
-    build_promotion_steps, load_fixture_catalog, messages_for_step,
+    DEFAULT_PRESSURE_FIXTURE_IDS, DEFAULT_SOURCE_FIXTURE_IDS,
+    DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT, GENERATION_COMPLETION_LIMIT_TOKENS,
+    PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS, SERVER_CONTEXT_TOKENS, GPU_HOT_TOKENS,
+    assess_natural_retrieval, build_case_plan, build_promotion_steps,
+    load_fixture_catalog, messages_for_step,
     pages_are_cold, pages_overlapping_token_range, refresh_page_versions,
     response_budget,
 )
@@ -22,6 +24,7 @@ _DRIVER_SPEC = importlib.util.spec_from_file_location("run_pager_promotion", _DR
 _DRIVER = importlib.util.module_from_spec(_DRIVER_SPEC)
 _DRIVER_SPEC.loader.exec_module(_DRIVER)
 _promotion_for_page = _DRIVER._promotion_for_page
+_assess_content_retrieval = _DRIVER.assess_content_retrieval
 _completed_pressure_tail_pages = _DRIVER.completed_pressure_tail_pages
 _generation_start_index = _DRIVER.generation_start_index
 
@@ -38,12 +41,10 @@ class PagerPromotionPromptTest(unittest.TestCase):
             self.assertEqual(1024, fixture.token_count_no_bos)
             self.assertEqual((FIXTURE_ROOT / fixture.relative_path).read_bytes().decode(),
                              fixture.body)
-        selected = load_fixture_catalog(FIXTURE_ROOT, [
-            *(f"PY_MERGE_{n:02d}" for n in range(1, 6)),
-            *(f"BASH_WATCH_{n:02d}" for n in range(1, 6))])
-        self.assertEqual(10, len(selected))
-        self.assertEqual("PY_MERGE_03", selected[2].fixture_id)
-        self.assertEqual("BASH_WATCH_01", selected[5].fixture_id)
+        fixture_ids = DEFAULT_SOURCE_FIXTURE_IDS + DEFAULT_PRESSURE_FIXTURE_IDS
+        selected = load_fixture_catalog(FIXTURE_ROOT, fixture_ids)
+        self.assertEqual(5, len(selected))
+        self.assertEqual(fixture_ids, tuple(item.fixture_id for item in selected))
 
     def test_generation_window_starts_after_changed_query_is_frozen(self) -> None:
         samples = [
@@ -55,39 +56,48 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(2, _generation_start_index(samples))
         self.assertIsNone(_generation_start_index(samples[:2]))
 
+    def test_answer_quality_markers_follow_each_question(self) -> None:
+        source = _assess_content_retrieval(
+            "Python01 uses append and extend.",
+            "merge_sorted_lists_01.py uses append() and extend().",
+            ("merge_sorted_lists_01.py", "append", "extend"))
+        final = _assess_content_retrieval(
+            "The preallocated merge writes each output position exactly once.",
+            "The preallocated output writes each output position exactly once.")
+        self.assertTrue(source["matched"])
+        self.assertTrue(final["matched"])
+
     def test_exact_three_user_turns_and_fixture_order(self) -> None:
         steps = build_promotion_steps(self.catalog)
         self.assertEqual(3, len(steps))
-        self.assertEqual(["compare_python", "compare_bash", "repeat_python"],
+        self.assertEqual(["source_file", "bash_pressure", "natural_recall"],
                          [step.stage for step in steps])
-        python_ids = ("PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04",
-                      "PY_MERGE_05", "PY_MERGE_03")
-        bash_ids = tuple(f"BASH_WATCH_{n:02d}" for n in range(1, 6))
+        python_ids = DEFAULT_SOURCE_FIXTURE_IDS
+        bash_ids = DEFAULT_PRESSURE_FIXTURE_IDS
         self.assertEqual(python_ids, steps[0].appended_fixture_ids)
         self.assertEqual(bash_ids, steps[1].appended_fixture_ids)
         for fixture_id in python_ids:
             self.assertIn(self.by_id[fixture_id].body, steps[0].user_content)
         for fixture_id in bash_ids:
             self.assertIn(self.by_id[fixture_id].body, steps[1].user_content)
-        self.assertEqual(PYTHON_QUESTION, steps[0].question)
-        self.assertEqual(BASH_QUESTION, steps[1].question)
-        self.assertEqual(steps[0].question, steps[2].question)
-        self.assertEqual(PYTHON_QUESTION, steps[2].user_content)
-        self.assertTrue(steps[0].user_content.endswith(PYTHON_QUESTION))
-        self.assertLess(steps[0].user_content.index(self.by_id["PY_MERGE_05"].body),
-                        steps[0].user_content.index(self.by_id["PY_MERGE_03"].body))
-        self.assertEqual(PYTHON_WINNER, steps[0].expected_answer_local_only)
-        self.assertEqual(BASH_WINNER, steps[1].expected_answer_local_only)
-        self.assertEqual(PYTHON_WINNER, steps[2].expected_answer_local_only)
+        self.assertIn("merge_sorted_lists_01.py", steps[0].question)
+        self.assertIn("merge_sorted_lists_03.py", steps[2].question)
+        self.assertEqual(steps[2].question, steps[2].user_content)
+        self.assertTrue(steps[0].user_content.endswith(steps[0].question))
+        self.assertIn("merge_sorted_lists_01.py",
+                      steps[0].expected_answer_local_only)
+        self.assertEqual(self.by_id["PY_MERGE_03"].expected_answer,
+                         steps[2].expected_answer_local_only)
         self.assertTrue(steps[1].cache_prompt)
         self.assertTrue(steps[2].cache_prompt)
         self.assertNotIn("RETRIEVAL_KEY", steps[0].question + steps[1].question + steps[2].question)
+        self.assertNotIn("exactly which filename", steps[0].question.lower())
         self.assertIn("RETRIEVAL_KEY: The preallocated merge writes each output position exactly once.",
                       self.by_id["PY_MERGE_03"].body)
 
     def test_cumulative_messages_keep_real_prior_assistant_responses(self) -> None:
         steps = build_promotion_steps(self.catalog)
-        replies = ["merge_sorted_lists_03.py", "watch_directory_new_files_01.sh"]
+        replies = ["It preallocates and writes each output position once.", "Reviewed."]
         messages = messages_for_step(steps, 2, replies)
         self.assertEqual(["user", "assistant", "user", "assistant", "user"],
                          [message["role"] for message in messages])
@@ -95,19 +105,21 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(replies[1], messages[3]["content"])
         self.assertEqual(steps[0].user_content, messages[0]["content"])
         self.assertEqual(steps[1].user_content, messages[2]["content"])
-        self.assertEqual(PYTHON_QUESTION, messages[-1]["content"])
+        self.assertEqual(steps[2].question, messages[-1]["content"])
         with self.assertRaisesRegex(ValueError, "exactly one"):
             messages_for_step(steps, 2, replies[:1])
 
     def test_response_budget_and_filename_scoring(self) -> None:
-        self.assertEqual(64, response_budget(100))
-        self.assertEqual(32, response_budget(16384 - 128 - 32))
+        self.assertEqual(256, response_budget(100))
+        self.assertEqual(256, response_budget(SERVER_CONTEXT_TOKENS - 128 - 257))
         self.assertTrue(assess_natural_retrieval(
-            PYTHON_WINNER, '"merge_sorted_lists_03.py"')['matched'])
+            "merge_sorted_lists_03.py", '"merge_sorted_lists_03.py"')['matched'])
         self.assertFalse(assess_natural_retrieval(
-            PYTHON_WINNER, "merge_sorted_lists_02.py")['matched'])
+            "merge_sorted_lists_03.py", "merge_sorted_lists_02.py")['matched'])
         with self.assertRaises(ValueError):
-            response_budget(16384)
+            response_budget(SERVER_CONTEXT_TOKENS - 128 - 256)
+        with self.assertRaises(ValueError):
+            response_budget(SERVER_CONTEXT_TOKENS)
 
     def test_every_overlapping_page_and_mutable_version_are_tracked(self) -> None:
         inventory = [{"logical_page_id": index, "generation": 10 + index,
@@ -129,27 +141,48 @@ class PagerPromotionPromptTest(unittest.TestCase):
 
     def test_case_plan_locks_new_geometry_and_fixture_set(self) -> None:
         plan = build_case_plan(self.catalog, DEFAULT_TARGET_FIXTURE_ID)
-        self.assertEqual({"server_context_tokens": 16384, "gpu_hot_tokens": 4096,
+        self.assertEqual({"server_context_tokens": SERVER_CONTEXT_TOKENS, "gpu_hot_tokens": GPU_HOT_TOKENS,
                           "page_size_tokens": 256, "hot_pages": 16}, plan["geometry"])
         self.assertEqual(3, plan["request_count"])
-        self.assertEqual(PYTHON_WINNER, plan["steps"][0]["expected_answer_local_only"])
-        self.assertEqual(PYTHON_WINNER, plan["steps"][2]["expected_answer_local_only"])
-        with self.assertRaisesRegex(ValueError, "fixed"):
-            build_promotion_steps(self.catalog, "PY_MERGE_01")
+        self.assertEqual(list(DEFAULT_SOURCE_FIXTURE_IDS), plan["selected_python_fixture_ids"])
+        self.assertEqual(list(DEFAULT_PRESSURE_FIXTURE_IDS), plan["selected_bash_fixture_ids"])
+        self.assertEqual(list(DEFAULT_SOURCE_FIXTURE_IDS),
+                         plan["steps"][0]["appended_fixture_ids_local_only"])
+        self.assertEqual(list(DEFAULT_PRESSURE_FIXTURE_IDS),
+                         plan["steps"][1]["appended_fixture_ids_local_only"])
+        budget = plan["token_budget"]
+        self.assertEqual(5120, budget["selected_fixture_tokens_no_bos"])
+        self.assertEqual(512, budget["planned_prior_reply_tokens"])
+        self.assertEqual(GENERATION_COMPLETION_LIMIT_TOKENS,
+                         budget["final_completion_reserve_tokens"])
+        self.assertEqual(1024, PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS)
+        self.assertEqual(7040, budget["estimated_required_tokens"])
+        self.assertTrue(budget["fits_with_context_reserve"])
+        self.assertTrue(budget["fixture_pressure_exceeds_hot_capacity"])
+        self.assertEqual("source_file", plan["steps"][0]["stage"])
+        self.assertEqual("bash_pressure", plan["steps"][1]["stage"])
+        self.assertEqual("natural_recall", plan["steps"][2]["stage"])
 
     def test_live_sequence_is_bounded_and_uses_natural_content_questions(self) -> None:
-        selected = load_fixture_catalog(FIXTURE_ROOT, [
-            "PY_MERGE_03", *(f"BASH_WATCH_{n:02d}" for n in range(4, 8))])
+        selected = load_fixture_catalog(FIXTURE_ROOT,
+                                        DEFAULT_SOURCE_FIXTURE_IDS + DEFAULT_PRESSURE_FIXTURE_IDS)
         target = next(item for item in selected if item.fixture_id == "PY_MERGE_03")
-        steps = _DRIVER.build_minimal_steps(selected, target)
+        steps = build_promotion_steps(selected)
         self.assertEqual(["source_file", "bash_pressure", "natural_recall"],
                          [step.stage for step in steps])
-        self.assertEqual(("PY_MERGE_03",), steps[0].appended_fixture_ids)
-        self.assertEqual(("BASH_WATCH_04", "BASH_WATCH_05", "BASH_WATCH_06"),
-                         steps[1].appended_fixture_ids)
-        self.assertIn(target.filename, steps[0].question)
+        self.assertEqual(DEFAULT_SOURCE_FIXTURE_IDS, steps[0].appended_fixture_ids)
+        self.assertEqual(DEFAULT_PRESSURE_FIXTURE_IDS, steps[1].appended_fixture_ids)
+        self.assertIn("merge_sorted_lists_01.py", steps[0].question)
         self.assertIn(target.filename, steps[2].question)
-        self.assertIn("Explain normally", steps[2].question)
+        self.assertIn("allocate", steps[2].question.lower())
+        self.assertIn("PY_MERGE_03", steps[2].question)
+        self.assertIn("`out[write]`", steps[2].question)
+        self.assertIn("how many times", steps[2].question.lower())
+        self.assertIn("cursor increments", steps[2].question)
+        self.assertIn("preallocated output", steps[2].question)
+        self.assertIn("how many times", steps[2].question.lower())
+        self.assertIn("output position", steps[2].question)
+        self.assertIn(target.filename, steps[2].question)
         self.assertNotIn("RETRIEVAL_KEY", steps[2].question)
         self.assertTrue(steps[1].cache_prompt)
         self.assertTrue(steps[2].cache_prompt)
@@ -191,7 +224,21 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual("raw_selector_output", report["selector_evidence_source"])
         record["pager_after"]["selector_trace"]["raw_cold_logical_pages"] = [9]
         report = _promotion_for_page(page, {}, record, [])
-        self.assertFalse(report["selector_nominated"])
+        self.assertIsNone(report["selector_nominated"])
+        self.assertEqual("bounded_raw_selector_output", report["selector_evidence_source"])
+
+    def test_authenticated_candidate_proves_nomination_beyond_bounded_raw_ids(self) -> None:
+        page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
+                "resident": False, "host_backed": True}
+        record = {"request_id": "req-1", "request_generation": 4,
+                  "pager_after": {"selector_trace": {
+                      "enabled": True, "target_candidate_nominated": True,
+                      "raw_selector_output_valid": True,
+                      "raw_cold_logical_pages": [8, 9], "outcome": "selected_pending"}}}
+        report = _promotion_for_page(page, {}, record, [])
+        self.assertTrue(report["selector_nominated"])
+        self.assertEqual("authenticated_selector_candidate",
+                         report["selector_evidence_source"])
 
     def test_live_trace_uses_captured_selector_result_before_later_reset(self) -> None:
         page = {"logical_page_id": 7, "generation": 12, "content_version": 31,

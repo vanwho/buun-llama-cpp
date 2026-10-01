@@ -1,0 +1,8 @@
+{
+  "context_tokens": 8192,
+  "hot_tokens": 4096,
+  "completion_reserve_tokens": 256,
+  "fits": true,
+  "rendered_prompt_tokens": 6997,
+  "prompt_sha256": "20863a1b9157337762cbfbee556f88b76b9ccc5e53f422c11032d5b341af2a33"
+}
