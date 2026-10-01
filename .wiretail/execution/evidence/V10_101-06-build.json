@@ -1,0 +1,24 @@
+{
+  "source_commit": "a7a3296d5677c7675798b29a5e7830f0d59a4ecb",
+  "dirty_source_sha256": "a089f08ba658042c858de7a2e1a748134ebb122def6df2622c1dca82c3ee4b82",
+  "dirty_source_files": {
+    "ggml/include/ggml.h": "e08d7ad76c9006a6658f34b679ee62ac95c0665a4e2724fa41e7cefeffb5cb83",
+    "ggml/src/ggml.c": "ed6461217003b60dbe2caf877a1853a8b886c242c3196d538def223d478c4ecc",
+    "ggml/src/ggml-cpu/ops.cpp": "6e5913dd2ce8cdd8dcf9664b644cea15e850af672fdc7c0d73fd5c9d80bc8c82",
+    "ggml/src/ggml-cuda/ggml-cuda.cu": "5b519e61d5c875c3d53805de8a333595cf1990b26e147255c7ec7711b39af6dc",
+    "ggml/src/ggml-cuda/set-rows.cu": "2b0687bb5f53408ee67be87e22d3fc71bb0845bbf915e6646f309ffdcc6d119d",
+    "src/llama-graph.cpp": "eb0a2374e5728ae9b4c55fd863988a488da6c6774f885284db94a10f5b3683f1",
+    "tests/CMakeLists.txt": "9dc8341514067ba4237b23534bd0de0cc34e7d593ecea8a0fadadc16d0feb65a",
+    "tests/test-cuda-encoded-row-copy.cpp": "4c843f73bc414b7726a8188b8486e65d89edad6134105c81272fc31439b8d4dd"
+  },
+  "build": {
+    "tree": "build-cuda",
+    "configuration": "Release; GGML_CUDA=ON; CUDA architecture 89-real; CUDA graphs enabled",
+    "command": ["cmake", "--build", "build-cuda", "--target", "test-cuda-encoded-row-copy", "llama-server", "-j6"],
+    "binary_sha256": {
+      "build-cuda/bin/test-cuda-encoded-row-copy": "7aeea0367836e73afbec1423e84e3fc33cdee6f3cde5c78dbd798b10a3bd3168",
+      "build-cuda/bin/llama-server": "e0fba6dcf82ba3319e6c0d30f1bfddae7f0f9d2e8dcdb18de82221b381832f1d",
+      "build-cuda/bin/libggml-cuda.so": "a8ea954f0680207704f77ae120e76d2cefae785388793dc404a3e4012000b2e4"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "101-06",
+  "source_commit": "a7a3296d5677c7675798b29a5e7830f0d59a4ecb",
+  "build_identity": {
+    "dirty_source_sha256": "a089f08ba658042c858de7a2e1a748134ebb122def6df2622c1dca82c3ee4b82",
+    "identity_artifact": ".wiretail/execution/evidence/V10_101-06-build.json"
+  },
+  "checks": {
+    "encoded_kv_single_write_and_packed_append_parity": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda/bin/test-cuda-encoded-row-copy"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/101-06-final-cuda-proof.log",
+          "sha256": "47e7dc2ef7f8fa4f68ef99ce9ceed4068792e3f77d3fd6d03a36c0120f9a82f8"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-06-final-build.log",
+          "sha256": "a5600f0c0e1a3b3ded12b63c037260974485153231b58c82af154de035bbc96b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_101-06-build.json",
+          "sha256": "d0b46d7dc495acb2cc59a2996bb6b4b26672784585f8809dae181a815312fd96"
+        },
+        {
+          "path": "build-cuda/bin/test-cuda-encoded-row-copy",
+          "sha256": "7aeea0367836e73afbec1423e84e3fc33cdee6f3cde5c78dbd798b10a3bd3168"
+        },
+        {
+          "path": "build-cuda/bin/llama-server",
+          "sha256": "e0fba6dcf82ba3319e6c0d30f1bfddae7f0f9d2e8dcdb18de82221b381832f1d"
+        }
+      ]
+    }
+  }
+}

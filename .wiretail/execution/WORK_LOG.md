@@ -1745,3 +1745,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-05`
 - Commit at update: `78dbb75ab`
 - Summary: Implemented stable admitted packed attention capacity and shared hybrid graph reuse; CPU regressions and CUDA no-graph fixture pass; CUDA graph capture deferred due VMM stream-capture synchronization failure.
+
+## 2026-10-01T03:58:36+00:00 — 101-06 — done
+
+- Branch: `codex/task-101-06`
+- Commit at update: `a7a3296d5`
+- Summary: verified encoded single-write packed append parity and matched CUDA timing
