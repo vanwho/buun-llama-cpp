@@ -1769,3 +1769,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-09`
 - Commit at update: `1cc63f0a2`
 - Summary: Page-aware selected dense route and CUDA fixture passed; three canonical MTP pairs and target-only residual divergence measured and recorded in V10 receipt.
+
+## 2026-10-01T07:49:25+00:00 — 101-10 — done
+
+- Branch: `codex/task-101-10`
+- Commit at update: `4d73754e3`
+- Summary: verified integrated production checkpoint replay parity, cancellation recovery, unchanged-map skip, MTP, managed model reload, and V10 receipt
