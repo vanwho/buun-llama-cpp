@@ -30418,7 +30418,7 @@
       "depends_on": [
         "101-04"
       ],
-      "commit": "f17ebe686e5eb9376af703da36cc40b9a04a3e98",
+      "commit": "9d992e7a029bd14e906b149bf1a624fc3f62c37e",
       "context_files": [
         ".wiretail/execution/clusters/gpu101-recurrent-graphs.md",
         ".wiretail/execution/tasks/101-04a.md",
