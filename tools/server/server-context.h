@@ -50,6 +50,8 @@ struct server_query_checkpoint_fixture_result {
     bool provisional_decode_succeeded = false;
     bool restored = false;
     bool replay_decode_succeeded = false;
+    bool control_restored = false;
+    bool control_decode_succeeded = false;
     server_query_replay_transition_status status =
         server_query_replay_transition_status::failed;
     bool history_changed = false;
@@ -63,7 +65,27 @@ server_query_checkpoint_fixture_result server_query_checkpoint_replay_for_test(
     int64_t processed_tokens, bool require_mtp_carry,
     const std::function<bool()> & provisional_decode,
     const std::function<bool(bool &, uint64_t &)> & commit,
-    const std::function<bool()> & replay_decode);
+    const std::function<bool()> & replay_decode,
+    const std::function<bool()> & control_decode);
+
+struct server_query_checkpoint_cancel_fixture_result {
+    bool captured = false;
+    bool provisional_decode_succeeded = false;
+    bool publication_succeeded = false;
+    bool history_changed = false;
+    bool restored = false;
+    bool recovery_decode_succeeded = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_checkpoint_cancel_fixture_result server_query_checkpoint_cancel_for_test(
+    llama_context * target, llama_context * draft,
+    common_speculative * speculative, llama_seq_id sequence_id,
+    uint64_t request_id, uint64_t generation, llama_pos query_begin,
+    int64_t processed_tokens, bool require_mtp_carry,
+    const std::function<bool()> & provisional_decode,
+    const std::function<bool(bool &, uint64_t &)> & publish,
+    const std::function<bool()> & recovery_decode);
 
 enum class server_speculative_decode_terminal {
     success,

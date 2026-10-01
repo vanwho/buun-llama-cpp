@@ -208,6 +208,12 @@ public:
             bool * changed, uint64_t * frozen_history_generation) override;
     bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
             uint64_t frozen_history_generation) const override;
+    bool set_kv_pager_history_for_test(int32_t sequence_id,
+            int64_t query_start,
+            const std::vector<llama_kv_pager_selected_history> & history) override;
+    bool get_kv_pager_history_for_test(int32_t sequence_id,
+            std::vector<llama_kv_pager_selected_history> & history) const override;
+    int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const override;
     void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }

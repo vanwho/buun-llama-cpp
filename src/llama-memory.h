@@ -13,6 +13,7 @@
 #include <vector>
 
 struct llama_ubatch;
+struct llama_kv_pager_selected_history;
 enum class llama_kv_pager_selector_gate : uint8_t;
 class llama_kv_attention_telemetry;
 // Internal physical-growth evidence retained across composite memory trees.
@@ -371,6 +372,21 @@ struct llama_memory_i {
     virtual bool kv_pager_history_matches(
             int32_t /* sequence_id */, uint64_t /* turn_id */,
             uint64_t /* frozen_history_generation */) const { return true; }
+    // Model-backed parity fixtures may install a deterministic subset of
+    // authenticated resident pages before the normal query commit transition.
+    // Production callers must use live policy admission instead.
+    virtual bool set_kv_pager_history_for_test(
+            int32_t /* sequence_id */, int64_t /* query_start */,
+            const std::vector<llama_kv_pager_selected_history> & /* history */) {
+        return false;
+    }
+    virtual bool get_kv_pager_history_for_test(int32_t /* sequence_id */,
+            std::vector<llama_kv_pager_selected_history> & /* history */) const {
+        return false;
+    }
+    virtual int32_t get_kv_pager_turn_phase_for_test(int32_t /* sequence_id */) const {
+        return -1;
+    }
     virtual void end_kv_pager_turn(
             int32_t /* sequence_id */, uint64_t /* turn_id */) {}
 

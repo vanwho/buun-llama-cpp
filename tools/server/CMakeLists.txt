@@ -130,6 +130,17 @@ if (LLAMA_BUILD_TESTS)
     add_test(NAME test-server-prompt-cache COMMAND test-server-prompt-cache)
     set_property(TEST test-server-prompt-cache PROPERTY LABELS main)
     set_property(TEST test-server-prompt-cache APPEND PROPERTY LABELS vbr-cache)
+
+    # Opt-in real-model query replay parity fixture. It is deliberately not a
+    # default ctest because it loads a GPU model and requires an explicit path.
+    add_executable(test-server-query-replay
+        ${CMAKE_SOURCE_DIR}/tests/test-server-query-replay.cpp)
+    target_link_libraries(test-server-query-replay PRIVATE
+        server-context mtmd llama llama-common)
+    target_include_directories(test-server-query-replay PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/tools/mtmd
+        ${CMAKE_SOURCE_DIR}/src)
+    target_compile_features(test-server-query-replay PRIVATE cxx_std_17)
     add_test(NAME test-server-prompt-cache-clone-fault
         COMMAND test-server-prompt-cache --clone-fault)
     set_tests_properties(test-server-prompt-cache-clone-fault PROPERTIES

@@ -497,6 +497,19 @@ struct llama_context {
         return !memory || memory->commit_kv_pager_query(
                 sequence_id, turn_id, changed, frozen_history_generation);
     }
+    bool set_kv_pager_history_for_test(int32_t sequence_id,
+            int64_t query_start,
+            const std::vector<llama_kv_pager_selected_history> & history) {
+        return memory && memory->set_kv_pager_history_for_test(
+                sequence_id, query_start, history);
+    }
+    bool get_kv_pager_history_for_test(int32_t sequence_id,
+            std::vector<llama_kv_pager_selected_history> & history) const {
+        return memory && memory->get_kv_pager_history_for_test(sequence_id, history);
+    }
+    int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const {
+        return memory ? memory->get_kv_pager_turn_phase_for_test(sequence_id) : -1;
+    }
     bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
             uint64_t frozen_history_generation) const noexcept {
         return !memory || memory->kv_pager_history_matches(
