@@ -1,9 +1,9 @@
 # Minimal testing and honest performance measurement
 
 Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
-Current next implementation procedure is PREFILL101 and tasks101-13–19 after
-the101-12e review. Completed phase100/101 packets are provenance, not startup
-context.101-18 owns the next canonical measurement,101-19 its review;102 owns
+Current next implementation procedure is PREFILL101 and tasks101-13–18 plus101-12h after
+the101-12g measurement. Completed phase100/101 packets are provenance, not startup
+context.101-18 owns the next canonical measurement,101-12h its review;102 owns
 capacity only after the accepted release or its explicitly scheduled successor.
 
 ## Setup once, verify cheaply, keep loaded
