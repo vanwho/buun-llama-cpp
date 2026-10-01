@@ -18,6 +18,12 @@ assume an older V10/V9 plan or phase summary is current merely because it is
 linked from historical evidence. Wiretail injects `CONTEXT_POLICY.md` into
 each task and assessment prompt, while task-specific context remains bounded.
 
+Raw run evidence under `evidence/raw/` is host-local and must never be added
+to Git, even if a receipt references it. Keep compact handoffs, summaries,
+manifests, and receipts in the repository; put bulky request logs, profiler
+captures, and candidate binaries in the external results area and record their
+path and hash in the handoff. Do not force-add ignored raw evidence.
+
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 PROJECT_BRANCH=plan/attention-aware-kv-paging /srv/wiretail/wiretail.sh
