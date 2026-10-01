@@ -145,7 +145,8 @@ struct llama_kv_live_policy_boundary {
 // transfer planner and the transaction owner. Returns false before mutation.
 bool llama_kv_live_policy_prepare_query_target(
         const llama_kv_live_policy_boundary & boundary,
-        std::vector<llama_kv_page_record> & target) noexcept;
+        std::vector<llama_kv_page_record> & target,
+        const char ** failure_reason = nullptr) noexcept;
 
 struct llama_kv_live_policy_trace_page {
     llama_kv_page_id id;
@@ -182,6 +183,9 @@ struct llama_kv_live_policy_decision_entry {
 
 struct llama_kv_live_policy_result {
     llama_kv_live_policy_status status = llama_kv_live_policy_status::invalid_argument;
+    uint8_t failure_stage = 0;
+    llama_kv_page_id failure_page;
+    uint64_t failure_page_content_version = 0;
     uint32_t version = LLAMA_KV_LIVE_POLICY_VERSION;
     uint64_t base_epoch = 0;
     uint64_t published_epoch = 0;

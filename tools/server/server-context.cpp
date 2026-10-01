@@ -45,6 +45,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
@@ -4704,6 +4705,27 @@ public:
                         {"synchronous_readback_completed", trace.synchronous_readback_completed},
                         {"mailbox_published", trace.mailbox_published},
                         {"mailbox_dropped", trace.mailbox_dropped},
+                        {"target_candidate_nominated", trace.target_candidate_nominated},
+                        {"target_cold_bundle_rank", trace.target_cold_bundle_rank},
+                        {"cold_bundle_count", trace.cold_bundle_count},
+                        {"cold_bundle_budget", trace.cold_bundle_budget},
+                        {"target_cold_bundle_score", trace.target_cold_bundle_score},
+                        {"target_candidate_in_cold_budget", trace.target_candidate_in_cold_budget},
+                        {"target_candidate_scan_complete", trace.target_candidate_scan_complete},
+                        {"policy_decision_evaluated", trace.policy_decision_evaluated},
+                        {"query_commit_enabled", trace.query_commit_enabled},
+                        {"query_commit_selection_truncated", trace.query_commit_selection_truncated},
+                        {"query_commit_selected_count", trace.query_commit_selected_count},
+                        {"query_target_failure", std::string(trace.query_target_failure.data())},
+                        {"live_policy_result_status", trace.live_policy_result_status},
+                        {"live_policy_failure_stage", trace.live_policy_failure_stage},
+                        {"live_policy_failure_logical_page", trace.live_policy_failure_logical_page},
+                        {"live_policy_failure_page_generation", trace.live_policy_failure_page_generation},
+                        {"live_policy_failure_layer", trace.live_policy_failure_layer},
+                        {"live_policy_failure_content_version", trace.live_policy_failure_content_version},
+                        {"planned_promotion_pages", trace.planned_promotion_pages},
+                        {"planned_promotion_valid", trace.planned_promotion_valid},
+                        {"planned_promotion_contains_target", trace.planned_promotion_contains_target},
                         {"candidate_authenticated", trace.candidate_authenticated},
                         {"policy_admitted", trace.policy_admitted},
                         {"victim_logical_page", trace.victim_logical_page},
@@ -15641,9 +15663,11 @@ private:
                 ? slot.task->params.final_user_token_begin
                 : (slot.task->params.rendered_user_message_count_present || spans.spans.empty()
                     ? 0 : int64_t(spans.last_user_message_pos()));
-            const int64_t query_end = has_rendered_user_span
+            int64_t query_end = has_rendered_user_span
                 ? slot.task->params.final_user_token_end
                 : int64_t(slot.task->n_tokens());
+            query_end += has_rendered_user_span
+                    ? slot.task->params.final_user_kv_position_offset : 0;
             if (query_start < 0 || query_start >= query_end) query_start = 0;
             ctx_tgt->begin_kv_pager_turn(
                     slot.id, slot.slot_session_generation, query_start, query_end);
@@ -27741,7 +27765,33 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                             (size_t) task.params.rendered_user_message_count,
                             task.tokens.size(), user_begin, user_end)) {
                         task.params.final_user_token_begin = (int64_t) user_begin;
-                        task.params.final_user_token_end = (int64_t) user_end;
+                        size_t query_end = user_end;
+                        const auto & prompt_tokens = task.tokens.get_tokens();
+                        for (size_t trimmed = 0; trimmed < 8 && query_end > user_begin + 1; ++trimmed) {
+                            const std::string piece = common_token_to_piece(
+                                    ctx_server.vocab, prompt_tokens[query_end - 1]);
+                            const bool whitespace = !piece.empty() && std::all_of(
+                                    piece.begin(), piece.end(), [](unsigned char ch) {
+                                        return std::isspace(ch) != 0;
+                                    });
+                            const bool control_token = piece.size() >= 4 && piece.front() == '<' &&
+                                    piece.back() == '>' &&
+                                    (piece[1] == '|' || piece[1] == '/');
+                            if (!whitespace && !control_token) {
+                                break;
+                            }
+                            --query_end;
+                        }
+                        task.params.final_user_token_end = (int64_t) query_end;
+                        for (const auto & delimiter : delimiters.delimiters) {
+                            if (delimiter.role == COMMON_CHAT_ROLE_USER) {
+                                // The rendered role delimiter omits the newline
+                                // token used by the model's native Q positions.
+                                task.params.final_user_kv_position_offset =
+                                        -int32_t(delimiter.tokens.size()) - 1;
+                                break;
+                            }
+                        }
                     } else {
                         SRV_WRN("%s", "rendered final-user token span is ambiguous or outside the tokenized prompt; using the full prompt as the fresh query suffix\n");
                     }

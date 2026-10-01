@@ -138,6 +138,7 @@ struct task_params {
     int32_t rendered_user_message_count = 0;
     int64_t final_user_token_begin = -1;
     int64_t final_user_token_end = -1;
+    int32_t final_user_kv_position_offset = 0;
 
     // Embeddings
     int32_t embd_normalize = 2; // (-1=none, 0=max absolute int16, 1=taxicab, 2=Euclidean/L2, >2=p-norm)

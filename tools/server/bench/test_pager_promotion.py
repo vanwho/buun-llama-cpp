@@ -24,6 +24,7 @@ _DRIVER_SPEC = importlib.util.spec_from_file_location("run_pager_promotion", _DR
 _DRIVER = importlib.util.module_from_spec(_DRIVER_SPEC)
 _DRIVER_SPEC.loader.exec_module(_DRIVER)
 _promotion_for_page = _DRIVER._promotion_for_page
+_assess_content_retrieval = _DRIVER.assess_content_retrieval
 _completed_pressure_tail_pages = _DRIVER.completed_pressure_tail_pages
 _generation_start_index = _DRIVER.generation_start_index
 
@@ -55,6 +56,17 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(2, _generation_start_index(samples))
         self.assertIsNone(_generation_start_index(samples[:2]))
 
+    def test_answer_quality_markers_follow_each_question(self) -> None:
+        source = _assess_content_retrieval(
+            "Python01 uses append and extend.",
+            "merge_sorted_lists_01.py uses append() and extend().",
+            ("merge_sorted_lists_01.py", "append", "extend"))
+        final = _assess_content_retrieval(
+            "The preallocated merge writes each output position exactly once.",
+            "The preallocated output writes each output position exactly once.")
+        self.assertTrue(source["matched"])
+        self.assertTrue(final["matched"])
+
     def test_exact_three_user_turns_and_fixture_order(self) -> None:
         steps = build_promotion_steps(self.catalog)
         self.assertEqual(3, len(steps))
@@ -68,12 +80,12 @@ class PagerPromotionPromptTest(unittest.TestCase):
             self.assertIn(self.by_id[fixture_id].body, steps[0].user_content)
         for fixture_id in bash_ids:
             self.assertIn(self.by_id[fixture_id].body, steps[1].user_content)
-        self.assertIn("merge_sorted_lists_03.py", steps[0].question)
+        self.assertIn("merge_sorted_lists_01.py", steps[0].question)
         self.assertIn("merge_sorted_lists_03.py", steps[2].question)
         self.assertEqual(steps[2].question, steps[2].user_content)
         self.assertTrue(steps[0].user_content.endswith(steps[0].question))
-        self.assertEqual(self.by_id["PY_MERGE_03"].expected_answer,
-                         steps[0].expected_answer_local_only)
+        self.assertIn("merge_sorted_lists_01.py",
+                      steps[0].expected_answer_local_only)
         self.assertEqual(self.by_id["PY_MERGE_03"].expected_answer,
                          steps[2].expected_answer_local_only)
         self.assertTrue(steps[1].cache_prompt)
@@ -160,11 +172,16 @@ class PagerPromotionPromptTest(unittest.TestCase):
                          [step.stage for step in steps])
         self.assertEqual(DEFAULT_SOURCE_FIXTURE_IDS, steps[0].appended_fixture_ids)
         self.assertEqual(DEFAULT_PRESSURE_FIXTURE_IDS, steps[1].appended_fixture_ids)
-        self.assertIn(target.filename, steps[0].question)
+        self.assertIn("merge_sorted_lists_01.py", steps[0].question)
         self.assertIn(target.filename, steps[2].question)
         self.assertIn("allocate", steps[2].question.lower())
-        self.assertIn("result-list expression", steps[2].question)
-        self.assertIn("each output position is written once", steps[2].question)
+        self.assertIn("PY_MERGE_03", steps[2].question)
+        self.assertIn("`out[write]`", steps[2].question)
+        self.assertIn("how many times", steps[2].question.lower())
+        self.assertIn("cursor increments", steps[2].question)
+        self.assertIn("preallocated output", steps[2].question)
+        self.assertIn("how many times", steps[2].question.lower())
+        self.assertIn("output position", steps[2].question)
         self.assertIn(target.filename, steps[2].question)
         self.assertNotIn("RETRIEVAL_KEY", steps[2].question)
         self.assertTrue(steps[1].cache_prompt)
@@ -207,7 +224,21 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual("raw_selector_output", report["selector_evidence_source"])
         record["pager_after"]["selector_trace"]["raw_cold_logical_pages"] = [9]
         report = _promotion_for_page(page, {}, record, [])
-        self.assertFalse(report["selector_nominated"])
+        self.assertIsNone(report["selector_nominated"])
+        self.assertEqual("bounded_raw_selector_output", report["selector_evidence_source"])
+
+    def test_authenticated_candidate_proves_nomination_beyond_bounded_raw_ids(self) -> None:
+        page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
+                "resident": False, "host_backed": True}
+        record = {"request_id": "req-1", "request_generation": 4,
+                  "pager_after": {"selector_trace": {
+                      "enabled": True, "target_candidate_nominated": True,
+                      "raw_selector_output_valid": True,
+                      "raw_cold_logical_pages": [8, 9], "outcome": "selected_pending"}}}
+        report = _promotion_for_page(page, {}, record, [])
+        self.assertTrue(report["selector_nominated"])
+        self.assertEqual("authenticated_selector_candidate",
+                         report["selector_evidence_source"])
 
     def test_live_trace_uses_captured_selector_result_before_later_reset(self) -> None:
         page = {"logical_page_id": 7, "generation": 12, "content_version": 31,

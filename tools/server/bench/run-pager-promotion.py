@@ -57,11 +57,13 @@ def gpu_backend(value: Any) -> bool:
     return name == "gpu" or name.startswith(("cuda", "ggml_cuda"))
 
 
-def assess_content_retrieval(expected: str, answer: str) -> dict[str, Any]:
+def assess_content_retrieval(expected: str, answer: str,
+                             markers: tuple[str, ...] =
+                             ("preallocated", "output position", "once")
+                             ) -> dict[str, Any]:
     """Keep semantic answer quality diagnostic and independent of movement."""
     normalized = " ".join(answer.casefold().split())
-    markers = ("preallocated", "output position", "once")
-    matched = all(marker in normalized for marker in markers)
+    matched = all(marker.casefold() in normalized for marker in markers)
     return {"status": "pass" if matched else "diagnostic_mismatch",
             "matched": matched, "expected_fact_local_only": expected,
             "markers": list(markers), "answer": answer}
@@ -580,10 +582,15 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "user_content_sha256": sha256(step.user_content.encode("utf-8")),
         "expected_answer_local_only": step.expected_answer_local_only or None,
         "assistant_answer": answer,
-        "answer_quality": (assess_content_retrieval(
-            step.expected_answer_local_only, answer if isinstance(answer, str) else "")
-            if step.stage in {"source_file", "natural_recall"}
-            else {"status": "not_applicable", "matched": None}),
+        "answer_quality": (
+            assess_content_retrieval(
+                step.expected_answer_local_only, answer if isinstance(answer, str) else "",
+                ("merge_sorted_lists_01.py", "append", "extend"))
+            if step.stage == "source_file" else
+            assess_content_retrieval(
+                step.expected_answer_local_only, answer if isinstance(answer, str) else "")
+            if step.stage == "natural_recall" else
+            {"status": "not_applicable", "matched": None}),
         "request_id": response.get("id"), "http_status": http_status,
         "runtime_error": runtime_error,
         "prompt_tokens": render["rendered_token_count"], "n_predict": render["n_predict"],
@@ -693,10 +700,22 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     raw_output = trace.get("raw_selector_output_valid") is True and isinstance(raw_ids, list)
     natural_selector_evidence = natural.get("selector_published") is True and \
         identity == natural_identity
-    if raw_output:
-        nominated: bool | None = identity[0] in raw_ids
+    if trace.get("target_candidate_nominated") is True:
+        nominated = True
+        nomination_source = "authenticated_selector_candidate"
+        selector_outcome = trace.get("outcome")
+    elif trace.get("target_candidate_scan_complete") is True:
+        nominated = False
+        nomination_source = "complete_selector_candidate_scan"
+        selector_outcome = trace.get("outcome")
+    elif raw_output and identity[0] in raw_ids:
+        nominated = True
         nomination_source = "raw_selector_output"
         selector_outcome = trace.get("outcome")
+    elif raw_output and identity[0] not in raw_ids:
+        nominated = None
+        nomination_source = "bounded_raw_selector_output"
+        selector_outcome = "promotion_chain_incomplete"
     elif natural_selector_evidence:
         nominated = True
         nomination_source = "authenticated_natural_proof"

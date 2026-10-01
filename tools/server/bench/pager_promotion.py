@@ -19,7 +19,7 @@ EXPECTED_TOKENS_PER_FILE = 1024
 EXPECTED_FILES_PER_FAMILY = 8
 DEFAULT_TARGET_FIXTURE_ID = "PY_MERGE_03"
 DEFAULT_SOURCE_FIXTURE_IDS = ("PY_MERGE_01", DEFAULT_TARGET_FIXTURE_ID)
-DEFAULT_PRESSURE_FIXTURE_IDS = tuple(f"BASH_WATCH_{index:02d}" for index in range(1, 4))
+DEFAULT_PRESSURE_FIXTURE_IDS = tuple(f"BASH_WATCH_{index:02d}" for index in range(2, 5))
 RECALL_PROBE_ANCHORS = {"PY_MERGE_03": "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once."}
 SERVER_CONTEXT_TOKENS = 8192
 GPU_HOT_TOKENS = 4096
@@ -29,9 +29,9 @@ GENERATION_COMPLETION_LIMIT_TOKENS = 256
 PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS = 1024
 
 SOURCE_QUESTION = (
-    "Compare merge_sorted_lists_01.py and merge_sorted_lists_03.py. Which one "
-    "preallocates its result list and writes each output position once? Explain "
-    "the benefit of that approach.")
+    "Between merge_sorted_lists_01.py and merge_sorted_lists_03.py, which file "
+    "grows the output list with append() and copies any leftover suffix with "
+    "extend()? Explain briefly.")
 PRESSURE_QUESTION = (
     "I have finished reviewing these Bash watcher examples. Please acknowledge briefly.")
 
@@ -217,14 +217,19 @@ def build_promotion_steps(
             any(item.category != "bash_directory_watch" for item in bash_fixtures):
         raise ValueError("selected source/pressure fixture IDs have the wrong content family")
     recall_question = recall_question or (
-        f"In {by_id[target_id].filename}, what result-list expression is used "
-        "before the merge loop? Explain how the code writes to that preallocated "
-        "list and why each output position is written once.")
+        f"In {target_id} ({by_id[target_id].filename}), the `write` cursor "
+        "assigns `out[write]`. What does the comment say about how many times "
+        "each preallocated output position is written, and how do the cursor increments "
+        "guarantee that?")
+    source_id = python_ids[0]
+    source_answer = (
+        "merge_sorted_lists_01.py grows the result with append() and extends "
+        "the unconsumed input suffixes.")
     first = "\n\n".join(_file_context(item) for item in python_fixtures) + "\n\n" + source_question
     second = "\n\n".join(_file_context(item) for item in bash_fixtures) + "\n\n" + pressure_question
     return (
-        PromotionStep(0, "source_file", target_id, python_ids[0], python_ids,
-                      source_question, first, by_id[target_id].expected_answer, False),
+        PromotionStep(0, "source_file", source_id, source_id, python_ids,
+                      source_question, first, source_answer, False),
         PromotionStep(1, "bash_pressure", bash_ids[0], bash_ids[0], bash_ids,
                       pressure_question, second,
                       "I have reviewed the Bash examples.", True),
