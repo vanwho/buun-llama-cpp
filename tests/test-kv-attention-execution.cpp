@@ -126,6 +126,15 @@ static void test_prefill_admission() {
     assert(batch_h_small.physical_write_capacity == 256 &&
            batch_h_small.effective_batch == 256 && batch_h_small.subbatch_count == 2);
 
+    // Fresh empty-window prefill can batch page waves until the physical
+    // window is full. Unknown layouts and zero capacity keep the conservative
+    // page-by-page fence.
+    assert(!llama_kv_attention_prefill_page_fence_due(false, true, 4, 16));
+    assert(!llama_kv_attention_prefill_page_fence_due(true, true, 15, 16));
+    assert(llama_kv_attention_prefill_page_fence_due(true, true, 16, 16));
+    assert(llama_kv_attention_prefill_page_fence_due(true, false, 1, 16));
+    assert(llama_kv_attention_prefill_page_fence_due(true, true, 1, 0));
+
     // The model batch may cross the CUDA tile boundary; the direct backend
     // subdivides it in grid.z instead of refusing the whole operator.
     const auto selected_large = metadata(snapshot(), 65, 1);

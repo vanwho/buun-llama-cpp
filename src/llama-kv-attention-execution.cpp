@@ -1018,6 +1018,18 @@ llama_kv_attention_prefill_batch_plan llama_kv_attention_prefill_batch_plan_make
     return result;
 }
 
+bool llama_kv_attention_prefill_page_fence_due(
+        bool page_boundary,
+        bool fresh_window_coalescing,
+        uint32_t pages_admitted,
+        uint32_t physical_page_capacity) noexcept {
+    if (!page_boundary) {
+        return false;
+    }
+    return !fresh_window_coalescing || physical_page_capacity == 0 ||
+        pages_admitted >= physical_page_capacity;
+}
+
 llama_kv_attention_execution_status llama_kv_attention_prefill_admission::append(
         uint32_t logical_page, uint32_t row_count) noexcept {
     if (phase_ != llama_kv_attention_execution_phase::prefill || row_count == 0 ||

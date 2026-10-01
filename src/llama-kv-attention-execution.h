@@ -348,6 +348,15 @@ llama_kv_attention_prefill_batch_plan llama_kv_attention_prefill_batch_plan_make
         uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
         uint32_t query_tile = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE) noexcept;
 
+// Do not fence every completed page when a fresh prefill is filling an empty
+// physical window. The caller still fences at the API-batch end and whenever
+// the physical page capacity is reached; unknown layouts remain conservative.
+bool llama_kv_attention_prefill_page_fence_due(
+        bool page_boundary,
+        bool fresh_window_coalescing,
+        uint32_t pages_admitted,
+        uint32_t physical_page_capacity) noexcept;
+
 struct llama_kv_attention_execution_decision {
     llama_kv_attention_execution_status status = llama_kv_attention_execution_status::disabled;
     llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
@@ -573,6 +582,7 @@ public:
 
     void set_mode(llama_kv_attention_execution_mode mode) noexcept;
     llama_kv_attention_execution_mode mode() const noexcept { return mode_; }
+    llama_kv_attention_execution_phase phase() const noexcept { return phase_; }
     void set_native_mtp_enabled(bool enabled) noexcept { native_mtp_enabled_ = enabled; }
 
     // The value is normally supplied by LLAMA_KV_ATTENTION_ROUTE for a live
