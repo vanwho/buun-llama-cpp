@@ -1,8 +1,9 @@
 # GPU101 final integration and measured release
 
 Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
-Tasks: 101-10, 101-11, 101-12. Shared source/lifecycle: one immutable GPU Qwen
-candidate, real replay proof, natural promotion, then canonical speed decision.
+Tasks: 101-10, 101-11, 101-12, 101-12a, 101-12b. Shared source/lifecycle: one immutable GPU Qwen
+candidate, real replay proof, natural promotion, canonical speed decision, then
+measured reservation repair and repeated speed release.
 Context remains SPEED101/TESTING/current packet and immediate compact handoff;
 do not reuse the huge exhausted100-04a session or historical evidence ledger.
 

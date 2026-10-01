@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "task": "101-12",
+  "source_commit": "4622752e4aae69fa633528d6535fd52ae1fdf20e",
+  "summary": "Completed canonical controls and an honest selected H4096 goal_miss after reproducing no_victim on warmup/reset; inserted source repair, minimal retest and repeated speed review ahead of 102-01.",
+  "build_provenance": {
+    "source_commit": "4622752e4aae69fa633528d6535fd52ae1fdf20e",
+    "tracked_worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tracked_worktree_diff_scope": [
+      "src",
+      "tools/server"
+    ],
+    "source_files": {
+      "tools/server/bench/validate-gpu101-release.py": "37989178fd5ad41ebcee7ad1af22fef204c54438aef068f3c2f404d7c0bcef2e"
+    },
+    "server_binary": {
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "8257299b22690a7a7e25bd747a86f287b79487629d7b9b51942119d77ef1fe4f"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "prefix": {
+      "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json",
+      "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
+    }
+  },
+  "release_decision": {
+    "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+    "sha256": "8e668b07dfa69c1ac275a0ff4a7f011149e63a10b21c579fd02f195469bff72c",
+    "goal_status": "goal_miss",
+    "successors": [
+      "101-12a",
+      "101-12b"
+    ]
+  },
+  "checks": {
+    "canonical_speed_measured_and_scale_release_or_repairs": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-gpu101-release.py"
+      ],
+      "metrics": {
+        "goal_status": "goal_miss",
+        "selected_h4096_matrix": "stopped_at_first_measured_no_victim",
+        "ordered_successors": [
+          "101-12a",
+          "101-12b"
+        ],
+        "scale_task": "102-01",
+        "scale_dependency": "101-12b"
+      },
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "8e668b07dfa69c1ac275a0ff4a7f011149e63a10b21c579fd02f195469bff72c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "f758dbfd9724cd6a1206e257b526ac8d0e54123ea9f6f1fe6abf3c5e580cd16e"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/101-12-release-check.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-fresh-4k/raw/off-measured-1-p0.json",
+          "sha256": "bad370901c2503e179a81fbdce0d6d24a7ea3a2764933e738dd1f04c41e28d99"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/selected-H4096-warmup-erase-repro/raw/off-measured-1-p0.json",
+          "sha256": "bad370901c2503e179a81fbdce0d6d24a7ea3a2764933e738dd1f04c41e28d99"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/pager-off-fresh-4k/summary.json",
+          "sha256": "271766ecba9f30aeda27bb7c49c5a6fc160bf554e414ecd2a9347a50f648f1df"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/cpu-kv-fresh-4k/summary.json",
+          "sha256": "00ddf6d442317f75c930ec64fa53c94f719763bdb6bf55b83052f48602e80dcf"
+        }
+      ]
+    }
+  }
+}
