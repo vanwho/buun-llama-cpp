@@ -87,6 +87,10 @@ static llama_kv_attention_operator_metadata metadata(
 }
 
 static void test_prefill_admission() {
+    assert(!llama_kv_attention_hotpath_profile_enabled(nullptr));
+    assert(!llama_kv_attention_hotpath_profile_enabled("0"));
+    assert(!llama_kv_attention_hotpath_profile_enabled("true"));
+    assert(llama_kv_attention_hotpath_profile_enabled("1"));
     assert(LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE == 64);
     llama_kv_attention_prefill_admission admission;
     assert(admission.append(0, 128) == llama_kv_attention_execution_status::ok);

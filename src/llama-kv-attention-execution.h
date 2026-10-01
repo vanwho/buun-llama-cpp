@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,12 @@ enum class llama_kv_attention_execution_phase : uint8_t {
     decode,
     mtp_verify,
 };
+
+// Detailed host-side timing is an explicit diagnostic. The route or pager mode
+// must not enable it implicitly on ordinary inference requests.
+inline bool llama_kv_attention_hotpath_profile_enabled(const char * value) noexcept {
+    return value != nullptr && std::strcmp(value, "1") == 0;
+}
 
 bool llama_kv_attention_committed_pages(
         const std::vector<std::vector<uint32_t>> & layer_pages,
