@@ -18,8 +18,9 @@ from typing import Any, Mapping
 
 from mtp_diagnostic import promotion_event_chain_from_snapshots
 from pager_promotion import (
+    DEFAULT_PRESSURE_FIXTURE_IDS, DEFAULT_SOURCE_FIXTURE_IDS,
     DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT,
-    PromotionStep, load_fixture_catalog,
+    PromotionStep, build_promotion_steps, load_fixture_catalog, response_budget,
     messages_for_step, pages_overlapping_token_range, refresh_page_versions,
 )
 from prompt_sizing import ServerPromptRenderer, request_options
@@ -141,7 +142,7 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
     stat = (proc / "stat").read_text()
     start_ticks = int(stat[stat.rfind(")") + 2:].split()[19])
     values: dict[str, str | None] = {}
-    for option in ("-m", "-c", "-b", "-ub", "-np", "-ctk", "-ctv", "--device",
+    for option in ("-m", "-c", "-b", "-ub", "-np", "-ngl", "-ctk", "-ctv", "--device",
                    "--kv-pager", "--kv-page-size",
                    "--kv-hot-pages", "--kv-pin-recent", "--spec-draft-kv-device",
                    "--spec-type", "--spec-draft-n-max", "--spec-draft-type-k",
@@ -162,15 +163,26 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
         model = pathlib.Path()
     expected = {
         "-c": str(CONTEXT), "-b": str(BATCH), "-ub": str(UBATCH), "-np": "1",
-        "-ctk": "turbo4", "-ctv": "turbo4", "--device": "cuda0",
+        "-ctk": "turbo4", "-ctv": "turbo4",
         "--kv-pager": "selective", "--kv-page-size": "256",
-        "--kv-hot-pages": "16", "--kv-pin-recent": "0",
+        "--kv-hot-pages": "16",
         "--spec-draft-kv-device": "gpu", "--spec-type": "draft-mtp",
         "--spec-draft-n-max": "2", "--spec-draft-type-k": "turbo4",
         "--spec-draft-type-v": "turbo4",
     }
     mismatches = [f"{key}={values[key]!r} expected {value!r}"
                   for key, value in expected.items() if values[key] != value]
+    if values["--device"] is None:
+        try:
+            gpu_layers = int(values["-ngl"] or "0")
+        except ValueError:
+            gpu_layers = 0
+        if gpu_layers <= 0:
+            mismatches.append("neither an explicit GPU device nor positive -ngl is configured")
+    elif values["--device"].casefold() != "cuda0":
+        mismatches.append(f"--device={values['--device']!r} expected 'cuda0'")
+    if values["--kv-pin-recent"] not in (None, "0", "auto"):
+        mismatches.append(f"--kv-pin-recent={values['--kv-pin-recent']!r} expected default/0")
     if executable != expected_bundle.resolve() or model != model_path.resolve():
         mismatches.append(f"executable/model identity mismatch: {executable} / {model}")
     if environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE") != "1" or \
@@ -282,7 +294,11 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
     # context, minus only a small guard for accounting/template differences.
     # Natural EOS ends short acknowledgements; no exact-answer token cap or
     # newline stop can truncate ordinary prose.
-    n_predict = max(1, min(output_budget, CONTEXT - len(rendered.token_ids) - 128))
+    if output_budget < 256:
+        raise ValueError("natural promotion completions must allow at least 256 output tokens")
+    n_predict = min(response_budget(len(rendered.token_ids), CONTEXT), output_budget)
+    if n_predict < 256:
+        raise RuntimeError("natural promotion completions must retain a 256-token budget")
 
     # Tokenize prefixes of the candidate-rendered prompt to map the complete
     # winning fixture body and its answer-bearing source line.
@@ -455,7 +471,8 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
 
 
 def preflight_messages(base: str, key: str, messages: list[dict[str, str]], model: str,
-                       output: pathlib.Path) -> dict[str, Any]:
+                       output: pathlib.Path,
+                       planned_prior_reply_tokens: int = 0) -> dict[str, Any]:
     """Render/tokenize a complete cumulative message sequence before requests."""
     renderer = ServerPromptRenderer(
         base, model, key, timeout=60.0,
@@ -468,10 +485,21 @@ def preflight_messages(base: str, key: str, messages: list[dict[str, str]], mode
     write_json(output / "token-ids.json", list(rendered.token_ids))
     write_json(output / "renderer-exchanges.json", renderer.last_exchanges)
     token_count = len(rendered.token_ids)
+    try:
+        planned_completion_tokens = response_budget(
+            token_count + planned_prior_reply_tokens, CONTEXT)
+        fits = planned_completion_tokens >= 256
+    except ValueError:
+        planned_completion_tokens = 0
+        fits = False
     result = {"context_tokens": CONTEXT, "completion_reserve_tokens": 256,
+              "planned_prior_reply_reserve_tokens": planned_prior_reply_tokens,
+              "context_safety_reserve_tokens": 128,
               "rendered_prompt_tokens": token_count,
-              "remaining_completion_tokens": max(0, CONTEXT - token_count - 256),
-              "fits": token_count + 256 < CONTEXT,
+              "remaining_completion_tokens": max(0, CONTEXT - token_count -
+                                                    planned_prior_reply_tokens - 128),
+              "planned_completion_tokens": planned_completion_tokens,
+              "fits": fits,
               "rendered_prompt_sha256": sha256(rendered.text.encode("utf-8"))}
     write_json(output / "result.json", result)
     return result
@@ -776,51 +804,15 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     return result
 
 
-def build_minimal_steps(catalog: tuple[Any, ...], target: Any) -> tuple[PromotionStep, ...]:
-    """Use one source turn, at most two Bash pressure turns, then natural recall."""
-    by_id = {fixture.fixture_id: fixture for fixture in catalog}
-    bash_ids = tuple(f"BASH_WATCH_{index:02d}" for index in range(4, 8))
-    try:
-        bash_files = [by_id[fixture_id] for fixture_id in bash_ids]
-    except KeyError as error:
-        raise ValueError(f"missing pressure fixture {error.args[0]}") from error
-    source_question = (
-        f"In {target.filename}, explain the merge algorithm it uses and the main "
-        "implementation benefit described in the file."
-    )
-    source_context = ("Context note: this is the Python merge implementation for the "
-                      "current task. Read its source now; unrelated Bash examples will "
-                      "be added later, while the Python question remains open.\n\n"
-                      f"Read this file as context ({target.filename}):\n"
-                      "--- BEGIN FILE CONTENT ---\n" + target.body +
-                      "--- END FILE CONTENT ---\n\n" + source_question)
-    pressure_context = "\n\n".join(
-        f"Read this unrelated Bash file as context ({fixture.filename}):\n"
-        "--- BEGIN FILE CONTENT ---\n" + fixture.body + "--- END FILE CONTENT ---"
-        for fixture in bash_files[:3]
-    ) + "\n\nI have finished reviewing these Bash examples. Please acknowledge briefly."
-    final_question = (
-        f"For {target.filename}, what algorithmic approach does the merge use, "
-        "and what does that choice allow it to do? Explain normally in a sentence or two."
-    )
-    return (
-        PromotionStep(0, "source_file", target.fixture_id, target.fixture_id,
-                      (target.fixture_id,), source_question, source_context,
-                      target.expected_answer, False),
-        PromotionStep(1, "bash_pressure", bash_ids[0], bash_ids[0], bash_ids[:3],
-                      "Review the unrelated Bash examples.", pressure_context,
-                      "I have reviewed the Bash examples.", True),
-        PromotionStep(2, "natural_recall", target.fixture_id, None, (),
-                      final_question, final_question, target.expected_answer, True),
-    )
-
-
 def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
              root: pathlib.Path, model: str, selector_trace_page: int) -> dict[str, Any]:
     case_root = root / "cases" / target.fixture_id
     case_root.mkdir(parents=True, exist_ok=True)
     erase_and_verify(base, key, case_root / "reset")
-    steps = build_minimal_steps(catalog, target)
+    steps = build_promotion_steps(
+        catalog, target.fixture_id,
+        python_fixture_ids=DEFAULT_SOURCE_FIXTURE_IDS,
+        bash_fixture_ids=DEFAULT_PRESSURE_FIXTURE_IDS)
 
     # Preflight the exact fixture/question turns and short completion placeholders
     # before the first request. Actual replies are rendered and checked again
@@ -831,8 +823,10 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     for index, step in enumerate(steps):
         prior = placeholder_replies[:index]
         messages = messages_for_step(steps, index, prior)
-        result = preflight_messages(base, key, messages, model,
-                                    case_root / f"preflight-request-{index + 1:02d}")
+        result = preflight_messages(
+            base, key, messages, model,
+            case_root / f"preflight-request-{index + 1:02d}",
+            planned_prior_reply_tokens=index * 256)
         result["request_index"] = index
         result["stage"] = step.stage
         result["message_count"] = len(messages)
@@ -860,8 +854,9 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     for index in range(len(steps)):
         if index > 0:
             actual_messages = messages_for_step(steps, index, answers)
-            actual_preflight = preflight_messages(base, key, actual_messages, model,
-                                                   case_root / f"preflight-request-{index + 1:02d}-actual")
+            actual_preflight = preflight_messages(
+                base, key, actual_messages, model,
+                case_root / f"preflight-request-{index + 1:02d}-actual")
             if not actual_preflight["fits"]:
                 raise RuntimeError(f"actual request {index + 1} does not fit with a 256-token output reserve")
             if index == final_index and actual_preflight["rendered_prompt_tokens"] <= HOT_TOKENS:
@@ -1153,6 +1148,13 @@ def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any]) 
         raise RuntimeError(f"allocator did not admit exactly {CONTEXT} context tokens")
     if pager.get("page_tokens") != PAGE_TOKENS or page_capacity != 16 or admitted != HOT_TOKENS:
         raise RuntimeError(f"allocator did not admit exactly {HOT_TOKENS // PAGE_TOKENS} pages of {PAGE_TOKENS} tokens")
+    if pager.get("pin_recent_tokens") != 0:
+        raise RuntimeError("allocator did not resolve the recent-token pin to zero")
+    if not gpu_backend(pager.get("target_backend")) or not gpu_backend(pager.get("mtp_backend")):
+        raise RuntimeError("target and MTP execution are not both admitted on GPU")
+    if any(pager.get(field) != "turbo4" for field in
+           ("target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v")):
+        raise RuntimeError("target and MTP KV are not both admitted in Turbo4")
     hot_bytes = pager.get("physical_pool_capacity_bytes")
     if not isinstance(hot_bytes, int) or hot_bytes <= 0:
         raise RuntimeError("allocator hot-page bytes are unavailable")
@@ -1190,8 +1192,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise RuntimeError("managed candidate is not healthy")
     geometry = validate_runtime_geometry(base, key, identity)
     write_json(root / "allocator-admission.json", geometry)
-    selected_fixture_ids = [DEFAULT_TARGET_FIXTURE_ID,
-                            *(f"BASH_WATCH_{index:02d}" for index in range(4, 8))]
+    selected_fixture_ids = [*DEFAULT_SOURCE_FIXTURE_IDS,
+                             *DEFAULT_PRESSURE_FIXTURE_IDS]
     catalog = load_fixture_catalog(pathlib.Path(args.fixture_root), selected_fixture_ids)
     manifest_raw = (pathlib.Path(args.fixture_root) / "manifest.json").read_bytes()
     progress_path = root / "campaign-progress.json"
@@ -1201,7 +1203,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.target_fixture_id not in target_by_id:
         raise ValueError(f"unknown target fixture {args.target_fixture_id!r}")
     if args.target_fixture_id != DEFAULT_TARGET_FIXTURE_ID:
-        raise ValueError("93-11g target is fixed at PY_MERGE_03")
+        raise ValueError("natural-promotion target is fixed at PY_MERGE_03")
     targets = [target_by_id[DEFAULT_TARGET_FIXTURE_ID]]
     for target in targets:
         try:
@@ -1236,8 +1238,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "schema": "file-backed-natural-promotion-sequence-v1",
         "execution_status": "complete" if execution_complete else "incomplete",
         "acceptance_status": "pass" if campaign_pass else "diagnostic_only",
-        "target_fixture_ids": [DEFAULT_TARGET_FIXTURE_ID,
-                               *[f"BASH_WATCH_{index:02d}" for index in range(1, 5)]],
+        "target_fixture_ids": selected_fixture_ids,
         "candidate_identity_verified": True, "geometry": geometry,
         "fixture_manifest_sha256": sha256(manifest_raw), "cases": cases,
         "failures": failures,

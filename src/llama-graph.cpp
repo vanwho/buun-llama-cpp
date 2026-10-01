@@ -2947,10 +2947,6 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
                 mctx->note_kv_page_select_gate(llama_kv_pager_selector_gate::capture_called,
                         cur, il, ubatch, query_row);
             }
-        } else {
-            if (graph_selector_trace_enabled()) mctx->note_kv_page_select_gate(
-                llama_kv_pager_selector_gate::selector_builder_returned_null,
-                cur, il, ubatch, query_row);
         }
     }
 

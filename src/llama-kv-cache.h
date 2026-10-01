@@ -1606,6 +1606,7 @@ private:
     uint64_t pager_query_generation_ = 0;
     uint64_t pager_query_accepted_tokens_ = 0;
     uint64_t pager_query_refresh_watermark_ = 0;
+    uint64_t pager_query_refresh_turn_id_ = 0;
     bool pager_query_refresh_enabled_ = true;
     // A policy boundary is needed after page maintenance or a ready routing
     // candidate, not after every unchanged write-frontier publication.

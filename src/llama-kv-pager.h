@@ -493,6 +493,9 @@ struct llama_kv_pager_selector_trace {
     bool enabled = false;
     uint64_t query_generation = 0;
     uint64_t query_position = 0;
+    int64_t turn_query_start = -1;
+    int64_t turn_query_end = -1;
+    uint8_t turn_phase = UINT8_MAX;
     uint64_t table_epoch = 0;
     uint32_t query_row = UINT32_MAX;
     int32_t target_logical_page = -1;
