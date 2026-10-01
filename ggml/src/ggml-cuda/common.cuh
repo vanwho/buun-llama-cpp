@@ -1574,6 +1574,9 @@ struct ggml_cuda_fattn_scratch {
 
     ggml_cuda_fattn_scratch_side k;
     ggml_cuda_fattn_scratch_side v;
+    // Pools replaced during graph capture remain mapped until capture has ended and the
+    // prior stream users can be synchronized safely.
+    std::vector<ggml_vbr_vmm_pool *> retired_vmm;
 
     // Address changes are invisible to graph node src[] metadata. CUDA graphs snapshot this
     // context-local epoch and recapture before replaying a stale internal scratch address.

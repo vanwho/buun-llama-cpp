@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "task": "101-16",
+  "source_commit": "7ad4bfed19ef14e0ad3737ca3e8445e2ab0131ec",
+  "source_diff_sha256": "5a840afd182d217b4d826e25e2d9165e28e266b4a8b93da48be8ccb3e5e4c060",
+  "summary": "Verified CUDA graph reuse for selected Turbo4 attention. Fixed in-use VMM scratch pool retirement during graph capture and extended the fixture for changed page descriptors and Q1/Q2/Q3 replay parity.",
+  "candidate": {
+    "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "sha256": "a480e334c7e95ef943450f013a05762be48230a4a03b44e039861f27fd30f0cb",
+    "cuda_backend_sha256": "901d2502172dd39d17c35d7bd0708e3cd852b6119ab569b0aaff5fa4c9349699"
+  },
+  "checks": {
+    "actual_cuda_graph_reuse_and_ordered_selected_inputs": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-cuda-fattn-paged-turbo4"
+      ],
+      "environment": {
+        "GGML_CUDA_GRAPH_DIAGNOSTICS": "1"
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-16/build.log",
+          "sha256": "5f08918900d47af8a5191d106079c47f67a568f0b6540fee12bbc50ec107402c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-16/cuda-fixture.log",
+          "sha256": "c1376e17a05a0ce5ca9bf4fc08113a96d5ae65c6f9b207e832508e49b25cdf85"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-16/source.diff",
+          "sha256": "5a840afd182d217b4d826e25e2d9165e28e266b4a8b93da48be8ccb3e5e4c060"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-16/attempt-notes.txt",
+          "sha256": "6eab800b1ca0828c39e06e552d0d1d95f8143d6d82ee37ad1f3222b32d6aff48"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-16/diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_PREFILL_OWNERS_101-13.md",
+          "sha256": "30f18d1aa13f8238454981d26cec502a2a1675cdbf36729c7c92171b2ab9d67c"
+        }
+      ]
+    }
+  },
+  "graph_evidence": {
+    "test_device": "NVIDIA GeForce RTX 4080",
+    "forced_unsafe_capture": false,
+    "direct_fixture_driver_captures": 4,
+    "direct_fixture_driver_launches": 9,
+    "backend_diagnostic_graph_keys": 27,
+    "backend_diagnostic_captures": 41,
+    "backend_diagnostic_launches": 41,
+    "backend_diagnostic_update_failures": 2,
+    "max_launch_cpu_us": 14,
+    "shapes": [1, 2, 3, 16],
+    "parity": "finite; same encoded K/V pages; changed valid descriptor content"
+  },
+  "first_reuse_veto": "The CUDA fixture first changed the VMM dequant scratch backing address while capturing; freeing its prior in-use pool synchronized inside capture. Scratch address/epoch is the graph owner that changed.",
+  "deferred_verification": null,
+  "raw_result_root": ".wiretail/execution/evidence/raw/101-16"
+}

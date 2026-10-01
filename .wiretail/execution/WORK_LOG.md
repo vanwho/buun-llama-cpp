@@ -1847,3 +1847,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-15`
 - Commit at update: `70d2dd82b`
 - Summary: Implemented immutable shared routing-summary payloads, cached per-page digests and stale-version checks; 2/16/64 delta-count, pager and routing retrieval tests pass.
+
+## 2026-10-01T18:26:13+00:00 — 101-16 — done
+
+- Branch: `codex/task-101-16`
+- Commit at update: `7ad4bfed1`
+- Summary: Verified actual CUDA graph capture/replay and ordered selected page inputs; fixed capture-time scratch pool retirement

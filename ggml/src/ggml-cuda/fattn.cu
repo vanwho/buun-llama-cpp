@@ -3388,7 +3388,13 @@ static half * kv_dequant_scratch_try(
                 side.vmm_va = va;
                 side.vmm_hw = need_bytes;
                 if (old != nullptr) {
-                    ggml_backend_cuda_vmm_pool_free(old);
+                    cudaStreamCaptureStatus capture_status = cudaStreamCaptureStatusNone;
+                    if (cudaStreamIsCapturing(ctx.stream(), &capture_status) == cudaSuccess &&
+                            capture_status != cudaStreamCaptureStatusNone) {
+                        ctx.fattn_scratch.retired_vmm.push_back(old);
+                    } else {
+                        ggml_backend_cuda_vmm_pool_free(old);
+                    }
                 }
                 if (side.cuda_buf != nullptr) {
                     CUDA_CHECK(cudaFree(side.cuda_buf));
@@ -3399,7 +3405,9 @@ static half * kv_dequant_scratch_try(
                 return (half *) ggml_backend_cuda_vmm_pool_base(side.vmm);
             }
             if (candidate != nullptr) {
-                ggml_backend_cuda_vmm_pool_free(candidate);
+                // This candidate was never published or used by a kernel. Discarding it must
+                // remain capture-safe when physical mapping failed during a graph capture.
+                ggml_backend_cuda_vmm_pool_discard(candidate);
             }
             // The old VMM pool, if any, remains authoritative.  Fall through to the existing
             // pool map for same-VA growth; otherwise the cudaMalloc fallback below may still
@@ -3471,6 +3479,17 @@ bool ggml_backend_cuda_kv_dequant_scratch_reserve(
         return false;
     }
     return true;
+}
+
+void ggml_backend_cuda_kv_dequant_scratch_flush_retired(ggml_backend_t backend) {
+    GGML_ASSERT(backend != nullptr);
+    GGML_ASSERT(ggml_backend_is_cuda(backend));
+    auto & ctx = *(ggml_backend_cuda_context *) backend->context;
+    ggml_cuda_set_device(ctx.device);
+    for (ggml_vbr_vmm_pool * pool : ctx.fattn_scratch.retired_vmm) {
+        ggml_backend_cuda_vmm_pool_free(pool);
+    }
+    ctx.fattn_scratch.retired_vmm.clear();
 }
 
 static size_t kv_dequant_scratch_physical_add(size_t lhs, size_t rhs) {

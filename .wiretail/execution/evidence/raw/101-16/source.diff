@@ -1,0 +1,288 @@
+diff --git a/ggml/include/ggml-cuda.h b/ggml/include/ggml-cuda.h
+index da2fe8104..f666c0f4d 100644
+--- a/ggml/include/ggml-cuda.h
++++ b/ggml/include/ggml-cuda.h
+@@ -49,6 +49,8 @@ GGML_BACKEND_API bool   ggml_backend_cuda_vmm_available(int device);
+ GGML_BACKEND_API size_t ggml_backend_cuda_vmm_granularity(int device);
+ GGML_BACKEND_API struct ggml_vbr_vmm_pool * ggml_backend_cuda_vmm_pool_init(int device, size_t va_size);
+ GGML_BACKEND_API void   ggml_backend_cuda_vmm_pool_free(struct ggml_vbr_vmm_pool * pool);
++// Release a newly-created pool that was never returned to a caller or read by a kernel.
++GGML_BACKEND_API void   ggml_backend_cuda_vmm_pool_discard(struct ggml_vbr_vmm_pool * pool);
+ GGML_BACKEND_API void * ggml_backend_cuda_vmm_pool_base(struct ggml_vbr_vmm_pool * pool);
+ GGML_BACKEND_API size_t ggml_backend_cuda_vmm_pool_mapped(struct ggml_vbr_vmm_pool * pool);
+ GGML_BACKEND_API uint64_t ggml_backend_cuda_vmm_pool_residency_epoch(struct ggml_vbr_vmm_pool * pool);
+@@ -79,6 +81,7 @@ GGML_BACKEND_API void ggml_backend_cuda_get_device_memory(int device, size_t * f
+ // (ggml-vbr.h vtable slot)
+ GGML_BACKEND_API bool ggml_backend_cuda_kv_dequant_scratch_reserve(
+         ggml_backend_t backend, size_t k_bytes, size_t v_bytes);
++GGML_BACKEND_API void ggml_backend_cuda_kv_dequant_scratch_flush_retired(ggml_backend_t backend);
+ GGML_BACKEND_API void ggml_backend_cuda_kv_dequant_scratch_memory(
+         ggml_backend_t backend, size_t k_bytes, size_t v_bytes,
+         size_t * physical_now, size_t * physical_if_reserved);
+diff --git a/ggml/src/ggml-cuda/common.cuh b/ggml/src/ggml-cuda/common.cuh
+index 3b64aa865..66a693145 100644
+--- a/ggml/src/ggml-cuda/common.cuh
++++ b/ggml/src/ggml-cuda/common.cuh
+@@ -1574,6 +1574,9 @@ struct ggml_cuda_fattn_scratch {
+ 
+     ggml_cuda_fattn_scratch_side k;
+     ggml_cuda_fattn_scratch_side v;
++    // Pools replaced during graph capture remain mapped until capture has ended and the
++    // prior stream users can be synchronized safely.
++    std::vector<ggml_vbr_vmm_pool *> retired_vmm;
+ 
+     // Address changes are invisible to graph node src[] metadata. CUDA graphs snapshot this
+     // context-local epoch and recapture before replaying a stale internal scratch address.
+diff --git a/ggml/src/ggml-cuda/fattn.cu b/ggml/src/ggml-cuda/fattn.cu
+index 249f839b1..4b053ac1d 100644
+--- a/ggml/src/ggml-cuda/fattn.cu
++++ b/ggml/src/ggml-cuda/fattn.cu
+@@ -3388,7 +3388,13 @@ static half * kv_dequant_scratch_try(
+                 side.vmm_va = va;
+                 side.vmm_hw = need_bytes;
+                 if (old != nullptr) {
+-                    ggml_backend_cuda_vmm_pool_free(old);
++                    cudaStreamCaptureStatus capture_status = cudaStreamCaptureStatusNone;
++                    if (cudaStreamIsCapturing(ctx.stream(), &capture_status) == cudaSuccess &&
++                            capture_status != cudaStreamCaptureStatusNone) {
++                        ctx.fattn_scratch.retired_vmm.push_back(old);
++                    } else {
++                        ggml_backend_cuda_vmm_pool_free(old);
++                    }
+                 }
+                 if (side.cuda_buf != nullptr) {
+                     CUDA_CHECK(cudaFree(side.cuda_buf));
+@@ -3399,7 +3405,9 @@ static half * kv_dequant_scratch_try(
+                 return (half *) ggml_backend_cuda_vmm_pool_base(side.vmm);
+             }
+             if (candidate != nullptr) {
+-                ggml_backend_cuda_vmm_pool_free(candidate);
++                // This candidate was never published or used by a kernel. Discarding it must
++                // remain capture-safe when physical mapping failed during a graph capture.
++                ggml_backend_cuda_vmm_pool_discard(candidate);
+             }
+             // The old VMM pool, if any, remains authoritative.  Fall through to the existing
+             // pool map for same-VA growth; otherwise the cudaMalloc fallback below may still
+@@ -3473,6 +3481,17 @@ bool ggml_backend_cuda_kv_dequant_scratch_reserve(
+     return true;
+ }
+ 
++void ggml_backend_cuda_kv_dequant_scratch_flush_retired(ggml_backend_t backend) {
++    GGML_ASSERT(backend != nullptr);
++    GGML_ASSERT(ggml_backend_is_cuda(backend));
++    auto & ctx = *(ggml_backend_cuda_context *) backend->context;
++    ggml_cuda_set_device(ctx.device);
++    for (ggml_vbr_vmm_pool * pool : ctx.fattn_scratch.retired_vmm) {
++        ggml_backend_cuda_vmm_pool_free(pool);
++    }
++    ctx.fattn_scratch.retired_vmm.clear();
++}
++
+ static size_t kv_dequant_scratch_physical_add(size_t lhs, size_t rhs) {
+     // Scratch grows are recoverable boundary operations. Preserve a conservative physical
+     // ledger even if a malformed/partially transitioned representation would overflow the
+diff --git a/ggml/src/ggml-cuda/ggml-cuda.cu b/ggml/src/ggml-cuda/ggml-cuda.cu
+index 1d45b3d22..831b68bc6 100644
+--- a/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -1891,6 +1891,7 @@ static void * ggml_backend_cuda_step_capture_end(ggml_backend_t backend) {
+     cuda_ctx->external_capture = false;
+     cudaGraph_t graph = nullptr;
+     const cudaError_t err = cudaStreamEndCapture(cuda_ctx->stream(), &graph);
++    ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
+     {
+         std::lock_guard<std::mutex> lock(ggml_cuda_lock);
+         if (ggml_cuda_lock_counter.fetch_sub(1, std::memory_order_relaxed) == 1) {
+@@ -8367,9 +8368,12 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend,
+         }
+ #endif
+         GGML_LOG_ERROR("%s: CUDA pool allocation failed (out of VRAM), failing graph compute\n", __func__);
++        ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
+         return GGML_STATUS_ALLOC_FAILED;
+     }
+ 
++    ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
++
+     return GGML_STATUS_SUCCESS;
+ }
+ 
+diff --git a/ggml/src/ggml-cuda/vbr-vmm.cu b/ggml/src/ggml-cuda/vbr-vmm.cu
+index f108a1c98..05aec3413 100644
+--- a/ggml/src/ggml-cuda/vbr-vmm.cu
++++ b/ggml/src/ggml-cuda/vbr-vmm.cu
+@@ -209,16 +209,18 @@ void ggml_backend_cuda_vmm_pool_clear(ggml_vbr_vmm_pool * pool) {
+     }
+ }
+ 
+-void ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool * pool) {
++static void ggml_backend_cuda_vmm_pool_release(ggml_vbr_vmm_pool * pool, bool wait_for_users) {
+     if (!pool) {
+         return;
+     }
+     ggml_cuda_set_device(pool->device);
+-    // cuMemUnmap/cuMemAddressFree are host-immediate with no implicit device sync (unlike
+-    // cudaFree): under -sm layer pipeline parallelism a prior ubatch's kernels can still be
+-    // reading this VA when the fattn dequant scratch re-reserves mid-decode — settle the
+-    // device before pulling the mapping out from under them.
+-    CUDA_CHECK(cudaDeviceSynchronize());
++    if (wait_for_users) {
++        // cuMemUnmap/cuMemAddressFree are host-immediate with no implicit device sync (unlike
++        // cudaFree): under -sm layer pipeline parallelism a prior ubatch's kernels can still be
++        // reading this VA when the fattn dequant scratch re-reserves mid-decode — settle the
++        // device before pulling the mapping out from under them.
++        CUDA_CHECK(cudaDeviceSynchronize());
++    }
+     for (size_t c : pool->chunks) {
+         CU_CHECK(cuMemUnmap((CUdeviceptr)((char *) pool->base + c), pool->gran));
+     }
+@@ -229,6 +231,14 @@ void ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool * pool) {
+     delete pool;
+ }
+ 
++void ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool * pool) {
++    ggml_backend_cuda_vmm_pool_release(pool, true);
++}
++
++void ggml_backend_cuda_vmm_pool_discard(ggml_vbr_vmm_pool * pool) {
++    ggml_backend_cuda_vmm_pool_release(pool, false);
++}
++
+ #else // !GGML_USE_VMM — stubs so llama links regardless of build flags
+ 
+ bool   ggml_backend_cuda_vmm_available(int)                                  { return false;   }
+@@ -242,5 +252,6 @@ bool   ggml_backend_cuda_vmm_pool_map(ggml_vbr_vmm_pool *, size_t, size_t)  { re
+ bool   ggml_backend_cuda_vmm_pool_unmap(ggml_vbr_vmm_pool *, size_t, size_t){ return false;   }
+ void   ggml_backend_cuda_vmm_pool_clear(ggml_vbr_vmm_pool *)                {                 }
+ void   ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool *)                 {                 }
++void   ggml_backend_cuda_vmm_pool_discard(ggml_vbr_vmm_pool *)              {                 }
+ 
+ #endif // GGML_USE_VMM
+diff --git a/tests/test-cuda-fattn-paged-turbo4.cu b/tests/test-cuda-fattn-paged-turbo4.cu
+index eb9973b46..0d0f1132e 100644
+--- a/tests/test-cuda-fattn-paged-turbo4.cu
++++ b/tests/test-cuda-fattn-paged-turbo4.cu
+@@ -206,6 +206,13 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
+         { 2, 4, 257, 256, 512 },
+     };
+     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages_257, 2, 257, 256, n_physical_pages));
++    const ggml_cuda_fattn_turbo4_page pages_permuted[3] = {
++        { 0, 0,   0, 256,   0 },
++        { 1, 4, 256, 256, 256 },
++        { 2, 3, 512,   1, 512 },
++    };
++    assert(ggml_cuda_fattn_turbo4_page_table_valid(
++        pages_permuted, 3, n_rows, 256, n_physical_pages));
+     const auto make_row_lookup = [](const ggml_cuda_fattn_turbo4_page * page_table,
+             uint32_t page_count, uint32_t row_count) {
+         std::vector<ggml_cuda_fattn_turbo4_row_lookup> result(row_count,
+@@ -442,9 +449,99 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
+     };
+     replay(pages_257, 2, 257, "multigroup graph replay partial");
+     replay(pages, 3, n_rows, "multigroup graph replay full");
++    // Keep node shapes and all device addresses fixed while changing the
++    // selected physical page descriptors. This catches graph captures that
++    // accidentally retain host-side descriptor content.
++    replay(pages_permuted, 3, n_rows, "multigroup graph replay permuted pages");
+     cudaGraphExecDestroy(graph_exec);
+     cudaGraphDestroy(graph);
+ 
++    // Speculative verification alternates among Q1/Q2/Q3. These are separate
++    // graph shapes, each warmed, captured by the CUDA driver, and replayed
++    // with changed descriptor contents. Sideband copies and graph launches
++    // share one stream, so the new inputs follow the previous replay's reads.
++    uint64_t verify_capture_count = 0;
++    uint64_t verify_launch_count = 0;
++    for (const uint32_t query_count : { 1u, 2u, 3u }) {
++        params.n_query_tokens = query_count;
++        params.pages_host = pages_257;
++        active_pages = 2;
++        active_rows = 257;
++        cuda_check(cudaMemcpy(pages_device, pages_257, sizeof(pages_257), cudaMemcpyHostToDevice),
++            "verify graph warmup pages");
++        cuda_check(cudaMemcpy(row_lookup_device, row_lookup_257.data(),
++            row_lookup_257.size() * sizeof(row_lookup_257[0]), cudaMemcpyHostToDevice),
++            "verify graph warmup lookup");
++        cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice),
++            "verify graph warmup page count");
++        cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice),
++            "verify graph warmup row count");
++        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
++            ggml_cuda_fattn_turbo4_paged_status::ok);
++        cuda_check(cudaStreamSynchronize(stream), "verify graph warmup synchronize");
++
++        cudaGraph_t verify_graph = nullptr;
++        cudaGraphExec_t verify_graph_exec = nullptr;
++        cuda_check(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
++            "verify graph begin capture");
++        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
++            ggml_cuda_fattn_turbo4_paged_status::ok);
++        cuda_check(cudaStreamEndCapture(stream, &verify_graph), "verify graph end capture");
++        ++verify_capture_count;
++        cuda_check(cudaGraphInstantiate(&verify_graph_exec, verify_graph, nullptr, nullptr, 0),
++            "verify graph instantiate");
++
++        const auto replay_verify = [&](const ggml_cuda_fattn_turbo4_page * page_table,
++                uint32_t page_count, uint32_t row_count, const char * label) {
++            active_pages = page_count;
++            active_rows = row_count;
++            const auto expected = cpu_interleaved_turbo4_oracle(q_host,
++                q_head_stride, q_query_stride, k_host, v_host, page_table,
++                page_count, row_count, native_positions, native_mask,
++                query_positions, query_count, n_head_q, n_head_kv,
++                head_bytes, row_bytes, page_stride, params.scale);
++            cuda_check(cudaMemcpyAsync(output_device, replay_canary.data(),
++                replay_canary.size() * sizeof(float), cudaMemcpyHostToDevice, stream), label);
++            cuda_check(cudaMemcpyAsync(pages_device, page_table, sizeof(pages),
++                cudaMemcpyHostToDevice, stream), label);
++            const auto & lookup = page_count == 2 ? row_lookup_257 : row_lookup;
++            cuda_check(cudaMemcpyAsync(row_lookup_device, lookup.data(),
++                lookup.size() * sizeof(lookup[0]), cudaMemcpyHostToDevice, stream), label);
++            cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages,
++                sizeof(active_pages), cudaMemcpyHostToDevice, stream), label);
++            cuda_check(cudaMemcpyAsync(active_rows_device, &active_rows,
++                sizeof(active_rows), cudaMemcpyHostToDevice, stream), label);
++            cuda_check(cudaGraphLaunch(verify_graph_exec, stream), label);
++            ++verify_launch_count;
++            cuda_check(cudaStreamSynchronize(stream), label);
++            std::vector<float> actual(replay_canary.size());
++            cuda_check(cudaMemcpy(actual.data(), output_device,
++                actual.size() * sizeof(float), cudaMemcpyDeviceToHost), label);
++            for (uint32_t query = 0; query < max_query_tokens; ++query) {
++                for (uint32_t head = 0; head < n_head_q; ++head) {
++                    const float * values = reinterpret_cast<const float *>(
++                        reinterpret_cast<const char *>(actual.data()) +
++                        size_t(query) * output_query_stride + size_t(head) * output_head_stride);
++                    for (uint32_t d = 0; d < 256; ++d) {
++                        if (query < query_count) {
++                            const float expected_value = expected[
++                                (size_t(query) * n_head_q + head) * 256 + d];
++                            assert(std::isfinite(values[d]));
++                            assert(std::fabs(values[d] - expected_value) < 3.0e-3f);
++                        } else {
++                            assert(std::isnan(values[d]));
++                        }
++                    }
++                }
++            }
++        };
++        replay_verify(pages, 3, n_rows, "verify graph replay pages");
++        replay_verify(pages_permuted, 3, n_rows, "verify graph replay permuted pages");
++        cudaGraphExecDestroy(verify_graph_exec);
++        cudaGraphDestroy(verify_graph);
++    }
++    assert(verify_capture_count == 3 && verify_launch_count == 6);
++
+     cudaFree(active_rows_device);
+     cudaFree(active_pages_device);
+     cudaFree(query_positions_device);
+@@ -457,7 +554,9 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
+     cudaFree(k_device);
+     cudaFree(q_device);
+     std::fprintf(stderr, "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,4,16,17,64,128; GQA=24/4; interleaved rows)\n");
+-    std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (active rows 257 -> 513; stable capacities)\n");
++    std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (driver captures=4 graph_launches=%llu"
++        " descriptor permutations, tail rows 257 -> 513, sparse causal gaps, Q=1,2,3,16; finite oracle parity)\n",
++        static_cast<unsigned long long>(verify_launch_count + 3));
+ }
+ 
+ // This is deliberately independent of the CUDA implementation.  The fixture
