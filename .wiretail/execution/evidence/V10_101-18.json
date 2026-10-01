@@ -189,11 +189,11 @@
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         {
-          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.json",
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.json",
           "sha256": "6af04933f990e20b019322fe221cf8aaea76066985e4b691e534973b4aa0b696"
         },
         {
-          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.md",
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.md",
           "sha256": "a717d288babba9ead78c52d06eba998aa705677be93a770d2fdcd02ebd8c584e"
         },
         {

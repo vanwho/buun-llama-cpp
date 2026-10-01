@@ -1,0 +1,163 @@
+{
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+  },
+  "checks": {
+    "repeated_speed_review_and_final_release_gate": {
+      "additional_commands": [
+        [
+          "python3",
+          "tools/server/bench/validate-gpu101-release.py"
+        ],
+        [
+          "python3",
+          "tools/server/bench/test-gpu101-release.py"
+        ],
+        [
+          "python3",
+          ".wiretail/execution/v10/validate.py",
+          "--task",
+          "101-12h",
+          "--receipt",
+          ".wiretail/execution/evidence/V10_101-12h.json"
+        ],
+        [
+          "python3",
+          "/srv/wiretail/task_state.py",
+          "validate"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12h/recalculate.py",
+          "sha256": "f452e95b58ee44de34bc75bee929173cbe76adb610aa0de7998f60df05d68fd4"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12h/recalculation.json",
+          "sha256": "40f1aa660278e28eb0e0a5f77fcbc9841d9ec5d3df494f08346af49ac5e19c68"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12h/recalculation.log",
+          "sha256": "db5a3c2dcad15ad8a2a86da3a55057eb04605bc922c61e8014e64473e9358baa"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12h/release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12h/release-validator-tests.log",
+          "sha256": "6a5161b3cf086718f005a0ea6d682568d0515d223388a0eecf7c27866f37699d"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "7d8ae9d7f8eb2e625bc88deef3fa25093cb85a2163036743139bdb7647655c5b"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "8a6c06f248ee67c8d17f0a69c0664a1bef3884029b84d5ce651f256d6dbf8f06"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.json",
+          "sha256": "6af04933f990e20b019322fe221cf8aaea76066985e4b691e534973b4aa0b696"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12h/GPU101_RELEASE.pre-review.md",
+          "sha256": "a717d288babba9ead78c52d06eba998aa705677be93a770d2fdcd02ebd8c584e"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_101-18.json",
+          "sha256": "f1657f4fec43dcc7e3e12480b33addf59ae6342996d1d8537cb3bc28e01abd25"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/run-config.json",
+          "sha256": "4b99484b6a4c479fcf743c0ba49d3fd238b49193a415a24a05b5c4bd9a317db0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/summary.json",
+          "sha256": "aa3e52b75217dd057b6b6ef76854366cdc81ff05b81d1fd9b1aefabbb5cef210"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/records.jsonl",
+          "sha256": "17d8f99f3311d06a1b201362a193cf15441579a403e05dbe204b64441a196db4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-all-gpu/run-config.json",
+          "sha256": "a6a8e34605989755a54f0dd89a0784596351b69c088756a5ef7ad1cd6704268c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-all-gpu/summary.json",
+          "sha256": "040a6f1f577c2c8f94593a3e5e3b78d9f614e88f5bfcfd70cc0bcc9d67981fd9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-all-gpu/records.jsonl",
+          "sha256": "a1797df86c60c528d9faf1e46d15c62f950375320ed7d81f66af7317e2804d80"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-gpu-mtp/run-config.json",
+          "sha256": "52dd38039b474ed2d69a9f6f1053f21e06da30541b56b1f30ae6b2b36f663957"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-gpu-mtp/summary.json",
+          "sha256": "34d3593ba2f0d5322f407543905e806ea1dfb8ece8aa9c6e825e26dd7d888b11"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-gpu-mtp/records.jsonl",
+          "sha256": "373b97766c5fe366220164113a22a6520d6615807032022a50853bb2de5684d4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.json",
+          "sha256": "0c7747f68262c7f3f3986bbb3d7688dca5dc373abfab1e34d24b426527271d8c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/natural-promotion/campaign-progress.json",
+          "sha256": "f798661b61a8ec3476b2c6b1b5b55a8f983ecdb47b087c9030c37670b4900ac4"
+        }
+      ],
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/raw/101-12h/recalculate.py"
+      ],
+      "coverage": {
+        "all_three_routes_and_prompts": true,
+        "candidate_model_geometry_and_fresh_tokens_verified": true,
+        "functionality_replay_and_natural_promotion_verified": true,
+        "goal_status": "goal_miss",
+        "independent_raw_recalculation": true,
+        "mtp_floors_pass": false,
+        "ordered_successors": [
+          "101-12i",
+          "101-12j"
+        ],
+        "prefill_minimum_pass": true,
+        "prefill_preferred_pass": true,
+        "release_validator_tests": "11 passed",
+        "scale_dependency": "102-01 depends on 101-12j",
+        "selected_decode_beats_cpu_main_kv": true,
+        "selected_decode_cpu_ratios": [
+          2.35552,
+          3.15337,
+          3.10157
+        ],
+        "selected_prefill_cpu_ratios": [
+          2.19773,
+          2.20353,
+          2.19631
+        ],
+        "selected_prefill_dense_gpu_ratios": [
+          0.93311,
+          0.94066,
+          0.93166
+        ],
+        "three_measured_rows_per_prompt_route": true
+      },
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "b3b238bc1755b8c05b30d75b0fa2bf7a6b7e0362",
+  "source_diff_sha256": "320f9406969c06bc324326903d905ff9b7a4c097eb1e0f77acd5ea2a38afedbf",
+  "summary": "Independent review recalculated the three canonical route medians from raw rows. All selected prefill medians clear 500 and 750 tok/s, decode beats CPU-main-KV, and selected-route MTP misses prompts 1 and 3. Preserved 101-18 report history, corrected the live release review, and scheduled a bounded MTP repair followed by a canonical retake/final review before 102-01.",
+  "task": "101-12h"
+}

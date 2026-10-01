@@ -525,10 +525,10 @@
       "target_kv_placement": "gpu"
     }
   },
-  "decision": "Independent 101-12h recalculation from all three canonical raw routes confirms selected fresh-prefill medians pass both the 500 tok/s minimum and 750 tok/s preference on every prompt. Selected MTP passes prompt 2 but misses the 75% prompt-1 floor and narrowly misses the 60% prompt-3 floor. Selected decode beats ordinary CPU-main-KV decode on all prompts. Selected prefill is 2.20x CPU-main-KV on each prompt, below the 3x and 5x comparison gates, and reaches 0.93-0.94x pager-off all-GPU prefill. The measured release remains goal_miss pending bounded MTP first-disagreement diagnosis/repair (101-12i) and a changed-candidate canonical retake and exact final review (101-12j).",
-  "decision_task": "101-12h",
+  "decision": "The repaired candidate completes the model-backed replay, natural old-file recall, and all three matched canonical rows. Selected fresh-prefill medians clear the 500 tok/s minimum but miss the 750 tok/s preference; MTP misses the 75% prompt-1 floor and narrowly misses the 60% prompt-3 floor. Selected decode beats CPU-main-KV decode on all prompts. Selected prefill is about 2.20x CPU-main-KV, below both 3x and 5x comparisons, and selected prefill/decode trail the pager-off all-GPU control. The final review gate remains with 101-12h.",
+  "decision_task": "101-18",
   "deferred_verification": [],
-  "final_review_successor": "101-12j",
+  "final_review_successor": "101-12h",
   "goal_status": "goal_miss",
   "historical_release_snapshot": {
     "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-18/GPU101_RELEASE.pre-101-18.md",
@@ -846,23 +846,6 @@
       "pager_logical_graph_counts_are_separate": true,
       "proof_log": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.log"
     },
-    "independent_review": {
-      "mtp_floor_percent": {
-        "prompt_1": 75,
-        "prompt_2": 40,
-        "prompt_3": 60
-      },
-      "owner": "101-12h",
-      "prefill_minimum_tok_s": 500,
-      "prefill_preferred_tok_s": 750,
-      "remaining_owner": "MTP acceptance discrepancy; first disagreement attribution is not present in canonical 101-18 rows",
-      "source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12h/recalculation.json",
-      "successors": [
-        "101-12i",
-        "101-12j"
-      ],
-      "summary_optimization_gate": "Not scheduled: available cumulative build counters do not establish isolated summary time or the >=10% prefill contribution required by PREFILL101."
-    },
     "natural_old_file_recall": {
       "admission_status": "pass",
       "cold_before": true,
@@ -921,7 +904,7 @@
       "raw_path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/raw/progress-off-measured-1-p0.jsonl",
       "request_generation": 2,
       "route": "selected packed",
-      "scope": "Sparse post-request slot snapshot; cumulative runtime counters, not canonical per-prompt deltas. Inventory counts are retained as raw diagnostic fields only; they are inconsistent with the adjacent counters and are not used for this release decision.",
+      "scope": "Sparse post-request slot snapshot; cumulative runtime counters, not canonical per-prompt deltas.",
       "selected_pages": 16,
       "snapshot_utc": "2026-10-01T21:13:00+02:00",
       "summary_build_bytes": 71368704,
@@ -936,8 +919,7 @@
     }
   },
   "ordered_successors": [
-    "101-12i",
-    "101-12j"
+    "101-12h"
   ],
   "raw_result_root": "/srv/ai/paged-kv/results/forward/101-18/attempt-01",
   "raw_runs": {
@@ -999,7 +981,6 @@
       }
     }
   },
-  "review_owner": "101-12h",
   "runtime_peaks": {},
   "schema_version": 1,
   "selected": {
@@ -1140,8 +1121,8 @@
     "status": "complete"
   },
   "successor_contract": {
-    "final_review_successor": "101-12j",
+    "final_review_successor": "101-12h",
     "scale_task": "102-01"
   },
-  "task": "101-12h"
+  "task": "101-18"
 }

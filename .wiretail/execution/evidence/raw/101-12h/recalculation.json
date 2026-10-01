@@ -1,0 +1,441 @@
+{
+  "comparisons": {
+    "prompt_1": {
+      "mtp_gate": 75,
+      "mtp_margin_pp": -26.43769968051118,
+      "selected_to_cpu_decode": 2.355523603020679,
+      "selected_to_cpu_prefill": 2.1977257289047682,
+      "selected_to_dense_gpu_decode": 0.7129160772258636,
+      "selected_to_dense_gpu_prefill": 0.9331141987561202
+    },
+    "prompt_2": {
+      "mtp_gate": 40,
+      "mtp_margin_pp": 7.58064516129032,
+      "selected_to_cpu_decode": 3.153368160017911,
+      "selected_to_cpu_prefill": 2.2035301513888284,
+      "selected_to_dense_gpu_decode": 0.9294212038181923,
+      "selected_to_dense_gpu_prefill": 0.9406580426605643
+    },
+    "prompt_3": {
+      "mtp_gate": 60,
+      "mtp_margin_pp": -0.20618556701030855,
+      "selected_to_cpu_decode": 3.1015697621994707,
+      "selected_to_cpu_prefill": 2.1963123514140412,
+      "selected_to_dense_gpu_decode": 0.918044805849516,
+      "selected_to_dense_gpu_prefill": 0.9316647484420748
+    }
+  },
+  "gates": {
+    "all_decode_beats_cpu": true,
+    "all_prefill_minimum_pass": true,
+    "all_prefill_preferred_pass": true,
+    "mtp_floor_percent": {
+      "prompt_1": 75,
+      "prompt_2": 40,
+      "prompt_3": 60
+    },
+    "mtp_pass": false,
+    "prefill_minimum_tok_s": 500,
+    "prefill_preferred_tok_s": 750
+  },
+  "measured_rows_per_route": 9,
+  "raw_records_sha256": {
+    "cpu_main_kv_gpu_mtp": "373b97766c5fe366220164113a22a6520d6615807032022a50853bb2de5684d4",
+    "pager_off_all_gpu": "a1797df86c60c528d9faf1e46d15c62f950375320ed7d81f66af7317e2804d80",
+    "selected": "17d8f99f3311d06a1b201362a193cf15441579a403e05dbe204b64441a196db4"
+  },
+  "raw_root": "/srv/ai/paged-kv/results/forward/101-18/attempt-01",
+  "route_configs": {
+    "cpu_main_kv_gpu_mtp": {
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "binary_sha256": null,
+      "exact_command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-hot-pages 16 --no-kv-offload --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --slot-save-path /srv/ai/paged-kv/data/sessions/hybrid-fast --cache-idle-slots --kv-unified --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "version": "version: 0.5.0-dev (build 14189, commit a0086f056) built with GNU 15.2.0 for Linux x86_64"
+    },
+    "pager_off_all_gpu": {
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "binary_sha256": null,
+      "exact_command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-hot-pages 16 --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --slot-save-path /srv/ai/paged-kv/data/sessions/hybrid-fast --cache-idle-slots --kv-unified --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "version": "version: 0.5.0-dev (build 14189, commit a0086f056) built with GNU 15.2.0 for Linux x86_64"
+    },
+    "selected": {
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "binary_sha256": null,
+      "exact_command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --slot-save-path /srv/ai/paged-kv/data/sessions/hybrid-fast --cache-idle-slots --kv-unified --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "version": "version: 0.5.0-dev (build 14189, commit a0086f056) built with GNU 15.2.0 for Linux x86_64"
+    }
+  },
+  "rows": {
+    "cpu_main_kv_gpu_mtp": {
+      "prompt_1": {
+        "accepted": [
+          217,
+          217,
+          217
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 25.495012149201045,
+        "drafted": [
+          270,
+          270,
+          270
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "mtp_acceptance_percent_median": 80.37037037037037,
+        "mtp_row_percent": [
+          80.37037037037037,
+          80.37037037037037,
+          80.37037037037037
+        ],
+        "output_tokens": [
+          386,
+          386,
+          386
+        ],
+        "prefill_tok_s_median": 660.71726760093
+      },
+      "prompt_2": {
+        "accepted": [
+          62,
+          63,
+          63
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 18.536462998666927,
+        "drafted": [
+          126,
+          126,
+          126
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "mtp_acceptance_percent_median": 50.0,
+        "mtp_row_percent": [
+          49.20634920634921,
+          50.0,
+          50.0
+        ],
+        "output_tokens": [
+          168,
+          168,
+          168
+        ],
+        "prefill_tok_s_median": 664.3139956354312
+      },
+      "prompt_3": {
+        "accepted": [
+          186,
+          186,
+          186
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 21.090478151268943,
+        "drafted": [
+          286,
+          286,
+          286
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "mtp_acceptance_percent_median": 65.03496503496504,
+        "mtp_row_percent": [
+          65.03496503496504,
+          65.03496503496504,
+          65.03496503496504
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "prefill_tok_s_median": 660.7411481891547
+      }
+    },
+    "pager_off_all_gpu": {
+      "prompt_1": {
+        "accepted": [
+          208,
+          208,
+          188
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 84.23726830572781,
+        "drafted": [
+          266,
+          266,
+          276
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "mtp_acceptance_percent_median": 78.19548872180451,
+        "mtp_row_percent": [
+          78.19548872180451,
+          78.19548872180451,
+          68.1159420289855
+        ],
+        "output_tokens": [
+          379,
+          379,
+          386
+        ],
+        "prefill_tok_s_median": 1556.1603718750578
+      },
+      "prompt_2": {
+        "accepted": [
+          63,
+          64,
+          64
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 62.89106809616159,
+        "drafted": [
+          126,
+          124,
+          124
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "mtp_acceptance_percent_median": 51.61290322580645,
+        "mtp_row_percent": [
+          50.0,
+          51.61290322580645,
+          51.61290322580645
+        ],
+        "output_tokens": [
+          168,
+          166,
+          166
+        ],
+        "prefill_tok_s_median": 1556.182856026973
+      },
+      "prompt_3": {
+        "accepted": [
+          183,
+          183,
+          183
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 71.2531554968863,
+        "drafted": [
+          289,
+          289,
+          289
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "mtp_acceptance_percent_median": 63.32179930795848,
+        "mtp_row_percent": [
+          63.32179930795848,
+          63.32179930795848,
+          63.32179930795848
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "prefill_tok_s_median": 1557.63534821084
+      }
+    },
+    "selected": {
+      "prompt_1": {
+        "accepted": [
+          152,
+          128,
+          157
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 60.054102876742036,
+        "drafted": [
+          313,
+          326,
+          307
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "mtp_acceptance_percent_median": 48.56230031948882,
+        "mtp_row_percent": [
+          48.56230031948882,
+          39.263803680981596,
+          51.14006514657981
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "prefill_tok_s_median": 1452.0753385382206
+      },
+      "prompt_2": {
+        "accepted": [
+          59,
+          58,
+          59
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 58.45229221934641,
+        "drafted": [
+          106,
+          128,
+          124
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "mtp_acceptance_percent_median": 47.58064516129032,
+        "mtp_row_percent": [
+          55.660377358490564,
+          45.3125,
+          47.58064516129032
+        ],
+        "output_tokens": [
+          144,
+          167,
+          162
+        ],
+        "prefill_tok_s_median": 1463.8359193722592
+      },
+      "prompt_3": {
+        "accepted": [
+          158,
+          174,
+          207
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "decode_tok_s_median": 65.41358930430435,
+        "drafted": [
+          301,
+          291,
+          282
+        ],
+        "http_codes": [
+          200,
+          200,
+          200
+        ],
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "mtp_acceptance_percent_median": 59.79381443298969,
+        "mtp_row_percent": [
+          52.49169435215947,
+          59.79381443298969,
+          73.40425531914893
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "prefill_tok_s_median": 1451.1939448553358
+      }
+    }
+  },
+  "source_campaign": "101-18 attempt-01 canonical measured raw rows",
+  "task": "101-12h"
+}

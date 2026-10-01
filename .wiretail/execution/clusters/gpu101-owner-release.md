@@ -1,7 +1,7 @@
 # GPU101 owner-repair release
 
 Revision: `hotpath-v10-20260914`. Amendment: `prefill-owner-101-20261001`.
-Tasks: 101-18, 101-12h.
+Tasks: 101-18, 101-12h, 101-12i, 101-12j.
 
 Shared context: one final candidate, smallest affected functionality proofs,
 canonical measured speed decision. Load current packet, PREFILL101, TESTING
