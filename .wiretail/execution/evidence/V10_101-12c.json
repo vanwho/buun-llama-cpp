@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "task": "101-12c",
+  "source_commit": "b6877d0efa749f9e48f700193e5f699a4f637212",
+  "summary": "Repaired repeated per-head summary vector copies on the selected path by transferring each decoded summary once into the pager batch, with cache rebuild on a repeated entry. No post-fix speed claim; canonical retake is owned by 101-12d.",
+  "measured_attribution": {
+    "source_receipt": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+    "selected_geometry": {
+      "L": 8192,
+      "H": 4096,
+      "P": 256,
+      "B": 1024,
+      "U": 256,
+      "pager_route": "automatic"
+    },
+    "observations": {
+      "prompt_1": {
+        "fresh_prefill_tok_s_median": 332.3867379064741,
+        "summary_build_calls": 1088,
+        "wait_time_us": 6896840,
+        "queue_time_us": 1474020,
+        "canonical_key_source_bytes_scanned": 36765700
+      },
+      "prompt_2": {
+        "fresh_prefill_tok_s_median": 388.4786234252421,
+        "summary_build_calls": 1024,
+        "wait_time_us": 3622570,
+        "queue_time_us": 706950,
+        "canonical_key_source_bytes_scanned": 34603300
+      },
+      "prompt_3": {
+        "fresh_prefill_tok_s_median": 332.169890725555,
+        "summary_build_calls": 1088,
+        "wait_time_us": 6027000,
+        "queue_time_us": 1098440,
+        "canonical_key_source_bytes_scanned": 36765000
+      }
+    },
+    "root_cause": "The selected requests performed 1,024\u20131,088 per-head summary-provider publications (64 layer/head configs across 16\u201317 closed pages). The cache decodes each canonical key page once into all layer/head range and mean vectors, but pager_routing_summary_build deep-copied one vector bundle on every provider publication with output = item->input. This is repeated per-head host-side vector copying; summary_build_bytes is the canonical key-source bytes scanned and is recorded separately, not treated as copied-vector volume.",
+    "source_owner": "src/llama-kv-cache.cpp: llama_kv_cache::pager_routing_summary_build",
+    "repair": "Move the requested cached llama_kv_routing_page_input into the pager-owned batch. Mark entries consumed and rebuild the cache if an already-consumed entry is requested again; the normal one-publication-per-config path avoids the per-head deep copies while retry semantics remain available."
+  },
+  "build_provenance": {
+    "source_tree_commit": "b6877d0efa749f9e48f700193e5f699a4f637212",
+    "build_command": [
+      "cmake",
+      "--build",
+      "build-cuda",
+      "--target",
+      "test-kv-pager",
+      "llama-server",
+      "-j2"
+    ],
+    "server_binary": "build-cuda/bin/llama-server",
+    "server_binary_sha256": "d6242076cd05d65289939ea251549367350fe4845cbe936c6b518d6d92ff797d",
+    "server_version": "",
+    "libllama_sha256": "67ea4b07a275af63278816333af180c9b13d0df1d8b912bfd0b60f0d2fe93103",
+    "libllama_server_impl_sha256": "986b1f03f461aaa19051fcf0673deebf9d759d4da0d6937a92e7cc01bf16f80e",
+    "pager_test_binary_sha256": "2962c35e935981c9ac4fa83e5551b63b89fd6ef176df90f6c82ca1048292328f",
+    "cuda_device_observed": "NVIDIA GeForce RTX 4080, compute capability 8.9",
+    "selected_candidate_identity": "Qwen3.8-27B-UD-IQ4_XS.gguf; SHA-256 40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199; L8192/H4096/P256/B1024/U256; native GPU Turbo4 MTP nmax2; automatic pager route (identity carried forward from 101-12b; not reloaded for this regression)."
+  },
+  "minimum_retake_command": [
+    "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "fast",
+    "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-full"
+  ],
+  "deferred_verification": "Post-fix canonical selected-path performance retake remains for 101-12d. This receipt claims source repair and focused regression only.",
+  "checks": {
+    "selected_prefill_root_cause_repaired": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-pager"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-kv-pager",
+          "llama-server",
+          "-j2"
+        ],
+        [
+          "build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "metrics": {
+        "focused_regression": "H4096 warmup/erase/reservation, multi-head summary count and byte-accounting, route publication, cache-independent deterministic pager lifecycle",
+        "test_exit_code": 0,
+        "test_marker": "h4096_warmup_erase_reservation=pass P=256 H=4096 C=4352 routing_summary=ready atomic_batch=256",
+        "cuda_device_initialized": true,
+        "retake_claimed": false
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/build/101-12c-build.log",
+          "sha256": "99b41f097f7cece872dec0a72583452efe7c72a04f8bb50bd08c6505edbc28b4"
+        },
+        {
+          "path": ".wiretail/build/101-12c-test-build.log",
+          "sha256": "8d5d77966d7f659543ef00eaefa6ee540662eee33166dd979586a7fdbf87d23f"
+        },
+        {
+          "path": ".wiretail/build/101-12c-test-kv-pager.log",
+          "sha256": "1f9bace4a858e03788eda24cd411d1617de2afe827e308bcd4602aceec7f1987"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "eaac03482f22c8fdda7d6bdcf65ce6deba77588cd9326061d9fcc3796f6b1613"
+        }
+      ]
+    }
+  }
+}

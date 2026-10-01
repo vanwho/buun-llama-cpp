@@ -1799,3 +1799,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12b`
 - Commit at update: `8914d9e1b`
 - Summary: canonical selected and matched control matrices completed; goal_miss recorded with scheduled repair/retest/review chain before 102-01
+
+## 2026-10-01T15:12:43+00:00 — 101-12c — done
+
+- Branch: `codex/task-101-12c`
+- Commit at update: `b6877d0ef`
+- Summary: Repaired the measured selected-prefill summary-copy cost; CUDA build, focused H4096 pager regression, and required receipt check pass. Post-fix canonical retake is deferred to 101-12d.
