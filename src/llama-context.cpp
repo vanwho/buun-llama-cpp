@@ -1887,6 +1887,20 @@ static uint64_t prefill_page_number(llama_pos position, uint32_t page_tokens) no
     return uint64_t(position) / page_tokens;
 }
 
+static bool prefill_single_sequence_contiguous(const llama_ubatch & current) noexcept {
+    if (current.n_tokens == 0 || current.pos == nullptr || current.n_pos != 1 ||
+            current.n_seqs_unq != 1 || current.n_seq_tokens != current.n_tokens) {
+        return false;
+    }
+    for (uint32_t token = 1; token < current.n_tokens; ++token) {
+        if (current.pos[token - 1] == std::numeric_limits<llama_pos>::max() ||
+                current.pos[token] != current.pos[token - 1] + 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool prefill_page_wave_boundary(
         const llama_ubatch & current,
         uint32_t page_tokens) noexcept {
@@ -1921,6 +1935,40 @@ static bool prefill_page_wave_boundary(
     // advancing the memory context, so the next ubatch cannot observe an
     // incompletely sealed page. Unknown layouts were rejected above.
     return prefill_page_number(previous_position + 1, page_tokens) != previous_page;
+}
+
+static bool prefill_pages_are_resident(
+        const llama_ubatch & current,
+        const llama_kv_pager & pager,
+        uint32_t page_tokens) {
+    if (current.n_tokens == 0 || current.pos == nullptr || current.n_pos != 1 ||
+            current.n_seqs_unq != 1 || current.n_seq_tokens != current.n_tokens ||
+            current.seq_id_unq == nullptr || current.seq_id_unq[0] < 0 ||
+            page_tokens == 0) {
+        return false;
+    }
+    if (!prefill_single_sequence_contiguous(current)) {
+        return false;
+    }
+
+    const auto resident = pager.residency(current.seq_id_unq[0]);
+    for (uint32_t token = 0; token < current.n_tokens; ++token) {
+        const uint64_t logical_page = prefill_page_number(current.pos[token], page_tokens);
+        if (logical_page == UINT64_MAX) {
+            return false;
+        }
+        const bool found = std::any_of(resident.pages().begin(), resident.pages().end(),
+                [&](const llama_kv_page_record & page) {
+            return page.id.logical_page == logical_page &&
+                page.physical_slot != UINT32_MAX &&
+                current.pos[token] >= page.id.position_begin &&
+                current.pos[token] < page.id.position_end;
+        });
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool llama_context_hotpath_profile_enabled() noexcept {
@@ -7501,24 +7549,45 @@ int llama_context::decode(const llama_batch & batch_inp) {
     // otherwise leave only the last ubatch's hiddens in layer_hiddens).
     dflash_reset_hidden_capture();
 
+    kv_pager_prefill_fence_coalescing_ = false;
+    kv_pager_prefill_fence_cached_ = false;
+    kv_pager_prefill_fence_pages_ = 0;
+
     while (true) {
         const auto & ubatch = mctx->get_ubatch();
 
-        // A cleared single-sequence slot has no resident history to publish
-        // between its first page writes. Keep its prefill graphs in flight
-        // until the outer decode batch ends or the physical page window fills;
-        // an existing/nonlinear sequence keeps the original per-page fence.
+        // Fresh windows and cached contiguous spans already resident in GPU
+        // slots can share the admitted multi-page submission wave. A cached
+        // span with any cold/missing page remains on the conservative fences:
+        // it may need a slot before a later ubatch can be admitted.
         if (bounded_pager_prefill && kv_pager_owner != nullptr &&
-                ubatch.n_seqs_unq == 1 && ubatch.n_seq_tokens == ubatch.n_tokens &&
-                ubatch.n_pos == 1 && ubatch.pos != nullptr &&
-                ubatch.seq_id_unq != nullptr && ubatch.seq_id_unq[0] >= 0 &&
-                ubatch.pos[0] == 0 &&
-                kv_pager_owner->exact_page_records(ubatch.seq_id_unq[0]).empty()) {
-            kv_pager_prefill_fence_coalescing_ = true;
-            kv_pager_prefill_fence_sequence_ = ubatch.seq_id_unq[0];
-            kv_pager_prefill_fence_last_position_ = -1;
-            kv_pager_prefill_fence_last_page_ = UINT64_MAX;
-            kv_pager_prefill_fence_pages_ = 0;
+                !kv_pager_prefill_fence_coalescing_ &&
+                prefill_single_sequence_contiguous(ubatch) &&
+                ubatch.seq_id_unq != nullptr && ubatch.seq_id_unq[0] >= 0) {
+            const auto resident = kv_pager_owner->residency(ubatch.seq_id_unq[0]);
+            const bool fresh_window = ubatch.pos[0] == 0 &&
+                kv_pager_owner->exact_page_records(ubatch.seq_id_unq[0]).empty();
+            const bool cached_window = !resident.pages().empty() &&
+                prefill_pages_are_resident(ubatch, *kv_pager_owner,
+                    kv_pager_owner->snapshot().geometry.page_tokens);
+            const bool cached_wave_eligible =
+                llama_kv_attention_prefill_cached_wave_eligible(
+                    prefill_single_sequence_contiguous(ubatch),
+                    !resident.pages().empty(), cached_window);
+            if (fresh_window || cached_wave_eligible) {
+                kv_pager_prefill_fence_coalescing_ = true;
+                kv_pager_prefill_fence_cached_ = cached_window;
+                kv_pager_prefill_fence_sequence_ = ubatch.seq_id_unq[0];
+                kv_pager_prefill_fence_last_position_ = -1;
+                kv_pager_prefill_fence_last_page_ = UINT64_MAX;
+                kv_pager_prefill_fence_pages_ = 0;
+            }
+        }
+        if (kv_pager_prefill_fence_coalescing_ &&
+                kv_pager_prefill_fence_cached_ && kv_pager_owner != nullptr &&
+                !prefill_pages_are_resident(ubatch, *kv_pager_owner,
+                    kv_pager_owner->snapshot().geometry.page_tokens)) {
+            kv_pager_prefill_fence_coalescing_ = false;
         }
 
         // DFlash: hand the eval callback this ubatch so it can route hidden-state

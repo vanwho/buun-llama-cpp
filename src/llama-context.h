@@ -852,6 +852,7 @@ private:
     // only relaxes intermediate page-wave fences; API-batch, capacity, and
     // unknown-layout fences remain mandatory.
     bool kv_pager_prefill_fence_coalescing_ = false;
+    bool kv_pager_prefill_fence_cached_ = false;
     int32_t kv_pager_prefill_fence_sequence_ = -1;
     llama_pos kv_pager_prefill_fence_last_position_ = -1;
     uint64_t kv_pager_prefill_fence_last_page_ = UINT64_MAX;

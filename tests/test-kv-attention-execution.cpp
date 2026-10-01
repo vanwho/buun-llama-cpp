@@ -135,6 +135,14 @@ static void test_prefill_admission() {
     assert(llama_kv_attention_prefill_page_fence_due(true, false, 1, 16));
     assert(llama_kv_attention_prefill_page_fence_due(true, true, 1, 0));
 
+    // Cached ubatches may join the same submission wave only when every
+    // touched page is already resident. Cold/missing pages and irregular
+    // layouts retain the conservative page-boundary path.
+    assert(llama_kv_attention_prefill_cached_wave_eligible(true, true, true));
+    assert(!llama_kv_attention_prefill_cached_wave_eligible(false, true, true));
+    assert(!llama_kv_attention_prefill_cached_wave_eligible(true, false, true));
+    assert(!llama_kv_attention_prefill_cached_wave_eligible(true, true, false));
+
     // The model batch may cross the CUDA tile boundary; the direct backend
     // subdivides it in grid.z instead of refusing the whole operator.
     const auto selected_large = metadata(snapshot(), 65, 1);
