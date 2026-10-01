@@ -564,13 +564,17 @@ struct llama_context {
 
     float * get_embeddings_nextn();
     float * get_embeddings_nextn_ith(int32_t i);
+    bool materialize_embeddings_nextn_host_row(int32_t row);
 
     // Arrange for the next MTP decode to source hidden rows from another
     // context's device output. The request is consumed by one decode and
     // falls back to the ordinary batch input when tensors are incompatible.
     bool set_embeddings_nextn_device(
             llama_context * source, int32_t source_offset, int32_t destination_offset,
-            int32_t n_rows);
+            int32_t n_rows, const llama_pos * expected_positions,
+            const llama_seq_id * expected_sequences);
+    bool mark_embeddings_nextn_device_consumed(llama_context * consumer);
+    void get_embeddings_nextn_transfer_bytes(uint64_t * d2h, uint64_t * h2d) const;
 
     float * get_embeddings_layer_inp(uint32_t lid);
 
@@ -965,7 +969,30 @@ private:
         int32_t source_offset = 0;
         int32_t destination_offset = 0;
         int32_t n_rows = 0;
+        uint64_t source_generation = 0;
     } embeddings_nextn_device_request;
+
+    // Stable per-decode owner for next-token hidden rows. Graph result tensors
+    // are transient and only retain the final microbatch, so decode() copies
+    // every microbatch into this bounded device allocation before its graph
+    // slot can be reused.
+    ggml_context_ptr        embeddings_nextn_device_ctx;
+    ggml_backend_buffer_ptr embeddings_nextn_device_buf;
+    ggml_tensor *           embeddings_nextn_device_tensor = nullptr;
+    ggml_backend_t          embeddings_nextn_device_backend = nullptr;
+    ggml_backend_event_t     embeddings_nextn_device_consumed_event = nullptr;
+    bool                    embeddings_nextn_device_event_recorded = false;
+    int32_t                 embeddings_nextn_device_capacity = 0;
+    int32_t                 embeddings_nextn_device_valid_rows = 0;
+    uint64_t                embeddings_nextn_device_generation = 0;
+    std::vector<llama_pos>  embeddings_nextn_device_positions;
+    std::vector<llama_seq_id> embeddings_nextn_device_sequences;
+    int32_t                 embeddings_nextn_device_decode_token_offset = 0;
+    std::vector<uint8_t>    embeddings_nextn_host_valid;
+    std::vector<int32_t>   embeddings_nextn_host_source_rows;
+    int32_t                 embeddings_nextn_output_rows = 0;
+    uint64_t                embeddings_nextn_d2h_bytes = 0;
+    uint64_t                embeddings_nextn_h2d_bytes = 0;
 
     // one-time Hadamard transform-coverage check on the first built graph
     bool hadamard_verified = false;

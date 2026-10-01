@@ -384,6 +384,27 @@ void llm_graph_input_dflash_stage_rows::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_embd_h::set_input(const llama_ubatch * ubatch) {
+    set_input_mtp_handoff(ubatch, -2);
+}
+
+void llm_graph_input_embd_h::set_hidden_backend(ggml_tensor * tensor) {
+    if (sched == nullptr || tensor == nullptr) {
+        return;
+    }
+    for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+        ggml_backend_t backend = ggml_backend_sched_get_backend(sched, i);
+        ggml_backend_dev_t device = backend != nullptr ? ggml_backend_get_device(backend) : nullptr;
+        if (device != nullptr && ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU) {
+            // Keep the MTP hidden input on the same device as native GPU MTP
+            // compute so the target-owned rows can be copied directly into it.
+            ggml_backend_sched_set_tensor_backend(sched, tensor, backend);
+            return;
+        }
+    }
+}
+
+void llm_graph_input_embd_h::set_input_mtp_handoff(
+        const llama_ubatch * ubatch, int32_t host_hidden_row) {
     const int64_t n_tokens = ubatch->n_tokens;
 
     if (ubatch->token && graph_input_allocated(tokens)) {
@@ -399,10 +420,16 @@ void llm_graph_input_embd_h::set_input(const llama_ubatch * ubatch) {
     // TODO: extend llama_ubatch to differentiate between token embeddings and hidden states
     //       for now, we assume that the hidden state is always provided as an embedding
     //       ref: https://github.com/ggml-org/llama.cpp/pull/23643
-    if (ubatch->embd && graph_input_allocated(h)) {
+    if (ubatch->embd && graph_input_allocated(h) && host_hidden_row == -2) {
         GGML_ASSERT(n_embd == h->ne[0]);
 
         ggml_backend_tensor_set(h, ubatch->embd, 0, n_tokens*n_embd*ggml_element_size(h));
+    } else if (ubatch->embd && graph_input_allocated(h) && host_hidden_row >= 0) {
+        GGML_ASSERT(n_embd == h->ne[0] && host_hidden_row < n_tokens);
+        const size_t row_bytes = (size_t) n_embd * ggml_element_size(h);
+        ggml_backend_tensor_set(h,
+                ubatch->embd + (size_t) host_hidden_row * n_embd,
+                (size_t) host_hidden_row * row_bytes, row_bytes);
     }
 }
 
@@ -2523,9 +2550,9 @@ bool llm_graph_all_outputs_have_samplers(
     return true;
 }
 
-void llm_graph_result::set_inputs(const llama_ubatch * ubatch) {
+void llm_graph_result::set_inputs(const llama_ubatch * ubatch, int32_t mtp_host_hidden_row) {
     for (auto & input : inputs) {
-        input->set_input(ubatch);
+        input->set_input_mtp_handoff(ubatch, mtp_host_hidden_row);
     }
 }
 
