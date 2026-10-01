@@ -17,7 +17,7 @@
   "status": "ready",
   "current_phase": "101",
   "current_task": "101-12c",
-  "last_updated_utc": "2026-10-01T15:03:55+00:00",
+  "last_updated_utc": "2026-10-01T15:03:56+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -31255,7 +31255,7 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "gpu-execution-101-20260930",
-      "commit": "8914d9e1b2dc86637e1d4d07770ffc5fa0dd988a",
+      "commit": "664beb46adbe4dea052921abe9c6ba3f866838aa",
       "id": "101-12b",
       "title": "Repeat canonical speed decision and release scale or repairs",
       "packet": ".wiretail/execution/tasks/101-12b.md",
