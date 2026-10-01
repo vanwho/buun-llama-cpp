@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "task": "101-09",
+  "source_commit": "1cc63f0a20ba4be8d6680b172c5b1779aec8a897",
+  "summary": "Measured and repaired complete selected-history route planning: selective complete histories use the page-aware dense route and route/CUDA numerical fixtures pass. Three canonical pager-off/selected native-MTP pairs and a prompt-3 target-only pair are recorded. Finite outputs and MTP proposal accounting were observed; residual output divergence is explicitly retained and is not claimed as pager-off parity.",
+  "build_provenance": {
+    "source_commit": "1cc63f0a20ba4be8d6680b172c5b1779aec8a897",
+    "tracked_worktree_diff_sha256": "59506df1bcc52c7763043859222b3ece65628b326ef4514db5645ff586a9a7db",
+    "server_binary": {
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "cebc69ebeb25e96b0372f966bd6a2e4a54397e28774df137a0dc65a2c706dc93"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "build_command": [
+      "cmake",
+      "--build",
+      "build-cuda",
+      "--target",
+      "llama-server",
+      "test-kv-attention-execution",
+      "-j6"
+    ]
+  },
+  "checks": {
+    "mtp_first_divergence_repaired_or_measured_alignment": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "environment": {
+        "candidate": "qwen38-fast",
+        "model": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "server_sha256": "cebc69ebeb25e96b0372f966bd6a2e4a54397e28774df137a0dc65a2c706dc93",
+        "context": 8192,
+        "batch": 1024,
+        "ubatch": 256,
+        "page_size": 256,
+        "selected_hot_pages": 16,
+        "kv": "Turbo4 target and draft",
+        "mtp": "native nmax=2",
+        "reasoning": "off",
+        "temperature": 0,
+        "max_output_tokens": 80
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/101-09-attempt2-selected-dense-build.log",
+          "sha256": "de30fe906622d713cfa886cc21ac8d05eeb6183729b234522fee1ba365ba79d0"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-09-attempt2-selected-dense-route.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-09-attempt2-cuda-attention-fixture-no-graphs.log",
+          "sha256": "50d02ae419bd2a6850544c86864dc88cd7978a5881cb5db4433056121de7c1ba"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-09-attempt2-measured-comparison.json",
+          "sha256": "b72f84bc8e86c4d504f622e164e26ac6ab1d6459ea81595f7c7b4a56788862e6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-09-attempt2-final-selected-retry.log",
+          "sha256": "01901e53e45c38d68f268263ad0fca3be04cfaf14edee7f247ec233f9d30e246"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-final-selected-retry/run-config.json",
+          "sha256": "814cda2522052d02a48604a5d25ccb712de156ac340486c0991b6c0f6ba86e67"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-final-selected-retry/lifecycle-state.json",
+          "sha256": "3b88f4f102f638f6101248bd6221ca6fbc70288f330c1e3a00df2d8ab7426881"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical1-pager-off/records.jsonl",
+          "sha256": "d509c28ebeb08c10d1155a85f4824a8e6f35eb76bdaa51e748f567b0043305bb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical1-pager-off/summary.json",
+          "sha256": "9ef48c4b54df53d319f0b80d3114ec4da1ec331b6cf81784095e7d196a01c0d1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical1-selected-c-le-h/records.jsonl",
+          "sha256": "132d7f403c42a7dbc0224c5febe82cb9a7414c006f2e084d910e569076a1a75d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical1-selected-c-le-h/summary.json",
+          "sha256": "69fad2085a65966e6529884c269e077d26a586fc5cb7025880eb11d8fce90f50"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical2-pager-off/records.jsonl",
+          "sha256": "b99112cc97b5b928fe647071e3d18e597c9055ea3e3e251413a062508ead5513"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical2-pager-off/summary.json",
+          "sha256": "b0aee58fcaf34d2860055884af7ecc6881a8fb94a0678feeb581c4366876dedb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical2-selected-c-le-h/records.jsonl",
+          "sha256": "caa3e51bf33bb5a39b509434b201f3ac841d3a6799d51b7f99b4ea0ecc594a61"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical2-selected-c-le-h/summary.json",
+          "sha256": "7b68fc10cc33938bf37aee2c78fd5fad97072ffebe57233a4177df8bf7201ca6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical3-pager-off/records.jsonl",
+          "sha256": "1c475b5e32a8d9168899645a006ac59a05890a8f2d2112f7985edecbf0b9b4c1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical3-pager-off/summary.json",
+          "sha256": "d61d13ad1ac2e5b3b6fe75c745e850f3676bc2686ec720f341a0be191b02e259"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical3-selected-c-le-h/records.jsonl",
+          "sha256": "4a797d318fb2cc40cf143e4678d6fa396f59a8d101631dda56b85abc59dcf314"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-canonical3-selected-c-le-h/summary.json",
+          "sha256": "3a690699fb4c642e2d71fb6d3b29a9389ddd8e9abf6567563254f3352c2afbaa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-targetonly-canonical3-pager-off/records.jsonl",
+          "sha256": "0fbee6dbf57f64bd05f5b8798b003fa9b5e8052c918a8746cfda00ff861abeb5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-targetonly-canonical3-selected-c-le-h/records.jsonl",
+          "sha256": "de2f3ad04756237fbdea308ead823467bccb0dd990eaaef8085ef050dc2591b4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-trace-canonical3-pager-off/records.jsonl",
+          "sha256": "fa6755346d0697c6dfec6b97174214f008812ea63dff9e90a004863c876868b8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-trace-canonical3-pager-off/raw/off-measured-1-p2.journal.log",
+          "sha256": "5a748b236bc7ba5ddfe01b9257ace0567829f9cbd9e7fa7b4ffb5b622b273791"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-trace-canonical3-selected-c-le-h/records.jsonl",
+          "sha256": "364e1eea6f208aa63b6270c7fc012c61d3636b14329aaf709f671c9ba7a9e30b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/101-09/attempt2-trace-canonical3-selected-c-le-h/raw/off-measured-1-p2.journal.log",
+          "sha256": "38864caeda39b7d341f3169476bc8eed9843ba3f875f2da0f0dbc8e91a756e71"
+        }
+      ],
+      "metrics": {
+        "route_regression": "pass; complete selective causal history selects selected_dense; pager-off remains dense; sparse history remains packed",
+        "cuda_attention_fixture": "pass with GGML_CUDA_DISABLE_GRAPHS=1; finite Turbo4 attention; direct/materialized parity and graph replay checks completed",
+        "canonical_prompt_pairs": "all three HTTP 200; one request per pager-off and selected all-resident row; nonzero native MTP proposals; response hashes retained in measured-comparison artifact",
+        "prompt3_target_only": "HTTP 200 in each mode; pager-off and selected response hashes differ, confirming residual target-side divergence independent of MTP",
+        "mtp_acceptance_percent": {
+          "prompt_1": {
+            "pager_off": 74.54545455,
+            "selected": 81.48148148
+          },
+          "prompt_2": {
+            "pager_off": 53.44827586,
+            "selected": 57.89473684
+          },
+          "prompt_3": {
+            "pager_off": 75.92592593,
+            "selected": 72.72727273
+          }
+        },
+        "residual_output_divergence": "observed and reported; no exact pager-off output parity claim; proposal rejection/accounting unchanged",
+        "final_candidate": "managed reload exit 0, native draft MTP, usable, kept loaded"
+      }
+    }
+  }
+}
