@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "task": "101-15",
+  "source_commit": "70d2dd82b0614e92ad23d09167c0fe4df81175bc",
+  "summary": "Shared immutable per-page catalogue payloads and cached payload digests; one-page updates hash only changed payload floats and preserve versioned snapshot identity.",
+  "source_diff_sha256": "e2615ba1c08263f381df8f4165dc21e985a9fe91c9cd85ec88b408a5f499b407",
+  "checks": {
+    "immutable_catalogue_delta_payload_and_cached_digest": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build/bin/test-kv-routing-summary"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "build",
+        "--target",
+        "test-kv-routing-summary",
+        "test-kv-pager",
+        "test-kv-routing-retrieval",
+        "-j4"
+      ],
+      "additional_commands": [
+        [
+          "./build/bin/test-kv-pager"
+        ],
+        [
+          "./build/bin/test-kv-routing-retrieval"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "coverage": {
+        "catalogue_sizes": [
+          2,
+          16,
+          64
+        ],
+        "initial_digest_float_counts": [
+          8,
+          64,
+          256
+        ],
+        "one_page_delta_float_counts": [
+          4,
+          4,
+          4
+        ],
+        "epoch_only_reconcile_float_counts": [
+          0,
+          0,
+          0
+        ],
+        "assertions": [
+          "retained vector pointer and values unchanged after update/invalidate",
+          "insertion-order deterministic digest",
+          "content-version digest separation and stale-version rejection",
+          "codec identity separation",
+          "coordinate identity separation",
+          "budget and overflow-safe rounding rejection",
+          "old store remains intact after invalidation"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-15/build.log",
+          "sha256": "8a5e9c0b61ab878e8caa4a2f448e95baeedbbf6f8ffee45cd38b4a432e7fd741"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-15/test-kv-routing-summary.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-15/test-kv-pager.log",
+          "sha256": "9c19abf149c0373f8ca0cf11c34c2349f2b3a9bce5dd83f9e8c3b7960b3c17db"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-15/test-kv-routing-retrieval.log",
+          "sha256": "29dd897138029306e26bd2f68bef104a91b55eace8b97da7005eba7a594743ba"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-15/diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-15/source.diff",
+          "sha256": "e2615ba1c08263f381df8f4165dc21e985a9fe91c9cd85ec88b408a5f499b407"
+        }
+      ]
+    }
+  }
+}

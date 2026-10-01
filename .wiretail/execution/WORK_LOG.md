@@ -1841,3 +1841,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-14`
 - Commit at update: `414083308`
 - Summary: Verified page-major one-rebuild-per-page collection, atomic summary publication failure/retry, scalar range/mean parity, focused CUDA tests, and the bounded prompt2 retake with V10 receipt.
+
+## 2026-10-01T17:53:15+00:00 — 101-15 — done
+
+- Branch: `codex/task-101-15`
+- Commit at update: `70d2dd82b`
+- Summary: Implemented immutable shared routing-summary payloads, cached per-page digests and stale-version checks; 2/16/64 delta-count, pager and routing retrieval tests pass.
