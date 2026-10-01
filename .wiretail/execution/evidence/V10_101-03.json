@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "task": "101-03",
+  "source_commit": "37d07398ca0b43a6c5b9b54290ffb14d7d67545d",
+  "build_identity": {
+    "candidate": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "candidate_sha256": "6962e31feb526f5cc7e4b3676d0ba58866937a80a6a16834fe2508a08b0edfe8",
+    "dirty": true,
+    "source_diff_sha256": "09067334a7ef9451f6159643056e991431ae588d248c750a3b750b8c710a2495",
+    "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9"
+  },
+  "checks": {
+    "batched_turbo4_fused_prefill_parity_and_cost": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "GGML_CUDA_DISABLE_GRAPHS=1",
+        "build-cuda/bin/test-cuda-fattn-paged-turbo4"
+      ],
+      "commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-cuda-fattn-paged-turbo4",
+          "-j",
+          "8"
+        ],
+        [
+          "env",
+          "GGML_CUDA_DISABLE_GRAPHS=1",
+          "build-cuda/bin/test-cuda-fattn-paged-turbo4"
+        ],
+        [
+          "env",
+          "GGML_CUDA_DISABLE_GRAPHS=1",
+          "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+          "--microbench-q32-q256"
+        ],
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "llama-server",
+          "test-kv-attention-execution",
+          "-j",
+          "8"
+        ],
+        [
+          "build-cuda/bin/test-kv-attention-execution"
+        ],
+        [
+          "python3",
+          "-",
+          "POST /v1/chat/completions with the selected canonical prompt1 request; capture before/after metrics"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/build-maskfix.log",
+          "sha256": "2078fa3daada1a95b9138fa05f467d31824c4230ca9ea65e033a193a49578a12"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/build-final.log",
+          "sha256": "64b4c621ceba142ee18c9dd82c731842a151959e571310984ec207719dd3f9cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/cuda-fixture-maskfix.log",
+          "sha256": "9eecfeb888bedab2fca4f7ad3ae525404ca327909dfc6a40c4346cb0e71ce966"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/batched-cost-maskfix.log",
+          "sha256": "3f903348bf3ea3a376e61ea2dd083a1cb3811efb1af5c33aa702d88a3beeaed8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/route-test-final2.log",
+          "sha256": "731edc8a75362e637d18acd189548c15023a1a9167c4d9a6b9841b3c8e5ac643"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/request.json",
+          "sha256": "a6855e2039ae32e76faabe92c3281bec80294ddd00e43e931ed269e9d5103753"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/response.json",
+          "sha256": "4ceeb9e951dc29a35724422e4b51ae29fbb25b9373097af62572d874cfd6ccc9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/metrics-before.prom",
+          "sha256": "e6761f4ce4080eee3b4932bd06e6e5debb1c24fcb636dd0ae1c4cf1bef26e901"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/metrics-after.prom",
+          "sha256": "62be4407568ee996f35fdfa3f8c448a69338ef4e790a57948f9960c63a54e6f9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/metrics-delta.json",
+          "sha256": "f3c70a6852a9b66819875eabf14614e1bc5d5d60d952f49bca5917a1fafdcc1b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/candidate-identity.json",
+          "sha256": "01c65e66a9f80d3f9d8d4f00d36e553b5a0f38ccfdf57be36fd35755f7a1d2b0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/summary.json",
+          "sha256": "b761f9d15cce2c6cb7051772304cb9c2ff5bff2e76a998c81a3967ff2e5ce180"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-03/attempt-01/live/journal.log",
+          "sha256": "504190ac34f1694781438e9fbd6e909bc691229101f5ab98772b322bbd4c4347"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-selected-v2-request-window.json",
+          "sha256": "b9bb6004e08ce1936acf2e1d2c94fdf5f7d8a88a836d37a2b17d897dd6ff4836"
+        }
+      ],
+      "runtime_summary": {
+        "same_row_fixture": {
+          "attended_rows": 1024,
+          "query_tokens": [
+            32,
+            256
+          ],
+          "max_direct_vs_packed_error": {
+            "Q32": 0.000119,
+            "Q256": 0.000229
+          },
+          "max_direct_vs_materialize_error": {
+            "Q32": 0.000119,
+            "Q256": 0.000229
+          }
+        },
+        "tail_parity": {
+          "attended_rows": 1024,
+          "query_tokens": [
+            31,
+            33,
+            255,
+            256,
+            257
+          ],
+          "gqa_ratios": [
+            1,
+            2,
+            4,
+            8
+          ]
+        },
+        "cost_ms_direct_fused_total_materialize_total": {
+          "A1024_Q32": [
+            0.278,
+            3.646,
+            0.219
+          ],
+          "A1024_Q256": [
+            0.288,
+            1.597,
+            0.949
+          ],
+          "A4096_Q32": [
+            1.121,
+            0.553,
+            0.475
+          ],
+          "A4096_Q256": [
+            1.0,
+            3.654,
+            3.159
+          ]
+        },
+        "f16_kv_scratch_bytes": {
+          "fused": 0,
+          "materialize_A4096": 4456448
+        },
+        "live_row": {
+          "candidate_sha256": "6962e31feb526f5cc7e4b3676d0ba58866937a80a6a16834fe2508a08b0edfe8",
+          "candidate_matches_process": true,
+          "prompt_tokens": 4326,
+          "completion_tokens": 80,
+          "prompt_ms": 17073.472,
+          "prompt_tokens_per_second": 253.375529,
+          "baseline_101_01_prompt_tokens_per_second": 202.144696,
+          "prefill_speedup_percent": 25.34,
+          "mtp_drafted": 57,
+          "mtp_accepted": 34,
+          "mtp_restore_failures": 0,
+          "prefill_direct_submissions": 15,
+          "prefill_packed_submissions": 6,
+          "mtp_verify_packed_submissions": 29,
+          "graph_replays": 25,
+          "graph_captures": 41,
+          "graph_construction_us": 137,
+          "scratch_high_water_before_bytes": 4325380,
+          "scratch_high_water_after_bytes": 69206000,
+          "scratch_high_water_delta_bytes": 64880620,
+          "packed_storage_bytes": 69206000
+        },
+        "phase_attribution": {
+          "current_candidate_nsys": "deferred; installed Nsight Systems 2023.4.4 CLI has no process attach mode",
+          "prior_matched_request_window_ns": {
+            "quantized_matmul": 640117885,
+            "gdn": 153005816,
+            "attention": 19634337
+          },
+          "current_graph_construction_us": 137
+        }
+      }
+    }
+  }
+}
