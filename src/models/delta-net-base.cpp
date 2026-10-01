@@ -669,7 +669,12 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
     // model's Q256/K3 CUDA geometry (6.994 ms total vs 6.444 ms serial).
     // Keep production dispatch closed until the fused CUDA successor wins.
     constexpr bool chunk_prefill_cuda_wins = false;
-    const bool split_prefill = chunk_prefill_cuda_wins && graph_is_prompt_or_replay && n_seq_tokens >= 128 &&
+    // This measured fallback uses the existing fused CUDA recurrent op for a
+    // compact-Q/K, snapshot-free prefix, then the exact K-token rollback tail.
+    // It is also slower at the target geometry, so it remains diagnostic-only.
+    constexpr bool fused_cuda_prefix_candidate_enabled = false;
+    const bool split_prefill = (chunk_prefill_cuda_wins || fused_cuda_prefix_candidate_enabled) &&
+        graph_is_prompt_or_replay && n_seq_tokens >= 128 &&
         n_seq_tokens > K && n_seq_tokens - K >= 64 && scalar_gate && valid_time_strides &&
         q->ne[0] == v->ne[0] && v->ne[1] % q->ne[1] == 0;
 
@@ -681,12 +686,11 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
         const int64_t tail_tokens = std::min<int64_t>(n_seq_tokens, K);
         const int64_t prefix_tokens = n_seq_tokens - tail_tokens;
 
-        // The fused GDN input may keep the compact Q/K head count. The chunk
-        // decomposition works at value-head granularity; repeat by the
-        // established GQA ratio instead of treating strided Q/K as Hv heads.
+        // The chunk graph operates at value-head granularity and repeats Q/K.
+        // The recurrent CUDA fallback accepts compact GQA Q/K directly.
         ggml_tensor * q_split = q;
         ggml_tensor * k_split = k;
-        if (q->ne[1] != v->ne[1]) {
+        if (chunk_prefill_cuda_wins && q->ne[1] != v->ne[1]) {
             q_split = ggml_repeat_4d(ctx0, q, q->ne[0], v->ne[1], q->ne[2], q->ne[3]);
             k_split = ggml_repeat_4d(ctx0, k, k->ne[0], v->ne[1], k->ne[2], k->ne[3]);
         }
@@ -709,10 +713,30 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
         ggml_tensor * g_tail = time_view(g, tail_tokens, prefix_tokens);
         ggml_tensor * b_tail = time_view(b, tail_tokens, prefix_tokens);
 
-        auto prefix = build_delta_net_chunking(
-                q_prefix, k_prefix, v_prefix, g_prefix, b_prefix, s, il);
+        ggml_tensor * prefix_output = nullptr;
+        ggml_tensor * prefix_state = nullptr;
+        if (chunk_prefill_cuda_wins) {
+            auto prefix = build_delta_net_chunking(
+                    q_prefix, k_prefix, v_prefix, g_prefix, b_prefix, s, il);
+            prefix_output = prefix.first;
+            prefix_state = prefix.second;
+        } else {
+            ggml_tensor * prefix = ggml_gated_delta_net(
+                    ctx0, q_prefix, k_prefix, v_prefix, g_prefix, b_prefix, s, /*K=*/1);
+            prefix_output = ggml_view_4d(ctx0, prefix,
+                    S_v, H_v, prefix_tokens, n_seqs,
+                    ggml_row_size(prefix->type, S_v),
+                    ggml_row_size(prefix->type, S_v * H_v),
+                    ggml_row_size(prefix->type, S_v * H_v * prefix_tokens), 0);
+            prefix_state = ggml_view_4d(ctx0, prefix,
+                    S_v, S_v, H_v, n_seqs,
+                    sizeof(float) * S_v,
+                    sizeof(float) * S_v * S_v,
+                    sizeof(float) * S_v * S_v * H_v,
+                    size_t(prefix_tokens * H_v * S_v) * sizeof(float));
+        }
         ggml_tensor * gdn_tail = ggml_gated_delta_net(
-                ctx0, q_tail, k_tail, v_tail, g_tail, b_tail, prefix.second, K);
+                ctx0, q_tail, k_tail, v_tail, g_tail, b_tail, prefix_state, K);
         res->add_fused_node({LLM_FUSED_OP_GDN_CH, gdn_tail, il});
 
         ggml_tensor * tail_output = ggml_view_4d(ctx0, gdn_tail,
@@ -720,7 +744,7 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
                 ggml_row_size(gdn_tail->type, S_v),
                 ggml_row_size(gdn_tail->type, S_v * H_v),
                 ggml_row_size(gdn_tail->type, S_v * H_v * tail_tokens), 0);
-        output = ggml_concat(ctx0, prefix.first, tail_output, 2);
+        output = ggml_concat(ctx0, prefix_output, tail_output, 2);
         gdn_out = gdn_tail;
         snapshot_tokens = tail_tokens;
     } else {

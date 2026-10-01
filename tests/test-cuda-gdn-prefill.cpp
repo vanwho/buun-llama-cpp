@@ -17,6 +17,12 @@ struct run_result {
     double copy_ms = 0.0;
 };
 
+enum class prefill_path {
+    serial,
+    graph_split,
+    cuda_prefix_split,
+};
+
 static std::vector<float> values(size_t count, uint32_t seed, float scale) {
     std::vector<float> result(count);
     for (size_t i = 0; i < count; ++i) {
@@ -32,7 +38,7 @@ static run_result run_gdn(
         int heads_k,
         int heads_v,
         int snapshots,
-        bool split,
+        prefill_path path,
         const std::vector<float> * initial_state = nullptr) {
     constexpr int d = 128;
     constexpr int sequences = 1;
@@ -65,7 +71,7 @@ static run_result run_gdn(
     ggml_tensor * tail_result = nullptr;
     ggml_tensor * output = nullptr;
     int tail_tokens = 0;
-    if (split && tokens >= 128 && tokens > snapshots) {
+    if (path == prefill_path::graph_split && tokens >= 128 && tokens > snapshots) {
         tail_tokens = snapshots;
         const int prefix_tokens = tokens - tail_tokens;
         ggml_tensor * q_split = q;
@@ -94,6 +100,44 @@ static run_result run_gdn(
                 ggml_row_size(tail_result->type, d), ggml_row_size(tail_result->type, d * heads_v),
                 ggml_row_size(tail_result->type, d * heads_v * tail_tokens), 0);
         auto * prefix_output = prefix.first;
+        output = ggml_concat(ctx, prefix_output, tail_output, 2);
+        result = tail_result;
+        ggml_build_forward_expand(graph, output);
+        ggml_build_forward_expand(graph, tail_result);
+    } else if (path == prefill_path::cuda_prefix_split && tokens >= 128 && tokens > snapshots) {
+        // Candidate fallback: the existing fused CUDA recurrent op can consume
+        // compact GQA Q/K directly. Keep its prefix snapshot-free and let the
+        // exact same op produce every rollback snapshot for the K-token tail.
+        tail_tokens = snapshots;
+        const int prefix_tokens = tokens - tail_tokens;
+        const auto time_view = [&](ggml_tensor * tensor, int count, int start) {
+            return ggml_view_4d(ctx, tensor,
+                    tensor->ne[0], tensor->ne[1], count, tensor->ne[3],
+                    tensor->nb[1], tensor->nb[2], tensor->nb[3],
+                    (size_t) start * tensor->nb[2]);
+        };
+        auto * prefix = ggml_gated_delta_net(ctx,
+                time_view(q, prefix_tokens, 0), time_view(k, prefix_tokens, 0),
+                time_view(v, prefix_tokens, 0), time_view(gate, prefix_tokens, 0),
+                time_view(beta, prefix_tokens, 0), state, 1);
+        auto * prefix_state = ggml_view_4d(ctx, prefix,
+                d, d, heads_v, sequences,
+                sizeof(float) * d,
+                sizeof(float) * d * d,
+                sizeof(float) * d * d * heads_v,
+                size_t(prefix_tokens * heads_v * d) * sizeof(float));
+        tail_result = ggml_gated_delta_net(ctx,
+                time_view(q, tail_tokens, prefix_tokens),
+                time_view(k, tail_tokens, prefix_tokens),
+                time_view(v, tail_tokens, prefix_tokens),
+                time_view(gate, tail_tokens, prefix_tokens),
+                time_view(beta, tail_tokens, prefix_tokens), prefix_state, snapshots);
+        auto * tail_output = ggml_view_4d(ctx, tail_result, d, heads_v, tail_tokens, sequences,
+                ggml_row_size(tail_result->type, d), ggml_row_size(tail_result->type, d * heads_v),
+                ggml_row_size(tail_result->type, d * heads_v * tail_tokens), 0);
+        auto * prefix_output = ggml_view_4d(ctx, prefix, d, heads_v, prefix_tokens, sequences,
+                ggml_row_size(prefix->type, d), ggml_row_size(prefix->type, d * heads_v),
+                ggml_row_size(prefix->type, d * heads_v * prefix_tokens), 0);
         output = ggml_concat(ctx, prefix_output, tail_output, 2);
         result = tail_result;
         ggml_build_forward_expand(graph, output);
@@ -163,8 +207,8 @@ static void compare(const run_result & reference, const run_result & actual,
                     reference.snapshots.begin() + (accepted + 1) * state_count);
             std::vector<float> split_state(actual.snapshots.begin() + accepted * state_count,
                     actual.snapshots.begin() + (accepted + 1) * state_count);
-            auto serial_next = run_gdn(backend, 1, heads_k, heads_v, 1, false, &serial_state);
-            auto split_next = run_gdn(backend, 1, heads_k, heads_v, 1, false, &split_state);
+            auto serial_next = run_gdn(backend, 1, heads_k, heads_v, 1, prefill_path::serial, &serial_state);
+            auto split_next = run_gdn(backend, 1, heads_k, heads_v, 1, prefill_path::serial, &split_state);
             for (size_t i = 0; i < serial_next.output.size(); ++i) {
                 max_next_error = std::max(max_next_error,
                         std::abs(serial_next.output[i] - split_next.output[i]));
@@ -192,6 +236,9 @@ int main() {
     graph_key_b.cparams.n_rs_seq = 1;
     GGML_ASSERT(!graph_key_a.allow_reuse(graph_key_b));
     graph_key_b = {};
+    graph_key_b.ubatch.n_tokens = 1;
+    GGML_ASSERT(!graph_key_a.allow_reuse(graph_key_b));
+    graph_key_b = {};
     graph_key_b.gtype = LLM_GRAPH_TYPE_DECODER_MTP;
     GGML_ASSERT(!graph_key_a.allow_reuse(graph_key_b));
 
@@ -202,9 +249,11 @@ int main() {
         const int heads_k = heads_v == 6 ? 2 : 4;
         for (int snapshots : {1, 3}) {
             for (int tokens : {1, 3, 64, 128, 256, 257}) {
-                auto serial = run_gdn(backend, tokens, heads_k, heads_v, snapshots, false);
-                auto split = run_gdn(backend, tokens, heads_k, heads_v, snapshots, true);
+                auto serial = run_gdn(backend, tokens, heads_k, heads_v, snapshots, prefill_path::serial);
+                auto split = run_gdn(backend, tokens, heads_k, heads_v, snapshots, prefill_path::graph_split);
+                auto fused = run_gdn(backend, tokens, heads_k, heads_v, snapshots, prefill_path::cuda_prefix_split);
                 compare(serial, split, backend, tokens, heads_k, heads_v, snapshots);
+                compare(serial, fused, backend, tokens, heads_k, heads_v, snapshots);
             }
         }
     }
@@ -212,16 +261,34 @@ int main() {
     // Model geometry uses H_v/H_k=3; time the full graph build and execution
     // separately so scratch/graph overhead is visible beside device work.
     std::vector<double> serial_setup, serial_graph, serial_copy, split_setup, split_graph, split_copy;
+    std::vector<double> fused_setup, fused_graph, fused_copy;
     for (int repeat = 0; repeat < 3; ++repeat) {
-        auto serial = run_gdn(backend, 256, 16, 48, 3, false);
-        auto split = run_gdn(backend, 256, 16, 48, 3, true);
+        run_result serial, split, fused;
+        // Rotate path order so each candidate sees each position once.
+        if (repeat == 0) {
+            serial = run_gdn(backend, 256, 16, 48, 3, prefill_path::serial);
+            split = run_gdn(backend, 256, 16, 48, 3, prefill_path::graph_split);
+            fused = run_gdn(backend, 256, 16, 48, 3, prefill_path::cuda_prefix_split);
+        } else if (repeat == 1) {
+            split = run_gdn(backend, 256, 16, 48, 3, prefill_path::graph_split);
+            fused = run_gdn(backend, 256, 16, 48, 3, prefill_path::cuda_prefix_split);
+            serial = run_gdn(backend, 256, 16, 48, 3, prefill_path::serial);
+        } else {
+            fused = run_gdn(backend, 256, 16, 48, 3, prefill_path::cuda_prefix_split);
+            serial = run_gdn(backend, 256, 16, 48, 3, prefill_path::serial);
+            split = run_gdn(backend, 256, 16, 48, 3, prefill_path::graph_split);
+        }
         compare(serial, split, backend, 256, 16, 48, 3);
+        compare(serial, fused, backend, 256, 16, 48, 3);
         serial_setup.push_back(serial.setup_ms);
         serial_graph.push_back(serial.run_ms);
         serial_copy.push_back(serial.copy_ms);
         split_setup.push_back(split.setup_ms);
         split_graph.push_back(split.run_ms);
         split_copy.push_back(split.copy_ms);
+        fused_setup.push_back(fused.setup_ms);
+        fused_graph.push_back(fused.run_ms);
+        fused_copy.push_back(fused.copy_ms);
     }
     const auto median = [](std::vector<double> samples) {
         std::sort(samples.begin(), samples.end());
@@ -229,9 +296,10 @@ int main() {
     };
     const double serial_total = median(serial_setup) + median(serial_graph) + median(serial_copy);
     const double split_total = median(split_setup) + median(split_graph) + median(split_copy);
-    std::printf("TIMING GDN Q256 K3 Hk=16 Hv=48 repeats=3 serial_setup_ms=%.3f serial_graph_ms=%.3f serial_copy_ms=%.3f split_setup_ms=%.3f split_graph_ms=%.3f split_copy_ms=%.3f serial_total_ms=%.3f split_total_ms=%.3f\n",
+    const double fused_total = median(fused_setup) + median(fused_graph) + median(fused_copy);
+    std::printf("TIMING GDN Q256 K3 Hk=16 Hv=48 repeats=3 serial_setup_ms=%.3f serial_graph_ms=%.3f serial_copy_ms=%.3f split_setup_ms=%.3f split_graph_ms=%.3f split_copy_ms=%.3f fused_setup_ms=%.3f fused_graph_ms=%.3f fused_copy_ms=%.3f serial_total_ms=%.3f split_total_ms=%.3f fused_total_ms=%.3f\n",
             median(serial_setup), median(serial_graph), median(serial_copy), median(split_setup), median(split_graph), median(split_copy),
-            serial_total, split_total);
+            median(fused_setup), median(fused_graph), median(fused_copy), serial_total, split_total, fused_total);
 
     ggml_backend_free(backend);
     return 0;
