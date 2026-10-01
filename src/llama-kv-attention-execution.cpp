@@ -890,14 +890,10 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
-    // When the selected view contains the complete causal history and is
-    // dense-capable, keep the native KV representation and ordinary dense
-    // Flash Attention graph.  selected_dense gathers/dequantizes Turbo4 rows
-    // into an f16 view; that is useful for a genuinely selected layout, but
-    // changes the target execution path even when paging has selected every
-    // live row.  Using the native cache here preserves pager-off logits for
-    // the all-resident case.  Incomplete sparse views continue through the
-    // selected packed/direct routes below.
+    // Even a complete resident history must use the selected dense graph while
+    // paging is enabled. It binds the immutable page map and crops the physical
+    // cache to the valid native prefix; the ordinary dense graph assumes the
+    // non-paged cache's logical row layout. Pager-off mode returned above.
     const auto complete_causal_history = [&]() noexcept {
         const auto & query_positions = metadata.query_positions();
         if (query_positions.empty()) return false;
@@ -921,7 +917,7 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return true;
     };
     if (dense_capable && complete_causal_history()) {
-        return llama_kv_attention_execution_route::dense;
+        return llama_kv_attention_execution_route::selected_dense;
     }
 
     // A selected dense view is valid for MTP verification only while it
