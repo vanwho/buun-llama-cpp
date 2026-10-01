@@ -3415,14 +3415,11 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             scratch.packed_bytes = UINT64_MAX;
             return refuse("selected packed attention has no selected pages");
         }
-        const auto & packed_tail = packed_pages.back();
-        const uint64_t packed_required_rows = uint64_t(packed_tail.compact_row_begin) +
-            packed_tail.row_count;
-        const uint64_t packed_row_capacity =
-            (packed_required_rows + VBR_GENERATION_PAGE_CELLS - 1) /
-            VBR_GENERATION_PAGE_CELLS * VBR_GENERATION_PAGE_CELLS;
+        const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
+                metadata, pager.snapshot().geometry.page_tokens,
+                pager.snapshot().physical_rows);
         const uint64_t attention_layers = pager.snapshot().geometry.attention_layers;
-        if (attention_layers == 0 || k_row > UINT64_MAX - v_row ||
+        if (packed_row_capacity == 0 || attention_layers == 0 || k_row > UINT64_MAX - v_row ||
                 packed_row_capacity > UINT64_MAX / (k_row + v_row) ||
                 packed_row_capacity * (k_row + v_row) >
                     UINT64_MAX / attention_layers) {

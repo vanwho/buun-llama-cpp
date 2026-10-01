@@ -74,7 +74,19 @@ constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 // extent, not the admitted physical cache window.
 uint32_t llama_kv_attention_packed_row_capacity(
         const llama_kv_attention_operator_metadata & metadata,
-        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS) noexcept;
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+        uint64_t admitted_rows = 0) noexcept;
+
+// Return the causal/alibi mask value for one compact selected row. Callers
+// pass the full admitted capacity; rows beyond native validity are always
+// masked so old contents in a stable owner can never become visible.
+float llama_kv_attention_selected_mask_value(
+        uint32_t row,
+        const std::vector<llama_pos> & native_positions,
+        const std::vector<uint8_t> & native_mask,
+        llama_pos query_position,
+        bool causal,
+        bool use_alibi) noexcept;
 
 size_t llama_kv_attention_packed_allocation_bytes(
         uint32_t row_capacity,
@@ -507,6 +519,9 @@ struct llama_kv_attention_execution_metrics {
         counter = counter > UINT64_MAX - elapsed_us ? UINT64_MAX : counter + elapsed_us;
     }
     void record_graph_rebuild_reason(llama_kv_attention_graph_rebuild_reason reason) noexcept;
+    void record_graph_rebuild_reason_if_profiled(
+            llama_kv_attention_graph_rebuild_reason reason,
+            const char * profile_value) noexcept;
     void record_effective_ubatch(uint64_t value) noexcept {
         effective_ubatch = value;
     }

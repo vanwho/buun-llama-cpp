@@ -1159,11 +1159,9 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 using T = std::remove_reference_t<decltype(*data)>;
                 for (uint32_t query = 0; query < n_queries; ++query) {
                     for (uint32_t row = 0; row < n_kv; ++row) {
-                        const bool allowed = row < valid.size() && valid[row] != 0 &&
-                            (!cparams.causal_attn || positions[row] <= queries[query]);
-                        const float value = allowed
-                            ? (hparams.use_alibi ? -std::abs(positions[row] - queries[query]) : 0.0f)
-                            : -INFINITY;
+                        const float value = llama_kv_attention_selected_mask_value(
+                                row, positions, valid, queries[query],
+                                cparams.causal_attn, hparams.use_alibi);
                         data[size_t(query) * n_kv + row] = llama_cast<T>(value);
                     }
                 }
@@ -1308,7 +1306,7 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     bool reason_recorded = false;
     const auto record_rebuild_reason = [&](llama_kv_attention_graph_rebuild_reason reason) {
         if (!profile || kv_attention_metrics == nullptr) return;
-        kv_attention_metrics->record_graph_rebuild_reason(reason);
+        kv_attention_metrics->record_graph_rebuild_reason_if_profiled(reason, profile_env);
         reason_recorded = true;
     };
 
@@ -1353,17 +1351,17 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
                 return false;
             }
             const uint32_t page_tokens = pager->snapshot().geometry.page_tokens;
-            // Packed row storage is sized from the selected view when this
-            // graph is built. A later prefill chunk can expand that view while
-            // retaining the same physical key; do not refresh its descriptors
-            // into a graph whose packed owner is now too small.
-            if (llama_kv_attention_packed_row_capacity(metadata, page_tokens) !=
+            // The owner capacity is fixed from admitted physical H when the
+            // graph is built. A content refresh stays reusable while the
+            // active compact extent remains inside that same bucket.
+            if (llama_kv_attention_packed_row_capacity(metadata, page_tokens,
+                    pager->snapshot().physical_rows) !=
                     packed_row_capacity) {
                 record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::row_capacity);
                 return false;
             }
         }
-        if ((dense || packed) && metadata.graph_physical_key() !=
+        if (dense && metadata.graph_physical_key() !=
                 selected_metadata.graph_physical_key()) {
             record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::physical_key);
             return false;
@@ -1538,37 +1536,78 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
                     return false;
                 }
                 const auto & page = pages[expected.page_index];
-                const uint64_t source_row = uint64_t(page.source_physical_slot) *
-                    VBR_GENERATION_PAGE_CELLS;
-                const uint64_t source_k_offset = (source_row + expected.row_begin) *
-                    layer.cache_entry->source_k->nb[2];
-                const uint64_t source_v_offset = (source_row + expected.row_begin) *
-                    layer.cache_entry->source_v->nb[2];
                 const auto & copy = layer.copies[copy_index];
-                if (copy.page_index != expected.page_index ||
-                            copy.page_index >= layer.cache_entry->content_versions.size() ||
+                if (expected.page_index >= layer.cache_entry->content_versions.size() ||
                             copy.source_k == nullptr ||
                             copy.source_v == nullptr || copy.packed_k == nullptr ||
                             copy.packed_v == nullptr ||
-                            copy.current_rows != expected.current_rows ||
-                            copy.page_row_count != page.row_count ||
-                            copy.row_count != expected.row_count ||
-                            copy.source_offset_k != source_k_offset ||
-                            copy.source_offset_v != source_v_offset ||
-                            copy.source_k->ne[2] != int64_t(expected.row_count) ||
-                            copy.source_v->ne[2] != int64_t(expected.row_count) ||
-                            copy.packed_k->ne[2] != int64_t(expected.row_count) ||
-                            copy.packed_v->ne[2] != int64_t(expected.row_count)) {
+                            copy.source_k->view_src != layer.cache_entry->source_k ||
+                            copy.source_v->view_src != layer.cache_entry->source_v ||
+                            copy.packed_k->view_src != layer.k ||
+                            copy.packed_v->view_src != layer.v ||
+                            copy.source_k->view_src->data == nullptr ||
+                            copy.source_v->view_src->data == nullptr ||
+                            copy.packed_k->view_src->data == nullptr ||
+                            copy.packed_v->view_src->data == nullptr ||
+                            uint64_t(page.source_physical_slot) * VBR_GENERATION_PAGE_CELLS +
+                                expected.row_begin + expected.row_count >
+                                uint64_t(layer.cache_entry->source_k->ne[2]) ||
+                            uint64_t(page.source_physical_slot) * VBR_GENERATION_PAGE_CELLS +
+                                expected.row_begin + expected.row_count >
+                                uint64_t(layer.cache_entry->source_v->ne[2]) ||
+                            uint64_t(page.compact_row_begin) + expected.row_begin +
+                                expected.row_count > packed_row_capacity) {
                     return false;
                 }
             }
         }
-        // The physical descriptors were proven to retain the same page and
-        // query-row layout. Refresh only their content generation sidebands;
-        // graph tensors and copy-view geometry remain owned by the capture.
+        // The physical descriptor buffers are graph-stable. Refresh mutable
+        // source/destination view offsets and generation sidebands in place;
+        // the owner address and copy tensor shapes remain unchanged.
         for (auto & layer : packed_layers) {
-            for (auto & copy : layer.copies) {
-                const auto & page = pages[copy.page_index];
+            auto * refreshed = packed_cache != nullptr
+                ? packed_cache->find_or_create(layer.layer_id,
+                    layer.cache_entry->sequence_id, mctx->get_vbr_epoch(),
+                    layer.source_lifetime_epoch, pages,
+                    layer.cache_entry->source_k, layer.cache_entry->source_v,
+                    layer.backend, packed_row_capacity, kv_attention_metrics)
+                : layer.cache_entry;
+            if (refreshed != layer.cache_entry) {
+                return false;
+            }
+            for (size_t copy_index = 0; copy_index < layer.copies.size(); ++copy_index) {
+                auto & copy = layer.copies[copy_index];
+                const auto & expected = expected_copies[copy_index];
+                const auto & page = pages[expected.page_index];
+                const uint64_t source_row = uint64_t(page.source_physical_slot) *
+                    VBR_GENERATION_PAGE_CELLS;
+                copy.page_index = uint32_t(expected.page_index);
+                copy.page_row_count = page.row_count;
+                copy.source_offset_k = (source_row + expected.row_begin) *
+                    layer.cache_entry->source_k->nb[2];
+                copy.source_offset_v = (source_row + expected.row_begin) *
+                    layer.cache_entry->source_v->nb[2];
+                const uint64_t packed_k_offset = uint64_t(
+                    page.compact_row_begin + expected.row_begin) * layer.k->nb[2];
+                const uint64_t packed_v_offset = uint64_t(
+                    page.compact_row_begin + expected.row_begin) * layer.v->nb[2];
+                copy.source_k->view_offs = copy.source_offset_k;
+                copy.source_v->view_offs = copy.source_offset_v;
+                copy.source_k->data = (char *) copy.source_k->view_src->data + copy.source_k->view_offs;
+                copy.source_v->data = (char *) copy.source_v->view_src->data + copy.source_v->view_offs;
+                copy.packed_k->view_offs = packed_k_offset;
+                copy.packed_v->view_offs = packed_v_offset;
+                copy.packed_k->data = (char *) copy.packed_k->view_src->data + copy.packed_k->view_offs;
+                copy.packed_v->data = (char *) copy.packed_v->view_src->data + copy.packed_v->view_offs;
+                copy.current_rows = expected.current_rows;
+                copy.row_count = expected.row_count;
+                copy.bytes = uint64_t(expected.row_count) *
+                    (layer.cache_entry->source_k->nb[2] +
+                     layer.cache_entry->source_v->nb[2]);
+                copy.source_k->ne[2] = expected.row_count;
+                copy.source_v->ne[2] = expected.row_count;
+                copy.packed_k->ne[2] = expected.row_count;
+                copy.packed_v->ne[2] = expected.row_count;
                 copy.page_generation = page.page_generation;
                 copy.content_version = layer.cache_entry->content_versions[copy.page_index];
                 copy.source_lifetime_epoch = layer.source_lifetime_epoch;
@@ -2203,75 +2242,33 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
     const auto * mctx = static_cast<const llama_memory_hybrid_context *>(params.mctx);
 
     this->mctx = mctx;
-    inp_attn->mctx = mctx->get_attn();
+    // Run the same full attention validation and refresh path used by the
+    // non-hybrid graph. In particular, the child sees the attention context,
+    // not the hybrid wrapper, and owns selected content/capacity checks.
+    llm_graph_params attention_params = params;
+    attention_params.mctx = mctx->get_attn();
+    const bool attention_reusable = inp_attn->can_reuse(attention_params);
+    bool recurrent_reusable = true;
 
-    bool res = true;
+    recurrent_reusable &= inp_rs->s_copy->ne[0] == mctx->get_recr()->get_n_rs();
 
-    res &= inp_attn->self_k_idxs->ne[0] == params.ubatch.n_tokens;
-  //res &= inp_attn->self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
+    recurrent_reusable &= inp_rs->s_copy_main->ne[0]  == params.ubatch.n_seqs;
+    recurrent_reusable &= inp_rs->s_copy_extra->ne[0] == mctx->get_recr()->get_n_rs() - params.ubatch.n_seqs;
 
-    const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
-        params.kv_attention_route == llama_kv_attention_execution_route::selected_dense ||
-        params.kv_attention_route == llama_kv_attention_execution_route::selected_packed ||
-        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
-        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
-    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
-        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
-    const bool dense = params.kv_attention_route == llama_kv_attention_execution_route::selected_dense;
-    const bool packed = params.kv_attention_route == llama_kv_attention_execution_route::selected_packed;
-    res &= inp_attn->selected_attention == selected;
-    res &= inp_attn->direct_attention == direct;
-    res &= inp_attn->dense_attention == dense;
-    res &= inp_attn->packed_attention == packed;
-    if (selected && params.kv_attention_exact_plan == nullptr) {
-        const auto & metadata = params.kv_attention_metadata;
-        if (!metadata.valid() || !metadata.enabled()) {
-            return false;
-        }
-        if (metadata.graph_content_key() != inp_attn->selected_content_key &&
-                !inp_attn->refresh_selected_data(metadata)) {
-            return false;
-        }
-        inp_attn->selected_metadata = metadata;
-    }
-    if (!direct) {
-        res &= can_reuse_kq_mask(inp_attn->self_kq_mask, mctx->get_attn(), params.ubatch, params.cparams,
-                selected ? params.kv_attention_metadata.get_n_kv() : 0);
-    }
-    if (selected && !direct && !dense && !packed) {
-        res &= inp_attn->self_selected_idxs != nullptr;
-        res &= inp_attn->self_selected_idxs->ne[0] == params.kv_attention_metadata.get_n_kv();
-    }
-    if (direct) {
-        res &= inp_attn->direct_pages != nullptr && inp_attn->direct_native_positions != nullptr &&
-            inp_attn->direct_native_mask != nullptr && inp_attn->direct_query_positions != nullptr;
-        res &= inp_attn->direct_pages->ne[0] == int64_t(
-                sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
-                inp_attn->direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page) +
-                inp_attn->direct_row_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup));
-        res &= inp_attn->direct_row_lookup_host.size() == inp_attn->direct_row_capacity;
-        res &= inp_attn->direct_page_capacity >= params.kv_attention_metadata.page_table().size();
-        res &= inp_attn->direct_row_capacity >= params.kv_attention_metadata.get_n_kv();
-        res &= inp_attn->direct_native_positions->ne[0] == inp_attn->direct_row_capacity;
-        res &= inp_attn->direct_native_mask->ne[0] == inp_attn->direct_row_capacity;
-        res &= inp_attn->direct_query_positions->ne[0] == int64_t(
-                params.kv_attention_metadata.query_positions().size());
-    }
-    if (packed) {
-        res &= inp_attn->direct_page_mass == nullptr;
-    }
-
-    res &= inp_rs->s_copy->ne[0] == mctx->get_recr()->get_n_rs();
-
-    res &= inp_rs->s_copy_main->ne[0]  == params.ubatch.n_seqs;
-    res &= inp_rs->s_copy_extra->ne[0] == mctx->get_recr()->get_n_rs() - params.ubatch.n_seqs;
-
-    res &= inp_rs->head == mctx->get_recr()->get_head();
-    res &= inp_rs->rs_z == mctx->get_recr()->get_rs_z();
-    res &= inp_rs->tensor_binding_epoch ==
+    recurrent_reusable &= inp_rs->head == mctx->get_recr()->get_head();
+    recurrent_reusable &= inp_rs->rs_z == mctx->get_recr()->get_rs_z();
+    recurrent_reusable &= inp_rs->tensor_binding_epoch ==
         mctx->get_recr()->get_tensor_binding_epoch();
 
-    return res;
+    if (attention_reusable && !recurrent_reusable &&
+            inp_attn->kv_attention_metrics != nullptr) {
+        const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+        if (profile_env != nullptr && std::strcmp(profile_env, "1") == 0) {
+            inp_attn->kv_attention_metrics->record_graph_rebuild_reason_if_profiled(
+                    llama_kv_attention_graph_rebuild_reason::other, profile_env);
+        }
+    }
+    return attention_reusable && recurrent_reusable;
 }
 
 // TODO: Hybrid input classes are a bit redundant.
@@ -4546,12 +4543,12 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (page_tokens == 0) {
                 throw std::runtime_error("packed selected attention has invalid page geometry");
             }
-            // The compact owner is sized from the selected view itself. The
-            // admitted physical window is an upper bound only; charging it
-            // here duplicated the full A window for sparse selections and was
-            // the source of the multi-megabyte allocation failure.
+            // Use the admitted physical window as the stable owner bucket.
+            // The pager's A admission already charges the bounded duplicate
+            // owner and its draining replacement; logical context L is never
+            // used as a packed allocation extent.
             const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
-                    *selected_metadata, page_tokens);
+                    *selected_metadata, page_tokens, pager_snapshot.physical_rows);
             if (packed_row_capacity == 0 ||
                     packed_row_capacity > pager_snapshot.physical_rows) {
                 throw std::runtime_error("packed selected attention row capacity overflows");
@@ -4716,11 +4713,14 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 duplicate_layer_id) {
                 throw std::runtime_error("direct paged attention has incomplete slot geometry");
             }
-            const uint64_t page_capacity64 = std::max<uint64_t>(
-                    selected_metadata->page_table().size(),
-                    pager->snapshot().logical_page_count);
-            const uint64_t row_capacity64 = page_capacity64 * VBR_GENERATION_PAGE_CELLS;
-            if (page_capacity64 == 0 || page_capacity64 > UINT32_MAX ||
+            // Device descriptors track the admitted resident map, not the
+            // logical context length. Maps may change in place while their
+            // active count remains within this reusable bound.
+            const uint64_t page_capacity64 = pager->snapshot().physical_page_count;
+            const uint64_t row_capacity64 = page_capacity64 *
+                pager->snapshot().geometry.page_tokens;
+            if (page_capacity64 < selected_metadata->page_table().size() ||
+                    page_capacity64 == 0 || page_capacity64 > UINT32_MAX ||
                     row_capacity64 > UINT32_MAX) {
                 throw std::runtime_error("direct paged attention capacity overflows");
             }
