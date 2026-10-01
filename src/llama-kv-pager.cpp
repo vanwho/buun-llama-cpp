@@ -3566,8 +3566,10 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         // its page pinned until the graph fence is complete; once the page is
         // full, sealing publishes its host copy and releases that pin so the
         // batch can evict it atomically when the next logical page crosses H.
+        // Publish its routing summary at this actual capacity boundary too:
+        // an otherwise clean page is not a candidate until both are current.
         if (!build_reservation_plan() && host_) {
-            (void) seal_ready_pages(false);
+            (void) seal_ready_pages(true);
         }
 
         // A completion may be the only producer that can turn a slot into a
