@@ -9357,6 +9357,12 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             } break;
         case GGML_OP_SET_ROWS:
             {
+                if (op->src[3] != nullptr) {
+                    return op->src[0]->type == op->type &&
+                        op->src[0]->nb[1] == op->nb[1] &&
+                        (op->src[1]->type == GGML_TYPE_I64 || op->src[1]->type == GGML_TYPE_I32) &&
+                        (op->src[3]->type == GGML_TYPE_I64 || op->src[3]->type == GGML_TYPE_I32);
+                }
                 return (
                            (
                                (op->type == GGML_TYPE_F32 || op->type == GGML_TYPE_F16 || op->type == GGML_TYPE_BF16 ||

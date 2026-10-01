@@ -5260,25 +5260,9 @@ ggml_tensor * llm_graph_context::build_attn(
             if (inp->packed_current_idxs == nullptr) {
                 throw std::runtime_error("packed selected attention current-row descriptor is unavailable");
             }
-            // Feed the stable Turbo4 owner from the same post-RoPE current
-            // rows that are committed by cache_k_write/cache_v_write. SET_ROWS
-            // quantizes F32/F16 into Turbo4 and accepts the mutable compact
-            // row IDs; gathering an already-quantized row would dequantize and
-            // re-quantize every token and is unsupported on CUDA.
-            const auto make_current_source = [&](ggml_tensor * current,
-                                                  ggml_tensor * owner) {
-                const int64_t n_head = owner->ne[1];
-                const int64_t cache_head = owner->ne[0];
-                if (current->ne[1] != n_head || current->ne[0] > cache_head ||
-                        current->ne[2] != int64_t(inp->packed_current_idxs->ne[0])) {
-                    throw std::runtime_error("packed selected attention current rows have invalid shape");
-                }
-                if (current->ne[0] < cache_head) {
-                    current = ggml_pad(ctx0, current, cache_head - current->ne[0], 0, 0, 0);
-                }
-                return ggml_view_2d(ctx0, current, cache_head * n_head,
-                        current->ne[2], current->nb[2], 0);
-            };
+            // The canonical cache SET_ROWS nodes encode these tokens once.
+            // Read their encoded cache rows and append them as bytes, with the
+            // cache write result as an explicit graph dependency.
             ggml_tensor * packed_k_owner = ggml_reshape_2d(ctx0, layer.k,
                     layer.k->ne[0] * layer.k->ne[1], layer.k->ne[2]);
             ggml_tensor * packed_v_owner = ggml_reshape_2d(ctx0, layer.v,
@@ -5287,13 +5271,18 @@ ggml_tensor * llm_graph_context::build_attn(
             // is not guaranteed to follow the stable owner. Preserve the
             // cache-domain names on the actual CUDA destinations so Turbo4's
             // mean-subtraction dispatch sees the same K/V semantics as the
-            // source cache and packed owner.
+            // source cache and packed owner (also retained for profiling).
             ggml_set_name(packed_k_owner, layer.k->name);
             ggml_set_name(packed_v_owner, layer.v->name);
-            layer.current_k = ggml_set_rows(ctx0, packed_k_owner,
-                    make_current_source(k_cur, layer.k), inp->packed_current_idxs);
-            layer.current_v = ggml_set_rows(ctx0, packed_v_owner,
-                    make_current_source(v_cur, layer.v), inp->packed_current_idxs);
+            ggml_tensor * k_idxs = inp->get_k_idxs(il);
+            ggml_tensor * v_idxs = inp->get_v_idxs(il);
+            if (k_idxs == nullptr || v_idxs == nullptr || cache_k_write == nullptr || cache_v_write == nullptr) {
+                throw std::runtime_error("packed selected attention canonical cache writes are unavailable");
+            }
+            layer.current_k = ggml_set_rows_from_rows(ctx0, packed_k_owner,
+                    cache_k_write, inp->packed_current_idxs, k_idxs);
+            layer.current_v = ggml_set_rows_from_rows(ctx0, packed_v_owner,
+                    cache_v_write, inp->packed_current_idxs, v_idxs);
             ggml_build_forward_expand(gf, layer.current_k);
             ggml_build_forward_expand(gf, layer.current_v);
             break;

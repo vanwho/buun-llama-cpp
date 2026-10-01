@@ -4444,6 +4444,33 @@ struct ggml_tensor * ggml_set_rows(
     return result;
 }
 
+struct ggml_tensor * ggml_set_rows_from_rows(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * dst,
+        struct ggml_tensor  * src,
+        struct ggml_tensor  * dst_indices,
+        struct ggml_tensor  * src_indices) {
+    GGML_ASSERT(ggml_is_matrix(dst) && ggml_is_matrix(src));
+    GGML_ASSERT(dst->type == src->type);
+    GGML_ASSERT(dst->ne[0] == src->ne[0]);
+    GGML_ASSERT(ggml_row_size(dst->type, dst->ne[0]) == ggml_row_size(src->type, src->ne[0]));
+    GGML_ASSERT(ggml_is_vector(dst_indices) && ggml_is_vector(src_indices));
+    GGML_ASSERT(dst_indices->ne[0] == src_indices->ne[0]);
+    GGML_ASSERT(dst_indices->type == GGML_TYPE_I32 || dst_indices->type == GGML_TYPE_I64);
+    GGML_ASSERT(src_indices->type == GGML_TYPE_I32 || src_indices->type == GGML_TYPE_I64);
+    GGML_ASSERT(dst_indices->type == src_indices->type);
+    GGML_ASSERT(ggml_is_contiguous_rows(dst) && ggml_is_contiguous_rows(src));
+    GGML_ASSERT(ggml_is_contiguous(dst_indices) && ggml_is_contiguous(src_indices));
+
+    struct ggml_tensor * result = ggml_view_tensor(ctx, dst);
+    result->op     = GGML_OP_SET_ROWS;
+    result->src[0] = src;
+    result->src[1] = dst_indices;
+    result->src[2] = dst;
+    result->src[3] = src_indices;
+    return result;
+}
+
 // ggml_diag
 
 struct ggml_tensor * ggml_diag(
