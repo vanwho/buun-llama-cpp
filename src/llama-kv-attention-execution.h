@@ -357,6 +357,16 @@ bool llama_kv_attention_prefill_page_fence_due(
         uint32_t pages_admitted,
         uint32_t physical_page_capacity) noexcept;
 
+// Cached input may join a bounded prefill wave only when its ubatch is the
+// ordinary contiguous single-sequence layout and every touched page already
+// owns a physical slot. Cold pages may require allocation or recycling while
+// earlier graphs are pending, so they keep the conservative fence path.
+inline bool llama_kv_attention_prefill_cached_wave_eligible(
+        bool contiguous_single_sequence, bool has_resident_pages,
+        bool all_pages_resident) noexcept {
+    return contiguous_single_sequence && has_resident_pages && all_pages_resident;
+}
+
 struct llama_kv_attention_execution_decision {
     llama_kv_attention_execution_status status = llama_kv_attention_execution_status::disabled;
     llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
