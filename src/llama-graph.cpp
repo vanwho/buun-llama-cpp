@@ -2674,6 +2674,7 @@ void llm_graph_result::set_params(const llm_graph_params & params) {
 //
 
 llm_graph_context::llm_graph_context(const llm_graph_params & params) :
+    gtype            (params.gtype),
     arch             (params.arch),
     hparams          (params.hparams),
     cparams          (params.cparams),

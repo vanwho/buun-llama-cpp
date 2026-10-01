@@ -862,6 +862,12 @@ if (TARGET ggml-cuda AND NOT GGML_BACKEND_DL)
     target_link_libraries(test-cuda-recurrent-indexed PRIVATE ggml-cuda)
     llama_test(test-cuda-recurrent-indexed LABEL "backend")
     set_tests_properties(test-cuda-recurrent-indexed PROPERTIES SKIP_RETURN_CODE 77)
+
+    llama_build(test-cuda-gdn-prefill.cpp)
+    target_include_directories(test-cuda-gdn-prefill PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    target_link_libraries(test-cuda-gdn-prefill PRIVATE llama ggml-cuda)
+    llama_test(test-cuda-gdn-prefill LABEL "backend")
+    set_tests_properties(test-cuda-gdn-prefill PROPERTIES SKIP_RETURN_CODE 77)
     # Small scale-aware cases exercise generic fallbacks without the expensive
     # CPU reference of production-sized dynamic FP8 GEMMs.
     llama_test(test-backend-ops NAME test-cuda-native-quant-fallbacks

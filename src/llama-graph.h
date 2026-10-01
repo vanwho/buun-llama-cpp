@@ -1182,6 +1182,7 @@ struct llm_graph_params {
             cparams.embeddings_nextn        == other.cparams.embeddings_nextn        &&
             cparams.embeddings_nextn_masked == other.cparams.embeddings_nextn_masked &&
             cparams.causal_attn             == other.cparams.causal_attn             &&
+            cparams.n_rs_seq                == other.cparams.n_rs_seq                &&
             cparams.dflash_inject_stage     == other.cparams.dflash_inject_stage     &&
             cparams.dflash_oneg_n_inject    == other.cparams.dflash_oneg_n_inject    &&
             cparams.dflash_target_mmq_batch == other.cparams.dflash_target_mmq_batch &&
@@ -1324,6 +1325,7 @@ struct llm_graph_qkv {
 };
 
 struct llm_graph_context {
+    const llm_graph_type gtype;
     const llm_arch arch;
 
     const llama_hparams & hparams;

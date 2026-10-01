@@ -122,6 +122,15 @@ std::pair<ggml_tensor *, ggml_tensor *> llm_build_delta_net_base::build_delta_ne
     GGML_ASSERT(b->ne[0] == 1   && b->ne[1] == H_v && b->ne[2] == n_tokens && b->ne[3] == n_seqs);
     GGML_ASSERT(s->ne[0] == S_v && s->ne[1] == S_v && s->ne[2] == H_v      && s->ne[3] == n_seqs);
 
+    // Prefix views in the snapshot-preserving prefill plan keep the original
+    // token/sequence strides. The chunk arithmetic's scale/pad operations
+    // require dense sequence planes, so materialize only views that need it.
+    q = ggml_cont(ctx0, q);
+    k = ggml_cont(ctx0, k);
+    v = ggml_cont(ctx0, v);
+    g = ggml_cont(ctx0, g);
+    b = ggml_cont(ctx0, b);
+
     const float scale = 1.0f / sqrtf(S_k);
 
     q = ggml_scale(ctx0, q, scale);
@@ -641,31 +650,104 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
     }
 
     const int64_t D = S_v * S_v * H_v;
-    const int64_t K = cparams.n_rs_seq + 1;
+    const int64_t K = (int64_t) cparams.n_rs_seq + 1;
 
-    // state s is 4D [S_v, S_v, H_v, n_seqs]; K snapshot slots are written into the output.
-    ggml_tensor * gdn_out = ggml_gated_delta_net(ctx0, q, k, v, g, b, s, K);
-    if (n_seq_tokens > 1) {
-        res->add_fused_node({LLM_FUSED_OP_GDN_CH, gdn_out, il});
+    // Large target prompt/replay graphs can use the parallel chunk builder for
+    // their prefix while keeping the newest K states on the exact serial op.
+    // MTP verification has multi-token graphs too, but must remain on its
+    // existing path so its verification and rollback semantics are unchanged.
+    const bool graph_is_prompt_or_replay =
+        gtype == LLM_GRAPH_TYPE_DEFAULT || gtype == LLM_GRAPH_TYPE_DECODER;
+    const bool scalar_gate = g->ne[0] == 1;
+    const bool valid_time_strides =
+        q->nb[2] >= ggml_row_size(q->type, q->ne[0] * q->ne[1]) &&
+        k->nb[2] >= ggml_row_size(k->type, k->ne[0] * k->ne[1]) &&
+        v->nb[2] >= ggml_row_size(v->type, v->ne[0] * v->ne[1]) &&
+        g->nb[2] >= ggml_row_size(g->type, g->ne[0] * g->ne[1]) &&
+        b->nb[2] >= ggml_row_size(b->type, b->ne[0] * b->ne[1]);
+    // The current graph decomposition is correct but measured slower at the
+    // model's Q256/K3 CUDA geometry (6.994 ms total vs 6.444 ms serial).
+    // Keep production dispatch closed until the fused CUDA successor wins.
+    constexpr bool chunk_prefill_cuda_wins = false;
+    const bool split_prefill = chunk_prefill_cuda_wins && graph_is_prompt_or_replay && n_seq_tokens >= 128 &&
+        n_seq_tokens > K && n_seq_tokens - K >= 64 && scalar_gate && valid_time_strides &&
+        q->ne[0] == v->ne[0] && v->ne[1] % q->ne[1] == 0;
+
+    ggml_tensor * gdn_out = nullptr;
+    ggml_tensor * output = nullptr;
+    int64_t snapshot_tokens = n_seq_tokens;
+
+    if (split_prefill) {
+        const int64_t tail_tokens = std::min<int64_t>(n_seq_tokens, K);
+        const int64_t prefix_tokens = n_seq_tokens - tail_tokens;
+
+        // The fused GDN input may keep the compact Q/K head count. The chunk
+        // decomposition works at value-head granularity; repeat by the
+        // established GQA ratio instead of treating strided Q/K as Hv heads.
+        ggml_tensor * q_split = q;
+        ggml_tensor * k_split = k;
+        if (q->ne[1] != v->ne[1]) {
+            q_split = ggml_repeat_4d(ctx0, q, q->ne[0], v->ne[1], q->ne[2], q->ne[3]);
+            k_split = ggml_repeat_4d(ctx0, k, k->ne[0], v->ne[1], k->ne[2], k->ne[3]);
+        }
+
+        const auto time_view = [&](ggml_tensor * tensor, int64_t count, int64_t start) {
+            return ggml_view_4d(ctx0, tensor,
+                    tensor->ne[0], tensor->ne[1], count, tensor->ne[3],
+                    tensor->nb[1], tensor->nb[2], tensor->nb[3],
+                    (size_t) start * tensor->nb[2]);
+        };
+
+        ggml_tensor * q_prefix = time_view(q_split, prefix_tokens, 0);
+        ggml_tensor * k_prefix = time_view(k_split, prefix_tokens, 0);
+        ggml_tensor * v_prefix = time_view(v, prefix_tokens, 0);
+        ggml_tensor * g_prefix = time_view(g, prefix_tokens, 0);
+        ggml_tensor * b_prefix = time_view(b, prefix_tokens, 0);
+        ggml_tensor * q_tail = time_view(q_split, tail_tokens, prefix_tokens);
+        ggml_tensor * k_tail = time_view(k_split, tail_tokens, prefix_tokens);
+        ggml_tensor * v_tail = time_view(v, tail_tokens, prefix_tokens);
+        ggml_tensor * g_tail = time_view(g, tail_tokens, prefix_tokens);
+        ggml_tensor * b_tail = time_view(b, tail_tokens, prefix_tokens);
+
+        auto prefix = build_delta_net_chunking(
+                q_prefix, k_prefix, v_prefix, g_prefix, b_prefix, s, il);
+        ggml_tensor * gdn_tail = ggml_gated_delta_net(
+                ctx0, q_tail, k_tail, v_tail, g_tail, b_tail, prefix.second, K);
+        res->add_fused_node({LLM_FUSED_OP_GDN_CH, gdn_tail, il});
+
+        ggml_tensor * tail_output = ggml_view_4d(ctx0, gdn_tail,
+                S_v, H_v, tail_tokens, n_seqs,
+                ggml_row_size(gdn_tail->type, S_v),
+                ggml_row_size(gdn_tail->type, S_v * H_v),
+                ggml_row_size(gdn_tail->type, S_v * H_v * tail_tokens), 0);
+        output = ggml_concat(ctx0, prefix.first, tail_output, 2);
+        gdn_out = gdn_tail;
+        snapshot_tokens = tail_tokens;
     } else {
-        res->add_fused_node({LLM_FUSED_OP_GDN_AR, gdn_out, il});
+        // state s is 4D [S_v, S_v, H_v, n_seqs]; K snapshot slots are written
+        // into the output, newest first.
+        gdn_out = ggml_gated_delta_net(ctx0, q, k, v, g, b, s, K);
+        if (n_seq_tokens > 1) {
+            res->add_fused_node({LLM_FUSED_OP_GDN_CH, gdn_out, il});
+        } else {
+            res->add_fused_node({LLM_FUSED_OP_GDN_AR, gdn_out, il});
+        }
+        output = ggml_view_4d(ctx0, gdn_out,
+            S_v, H_v, n_seq_tokens, n_seqs,
+            ggml_row_size(gdn_out->type, S_v),
+            ggml_row_size(gdn_out->type, S_v * H_v),
+            ggml_row_size(gdn_out->type, S_v * H_v * n_seq_tokens),
+            0);
     }
 
-    const int64_t attn_score_elems    = S_v * H_v * n_seq_tokens * n_seqs;
+    const int64_t attn_score_elems    = S_v * H_v * snapshot_tokens * n_seqs;
     const int64_t state_size_per_snap = S_v * S_v * H_v * n_seqs;
-
-    ggml_tensor * output = ggml_view_4d(ctx0, gdn_out,
-        S_v, H_v, n_seq_tokens, n_seqs,
-        ggml_row_size(gdn_out->type, S_v),
-        ggml_row_size(gdn_out->type, S_v * H_v),
-        ggml_row_size(gdn_out->type, S_v * H_v * n_seq_tokens),
-        0);
     cb(output, "attn_output", il);
 
     const size_t row_size = hparams.n_embd_s() * ggml_element_size(ssm_states_all);
 
     // op writes the last min(n_seq_tokens, K) snapshots; trailing slots are left unwritten
-    const int64_t n_written = std::min<int64_t>(n_seq_tokens, K);
+    const int64_t n_written = std::min<int64_t>(snapshot_tokens, K);
 
     // write the produced snapshots into the recurrent cache (snapshot slot i -> rollback group i)
     ggml_tensor * src = ggml_view_3d(ctx0, gdn_out,
