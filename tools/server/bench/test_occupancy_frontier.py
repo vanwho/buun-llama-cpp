@@ -47,8 +47,10 @@ class FakeRuntime:
         self.generation = 1
         self.clear_count = 0
         self.request_indices: list[int] = []
+        self.endpoint_calls = 0
 
     def snapshot(self, _endpoint: str, _key: str) -> dict[str, object]:
+        self.endpoint_calls += 1
         host_rows = max(0, self.frontier - 16384)
         target_rows = min(self.frontier, 16384)
         return {
@@ -81,6 +83,7 @@ class FakeRuntime:
 
     def clear_slot(self, _endpoint: str, _key: str, slot_id: int,
                    _timeout: float) -> dict[str, object]:
+        self.endpoint_calls += 1
         self.frontier = 0
         self.generation += 1
         self.clear_count += 1
@@ -91,6 +94,7 @@ class FakeRuntime:
                     _context: int, _phase: str, request_index: int, _trial: int,
                     prompt_tokens: int, _timeout: float, raw_path: pathlib.Path,
                     **_kwargs: object) -> dict[str, object]:
+        self.endpoint_calls += 1
         self.request_indices.append(request_index)
         self.frontier = prompt_tokens
         raw_path.write_text(f"data: fake-response-{request_index}\n", encoding="utf-8")
@@ -118,6 +122,37 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
+        for context_tokens in (8192, 32768, 131072, 262144):
+            with self.subTest(context_tokens=context_tokens):
+                occupancy.validate_requested_geometry(
+                    context_tokens, 4096, 256, 1000, 16)
+
+        runtime = FakeRuntime()
+        invalid_geometries = (
+            (262145, 4096, 256, 1000),  # above the named context ceiling
+            (8192, 8192, 256, 1000),    # H must be smaller than L
+            (8193, 4096, 256, 1000),    # L must be page aligned
+            (8192, 4097, 256, 1000),    # H must be page aligned
+            (8192, 4096, 256, 8192),    # target must leave generation room
+        )
+        for context_tokens, hot_tokens, page_tokens, target_tokens in invalid_geometries:
+            with self.subTest(context_tokens=context_tokens, hot_tokens=hot_tokens,
+                              target_tokens=target_tokens):
+                argv = [
+                    "run-occupancy-frontier.py", "--output", "unused-output",
+                    "--api-key-file", "unused-key", "--target-tokens", str(target_tokens),
+                    "--context-tokens", str(context_tokens), "--hot-tokens", str(hot_tokens),
+                    "--page-tokens", str(page_tokens),
+                ]
+                with patch.object(occupancy, "load_driver", return_value=runtime) as load_driver, \
+                        patch.object(occupancy.sys, "argv", argv):
+                    with self.assertRaises(SystemExit):
+                        occupancy.main()
+                load_driver.assert_not_called()
+
+        self.assertEqual(runtime.endpoint_calls, 0)
+
     def test_committed_interrupt_resumes_with_bound_identity_and_unique_artifacts(self) -> None:
         runtime = FakeRuntime()
         current_identity = identity()

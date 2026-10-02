@@ -13,6 +13,8 @@ import sys
 import time
 from typing import Any, Mapping
 
+MAX_CONTEXT_TOKENS = 262144
+
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
@@ -272,6 +274,16 @@ def validate_resume_state(state: Mapping[str, Any], identity: Mapping[str, Any],
             f"observed {slot.get('occupied_tokens')!r}")
 
 
+def validate_requested_geometry(context_tokens: int, hot_tokens: int, page_tokens: int,
+                                target_tokens: int, max_tokens: int) -> None:
+    if hot_tokens >= context_tokens or context_tokens > MAX_CONTEXT_TOKENS:
+        raise SystemExit(f"fixture requires 0 < H < L <= {MAX_CONTEXT_TOKENS}")
+    if hot_tokens % page_tokens or context_tokens % page_tokens:
+        raise SystemExit("logical and hot capacities must be page aligned")
+    if target_tokens > context_tokens - max_tokens:
+        raise SystemExit("target frontier must leave room for generation")
+
+
 def _artifact(path: pathlib.Path, root: pathlib.Path) -> dict[str, str]:
     if not path.is_file():
         path.write_bytes(b"")
@@ -357,14 +369,10 @@ def main() -> int:
            args.batch_tokens, args.ubatch_tokens, args.turn_delta, args.initial_tokens,
            args.max_fresh_tokens, args.max_tokens) <= 0:
         raise SystemExit("token and geometry values must be positive")
-    if args.hot_tokens >= args.context_tokens or args.context_tokens > 32768:
-        raise SystemExit("fixture requires 0 < H < L <= 32768")
-    if args.hot_tokens % args.page_tokens or args.context_tokens % args.page_tokens:
-        raise SystemExit("logical and hot capacities must be page aligned")
+    validate_requested_geometry(args.context_tokens, args.hot_tokens, args.page_tokens,
+                                args.target_tokens, args.max_tokens)
     if args.turn_delta > args.max_fresh_tokens:
         args.turn_delta = args.max_fresh_tokens
-    if args.target_tokens > args.context_tokens - args.max_tokens:
-        raise SystemExit("target frontier must leave room for generation")
     if args.max_requests is not None and args.max_requests <= 0:
         raise SystemExit("--max-requests must be positive")
 
