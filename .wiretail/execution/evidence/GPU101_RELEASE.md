@@ -1,6 +1,21 @@
 # GPU101 release decision — 101-12l retake
 
-**Decision: goal_miss. Scale remains gated.** The immutable candidate-v6 canonical retake completed all three matched routes. Selected prefill clears both 500 and 750 tok/s targets on all prompts, and selected decode beats CPU-main-KV on all prompts. Prompt 1 selected MTP acceptance is 39.69%, below its 75% floor; prompts 2 and 3 clear their 40% and 60% floors.
+**Historical decision: goal_miss under the policy active at measurement time.** The immutable candidate-v6 canonical retake completed all three matched routes. Selected prefill clears both 500 and 750 tok/s targets on all prompts, and selected decode beats CPU-main-KV on all prompts. Prompt 1 selected MTP acceptance is 39.69%, below the former 75% floor; prompts 2 and 3 clear their former 40% and 60% floors. The current continuation policy is recorded below.
+
+### Current policy amendment (2026-10-02)
+
+The user reset the MTP median floor to 40% for each prompt and authorized
+capacity benchmarks to continue when MTP acceptance alone is below that floor.
+The table below is the immutable historical measurement and retains the
+thresholds used when that retake ran; its P1 long-prefix result (39.69%) is
+still 0.31 points below the current 40% floor. A fresh short-prompt comparison
+of the 101-12j and 101-12l binaries produced identical P1 MTP samples
+53.62/83.03/83.03% (median 83.03%) on each build, but used a 30-token rendered
+prompt rather than the 4,115-token long prefix. It establishes no regression
+for that short-prompt condition and does not replace the long-prefix record.
+Task 101-12n must retain this distinction, apply the current thresholds, and
+may authorize 102 capacity measurements after review without relabeling this
+release as a full pass. Raw rows and original release JSON remain unchanged.
 
 ## Candidate and protocol
 

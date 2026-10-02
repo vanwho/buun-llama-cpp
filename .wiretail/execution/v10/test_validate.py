@@ -487,7 +487,7 @@ class SelectorStageTests(unittest.TestCase):
 
     def test_93_12_accepts_exact_per_prompt_acceptance_floors(self):
         receipt = self.paired_speed_receipt()
-        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 60}
+        floors = {"prompt_1": 40, "prompt_2": 40, "prompt_3": 40}
         for mode in receipt["paired_benchmark"]["modes"].values():
             for geometry in mode["geometries"].values():
                 for prompt_id, floor in floors.items():
@@ -626,12 +626,12 @@ class SelectorStageTests(unittest.TestCase):
         receipt = self.geometry_speed_receipt()
         rows = receipt["geometry_benchmark"]["geometries"]["secondary_512_128"]["prompts"]["prompt_3"]["measured_runs"]
         for row in rows:
-            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=11, mtp_acceptance_pct=55.0)
+            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=7, mtp_acceptance_pct=35.0)
         self.assertTrue(self.check_geometry_speed(receipt))
 
     def test_93_11f_accepts_exact_per_prompt_acceptance_floors(self):
         receipt = self.geometry_speed_receipt()
-        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 60}
+        floors = {"prompt_1": 40, "prompt_2": 40, "prompt_3": 40}
         for geometry in receipt["geometry_benchmark"]["geometries"].values():
             for prompt_id, floor in floors.items():
                 for row in geometry["prompts"][prompt_id]["measured_runs"]:

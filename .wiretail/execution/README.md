@@ -66,19 +66,24 @@ The final review reads only the new benchmark summary. If the goal is unmet,
 it must append actual remediation/benchmark/summary/review task entries before
 completing, not merely recommend another action in prose.
 
-## Local-only benchmark fixture cleanup before upstream PR
+## Local-only benchmark assets and tooling cleanup before upstream PR
 
-The phase-102 repo-context fixture is intentionally kept in its own commit so
-it can be excluded cleanly from a later upstream code PR. The following paths
-are campaign/test data, not portable Buun product changes, and must be removed
-from the upstream PR commit range (or relocated to external benchmark storage)
-during final cleanup:
+The phase-102 repo-context fixture and the local GPU101 release-validation
+helpers are intentionally kept in separate commits so they can be excluded
+cleanly from a later upstream code PR. These paths are campaign/test data or
+server/project-specific validation tooling, not portable Buun product
+changes. Remove them from the upstream PR commit range (or relocate them to
+external benchmark tooling) during final cleanup:
 
 - `tools/server/bench/fixtures/repo-context-v1/README.md`
 - `tools/server/bench/fixtures/repo-context-v1/manifest.json`
 - `tools/server/bench/fixtures/repo-context-v1/prompts.md`
+- `tools/server/bench/canonical_result_check.py`
+- `tools/server/bench/test-gpu101-release.py`
+- `tools/server/bench/validate-gpu101-release.py`
+- `tools/server/bench/verify-gpu101-retake.py`
 
-Also remove or rewrite references to this fixture in the phase-102 packets,
-clusters, overview and testing plan before preparing the upstream PR. Preserve
-the local fixture commit/history until that publication cleanup is performed;
-do not include these files in an upstream PR.
+Also remove or rewrite references to these assets/helpers in phase-102
+packets, clusters, overview, testing plan, and evidence before preparing the
+upstream PR. Preserve the local commits/history until that publication
+cleanup is performed; do not include these paths in an upstream PR.

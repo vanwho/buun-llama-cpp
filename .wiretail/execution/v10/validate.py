@@ -138,7 +138,7 @@ def check_artifact_reference(root: Path, record: object, label: str) -> list[str
     return []
 
 
-MTP_ACCEPTANCE_FLOORS = {"prompt_1": 75.0, "prompt_2": 40.0, "prompt_3": 60.0}
+MTP_ACCEPTANCE_FLOORS = {"prompt_1": 40.0, "prompt_2": 40.0, "prompt_3": 40.0}
 
 
 def check_prompt_mtp_median(acceptances: list[float], prompt_id: str, label: str) -> list[str]:
