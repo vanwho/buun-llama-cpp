@@ -11,13 +11,13 @@ from typing import Any, Mapping
 
 
 TASK_GEOMETRY = {
-    "logical_context_tokens": 32768,
-    "hot_capacity_tokens": 16384,
     "page_size_tokens": 256,
     "batch_tokens": 1024,
     "ubatch_tokens": 256,
     "max_fresh_tokens": 16000,
 }
+SUPPORTED_CONTEXTS = {32768, 131072}  # 32K regression fixture and phase-102 live proof.
+MAX_HOT_CAPACITY_TOKENS = 60000
 
 
 def sha256(path: Path) -> str:
@@ -53,9 +53,17 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
     for key, expected in TASK_GEOMETRY.items():
         if geometry.get(key) != expected:
             errors.append(f"geometry {key}={geometry.get(key)!r}, expected task fixture {expected}")
+    context = geometry.get("logical_context_tokens")
+    hot_tokens = geometry.get("hot_capacity_tokens")
+    if not isinstance(context, int) or isinstance(context, bool) or context not in SUPPORTED_CONTEXTS:
+        errors.append(f"logical context {context!r} is not a supported proof geometry")
+    if not is_positive_int(hot_tokens) or hot_tokens > MAX_HOT_CAPACITY_TOKENS:
+        errors.append(f"hot capacity {hot_tokens!r} must be positive and <= {MAX_HOT_CAPACITY_TOKENS}")
     if geometry.get("hot_capacity_pages") != (
             geometry.get("hot_capacity_tokens", 0) // max(geometry.get("page_size_tokens", 1), 1)):
         errors.append("hot page count does not derive from H/page size")
+    if hot_tokens is not None and is_positive_int(hot_tokens) and hot_tokens % TASK_GEOMETRY["page_size_tokens"]:
+        errors.append("hot capacity is not page aligned")
     if geometry.get("slot_id") != 0:
         errors.append("task fixture must use the managed single slot 0")
 
@@ -64,7 +72,7 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
         errors.append("effective runtime geometry is missing")
         effective = {}
     for key, expected in (
-            ("context", TASK_GEOMETRY["logical_context_tokens"]),
+            ("context", geometry.get("logical_context_tokens")),
             ("hot_pages", geometry.get("hot_capacity_pages")),
             ("page_size_tokens", TASK_GEOMETRY["page_size_tokens"]),
             ("batch", TASK_GEOMETRY["batch_tokens"]),
@@ -113,8 +121,9 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
         errors.append("requested target or committed/live frontier is invalid")
     elif committed < threshold or threshold > target or target - threshold > geometry.get("page_size_tokens", 0):
         errors.append("committed frontier is below the page-bounded completion threshold")
-    if committed is not None and committed <= geometry.get("hot_capacity_tokens", 0):
-        errors.append("committed frontier did not exceed H")
+    min_frontier = geometry.get("hot_capacity_tokens", 0) + 8 * geometry.get("page_size_tokens", 0)
+    if committed is not None and committed < min_frontier:
+        errors.append("committed frontier did not exceed H by eight pages")
     if frontier.get("request_completed") is not True or frontier.get("status") != "pass":
         errors.append("requested occupancy frontier is incomplete")
     if frontier.get("measurement_valid") is not True:
@@ -129,6 +138,7 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
         errors.append("successful per-request frontier history is missing")
         history = []
     previous = 0
+    previous_slot_generation: int | None = None
     request_indices: set[int] = set()
     for row in history:
         if not isinstance(row, dict):
@@ -159,9 +169,14 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
             errors.append(f"request {index}: candidate identity is inconsistent")
         else:
             live_slot = record.get("live_slot_after")
-            if not isinstance(live_slot, dict) or live_slot.get("generation") != slot.get("generation") or \
-                    live_slot.get("slot_id") != geometry.get("slot_id"):
-                errors.append(f"request {index}: slot identity/generation changed during occupancy")
+            generation = live_slot.get("generation") if isinstance(live_slot, dict) else None
+            if not isinstance(live_slot, dict) or live_slot.get("slot_id") != geometry.get("slot_id"):
+                errors.append(f"request {index}: slot identity changed during occupancy")
+            elif not is_positive_int(generation) or (previous_slot_generation is not None and
+                                                      generation <= previous_slot_generation):
+                errors.append(f"request {index}: slot generation is missing or not monotonic")
+            else:
+                previous_slot_generation = generation
             if not isinstance(record.get("timings"), dict):
                 errors.append(f"request {index}: stage timings are missing")
         if isinstance(record, dict):
@@ -169,6 +184,8 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
         previous = after if is_positive_int(after) else previous
     if committed is not None and previous != committed:
         errors.append("history does not end at the actual committed frontier")
+    if previous_slot_generation is not None and previous_slot_generation != slot.get("generation"):
+        errors.append("final slot generation differs from the last committed request")
     if isinstance(records, list):
         all_indices = [row.get("request_index") for row in records if isinstance(row, dict)]
         if len(all_indices) != len(set(all_indices)):
@@ -204,7 +221,8 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "status": "pass" if not errors else "fail",
-        "required_proof": "32k_16k_committed_history_and_speed_occupancy",
+        "required_proof": ("128k_occupancy_memory_and_turn_boundary"
+                           if context == 131072 else "32k_16k_committed_history_and_speed_occupancy"),
         "geometry": geometry,
         "candidate_identity": {
             "binary_sha256": identity.get("binary_sha256"),

@@ -176,10 +176,16 @@ def git_identity(root: pathlib.Path = ROOT) -> dict[str, str]:
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
 
     commit = git("rev-parse", "HEAD").decode().strip()
-    dirty = git("status", "--porcelain=v1", "-z", "--untracked-files=all")
-    diff = git("diff", "--binary", "HEAD", "--")
+    # Wiretail state and handoffs change as a benchmark is checkpointed. They
+    # are execution metadata, not repository source content, and must not
+    # invalidate an otherwise candidate-bound resumable occupancy frontier.
+    source_pathspec = (".", ":(exclude).wiretail/**")
+    dirty = git("status", "--porcelain=v1", "-z", "--untracked-files=all",
+                "--", *source_pathspec)
+    diff = git("diff", "--binary", "HEAD", "--", *source_pathspec)
     untracked = sorted((os.fsdecode(raw) for raw in
-                        git("ls-files", "--others", "--exclude-standard", "-z").split(b"\0")
+                        git("ls-files", "--others", "--exclude-standard", "-z",
+                            "--", *source_pathspec).split(b"\0")
                         if raw), key=os.fsencode)
     for relative in untracked:
         path = root / relative

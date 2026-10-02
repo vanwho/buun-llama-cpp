@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 import hashlib
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -104,6 +105,7 @@ class FakeRuntime:
         self.endpoint_calls += 1
         self.request_indices.append(request_index)
         self.frontier = prompt_tokens
+        self.generation += 1
         raw_path.write_text(f"data: fake-response-{request_index}\n", encoding="utf-8")
         return {
             "status": "pass",
@@ -129,6 +131,31 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_repo_identity_ignores_wiretail_checkpoint_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.name", "Bench Test"], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.email", "bench@example.invalid"], check=True)
+            source = root / "src" / "sample.cpp"
+            state = root / ".wiretail" / "execution" / "WORK_STATE.json"
+            source.parent.mkdir(parents=True)
+            state.parent.mkdir(parents=True)
+            source.write_text("int value = 1;\n", encoding="utf-8")
+            state.write_text("{}\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(root), "commit", "-qm", "fixture"], check=True)
+
+            baseline = repo_baseline.repo_context.git_identity(root)
+            state.write_text('{"status":"in_progress"}\n', encoding="utf-8")
+            handoff = root / ".wiretail" / "execution" / "handoffs" / "102-04.md"
+            handoff.parent.mkdir(parents=True)
+            handoff.write_text("checkpoint\n", encoding="utf-8")
+            self.assertEqual(baseline, repo_baseline.repo_context.git_identity(root))
+
+            source.write_text("int value = 2;\n", encoding="utf-8")
+            self.assertNotEqual(baseline, repo_baseline.repo_context.git_identity(root))
+
     def test_repo_baseline_records_runtime_fault_and_skips_only_dependents(self) -> None:
         completed = [{"request_id": "A1", "status": "pass"}]
         failed_record = {"request_id": "B", "status": "runtime_fault",
