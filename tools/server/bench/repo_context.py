@@ -267,6 +267,10 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
     """Append whole line chunks while respecting the rendered-token frontier."""
     selected: list[CorpusChunk] = []
     content = base_user
+    # The complete user message is the fresh request payload.  In particular,
+    # count the fixed B documentation/query once at request entry; resetting
+    # this baseline after each appended piece would allow an oversized request.
+    entry_tokens = len(renderer(list(prefix)).token_ids)
     for chunk in chunks:
         lines = chunk.text.splitlines(keepends=True)
         start = chunk.start_line
@@ -286,8 +290,7 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                 candidate = content + "\n\n" + render_chunk(piece_chunk)
                 messages = list(prefix) + [{"role": "user", "content": candidate}]
                 rendered = len(renderer(messages).token_ids)
-                previous = len(renderer(list(prefix) + [{"role": "user", "content": content}]).token_ids)
-                if rendered - previous <= max_fresh_tokens:
+                if rendered - entry_tokens <= max_fresh_tokens:
                     try:
                         enforce_reserve(rendered, generation_tokens, reserve_tokens,
                                         context_tokens)

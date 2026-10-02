@@ -237,6 +237,8 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
         "telemetry_before": record.get("before"),
         "telemetry_after": record.get("after"),
     })
+    result_path = requests_dir / f"{request_id}.result.json"
+    atomic_json(result_path, record)
     if record.get("status") != "pass":
         raise RuntimeError(f"request {request_id} failed: {record.get('error', record.get('status'))}")
     actual = selected_slot(record.get("after", {}), 0)
@@ -248,6 +250,19 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
         total_tokens = int(usage_tokens) + int(completion_tokens)
     if usage_tokens is None or completion_tokens is None or total_tokens is None:
         raise RuntimeError(f"request {request_id} lacks prompt/completion token usage")
+    if int(usage_tokens) != prompt_tokens:
+        record["prompt_token_validation"] = {
+            "status": "fail", "rendered_prompt_tokens": prompt_tokens,
+            "reported_prompt_tokens": int(usage_tokens),
+        }
+        atomic_json(result_path, record)
+        raise RuntimeError(
+            f"request {request_id} rendered prompt {prompt_tokens} tokens but server reported "
+            f"{usage_tokens}; possible prompt truncation")
+    record["prompt_token_validation"] = {
+        "status": "pass", "rendered_prompt_tokens": prompt_tokens,
+        "reported_prompt_tokens": int(usage_tokens),
+    }
     if abs(actual["occupied_tokens"] - int(total_tokens)) > 2:
         raise RuntimeError(
             f"request {request_id} slot frontier {actual['occupied_tokens']} differs from "
@@ -267,11 +282,16 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
                 f"C={actual['occupied_tokens']}, H={HOT}")
         record["committed_slot"]["host_residency_observation"] = host_residency_observation(
             record.get("after", {}), 0)
+    atomic_json(result_path, record)
     text = response_content(record)
     if not text:
         raise RuntimeError(f"request {request_id} returned an empty answer")
+    metrics = record.get("metrics") if isinstance(record.get("metrics"), Mapping) else {}
+    speeds = record.get("speed_measurements")
     print(f"request done placement={placement} id={request_id} prompt={prompt_tokens} "
-          f"decode_tps={record.get('decode_tps')} mtp={record.get('mtp_acceptance')}", flush=True)
+          f"prefill_tok_s={record.get('server_pp_tok_s')} "
+          f"decode_tok_s={record.get('server_tg_tok_s')} "
+          f"speed_measurements={speeds} mtp={record.get('mtp', metrics.get('mtp'))}", flush=True)
     return record, text
 
 
@@ -318,14 +338,101 @@ def main() -> int:
     b_files = repo_context.load_group(manifest, "B_docs")
     a1 = {"role": "user", "content": prompt_payload(a_files, prompts["A1"])}
     b_base = prompt_payload(b_files, prompts["B"])
+    excluded = {row["path"] for group in manifest["groups"].values() for row in group}
+    inventory = repo_context.tracked_inventory()
+    chunks = repo_context.source_chunks(inventory, excluded_paths=excluded)
+    inventory_snapshot = [{"path": item.path, "byte_length": item.byte_length,
+                           "sha256": item.sha256} for item in inventory]
+    source_identity = repo_context.git_identity()
+    inventory_digest = hashlib.sha256(json.dumps(
+        inventory_snapshot, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    manifest_digest = sha256_file(repo_context.FIXTURE / "manifest.json")
+    prompts_digest = sha256_file(repo_context.FIXTURE / "prompts.md")
+    atomic_json(args.output / "source-inventory.json", {
+        **source_identity, "inventory": inventory_snapshot,
+        "ordered_inventory_sha256": inventory_digest,
+        "fixture_manifest_sha256": manifest_digest,
+        "prompt_file_sha256": prompts_digest,
+    })
     preflight = preflight_primary_conversation(
         renderer, a1, b_base, prompts["A2"],
         mtp_reserve=int(identity["spec_draft_n_max"]))
+    conservative_answer, conservative_answer_tokens = token_pad(
+        renderer, [a1], "assistant", MAX_OUTPUT)
+    selection_prefix = [a1, {"role": "assistant", "content": conservative_answer}]
+    reserve = int(preflight["measured_reserve_tokens"])
+    b_content, scaled_b_prompt_tokens, selected_chunks = repo_context.append_chunks_to_frontier(
+        renderer, selection_prefix, b_base, chunks, context_tokens=CONTEXT,
+        reserve_tokens=reserve, generation_tokens=MAX_OUTPUT, max_fresh_tokens=16000)
+    if not selected_chunks:
+        raise RuntimeError("complete A/B/A preflight could not add tracked repository scale content")
+    c_target = CONTEXT - reserve
+    target_gap = c_target - scaled_b_prompt_tokens
+    if target_gap < 0:
+        raise RuntimeError("scaled B preflight exceeded C_target")
+    selected_rows = repo_context.selection_record(selected_chunks)
+    selected_rendered_digest = hashlib.sha256("".join(
+        repo_context.render_chunk(chunk) for chunk in selected_chunks).encode()).hexdigest()
+    selection_path = args.shared_state / "scale-corpus-selection.json"
+    if selection_path.exists():
+        saved_selection = json.loads(selection_path.read_text(encoding="utf-8"))
+        expected_selection_identity = {
+            "candidate_source": source_identity,
+            "fixture_manifest_sha256": manifest_digest,
+            "prompt_file_sha256": prompts_digest,
+            "ordered_inventory_sha256": inventory_digest,
+        }
+        for field, expected_value in expected_selection_identity.items():
+            if saved_selection.get(field) != expected_value:
+                raise repo_context.SourceIdentityError(
+                    f"shared scale selection {field} changed; refusing cross-row resume")
+        saved_rows = saved_selection.get("selected_ranges")
+        if not isinstance(saved_rows, list) or not saved_rows:
+            raise repo_context.SourceIdentityError("shared scale selection has no selected ranges")
+        restored_chunks = repo_context.restore_chunks(inventory, saved_rows)
+        if repo_context.selection_record(restored_chunks) != saved_rows:
+            raise repo_context.SourceIdentityError("shared scale selection ranges are not canonical")
+        saved_digest = hashlib.sha256("".join(
+            repo_context.render_chunk(chunk) for chunk in restored_chunks).encode()).hexdigest()
+        if saved_selection.get("selected_rendered_content_sha256") != saved_digest:
+            raise repo_context.SourceIdentityError("shared scale selection rendered content changed")
+        if saved_selection.get("selection_answer_envelope_tokens") != MAX_OUTPUT:
+            raise repo_context.SourceIdentityError("shared scale selection answer envelope changed")
+        selected_chunks = restored_chunks
+        selected_rows = repo_context.selection_record(selected_chunks)
+        selected_rendered_digest = saved_digest
+        b_content = b_base + "\n\n" + "\n\n".join(
+            repo_context.render_chunk(chunk) for chunk in selected_chunks)
+        scaled_b_prompt_tokens = rendered(renderer, selection_prefix + [
+            {"role": "user", "content": b_content}])
+        repo_context.enforce_reserve(scaled_b_prompt_tokens, MAX_OUTPUT, reserve, CONTEXT)
+        c_target = CONTEXT - reserve
+        target_gap = c_target - scaled_b_prompt_tokens
+        if target_gap < 0:
+            raise repo_context.SourceIdentityError("shared scale selection exceeds current C_target")
+    else:
+        atomic_json(selection_path, {
+            "schema_version": 2, "candidate_source": source_identity,
+            "fixture_manifest_sha256": manifest_digest,
+            "prompt_file_sha256": prompts_digest,
+            "ordered_inventory_sha256": inventory_digest,
+            "selected_ranges": selected_rows,
+            "selected_rendered_content_sha256": selected_rendered_digest,
+            "selection_answer_envelope_tokens": MAX_OUTPUT,
+            "selection_answer_envelope_measured_tokens": conservative_answer_tokens,
+            "selection_C_target": c_target,
+            "selection_B_prompt_tokens": scaled_b_prompt_tokens,
+        })
     atomic_json(args.output / "primary-conversation-preflight.json", {
         "placement": args.placement, "candidate_identity": identity,
         "status": "pass" if preflight["projected_b_total_tokens"] <= CONTEXT else "not_fit",
-        "counts": preflight,
-        "included_groups": ["A_code", "B_docs"],
+        "counts": {**preflight,
+                   "conservative_A1_answer_tokens": conservative_answer_tokens,
+                   "scaled_B_rendered_prompt_tokens": scaled_b_prompt_tokens,
+                   "C_target": c_target, "C_target_gap": target_gap,
+                   "selected_scale_ranges": selected_rows,
+                   "selected_rendered_content_sha256": selected_rendered_digest},
+        "included_groups": ["A_code", "B_docs", "tracked_scale_corpus"],
         "omitted_groups": ["supplemental_code", "supplemental_docs"],
         "requests_sent": 0,
         "reason": None if preflight["projected_b_total_tokens"] <= CONTEXT else
@@ -344,22 +451,33 @@ def main() -> int:
                           "measured_reserve_tokens": preflight["measured_reserve_tokens"],
                           "generation_requests_sent": 0}, sort_keys=True), flush=True)
         return 0
-    excluded = {row["path"] for group in manifest["groups"].values() for row in group}
-    inventory = repo_context.tracked_inventory()
-    chunks = repo_context.source_chunks(inventory, excluded_paths=excluded)
-    inventory_snapshot = [{"path": item.path, "byte_length": item.byte_length,
-                           "sha256": item.sha256} for item in inventory]
-    source_identity = repo_context.git_identity()
-    atomic_json(args.output / "source-inventory.json", {
-        **source_identity, "inventory": inventory_snapshot,
-        "fixture_manifest_sha256": sha256_file(repo_context.FIXTURE / "manifest.json"),
-        "prompt_file_sha256": sha256_file(repo_context.FIXTURE / "prompts.md"),
-    })
-
     selection_path = args.shared_state / "scale-corpus-selection.json"
+    inventory_digest = hashlib.sha256(json.dumps(
+        inventory_snapshot, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    manifest_digest = sha256_file(repo_context.FIXTURE / "manifest.json")
+    prompts_digest = sha256_file(repo_context.FIXTURE / "prompts.md")
     if selection_path.exists():
-        selected_rows = json.loads(selection_path.read_text(encoding="utf-8"))["selected_ranges"]
+        saved = json.loads(selection_path.read_text(encoding="utf-8"))
+        expected_identity = {
+            "candidate_source": source_identity,
+            "fixture_manifest_sha256": manifest_digest,
+            "prompt_file_sha256": prompts_digest,
+            "ordered_inventory_sha256": inventory_digest,
+        }
+        for field, expected_value in expected_identity.items():
+            if saved.get(field) != expected_value:
+                raise repo_context.SourceIdentityError(
+                    f"shared scale selection {field} changed; refusing cross-row resume")
+        selected_rows = saved.get("selected_ranges")
+        if not isinstance(selected_rows, list) or not selected_rows:
+            raise repo_context.SourceIdentityError("shared scale selection has no selected ranges")
         fixed_chunks = repo_context.restore_chunks(inventory, selected_rows)
+        if repo_context.selection_record(fixed_chunks) != selected_rows:
+            raise repo_context.SourceIdentityError("shared scale selection ranges are not canonical")
+        selected_rendered_digest = hashlib.sha256("".join(
+            repo_context.render_chunk(chunk) for chunk in fixed_chunks).encode()).hexdigest()
+        if saved.get("selected_rendered_content_sha256") != selected_rendered_digest:
+            raise repo_context.SourceIdentityError("shared scale selection rendered content changed")
     else:
         fixed_chunks = None
 
@@ -381,6 +499,8 @@ def main() -> int:
             identity, fingerprint, "A1", "A1", args.placement,
             PAGE + mtp_identity["draft_n_max"], True)
         messages = [a1, {"role": "assistant", "content": answer1}]
+        conservative_answer, _ = token_pad(renderer, [a1], "assistant", MAX_OUTPUT)
+        selection_prefix = [a1, {"role": "assistant", "content": conservative_answer}]
 
         b_message = {"role": "user", "content": b_base}
         base_tokens = rendered(renderer, messages + [b_message])
@@ -392,17 +512,22 @@ def main() -> int:
         reserve = future_query_and_template + MAX_OUTPUT + PAGE + replay_mtp_reserve
         if fixed_chunks is None:
             b_content, b_tokens, selected_chunks = repo_context.append_chunks_to_frontier(
-                renderer, messages, b_base, chunks, context_tokens=CONTEXT,
+                renderer, selection_prefix, b_base, chunks, context_tokens=CONTEXT,
                 reserve_tokens=reserve, generation_tokens=MAX_OUTPUT,
                 max_fresh_tokens=16000)
             if not selected_chunks:
                 raise RuntimeError("no tracked-repository scale lines fit the measured reserve")
             selected_rows = repo_context.selection_record(selected_chunks)
+            rendered_digest = hashlib.sha256("".join(
+                repo_context.render_chunk(chunk) for chunk in selected_chunks).encode()).hexdigest()
             atomic_json(selection_path, {
-                "schema_version": 1, "candidate_source": source_identity,
+                "schema_version": 2, "candidate_source": source_identity,
+                "fixture_manifest_sha256": manifest_digest,
+                "prompt_file_sha256": prompts_digest,
+                "ordered_inventory_sha256": inventory_digest,
                 "selected_ranges": selected_rows,
-                "selected_source_bytes_sha256": hashlib.sha256("".join(
-                    chunk.text for chunk in selected_chunks).encode()).hexdigest(),
+                "selected_rendered_content_sha256": rendered_digest,
+                "selection_answer_envelope_tokens": MAX_OUTPUT,
             })
             fixed_chunks = selected_chunks
         else:
@@ -415,8 +540,11 @@ def main() -> int:
         if args.placement == "selected" and b_tokens <= HOT:
             raise RuntimeError(f"selected row did not exceed H: C={b_tokens}, H={HOT}")
         atomic_json(sequence_dir / "prompt-B.json", b_message)
+        c_target = CONTEXT - reserve
         reserve_record = {
             "rendered_B_tokens": b_tokens,
+            "C_target": c_target,
+            "C_target_gap": c_target - b_tokens,
             "future_B_answer_tokens_reserved": pad_tokens,
             "A2_query_and_template_tokens": future_query_and_template,
             "A2_generation_tokens": MAX_OUTPUT,
@@ -441,7 +569,12 @@ def main() -> int:
             driver, renderer, args.endpoint, key, args.model, a2_messages,
             sequence_dir, identity, fingerprint, "A2", "A2", args.placement,
             a2_mtp_reserve, True)
-        results.append({"sequence": sequence, "C": b_tokens, "H": HOT,
+        committed_c = int(r2["committed_slot"]["occupied_tokens"])
+        if args.placement == "selected" and committed_c < HOT + 2048:
+            raise RuntimeError(f"selected B committed C={committed_c} is below H+2048={HOT + 2048}")
+        results.append({"sequence": sequence, "C_prompt": b_tokens,
+                        "C_committed_B": committed_c, "C_target": c_target,
+                        "C_target_gap": c_target - b_tokens, "H": HOT,
                         "records": [r1, r2, r3], "answers": [answer1, answer2, answer3],
                         "selected_ranges": repo_context.selection_record(fixed_chunks or [])})
         atomic_json(sequence_dir / "sequence-result.json", results[-1])
@@ -457,7 +590,9 @@ def main() -> int:
     }
     atomic_json(args.output / "row-result.json", row)
     print(json.dumps({"status": row["status"], "placement": args.placement,
-                      "C": [item["C"] for item in results], "H": HOT}, sort_keys=True))
+                      "C_committed_B": [item["C_committed_B"] for item in results],
+                      "C_prompt_B": [item["C_prompt"] for item in results],
+                      "H": HOT}, sort_keys=True))
     return 0
 
 

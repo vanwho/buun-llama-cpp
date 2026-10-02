@@ -129,6 +129,110 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_repo_request_rejects_reported_prompt_tokens_below_rendered_and_saves_result(self) -> None:
+        class SmallRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                return SimpleNamespace(token_ids=tuple(range(9)))
+
+        class TruncatedRuntime:
+            def run_request(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+                return {
+                    "status": "pass", "usage": {"prompt_tokens": 2,
+                                                  "completion_tokens": 1,
+                                                  "total_tokens": 3},
+                    "after": {"slots": [{"id": 0, "n_prompt_tokens": 3,
+                                          "lifecycle": {"session_generation": 1}}]},
+                    "response": {"choices": [{"message": {"content": "answer"}}]},
+                }
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(repo_baseline, "capture_runtime_identity", return_value=identity()), \
+                    patch.object(repo_baseline, "identity_fingerprint", return_value="fingerprint"):
+                with self.assertRaisesRegex(RuntimeError, "rendered prompt 9 tokens"):
+                    repo_baseline.record_request(
+                        TruncatedRuntime(), SmallRenderer(), "endpoint", "key", "model",
+                        [{"role": "user", "content": "prompt"}], pathlib.Path(directory),
+                        identity(), "fingerprint", "A1", "A1", "gpu", 0, True)
+            saved = json.loads((pathlib.Path(directory) / "requests/A1.result.json").read_text())
+            self.assertEqual(9, saved["rendered_prompt_tokens"])
+            self.assertEqual("fail", saved["prompt_token_validation"]["status"])
+
+    def test_repo_frontier_counts_base_user_against_fixed_request_entry_limit(self) -> None:
+        class CountingRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                count = sum(len(message["content"].split()) + 4 for message in messages)
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        renderer = CountingRenderer()
+        corpus = [repo_baseline.repo_context.CorpusChunk(
+            "src/a.cpp", "a" * 64, 100, 1, 50, "line\n" * 50)]
+        content, _tokens, selected = repo_baseline.repo_context.append_chunks_to_frontier(
+            renderer, [], "B documentation query", corpus, context_tokens=1000,
+            reserve_tokens=0, max_fresh_tokens=25)
+        self.assertTrue(selected)
+        self.assertLessEqual(
+            len(renderer([{"role": "user", "content": content}]).token_ids), 25)
+
+    def test_repo_preflight_reuses_frozen_selection_and_rejects_mismatch(self) -> None:
+        runtime = FakeRuntime()
+        current = identity()
+        current.update({"context": "16384", "hot_pages": "32", "pager_mode": "off",
+                        "command": "llama-server -c 16384 -b 1024 -ub 256",
+                        "spec_type": "draft-mtp"})
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            key = root / "api-key"
+            key.write_text("fake-key\n", encoding="utf-8")
+            output = root / "preflight"
+            shared = root / "shared"
+            argv = ["run-repo-context-baseline.py", "--placement", "gpu",
+                    "--output", str(output), "--shared-state", str(shared),
+                    "--api-key-file", str(key), "--preflight-only"]
+            with patch.object(repo_baseline, "load_driver", return_value=runtime), \
+                    patch.object(repo_baseline, "capture_runtime_identity", return_value=current), \
+                    patch.object(repo_baseline, "api_key", return_value="fake-key"), \
+                    patch.object(repo_baseline, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(repo_baseline.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, repo_baseline.main())
+            self.assertEqual([], runtime.request_indices)
+            preflight = json.loads((output / "primary-conversation-preflight.json").read_text())
+            self.assertEqual(0, preflight["requests_sent"])
+            selection_path = shared / "scale-corpus-selection.json"
+            selection_bytes = selection_path.read_bytes()
+            selected_ranges = json.loads(selection_bytes)["selected_ranges"]
+
+            # Idempotent resume must recompute the same bounded frontier and
+            # leave the shared evidence bytes untouched.
+            with patch.object(repo_baseline, "load_driver", return_value=runtime), \
+                    patch.object(repo_baseline, "capture_runtime_identity", return_value=current), \
+                    patch.object(repo_baseline, "api_key", return_value="fake-key"), \
+                    patch.object(repo_baseline, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(repo_baseline.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, repo_baseline.main())
+            self.assertEqual(selected_ranges,
+                             json.loads(selection_path.read_bytes())["selected_ranges"])
+            self.assertEqual(selection_bytes, selection_path.read_bytes())
+            self.assertEqual([], runtime.request_indices)
+
+            changed_source = {"commit": "changed-candidate",
+                              "dirty_fingerprint": "f" * 64}
+            with patch.object(repo_baseline, "load_driver", return_value=runtime), \
+                    patch.object(repo_baseline, "capture_runtime_identity", return_value=current), \
+                    patch.object(repo_baseline, "api_key", return_value="fake-key"), \
+                    patch.object(repo_baseline, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(repo_baseline.repo_context, "git_identity",
+                                 return_value=changed_source), \
+                    patch.object(repo_baseline.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(
+                        repo_baseline.repo_context.SourceIdentityError,
+                        "candidate_source changed"):
+                    repo_baseline.main()
+            self.assertEqual(selection_bytes, selection_path.read_bytes())
+            self.assertEqual([], runtime.request_indices)
+
     def test_repo_baseline_treats_host_residency_as_optional_diagnostic(self) -> None:
         geometry = repo_baseline.repo_context.load_manifest()["runtime_requirements"]
         self.assertEqual(16384, geometry["logical_context_tokens"])
