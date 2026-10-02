@@ -19,6 +19,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from prompt_sizing import ServerPromptRenderer, request_options  # noqa: E402
+import repo_context  # noqa: E402
 
 
 class ResumeStateError(ValueError):
@@ -75,6 +76,12 @@ def append_jsonl(path: pathlib.Path, value: Any) -> None:
 
 def render_tokens(renderer: ServerPromptRenderer, messages: list[dict[str, str]]) -> int:
     return len(renderer(messages).token_ids)
+
+
+def build_repo_content_turns(manifest: Mapping[str, Any], prompts: Mapping[str, str],
+                             scale_text: str = "") -> list[dict[str, str]]:
+    """Shared entry point for repo-backed A→B→A prompt construction."""
+    return repo_context.a_b_a_messages(manifest, prompts, scale_text)
 
 
 def fit_user(renderer: ServerPromptRenderer, prefix: list[dict[str, str]],
@@ -188,7 +195,7 @@ def selected_slot(snapshot: Mapping[str, Any], slot_id: int) -> dict[str, Any]:
                 raise ValueError(f"slot {slot_id} is still processing")
             lifecycle = slot.get("lifecycle") if isinstance(slot.get("lifecycle"), dict) else {}
             generation = next((lifecycle.get(name, slot.get(name)) for name in
-                               ("session_generation", "slot_generation", "generation")
+                               ("session_generation", "slot_generation", "generation", "id_task")
                                if _as_int(lifecycle.get(name, slot.get(name))) is not None), None)
             frontier = _as_int(slot.get("n_prompt_tokens"))
             if frontier is None or generation is None:

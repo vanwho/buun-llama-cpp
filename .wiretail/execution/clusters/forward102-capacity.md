@@ -1,24 +1,33 @@
 # Cluster forward102-capacity
 
-Revision: `hotpath-v10-20260914`. Amendment: `repo-context-scale-20261002`.
+Revision: `hotpath-v10-20260914`. Amendment: `repo-context-scale-20261002-16k`.
 
 Tasks in this context area: `102-03`, `102-04`.
 
 Purpose: use the validated repo-text occupancy driver to progress from the
-8K/4K baseline through 32K/16K and 128K, preserving one candidate-bound
-frontier and measuring actual host-backed target KV, hot GPU KV and full-L
-GPU Turbo4 MTP.
+16K/8K baseline through 32K/16K and 128K, preserving one candidate-bound
+frontier and measuring speed with hot GPU target KV and full-L GPU Turbo4 MTP.
 
 For the 128K logical test, target C=120,000 committed repository tokens,
 leaving 11,072 tokens for the final query/output/replay/MTP reserve. If the
 measured reserve is larger, stop at the safe frontier and record the shortfall;
 never trigger compaction to reach the target.
 
+Every selected-mode stage must commit fixture/repository content beyond its
+configured hot boundary by at least 2,048 tokens at 16K/32K and at least eight
+full pages at 128K/256K. This is the required occupancy condition. Host-valid
+rows/bytes, page inventory, residency, promotion, and transfer counters are
+optional diagnostics: record exposed values, but missing or incomplete
+telemetry is never a failure, retry trigger, or completion gate. Do not claim
+exact host backing or promotion unless directly observed. If OOM requires
+reducing H, preserve L and all other settings, record the new H, and apply the
+same crossing rule.
+
 Use the repo-content fixture/generator introduced by 102-02. Do not use
 neutral filler for these capacity runs. Same Qwen3.8-27B UD-IQ4_XS build,
 CUDA model execution, target/draft Turbo4, GPU full-L MTP, B=1024/U=256, one
-slot and fixed runtime settings. CPU target-KV controls were collected at the
-8K baseline only; do not run CPU target-KV at 32K, 128K or 256K. At higher
+slot and fixed runtime settings. CPU target-KV controls are required at the
+16K baseline only; do not run CPU target-KV at 32K, 128K or 256K. At higher
 contexts, compare all-GPU target KV only when a read-only admission estimate
 shows it fits with scratch; otherwise mark that control not admitted and run
 selected mode.

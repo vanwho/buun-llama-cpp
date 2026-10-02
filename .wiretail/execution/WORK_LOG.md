@@ -1985,3 +1985,39 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-01`
 - Commit at update: `ee7c0163d`
 - Summary: Raised the occupancy-frontier logical-context validation ceiling to 262144 while preserving the 32768 default and geometry checks. The focused regression suite passed and its V10 receipt validated.
+
+## 2026-10-02T16:38:49+00:00 — 102-02 — blocked
+
+- Branch: `codex/task-102-02`
+- Commit at update: `a35ebb638`
+- Summary: Attempt 03 exhausted selected-placement recovery configurations H=8192/7936/7680; all fail B at the same no_victim frontier near token 15360. Required three-placement baseline and candidate-bound proofs cannot pass until active-query pager eviction has a focused regression/fix.
+
+## 2026-10-02T16:39:17+00:00 — 102-02 — todo
+
+- Branch: `codex/task-102-02`
+- Commit at update: `b22f74a18`
+- Summary: Automatic blocker-recovery attempt 1/3; previous blocker: Attempt 03 exhausted selected-placement recovery configurations H=8192/7936/7680; all fail B at the same no_victim frontier near token 15360. Required three-placement baseline and candidate-bound proofs cannot pass until active-query pager eviction has a focused regression/fix.
+
+## 2026-10-02T16:53:31+00:00 — 102-02 — done
+
+- Branch: `codex/task-102-02`
+- Commit at update: `4a9e55ba3`
+- Summary: brief verified result
+
+## 2026-10-02T16:57:09+00:00 — 102-02 — todo
+
+- Branch: `codex/task-102-02`
+- Commit at update: `4a9e55ba3`
+- Summary: Reopened after verifier failure: Finalize amended partial benchmark receipt and handoff from captured runtime-fault records
+
+## 2026-10-02T16:57:09+00:00 — 102-02 — in_progress
+
+- Branch: `codex/task-102-02`
+- Commit at update: `4a9e55ba3`
+- Summary: Task started
+
+## 2026-10-02T16:57:16+00:00 — 102-02 — done
+
+- Branch: `codex/task-102-02`
+- Commit at update: `4a9e55ba3`
+- Summary: Verified GPU/host controls, captured selected no_victim partial result, harness regression, and named receipt proofs

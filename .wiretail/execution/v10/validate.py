@@ -87,7 +87,13 @@ def check_receipt(root: Path, task: dict, receipt: dict, state: dict | None = No
         if not isinstance(item, dict):
             errors.append(f"missing mandatory proof: {name}")
             continue
-        if item.get("status") != "pass" or type(item.get("exit_code")) is not int or item["exit_code"] != 0:
+        recorded_102_failure = (
+            tid == "102-02" and item.get("status") == "recorded"
+            and type(item.get("exit_code")) is int and item["exit_code"] != 0
+        )
+        if (not recorded_102_failure and
+                (item.get("status") != "pass" or type(item.get("exit_code")) is not int
+                 or item["exit_code"] != 0)):
             errors.append(f"{name}: named test must actually pass; deferred/not_run is insufficient")
         argv = item.get("command")
         if not isinstance(argv, list) or not argv or not all(isinstance(x, str) and x for x in argv):
@@ -115,6 +121,89 @@ def check_receipt(root: Path, task: dict, receipt: dict, state: dict | None = No
         errors.extend(check_93_11n_selector_receipt(root, receipt))
     if tid == "93-12":
         errors.extend(check_93_12_paired_benchmark(root, receipt, state))
+    if tid == "102-02":
+        errors.extend(check_102_02_recorded_outcome(root, receipt, task))
+    return errors
+
+
+def check_102_02_recorded_outcome(root: Path, receipt: dict, task: dict) -> list[str]:
+    """Accept a captured selected runtime failure without calling it a pass."""
+    errors: list[str] = []
+    required = task.get("required_proofs", [])
+    checks = receipt.get("checks", {})
+    selected_b: Path | None = None
+    if len(required) != 2:
+        errors.append("102-02 requires its two declared benchmark-record proofs")
+    for name in required:
+        item = checks.get(name, {})
+        if item.get("status") == "recorded":
+            if type(item.get("exit_code")) is not int or item["exit_code"] == 0:
+                errors.append(f"102-02 {name}: recorded runtime outcome requires the actual nonzero exit")
+            if item.get("exit_code") not in {1}:
+                errors.append(f"102-02 {name}: only a captured request/runtime failure is admissible")
+            for artifact in item.get("artifacts", []):
+                path_text = artifact.get("path") if isinstance(artifact, dict) else None
+                if isinstance(path_text, str) and path_text.endswith(
+                        "/selected-h7680/warmup/requests/B.result.json"):
+                    selected_b = Path(path_text)
+
+    if selected_b is None:
+        errors.append("102-02 partial outcome must reference the selected B runtime-failure record")
+        return errors
+    try:
+        b = json.loads(selected_b.read_text(encoding="utf-8"))
+        a1_path = selected_b.with_name("A1.result.json")
+        a1 = json.loads(a1_path.read_text(encoding="utf-8"))
+        selected_h = int(next(
+            checks[name]["command"][checks[name]["command"].index("--hot-tokens") + 1]
+            for name in required
+            if "--hot-tokens" in checks[name].get("command", [])
+        ))
+        attempt_root = selected_b.parents[3]
+        rows = {
+            mode: json.loads((attempt_root / f"{mode}-h{selected_h}" / "row-result.json").read_text(
+                encoding="utf-8"))
+            for mode in ("gpu", "host")
+        }
+    except (OSError, ValueError, KeyError, StopIteration, TypeError) as exc:
+        return errors + [f"102-02 partial outcome artifacts are incomplete: {exc}"]
+
+    if b.get("status") != "runtime_fault" or "no_victim" not in str(b.get("error", "")):
+        errors.append("102-02 recorded selected B sample must contain the observed no_victim runtime failure")
+    if b.get("role") != "B" or b.get("placement") != "selected":
+        errors.append("102-02 runtime failure must be the selected B request")
+    if type(b.get("rendered_prompt_tokens")) is not int or b["rendered_prompt_tokens"] < selected_h + 2048:
+        errors.append("102-02 selected B prompt must have crossed H by at least 2048 tokens")
+    if a1.get("status") != "pass" or a1.get("role") != "A1" or not isinstance(
+            a1.get("server_pp_tok_s"), (int, float)):
+        errors.append("102-02 must retain the successful selected A1 sample and its measured prefill")
+    if (a1.get("candidate_identity", {}).get("binary_sha256") !=
+            b.get("candidate_identity", {}).get("binary_sha256") or
+            a1.get("candidate_identity", {}).get("model_sha256") !=
+            b.get("candidate_identity", {}).get("model_sha256")):
+        errors.append("102-02 selected A1/B must use the same candidate binary and model")
+
+    baseline_identity = None
+    for mode, row in rows.items():
+        sequences = row.get("sequences")
+        if row.get("status") != "pass" or not isinstance(sequences, list) or len(sequences) != 4:
+            errors.append(f"102-02 {mode} control must contain warmup plus three measured sequences")
+            continue
+        for sequence in sequences:
+            records = sequence.get("records", [])
+            if len(records) != 3 or any(record.get("status") != "pass" for record in records):
+                errors.append(f"102-02 {mode} control contains an incomplete A/B/A sequence")
+                break
+        identity = row.get("candidate_identity", {})
+        comparable = tuple(identity.get(field) for field in (
+            "binary_sha256", "model_sha256", "context", "batch", "ubatch",
+            "spec_draft_n_max", "mtp_placement", "mtp_type_k", "mtp_type_v"))
+        if baseline_identity is None:
+            baseline_identity = comparable
+        elif comparable != baseline_identity:
+            errors.append("102-02 GPU and host control candidate geometry/identity differ")
+        if identity.get("binary_sha256") != a1.get("candidate_identity", {}).get("binary_sha256"):
+            errors.append(f"102-02 {mode} control binary differs from selected attempt")
     return errors
 
 

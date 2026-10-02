@@ -1,0 +1,156 @@
+{
+  "checks": {
+    "repo_context_16k8k_three_placement_baseline": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/gpu-h7680/row-result.json",
+          "sha256": "636d7029ea17b5500a71f1613235c5443d69320fa3fa7acbac6a337408931377"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/host-h7680/row-result.json",
+          "sha256": "c2c3415e231628b8291ff6cd3999853ec5a989583203288ccab5b9dbb65610cc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/primary-conversation-preflight.json",
+          "sha256": "cf5efde20dc4768bab36c603050fddf71a36b3ff3d7186507ecdc6b82f744339"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/warmup/requests/A1.result.json",
+          "sha256": "6c656a8daad3eb4d2c78ef974690bdf8b065eb6c30869a1599707f0a12ffbada"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/warmup/requests/B.result.json",
+          "sha256": "6eb106cf686eaf443c64b25a2a1a7a3892e18461545fa926e44d5cc5a764b74f"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/102-02-harness-test.txt",
+          "sha256": "17b6a049f2ecacb3e7ca4f4b4534a8b3bb31939202e7f7de541a94aad81b8a80"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-repo-context-baseline.py",
+        "--placement",
+        "selected",
+        "--hot-tokens",
+        "7680",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680",
+        "--shared-state",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-03/shared"
+      ],
+      "exit_code": 1,
+      "status": "recorded"
+    },
+    "repo_context_a_b_a_candidate_bound_benchmark": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/gpu-h7680/row-result.json",
+          "sha256": "636d7029ea17b5500a71f1613235c5443d69320fa3fa7acbac6a337408931377"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/host-h7680/row-result.json",
+          "sha256": "c2c3415e231628b8291ff6cd3999853ec5a989583203288ccab5b9dbb65610cc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/primary-conversation-preflight.json",
+          "sha256": "cf5efde20dc4768bab36c603050fddf71a36b3ff3d7186507ecdc6b82f744339"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/warmup/requests/A1.result.json",
+          "sha256": "6c656a8daad3eb4d2c78ef974690bdf8b065eb6c30869a1599707f0a12ffbada"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/warmup/requests/B.result.json",
+          "sha256": "6eb106cf686eaf443c64b25a2a1a7a3892e18461545fa926e44d5cc5a764b74f"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/102-02-harness-test.txt",
+          "sha256": "17b6a049f2ecacb3e7ca4f4b4534a8b3bb31939202e7f7de541a94aad81b8a80"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-repo-context-baseline.py",
+        "--placement",
+        "selected",
+        "--hot-tokens",
+        "7680",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680",
+        "--shared-state",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-03/shared"
+      ],
+      "exit_code": 1,
+      "status": "recorded"
+    }
+  },
+  "diagnostic": {
+    "failures": [
+      {
+        "H": 8192,
+        "error": "SSE error [500]: decode() failed: KV pager batch write reservation failed: no_victim sequence=0 positions=15359..15361 rows=3 frozen_history_pages=0 phase=4",
+        "host_pages_before": 17,
+        "page_capacity": 32,
+        "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-final/warmup/requests/B.result.json",
+        "physical_write_capacity": 256,
+        "rendered_prompt_tokens": 15190,
+        "resident_pages_before": 17,
+        "selected_pages_before": 16,
+        "sha256": "ed17fb06e8604981ba470457cbb7723e0255f97377b267053bc15d0bf0a85d75",
+        "status": "runtime_fault"
+      },
+      {
+        "H": 7936,
+        "error": "SSE error [500]: decode() failed: KV pager batch write reservation failed: no_victim sequence=0 positions=15360..15362 rows=3 frozen_history_pages=0 phase=4",
+        "host_pages_before": 17,
+        "page_capacity": 31,
+        "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7936/warmup/requests/B.result.json",
+        "physical_write_capacity": 7936,
+        "rendered_prompt_tokens": 15190,
+        "resident_pages_before": 17,
+        "selected_pages_before": 16,
+        "sha256": "a70b61f052eed99a637f5d105221bceaf46bf241dec49cd47f55c669fb3c1f6c",
+        "status": "runtime_fault"
+      },
+      {
+        "H": 7680,
+        "error": "SSE error [500]: decode() failed: KV pager batch write reservation failed: no_victim sequence=0 positions=15359..15361 rows=3 frozen_history_pages=0 phase=4",
+        "host_pages_before": 17,
+        "page_capacity": 30,
+        "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/selected-h7680/warmup/requests/B.result.json",
+        "physical_write_capacity": 7680,
+        "rendered_prompt_tokens": 15190,
+        "resident_pages_before": 17,
+        "selected_pages_before": 16,
+        "sha256": "6eb106cf686eaf443c64b25a2a1a7a3892e18461545fa926e44d5cc5a764b74f",
+        "status": "runtime_fault"
+      }
+    ],
+    "name": "selected_active_query_no_victim_across_H_reductions",
+    "pager_unit_suite": {
+      "artifact": "/srv/ai/paged-kv/results/forward/102-02/attempt-03/test-kv-pager.log",
+      "command": [
+        "build-cuda/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "sha256": "5837add59338a6c8a191ffbd23ef45322a88635b9f356c328f83612bf558c39b"
+    },
+    "harness_regression": {
+      "command": [
+        "python3",
+        "tools/server/bench/test_occupancy_frontier.py"
+      ],
+      "exit_code": 0,
+      "tests_passed": 9,
+      "artifact": {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/102-02-harness-test.txt",
+        "sha256": "17b6a049f2ecacb3e7ca4f4b4534a8b3bb31939202e7f7de541a94aad81b8a80"
+      }
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "a35ebb638bb6ac10f141b8409459592ad4fc08b9",
+  "status": "partial",
+  "task": "102-02"
+}

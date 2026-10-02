@@ -30,7 +30,9 @@ Retain a successful candidate loaded for the next task.
   tiny page sizes belong only in deterministic tests. CPU float math is an
   oracle, not CPU Turbo4 inference. A CPU fixture refusing TurboQuant execution
   is a known backend boundary, not a host-storage failure.
-- First corrected live semantics: L=8192, H=4096, page=256, one slot;
+- Historical corrected live-semantics coordinate: L=8192, H=4096, page=256,
+  one slot. Phase 102's repo-content benchmark instead uses its explicit
+  L=16384/H=8192 fixture;
   R/G derive from each invariant. Ring test may choose G=256 with R<=H-G.
 - Use B=1024/U=256 for all new comparable speeds, target/draft Turbo4, native
   GPU MTP, draft-n-max=2, temperature=0, reasoning/thinking off. These are test
@@ -39,7 +41,7 @@ Retain a successful candidate loaded for the next task.
   Do not rerun it as a prerequisite. Final integrated replay/cancellation is
   owned by101-10; natural promotion by101-11, after GPU execution repairs.
   Missing100-04a receipt is not a gate on these implementation tasks.
-- Keep fresh input speed probes <=16K tokens. In phase 102, use L/H=8K/4K,
+- Keep fresh input speed probes <=16K tokens. In phase 102, use L/H=16K/8K,
   32K/16K, 128K/<=60K, then 256K/<=60K. The 60K value is only the upper
   bound for the two high-context test hotsets, not a production default;
   product code derives H/G from model/backend/memory and remains tunable.
@@ -65,6 +67,63 @@ per implementation. Builds that make progress are allowed to finish; avoid a
 universal 240s bound. Long occupancy work is resumable with
 candidate-identity-bound checkpoints and per-request journals, never an
 in-memory loop whose partial work is discarded.
+
+### Live benchmark setup: fail fast, do not manufacture false failures
+
+Apply these rules to every live CUDA/MTP/pager benchmark, including all phase
+102 capacity rows:
+
+1. Resolve device arguments from the exact candidate executable before
+   touching the managed service. `llama-server --list-devices` gives the
+   identifiers accepted by `--device`; use an exact identifier such as
+   `CUDA0`, or `auto` followed by a runtime-identity check. Never pass a generic
+   backend word such as `cuda` as if it were a device ID. Validate the chosen
+   identifier locally and fail before writing service overrides/restarting if
+   it is not listed.
+2. A one-token generated response is not an MTP activity test: it may finish
+   without proposing any draft tokens. Do not fail setup or restore/reload the
+   model because its draft counter delta is zero. Establish startup readiness
+   from health plus candidate identity and startup allocation evidence for GPU
+   Turbo4 MTP. Measure MTP draft/accepted counts on the task's real benchmark
+   generations at the stated output budget. An optional readiness request may
+   validate only HTTP/identity and is not a benchmark sample or acceptance
+   gate.
+3. Token/context preflight must model the entire exact request being sent,
+   including all already-committed conversation turns, fixed fixture payload,
+   selected tracked-repo chunks, chat-template overhead, output budget, and
+   query/replay/MTP reserve. For a scaled repository workload, choose and
+   freeze the deterministic scale selection during a zero-generation preflight
+   before sending A1; preflighting only the unscaled A/B/A fixture is
+   insufficient. If the full workload does not fit, adjust the deterministic
+   scale selection to the largest safe prefix before any generation; do not
+   discover this after sending a partial campaign.
+4. A shared frozen selection is a resumable artifact. Re-running preflight
+   with the same source/candidate/fixture identity must validate and reuse it
+   idempotently. It must not fail just because the file exists or overwrite a
+   different selection. A mismatched source, prompt, inventory, tokenizer,
+   geometry, or candidate identity must fail before generation with an explicit
+   mismatch and a new named attempt path. Add a regression that runs preflight
+   twice against the same selection, verifies identical selected ranges and
+   zero generated requests, then proves that an identity mismatch is rejected
+   without modifying the saved selection.
+5. Separate setup validity from performance evidence. Fix a malformed device,
+   wrong profile, missing runner, or stale candidate identity at the setup
+   boundary and repeat only the zero-generation validation / affected short
+   request. Do not spend substantive retries on a configuration typo, a
+   zero-token MTP denominator, or a preflight that omitted the actual scaled
+   prompt. Once setup passes, freeze source/config and run the paired benchmark
+   rows against that same candidate.
+
+6. Once a real benchmark request has been sent, preserve any runtime error as
+   a failed sample, retain its raw request/response/error and candidate identity,
+   skip only dependent turns in that conversation, stop repeating that
+   placement after its first runtime failure, and continue independent rows or
+   the next context task. Do not turn a benchmark task into pager-policy,
+   eviction, promotion, or page-table debugging unless that task explicitly
+   owns a pager repair. Failed requests have null speed and cannot be described
+   as successful performance. Runtime sample failures are findings, not setup
+   retries; pre-request identity, geometry, and reserve errors remain setup
+   defects and must be fixed before generation.
 
 ### Build/test recovery ladder
 
@@ -171,11 +230,11 @@ map, not history recomputed under a different map. These proofs precede102.
 ## Scaling/final findings
 
 Phase 102 order is fixed: first a regression-only occupancy-driver limit task;
-then the repo-backed 8K/4K A→B→A baseline with GPU-resident, host-resident
+then the repo-backed 16K/8K A→B→A baseline with GPU-resident, host-resident
 target-KV, and selected placements; then 32K/16K; then L=128K/C=120,000 and
 L=256K/C=250,000. Every
 stage uses deterministic tracked Buun source/docs as input, with file hashes,
-line ranges and rendered Qwen token counts. The 8K/4K placement comparison is
+line ranges and rendered Qwen token counts. The 16K/8K placement comparison is
 the only host-resident target-KV row; all rows keep model compute and full-L
 Turbo4 MTP on GPU, and higher-context stages compare GPU-resident control only
 when memory admission safely permits it, plus selected mode. Do not run CPU

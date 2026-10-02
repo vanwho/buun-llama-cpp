@@ -11,6 +11,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+import hashlib
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -28,6 +29,12 @@ VALIDATOR_SPEC = importlib.util.spec_from_file_location(
 assert VALIDATOR_SPEC and VALIDATOR_SPEC.loader
 validator = importlib.util.module_from_spec(VALIDATOR_SPEC)
 VALIDATOR_SPEC.loader.exec_module(validator)
+
+REPO_BASELINE_SPEC = importlib.util.spec_from_file_location(
+    "run_repo_context_baseline_test", HERE / "run-repo-context-baseline.py")
+assert REPO_BASELINE_SPEC and REPO_BASELINE_SPEC.loader
+repo_baseline = importlib.util.module_from_spec(REPO_BASELINE_SPEC)
+REPO_BASELINE_SPEC.loader.exec_module(repo_baseline)
 
 
 class FakeRenderer:
@@ -122,6 +129,226 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_repo_baseline_records_runtime_fault_and_skips_only_dependents(self) -> None:
+        completed = [{"request_id": "A1", "status": "pass"}]
+        failed_record = {"request_id": "B", "status": "runtime_fault",
+                         "error": "no_victim"}
+        failure = repo_baseline.RecordedRequestFailure("B", failed_record, "B failed: no_victim")
+        result = repo_baseline.failed_sequence_result(
+            "warmup", "selected", failure, completed)
+        self.assertEqual("runtime_fault", result["status"])
+        self.assertEqual(completed, result["completed_records"])
+        self.assertEqual(failed_record, result["failed_record"])
+        self.assertEqual(["A2"], result["dependent_requests_skipped"])
+
+    def test_repo_request_rejects_reported_prompt_tokens_below_rendered_and_saves_result(self) -> None:
+        class SmallRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                return SimpleNamespace(token_ids=tuple(range(9)))
+
+        class TruncatedRuntime:
+            def run_request(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+                return {
+                    "status": "pass", "usage": {"prompt_tokens": 2,
+                                                  "completion_tokens": 1,
+                                                  "total_tokens": 3},
+                    "after": {"slots": [{"id": 0, "n_prompt_tokens": 3,
+                                          "lifecycle": {"session_generation": 1}}]},
+                    "response": {"choices": [{"message": {"content": "answer"}}]},
+                }
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(repo_baseline, "capture_runtime_identity", return_value=identity()), \
+                    patch.object(repo_baseline, "identity_fingerprint", return_value="fingerprint"):
+                with self.assertRaisesRegex(RuntimeError, "rendered prompt 9 tokens"):
+                    repo_baseline.record_request(
+                        TruncatedRuntime(), SmallRenderer(), "endpoint", "key", "model",
+                        [{"role": "user", "content": "prompt"}], pathlib.Path(directory),
+                        identity(), "fingerprint", "A1", "A1", "gpu", 0, True)
+            saved = json.loads((pathlib.Path(directory) / "requests/A1.result.json").read_text())
+            self.assertEqual(9, saved["rendered_prompt_tokens"])
+            self.assertEqual("fail", saved["prompt_token_validation"]["status"])
+
+    def test_repo_frontier_counts_base_user_against_fixed_request_entry_limit(self) -> None:
+        class CountingRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                count = sum(len(message["content"].split()) + 4 for message in messages)
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        renderer = CountingRenderer()
+        corpus = [repo_baseline.repo_context.CorpusChunk(
+            "src/a.cpp", "a" * 64, 100, 1, 50, "line\n" * 50)]
+        content, _tokens, selected = repo_baseline.repo_context.append_chunks_to_frontier(
+            renderer, [], "B documentation query", corpus, context_tokens=1000,
+            reserve_tokens=0, max_fresh_tokens=25)
+        self.assertTrue(selected)
+        self.assertLessEqual(
+            len(renderer([{"role": "user", "content": content}]).token_ids), 25)
+
+    def test_repo_preflight_reuses_frozen_selection_and_rejects_mismatch(self) -> None:
+        runtime = FakeRuntime()
+        current = identity()
+        current.update({"context": "16384", "hot_pages": "32", "pager_mode": "off",
+                        "command": "llama-server -c 16384 -b 1024 -ub 256",
+                        "spec_type": "draft-mtp"})
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            key = root / "api-key"
+            key.write_text("fake-key\n", encoding="utf-8")
+            output = root / "preflight"
+            shared = root / "shared"
+            argv = ["run-repo-context-baseline.py", "--placement", "gpu",
+                    "--output", str(output), "--shared-state", str(shared),
+                    "--api-key-file", str(key), "--preflight-only"]
+            with patch.object(repo_baseline, "load_driver", return_value=runtime), \
+                    patch.object(repo_baseline, "capture_runtime_identity", return_value=current), \
+                    patch.object(repo_baseline, "api_key", return_value="fake-key"), \
+                    patch.object(repo_baseline, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(repo_baseline.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, repo_baseline.main())
+            self.assertEqual([], runtime.request_indices)
+            preflight = json.loads((output / "primary-conversation-preflight.json").read_text())
+            self.assertEqual(0, preflight["requests_sent"])
+            selection_path = shared / "scale-corpus-selection.json"
+            selection_bytes = selection_path.read_bytes()
+            selected_ranges = json.loads(selection_bytes)["selected_ranges"]
+
+            # Idempotent resume must recompute the same bounded frontier and
+            # leave the shared evidence bytes untouched.
+            with patch.object(repo_baseline, "load_driver", return_value=runtime), \
+                    patch.object(repo_baseline, "capture_runtime_identity", return_value=current), \
+                    patch.object(repo_baseline, "api_key", return_value="fake-key"), \
+                    patch.object(repo_baseline, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(repo_baseline.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, repo_baseline.main())
+            self.assertEqual(selected_ranges,
+                             json.loads(selection_path.read_bytes())["selected_ranges"])
+            self.assertEqual(selection_bytes, selection_path.read_bytes())
+            self.assertEqual([], runtime.request_indices)
+
+            changed_source = {"commit": "changed-candidate",
+                              "dirty_fingerprint": "f" * 64}
+            with patch.object(repo_baseline, "load_driver", return_value=runtime), \
+                    patch.object(repo_baseline, "capture_runtime_identity", return_value=current), \
+                    patch.object(repo_baseline, "api_key", return_value="fake-key"), \
+                    patch.object(repo_baseline, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(repo_baseline.repo_context, "git_identity",
+                                 return_value=changed_source), \
+                    patch.object(repo_baseline.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(
+                        repo_baseline.repo_context.SourceIdentityError,
+                        "candidate_source changed"):
+                    repo_baseline.main()
+            self.assertEqual(selection_bytes, selection_path.read_bytes())
+            self.assertEqual([], runtime.request_indices)
+
+    def test_repo_baseline_treats_host_residency_as_optional_diagnostic(self) -> None:
+        geometry = repo_baseline.repo_context.load_manifest()["runtime_requirements"]
+        self.assertEqual(16384, geometry["logical_context_tokens"])
+        self.assertEqual(8192, geometry["selected_hot_tokens"])
+        self.assertEqual(256, geometry["page_tokens"])
+        passing = {"slots": [{"id": 0, "is_processing": False,
+                              "n_prompt_tokens": 12288,
+                              "lifecycle": {"session_generation": 1},
+                              "pager_metrics": {
+                                  "host_valid_rows": 4096,
+                                  "host_valid_bytes": 16384,
+                                  "page_inventory": [
+                                      {"logical_page_id": 0, "resident": True,
+                                       "host_backed": True},
+                                      {"logical_page_id": 1, "resident": False,
+                                       "host_backed": True},
+                                  ]}}]}
+        proof = repo_baseline.host_residency_observation(passing)
+        self.assertEqual("observed", proof["status"])
+        self.assertEqual(4096, proof["host_valid_rows"])
+        self.assertEqual(16384, proof["host_valid_bytes"])
+        self.assertEqual([1], proof["cold_host_backed_page_ids"])
+
+        no_host_bytes = {"slots": [{"id": 0, "is_processing": False,
+                                    "n_prompt_tokens": 12288,
+                                    "lifecycle": {"session_generation": 1},
+                                    "pager_metrics": {
+                                        "host_valid_rows": 0,
+                                        "host_valid_bytes": 0,
+                                        "page_inventory": []}}]}
+        absent = repo_baseline.host_residency_observation(no_host_bytes)
+        self.assertEqual("observed", absent["status"])
+        self.assertEqual(0, absent["host_valid_rows"])
+        self.assertEqual([], absent["cold_host_backed_page_ids"])
+
+        unavailable = repo_baseline.host_residency_observation({"slots": []})
+        self.assertEqual("unavailable", unavailable["status"])
+        unavailable = repo_baseline.host_residency_observation({"slots": [{"id": 0}]})
+        self.assertEqual("unavailable", unavailable["status"])
+
+    def test_slot_task_id_is_a_generation_when_server_omits_lifecycle_generation(self) -> None:
+        slot = occupancy.selected_slot({"slots": [{"id": 0, "is_processing": False,
+                                                    "id_task": 23,
+                                                    "n_prompt_tokens": 4258}]}, 0)
+        self.assertEqual(23, slot["generation"])
+        self.assertEqual(4258, slot["occupied_tokens"])
+
+    def test_repo_context_manifest_identity_and_a_b_a_reserve_and_frontier(self) -> None:
+        manifest = occupancy.repo_context.load_manifest()
+        prompts = occupancy.repo_context.load_prompts()
+        self.assertIn("`--stdin` wins", prompts["A1"])
+        self.assertIn("N_KV", prompts["B"])
+        self.assertIn("Windows console", prompts["A2"])
+        prompts = {"A1": "A1_QUERY", "B": "B_QUERY", "A2": "A2_QUERY"}
+        turns = occupancy.build_repo_content_turns(manifest, prompts)
+        self.assertEqual(3, len(turns))
+        self.assertIn("A1_QUERY", turns[0]["content"])
+        self.assertIn("B_QUERY", turns[1]["content"])
+        self.assertEqual("A2_QUERY", turns[2]["content"])
+        self.assertNotIn("BEGIN FILE:", turns[2]["content"])
+        self.assertNotIn("tools/tokenize/tokenize.cpp", turns[2]["content"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = pathlib.Path(directory) / "source.txt"
+            source.write_text("original\n", encoding="utf-8")
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            # Exercise the same hash refusal path with a deliberately stale identity.
+            old_root = occupancy.repo_context.ROOT
+            try:
+                occupancy.repo_context.ROOT = pathlib.Path(directory)
+                occupancy.repo_context._read_repo_file("source.txt", digest)
+                with self.assertRaises(occupancy.repo_context.SourceIdentityError):
+                    occupancy.repo_context._read_repo_file("source.txt", "0" * 64)
+            finally:
+                occupancy.repo_context.ROOT = old_root
+
+        class CountingRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                count = sum(len(message["content"].split()) + 4 for message in messages)
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        renderer = CountingRenderer()
+        corpus = [
+            occupancy.repo_context.CorpusChunk(
+                "src/a.cpp", "a" * 64, 8, 1, 1, "int a;\n"),
+            occupancy.repo_context.CorpusChunk(
+                "tools/b.md", "b" * 64, 8, 1, 1, "word " * 3000),
+        ]
+        prefix = [{"role": "assistant", "content": "prior answer"}]
+        text, tokens, selected = occupancy.repo_context.append_chunks_to_frontier(
+            renderer, prefix, "B_QUERY", corpus, context_tokens=8192,
+            reserve_tokens=800, max_fresh_tokens=100)
+        self.assertIn("src/a.cpp", text)
+        self.assertEqual(["src/a.cpp"], [item.path for item in selected])
+        self.assertEqual((1, 1), (selected[0].start_line, selected[0].end_line))
+        restored = occupancy.repo_context.restore_chunks(
+            [occupancy.repo_context.SourceFile("src/a.cpp", "a" * 64, 8, "int a;\n")],
+            occupancy.repo_context.selection_record(selected))
+        self.assertEqual(selected, restored)
+        self.assertEqual(tokens, len(renderer(prefix + [{"role": "user", "content": text}]).token_ids))
+        occupancy.repo_context.enforce_reserve(tokens, 400, 800, 8192)
+        with self.assertRaises(ValueError):
+            occupancy.repo_context.enforce_reserve(7900, 400, 800, 8192)
+
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):
             with self.subTest(context_tokens=context_tokens):
