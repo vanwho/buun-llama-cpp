@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "task": "102-02",
+  "source_commit": "890e4f7f113184f64e018be9ae4dd186e26af047",
+  "status": "incomplete",
+  "checks": {
+    "repo_content_builder_regression": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "py_compile",
+        "tools/server/bench/repo_context.py",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/test_occupancy_frontier.py",
+        "&&",
+        "python3",
+        "tools/server/bench/test_occupancy_frontier.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-01/local-validation.txt",
+          "sha256": "65e5db7630fc6b067dabaa4bc230b32c0066062fc413d0872b15997affbc3492"
+        }
+      ]
+    },
+    "repo_context_8k4k_three_placement_baseline": {
+      "status": "not_measured",
+      "reason": "No A\u2192B\u2192A sequence or placement rows recorded; active port 8080 candidate has L=77824, B=128/U=64 and MTP disabled."
+    },
+    "repo_context_a_b_a_candidate_bound_telemetry": {
+      "status": "not_measured",
+      "reason": "No candidate-bound request telemetry or promotion chain captured."
+    }
+  },
+  "required_proofs": [
+    "repo_context_8k4k_three_placement_baseline",
+    "repo_context_a_b_a_candidate_bound_telemetry"
+  ]
+}
