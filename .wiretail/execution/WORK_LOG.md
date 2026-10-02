@@ -1955,3 +1955,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12l`
 - Commit at update: `7307dc00c`
 - Summary: Completed candidate-v6 canonical retake; release remains goal_miss on prompt-1 MTP floor; scheduled 101-12m and kept 102-01 gated.
+
+## 2026-10-02T02:35:50+00:00 — 101-12m — done
+
+- Branch: `codex/task-101-12m`
+- Commit at update: `9ebeb13c6`
+- Summary: Captured candidate-v6 prompt-1 selected/dense attribution; reproduced 39.69% selected acceptance; focused CPU attention execution test and V10 completion check pass. No committed-history loss or source defect proven. Device mask readback and CUDA test build are documented limits; 102-01 remains gated.

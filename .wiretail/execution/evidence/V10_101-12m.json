@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "task": "101-12m",
+  "source_commit": "9ebeb13c6a1d32f499404aedc9396b6ff5f51e2e",
+  "checks": {
+    "canonical_prompt1_selected_mtp_attribution_and_owner": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/raw/101-12m/capture_prompt1_attribution.py"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/capture_prompt1_attribution.py",
+          "sha256": "be41c9032eb70bc840460ac28f2fef058c855bb312ed447524b9ca011d67dc1c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/prompt1-attribution.json",
+          "sha256": "2bc4861ff18efc47ab0d4769cb888e7761aa70ade3f80e854daef52be08d908f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/prompt1-attribution.md",
+          "sha256": "b64339ef62bc3a5e68bdd9090eeda6653ecf05b2057f4420d7ab2519c80010b8"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/capture.log",
+          "sha256": "7d81c4bb6fc4ffa0c3b3a161e29dcf784af031cd87150538ed1b3e2b0f872397"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/attention-test.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        }
+      ]
+    },
+    "local_attention_execution_regression": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-14-01-cpu/bin/test-kv-attention-execution"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/attention-test.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        }
+      ]
+    }
+  },
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+    "sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2"
+  },
+  "provenance": {
+    "candidate_bundle": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "frozen_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+    "raw_result_root": ".wiretail/execution/evidence/raw/101-12m",
+    "mask_capture_limit": "KQ allow/block bits expanded from the exact host mask rows and source rule; CUDA device float-mask readback was not performed.",
+    "cuda_build_attempt": "Fresh build-cuda-test compilation was interrupted at 15% while building CUDA backend; CPU configured test target passed."
+  },
+  "summary": "Reproduced candidate-v6 canonical prompt-1 selected MTP miss and measured selected/dense attribution. No committed-history loss or source defect proven; 102-01 remains gated."
+}
