@@ -1979,3 +1979,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12n`
 - Commit at update: `207aacc80`
 - Summary: Final candidate-v6 release review applied current 40% MTP floors and reproduced the 39.69% long-prefix prompt-1 miss. All prefill/decode hard gates pass; no source defect proven. Short matched prompt-1 comparison is 83.03% on both builds at 30 tokens only. Preserve goal_miss and authorize 102-01 capacity measurements.
+
+## 2026-10-02T14:15:44+00:00 — 102-01 — done
+
+- Branch: `codex/task-102-01`
+- Commit at update: `ee7c0163d`
+- Summary: Raised the occupancy-frontier logical-context validation ceiling to 262144 while preserving the 32768 default and geometry checks. The focused regression suite passed and its V10 receipt validated.
