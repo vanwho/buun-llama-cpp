@@ -11,6 +11,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+import hashlib
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -122,6 +123,55 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_repo_context_manifest_identity_and_a_b_a_reserve_and_frontier(self) -> None:
+        manifest = occupancy.repo_context.load_manifest()
+        prompts = {"A1": "A1_QUERY", "B": "B_QUERY", "A2": "A2_QUERY"}
+        turns = occupancy.build_repo_content_turns(manifest, prompts)
+        self.assertEqual(3, len(turns))
+        self.assertIn("A1_QUERY", turns[0]["content"])
+        self.assertIn("B_QUERY", turns[1]["content"])
+        self.assertEqual("A2_QUERY", turns[2]["content"])
+        self.assertNotIn("BEGIN FILE:", turns[2]["content"])
+        self.assertNotIn("tools/tokenize/tokenize.cpp", turns[2]["content"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = pathlib.Path(directory) / "source.txt"
+            source.write_text("original\n", encoding="utf-8")
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            # Exercise the same hash refusal path with a deliberately stale identity.
+            old_root = occupancy.repo_context.ROOT
+            try:
+                occupancy.repo_context.ROOT = pathlib.Path(directory)
+                occupancy.repo_context._read_repo_file("source.txt", digest)
+                with self.assertRaises(occupancy.repo_context.SourceIdentityError):
+                    occupancy.repo_context._read_repo_file("source.txt", "0" * 64)
+            finally:
+                occupancy.repo_context.ROOT = old_root
+
+        class CountingRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                count = sum(len(message["content"].split()) + 4 for message in messages)
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        renderer = CountingRenderer()
+        corpus = [
+            occupancy.repo_context.CorpusChunk(
+                "src/a.cpp", "a" * 64, 8, 1, 1, "int a;\n"),
+            occupancy.repo_context.CorpusChunk(
+                "tools/b.md", "b" * 64, 8, 1, 1, "word " * 3000),
+        ]
+        prefix = [{"role": "assistant", "content": "prior answer"}]
+        text, tokens, selected = occupancy.repo_context.append_chunks_to_frontier(
+            renderer, prefix, "B_QUERY", corpus, context_tokens=8192,
+            reserve_tokens=800, max_fresh_tokens=100)
+        self.assertIn("src/a.cpp", text)
+        self.assertEqual(["src/a.cpp"], [item.path for item in selected])
+        self.assertEqual((1, 1), (selected[0].start_line, selected[0].end_line))
+        self.assertEqual(tokens, len(renderer(prefix + [{"role": "user", "content": text}]).token_ids))
+        occupancy.repo_context.enforce_reserve(tokens, 400, 800, 8192)
+        with self.assertRaises(ValueError):
+            occupancy.repo_context.enforce_reserve(7900, 400, 800, 8192)
+
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):
             with self.subTest(context_tokens=context_tokens):
