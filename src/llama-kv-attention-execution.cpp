@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <sstream>
 
 namespace {
 
@@ -119,6 +120,59 @@ float llama_kv_attention_selected_mask_value(
     }
     return use_alibi
         ? -float(std::abs(native_positions[row] - query_position)) : 0.0f;
+}
+
+std::string llama_kv_attention_visibility_snapshot_json(
+        const llama_kv_attention_operator_metadata & metadata) {
+    std::ostringstream out;
+    out << "{\"available\":" << (metadata.valid() ? "true" : "false");
+    if (!metadata.valid()) {
+        out << '}';
+        return out.str();
+    }
+
+    const auto & pages = metadata.page_table();
+    const auto & positions = metadata.native_positions();
+    const auto & mask = metadata.native_mask();
+    const auto & queries = metadata.query_positions();
+    out << ",\"table_epoch\":" << metadata.table_epoch()
+        << ",\"causal\":" << (metadata.causal() ? "true" : "false")
+        << ",\"pages\":[";
+    for (size_t i = 0; i < pages.size(); ++i) {
+        if (i != 0) out << ',';
+        const auto & page = pages[i];
+        out << "{\"logical_page\":" << page.logical_page
+            << ",\"physical_slot\":" << page.source_physical_slot
+            << ",\"page_generation\":" << page.page_generation
+            << ",\"position_begin\":" << page.native_position_begin
+            << ",\"position_end\":" << page.native_position_end
+            << ",\"compact_row_begin\":" << page.compact_row_begin
+            << ",\"row_count\":" << page.row_count << '}';
+    }
+    out << "],\"native_rows\":[";
+    for (size_t row = 0; row < positions.size(); ++row) {
+        if (row != 0) out << ',';
+        out << '[' << positions[row] << ','
+            << (row < mask.size() && mask[row] != 0 ? 1 : 0) << ']';
+    }
+    out << "],\"queries\":[";
+    for (size_t query = 0; query < queries.size(); ++query) {
+        if (query != 0) out << ',';
+        out << "{\"position\":" << queries[query] << ",\"visible_rows\":[";
+        bool first = true;
+        for (uint32_t row = 0; row < positions.size(); ++row) {
+            if (!std::isfinite(llama_kv_attention_selected_mask_value(
+                    row, positions, mask, queries[query], metadata.causal(), false))) {
+                continue;
+            }
+            if (!first) out << ',';
+            out << row;
+            first = false;
+        }
+        out << "]}";
+    }
+    out << "]}";
+    return out.str();
 }
 
 size_t llama_kv_attention_packed_allocation_bytes(

@@ -3586,6 +3586,162 @@ struct server_slot {
         event["draft_argmax_ids"] = spec_draft;
         event["draft_argmax_source"] = spec_draft.empty() ? "unavailable" : "proposal_ids";
 
+        // The first target score row is the exact shared prompt boundary for
+        // selected and dense route comparisons. Keep its complete ordering
+        // beside the bounded first-rejection trace, whose first rejection can
+        // occur only after the two routes have already sampled different ids.
+        const char * prefix_trace_path = std::getenv("LLAMA_MTP_PREFIX_SCORE_TRACE_PATH");
+        if (mtp_state_diagnostic_steps == 0 && prefix_trace_path != nullptr &&
+                prefix_trace_path[0] != '\0') {
+            try {
+                const int32_t score_row = rows.front();
+                const llama_seq_id trace_seq = spec ? 0 : id;
+                const float * scores = llama_get_logits_ith(ctx_tgt, score_row);
+                const int32_t n_vocab = llama_vocab_n_tokens(
+                        llama_model_get_vocab(llama_get_model(ctx_tgt)));
+                json attention_visibility = json::parse(
+                    ctx_tgt->mtp_attention_visibility_snapshot_json());
+                json & attention_graph = attention_visibility["graph"];
+                const llama_pos query_position = batch.pos[score_row];
+                if (attention_graph.value("available", false) &&
+                        attention_graph.contains("native_rows") &&
+                        attention_graph["native_rows"].is_array()) {
+                    // The view and row-validity bits belong to the just-built
+                    // selected graph. Bind its causal row to the exact score
+                    // input, since state capture can run after a later graph
+                    // construction has replaced the metadata query vector.
+                    json visible_rows = json::array();
+                    const auto & native_rows = attention_graph["native_rows"];
+                    for (size_t row = 0; row < native_rows.size(); ++row) {
+                        if (!native_rows[row].is_array() || native_rows[row].size() < 2 ||
+                                !native_rows[row][0].is_number_integer() ||
+                                !native_rows[row][1].is_number_integer()) {
+                            continue;
+                        }
+                        const llama_pos native_position = native_rows[row][0].get<llama_pos>();
+                        const bool valid = native_rows[row][1].get<int>() != 0;
+                        if (valid && (!attention_graph.value("causal", true) ||
+                                native_position <= query_position)) {
+                            visible_rows.push_back(row);
+                        }
+                    }
+                    attention_graph["metadata_query_positions"] =
+                        attention_graph.value("queries", json::array());
+                    attention_graph["queries"] = json::array({json{
+                        {"position", query_position},
+                        {"position_source", "target batch score row"},
+                        {"visible_rows", std::move(visible_rows)},
+                    }});
+                } else if (pager.route == llama_kv_attention_execution_route::dense &&
+                        query_position >= 0 && uint64_t(query_position) <= 1'048'576) {
+                    // The native dense decoder attends causally over the full
+                    // contiguous KV prefix. The server API exposes its live
+                    // point-in-time range as only the current batch row, so
+                    // enumerate the graph contract from position zero here.
+                    attention_graph = {
+                        {"available", true},
+                        {"mask_source", "native dense causal attention contract"},
+                        {"backend_mask_bits_captured", false},
+                        {"causal", true},
+                        {"native_position_min", 0},
+                        {"native_position_max", query_position},
+                        {"pages", json::array()},
+                        {"native_rows", json::array()},
+                        {"queries", json::array()},
+                    };
+                    for (llama_pos position = 0; position <= query_position; ++position) {
+                        attention_graph["native_rows"].push_back(json::array({position, 1}));
+                    }
+                    json visible_rows = json::array();
+                    for (llama_pos position = 0; position <= query_position; ++position) {
+                        visible_rows.push_back(position);
+                    }
+                    attention_graph["queries"].push_back({
+                        {"position", query_position},
+                        {"position_source", "target batch score row"},
+                        {"visible_rows", std::move(visible_rows)},
+                    });
+                }
+                json prefix_trace = {
+                    {"schema", "llama-mtp-prefix-score-v1"},
+                    {"diagnostic_step", mtp_state_diagnostic_steps},
+                    {"route", llama_kv_attention_execution_route_name(pager.route)},
+                    {"target_input_token_ids", target_ids},
+                    {"target_input_positions", target_positions},
+                    {"target_output_rows", rows},
+                    {"score_row", score_row},
+                    {"target_finite", false},
+                    {"target_vocab_size", n_vocab},
+                    {"score_ordering_rule", "descending raw logit; token id ascending for ties"},
+                    {"target_logits_by_token_id", json::array()},
+                    {"target_score_ordering", json::array()},
+                    {"effective_sampling_seed", common_sampler_get_seed(smpl.get())},
+                    {"proposal_rng_draws_before_first_target_score", 0},
+                    {"target_kv_min", llama_memory_seq_pos_min(
+                        llama_get_memory(ctx_tgt), trace_seq)},
+                    {"target_kv_max", llama_memory_seq_pos_max(
+                        llama_get_memory(ctx_tgt), trace_seq)},
+                    {"n_past", n_tokens_before_draft},
+                    {"prompt_cache_tokens", stats.n_prompt_cached},
+                    {"checkpoint_generation", spec_ckpt.checkpoint_epoch},
+                    {"checkpoint_generation_swa", spec_ckpt.checkpoint_epoch_swa},
+                    {"target_state_restored_before_verification",
+                        mtp_target_restored_before_verify},
+                    {"draft_state_restored_before_verification",
+                        mtp_draft_restored_before_verify},
+                    {"target_restore_epoch", mtp_target_restore_epoch},
+                    {"draft_restore_epoch", mtp_draft_restore_epoch},
+                    {"page_table_epoch", pager.table_epoch},
+                    {"selected_page_ids", pager.execution.selected_page_ids},
+                    {"selected_page_versions", selected_page_versions},
+                    {"attention_visibility", std::move(attention_visibility)},
+                };
+                std::vector<llama_token> score_order;
+                bool target_finite = scores != nullptr && n_vocab > 0;
+                if (scores != nullptr && n_vocab > 0) {
+                    score_order.resize(static_cast<size_t>(n_vocab));
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        const float score = scores[token];
+                        target_finite = target_finite && std::isfinite(score);
+                        prefix_trace["target_logits_by_token_id"].push_back(
+                            std::isfinite(score) ? json(score) : json(nullptr));
+                        score_order[size_t(token)] = llama_token(token);
+                    }
+                    std::sort(score_order.begin(), score_order.end(),
+                            [&](llama_token lhs, llama_token rhs) {
+                        const float lhs_score = scores[lhs];
+                        const float rhs_score = scores[rhs];
+                        const bool lhs_finite = std::isfinite(lhs_score);
+                        const bool rhs_finite = std::isfinite(rhs_score);
+                        if (lhs_finite != rhs_finite) {
+                            return lhs_finite;
+                        }
+                        if (!lhs_finite) {
+                            return lhs < rhs;
+                        }
+                        if (lhs_score != rhs_score) {
+                            return lhs_score > rhs_score;
+                        }
+                        return lhs < rhs;
+                    });
+                    for (const llama_token token : score_order) {
+                        prefix_trace["target_score_ordering"].push_back(token);
+                    }
+                }
+                prefix_trace["target_finite"] = target_finite;
+                std::ofstream file(prefix_trace_path, std::ios::binary | std::ios::trunc);
+                if (!file) {
+                    throw std::runtime_error("cannot open MTP prefix score trace path");
+                }
+                file << prefix_trace.dump() << '\n';
+                if (!file) {
+                    throw std::runtime_error("cannot write MTP prefix score trace");
+                }
+            } catch (const std::exception & error) {
+                SLT_ERR(*this, "MTP prefix score trace file failed: %s\n", error.what());
+            }
+        }
+
         mtp_state_diagnostic_trace.push_back(event);
         ++mtp_state_diagnostic_steps;
         SLT_INF(*this, "MTP_STATE_DIAGNOSTIC %s\n", event.dump().c_str());
@@ -25075,6 +25231,146 @@ private:
                         }
                     }
                 }
+                const llama_memory_t target_memory = llama_get_memory(ctx_tgt);
+                const llama_memory_t draft_memory = llama_get_memory(slot.ctx_dft);
+                // The draft trace position identifies the proposed token's
+                // position.  Its target logits are produced by the preceding
+                // causal query row, regardless of which proposal index was
+                // rejected.
+                const llama_pos target_query_position = have_draft_trace &&
+                        draft_trace.position > 0
+                    ? draft_trace.position - 1 : -1;
+                const char * trace_path = std::getenv("LLAMA_MTP_FIRST_REJECT_TRACE_PATH");
+                if (trace_path != nullptr && trace_path[0] != '\0') {
+                    try {
+                        json rejection_visibility = json::parse(
+                            ctx_tgt->mtp_attention_visibility_snapshot_json());
+                        json & rejection_graph = rejection_visibility["graph"];
+                        if (target_query_position >= 0 &&
+                                rejection_graph.value("available", false) &&
+                                rejection_graph.contains("native_rows") &&
+                                rejection_graph["native_rows"].is_array()) {
+                            json visible_rows = json::array();
+                            const auto & native_rows = rejection_graph["native_rows"];
+                            for (size_t row = 0; row < native_rows.size(); ++row) {
+                                if (!native_rows[row].is_array() || native_rows[row].size() < 2 ||
+                                        !native_rows[row][0].is_number_integer() ||
+                                        !native_rows[row][1].is_number_integer()) {
+                                    continue;
+                                }
+                                const llama_pos native_position =
+                                    native_rows[row][0].get<llama_pos>();
+                                const bool valid = native_rows[row][1].get<int>() != 0;
+                                if (valid && (!rejection_graph.value("causal", true) ||
+                                        native_position <= target_query_position)) {
+                                    visible_rows.push_back(row);
+                                }
+                            }
+                            rejection_graph["rejection_query"] = {
+                                {"position", target_query_position},
+                                {"position_source", "draft proposal position minus one"},
+                                {"visible_rows", std::move(visible_rows)},
+                            };
+                        } else if (target_query_position >= 0 &&
+                                rejection_visibility.value("route", std::string()) == "dense" &&
+                                uint64_t(target_query_position) <= 1'048'576) {
+                            rejection_graph = {
+                                {"available", true},
+                                {"mask_source", "native dense causal attention contract"},
+                                {"backend_mask_bits_captured", false},
+                                {"causal", true},
+                                {"native_position_min", 0},
+                                {"native_position_max", target_query_position},
+                                {"pages", json::array()},
+                                {"native_rows", json::array()},
+                                {"queries", json::array()},
+                            };
+                            json native_rows = json::array();
+                            json visible_rows = json::array();
+                            for (llama_pos position = 0; position <= target_query_position;
+                                    ++position) {
+                                native_rows.push_back(json::array({position, 1}));
+                                visible_rows.push_back(position);
+                            }
+                            rejection_graph["native_rows"] = std::move(native_rows);
+                            rejection_graph["rejection_query"] = {
+                                {"position", target_query_position},
+                                {"position_source", "draft proposal position minus one"},
+                                {"visible_rows", std::move(visible_rows)},
+                            };
+                        }
+                        json trace = {
+                            {"schema", "llama-mtp-first-rejection-v1"},
+                            {"sequence_id", trace_seq},
+                            {"rejected_index", rejected_index},
+                            {"proposed_token", have_draft_trace
+                                ? (int) draft_trace.proposal
+                                : (int) slot.spec_draft[rejected_index]},
+                            {"target_row", target_row},
+                            {"target_query_position", target_query_position},
+                            {"target_finite", target_finite},
+                            {"target_vocab_size", n_vocab},
+                            {"target_score_ordering_rule", "descending raw logit; token id ascending for ties"},
+                            {"target_logits_by_token_id", json::array()},
+                            {"target_score_ordering", json::array()},
+                            {"target_top8", json::array()},
+                            {"draft_position", have_draft_trace ? draft_trace.position : -1},
+                            {"draft_carry_generation", have_draft_trace ? draft_trace.carry_generation : 0},
+                            {"draft_top8", json::array()},
+                            {"effective_sampling_seed", common_sampler_get_seed(slot.smpl.get())},
+                            {"proposal_seed_xor", 0x85ebca6bU},
+                            {"proposal_rng_draws_through_rejection", rejected_index + 1},
+                            {"target_kv_min", llama_memory_seq_pos_min(target_memory, trace_seq)},
+                            {"target_kv_max", llama_memory_seq_pos_max(target_memory, trace_seq)},
+                            {"draft_valid_frontier", llama_memory_seq_pos_max(draft_memory, trace_seq)},
+                            {"staged_hidden_generation", llama_get_embeddings_nextn_device_generation(ctx_tgt)},
+                            {"target_verify_rows", verify_rows.size()},
+                            {"attention_visibility", std::move(rejection_visibility)},
+                        };
+                        for (int32_t token = 0; token < n_vocab; ++token) {
+                            trace["target_logits_by_token_id"].push_back(
+                                target_logits != nullptr && std::isfinite(target_logits[token])
+                                    ? json(target_logits[token]) : json(nullptr));
+                        }
+                        if (target_finite) {
+                            std::vector<llama_token> order(static_cast<size_t>(n_vocab));
+                            for (int32_t token = 0; token < n_vocab; ++token) {
+                                order[size_t(token)] = llama_token(token);
+                            }
+                            std::sort(order.begin(), order.end(), [&](llama_token lhs, llama_token rhs) {
+                                if (target_logits[lhs] != target_logits[rhs]) {
+                                    return target_logits[lhs] > target_logits[rhs];
+                                }
+                                return lhs < rhs;
+                            });
+                            for (const llama_token token : order) {
+                                trace["target_score_ordering"].push_back(token);
+                            }
+                        }
+                        for (const auto & item : target_top) {
+                            trace["target_top8"].push_back(json::array({
+                                item.first, item.second}));
+                        }
+                        if (have_draft_trace) {
+                            for (size_t i = 0; i < draft_trace.candidate_ids.size(); ++i) {
+                                trace["draft_top8"].push_back(json::array({
+                                    draft_trace.candidate_ids[i],
+                                    draft_trace.candidate_logits[i],
+                                    draft_trace.candidate_probs[i]}));
+                            }
+                        }
+                        std::ofstream file(trace_path, std::ios::binary | std::ios::trunc);
+                        if (!file) {
+                            throw std::runtime_error("cannot open first-rejection trace path");
+                        }
+                        file << trace.dump() << '\n';
+                        if (!file) {
+                            throw std::runtime_error("cannot write first-rejection trace");
+                        }
+                    } catch (const std::exception & error) {
+                        SLT_ERR(slot, "MTP first rejection trace file failed: %s\n", error.what());
+                    }
+                }
                 std::ostringstream trace_line;
                 trace_line << "MTP first rejection: seq=" << trace_seq
                     << " rejected_index=" << rejected_index
@@ -25105,8 +25401,6 @@ private:
                             << draft_trace.candidate_probs[i];
                     }
                 }
-                const llama_memory_t target_memory = llama_get_memory(ctx_tgt);
-                const llama_memory_t draft_memory = llama_get_memory(slot.ctx_dft);
                 trace_line << "] target_kv_range=["
                     << llama_memory_seq_pos_min(target_memory, trace_seq) << ','
                     << llama_memory_seq_pos_max(target_memory, trace_seq)

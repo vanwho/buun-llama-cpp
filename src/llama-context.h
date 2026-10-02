@@ -528,6 +528,7 @@ struct llama_context {
             const std::string & direct_reason = {},
             bool dense_capable = false,
             bool packed_capable = false);
+    std::string mtp_attention_visibility_snapshot_json() const;
     void complete_kv_attention_graph() noexcept;
 
     ggml_backend_sched_t get_sched() const;

@@ -37,6 +37,7 @@
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -2650,6 +2651,34 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
     kv_attention_execution.record_graph_construction_us(uint64_t(std::max<int64_t>(
             0, ggml_time_us() - started)));
     return result;
+}
+
+std::string llama_context::mtp_attention_visibility_snapshot_json() const {
+    std::ostringstream out;
+    out << "{\"phase\":\""
+        << llama_kv_attention_execution_phase_name(kv_attention_execution.phase())
+        << "\",\"route\":\""
+        << llama_kv_attention_execution_route_name(kv_attention_execution.route())
+        << "\",\"graph\":"
+        << llama_kv_attention_visibility_snapshot_json(kv_attention_execution.metadata());
+    if (kv_pager_owner != nullptr) {
+        const auto turn = kv_pager_owner->turn_state(0);
+        out << ",\"pager_turn_state\":{\"phase\":"
+            << static_cast<uint32_t>(turn.phase)
+            << ",\"turn_id\":" << turn.turn_id
+            << ",\"frozen_history_generation\":" << turn.frozen_history_generation
+            << ",\"selected_history\":[";
+        for (size_t i = 0; i < turn.selected_history.size(); ++i) {
+            if (i != 0) out << ',';
+            const auto & selected = turn.selected_history[i];
+            out << "{\"logical_page\":" << selected.identity.logical_page
+                << ",\"page_generation\":" << selected.identity.page_generation
+                << ",\"content_version\":" << selected.content_version << '}';
+        }
+        out << "]}";
+    }
+    out << '}';
+    return out.str();
 }
 
 void llama_context::complete_kv_attention_graph() noexcept {

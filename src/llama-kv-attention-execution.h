@@ -12,6 +12,11 @@
 
 struct llama_kv_attention_execution_metrics;
 
+// Serialize the exact selected view descriptors and causal visibility used by
+// an attention graph. This is only consumed by opt-in diagnostics.
+std::string llama_kv_attention_visibility_snapshot_json(
+        const llama_kv_attention_operator_metadata & metadata);
+
 // This is an internal execution seam.  It deliberately does not add a public
 // C API: selection policy owns the page list, while this object owns the
 // prompt/decode route and the graph lifetime of the selected view.

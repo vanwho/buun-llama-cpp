@@ -666,6 +666,22 @@ static void test_selected_mask_capacity_padding() {
     assert(llama_kv_attention_selected_mask_value(0, positions, valid, 13, true, true) == -3.0f);
 }
 
+static void test_visibility_snapshot_records_native_mask_and_pages() {
+    const auto view = metadata(snapshot(), 2, 1, { 2, 0 }, 600);
+    const std::string trace = llama_kv_attention_visibility_snapshot_json(view);
+    assert(trace.find("\"available\":true") != std::string::npos);
+    assert(trace.find("\"logical_page\":2") != std::string::npos);
+    assert(trace.find("\"page_generation\":") != std::string::npos);
+    assert(trace.find("\"physical_slot\":") != std::string::npos);
+    // The view canonicalizes pages by native position before building rows.
+    assert(trace.find("\"native_rows\":[[0,1]") != std::string::npos);
+    assert(trace.find("[512,1]") != std::string::npos);
+    assert(trace.find("\"position\":600,\"visible_rows\":[0,1") != std::string::npos);
+    // Rows 0..255 are page 0; page 2 begins at row 256. Position 600 is
+    // visible at row 344 and the next native row (position 601) is masked.
+    assert(trace.find(",343,344]}") != std::string::npos);
+}
+
 static void test_packed_view_copy_intervals() {
     const auto snap = snapshot();
     llama_kv_attention_view_status view_status;
@@ -1244,6 +1260,7 @@ int main() {
     test_packed_view_copy_intervals();
     test_packed_cache_identity_and_versions();
     test_selected_mask_capacity_padding();
+    test_visibility_snapshot_records_native_mask_and_pages();
     test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();
     test_epoch_matrix_and_lifetime_metrics();
