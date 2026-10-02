@@ -46,8 +46,8 @@
     ]
   },
   "runtime_requirements": {
-    "logical_context_tokens": 8192,
-    "selected_hot_tokens": 4096,
+    "logical_context_tokens": 16384,
+    "selected_hot_tokens": 8192,
     "page_tokens": 256,
     "same_slot_same_candidate": true,
     "max_new_tokens_per_ingest_request": 16000,

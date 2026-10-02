@@ -30,6 +30,12 @@ assert VALIDATOR_SPEC and VALIDATOR_SPEC.loader
 validator = importlib.util.module_from_spec(VALIDATOR_SPEC)
 VALIDATOR_SPEC.loader.exec_module(validator)
 
+REPO_BASELINE_SPEC = importlib.util.spec_from_file_location(
+    "run_repo_context_baseline_test", HERE / "run-repo-context-baseline.py")
+assert REPO_BASELINE_SPEC and REPO_BASELINE_SPEC.loader
+repo_baseline = importlib.util.module_from_spec(REPO_BASELINE_SPEC)
+REPO_BASELINE_SPEC.loader.exec_module(repo_baseline)
+
 
 class FakeRenderer:
     template_id = "fake-template-v1"
@@ -123,6 +129,38 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_repo_baseline_requires_real_host_backed_pages(self) -> None:
+        geometry = repo_baseline.repo_context.load_manifest()["runtime_requirements"]
+        self.assertEqual(16384, geometry["logical_context_tokens"])
+        self.assertEqual(8192, geometry["selected_hot_tokens"])
+        self.assertEqual(256, geometry["page_tokens"])
+        passing = {"slots": [{"id": 0, "is_processing": False,
+                              "n_prompt_tokens": 12288,
+                              "lifecycle": {"session_generation": 1},
+                              "pager_metrics": {
+                                  "host_valid_rows": 4096,
+                                  "host_valid_bytes": 16384,
+                                  "page_inventory": [
+                                      {"logical_page_id": 0, "resident": True,
+                                       "host_backed": True},
+                                      {"logical_page_id": 1, "resident": False,
+                                       "host_backed": True},
+                                  ]}}]}
+        proof = repo_baseline.host_offload_evidence(passing)
+        self.assertEqual(4096, proof["host_valid_rows"])
+        self.assertEqual(16384, proof["host_valid_bytes"])
+        self.assertEqual([1], proof["cold_host_backed_page_ids"])
+
+        no_host_bytes = {"slots": [{"id": 0, "is_processing": False,
+                                    "n_prompt_tokens": 12288,
+                                    "lifecycle": {"session_generation": 1},
+                                    "pager_metrics": {
+                                        "host_valid_rows": 0,
+                                        "host_valid_bytes": 0,
+                                        "page_inventory": []}}]}
+        with self.assertRaisesRegex(RuntimeError, "did not prove real host offload"):
+            repo_baseline.host_offload_evidence(no_host_bytes)
+
     def test_slot_task_id_is_a_generation_when_server_omits_lifecycle_generation(self) -> None:
         slot = occupancy.selected_slot({"slots": [{"id": 0, "is_processing": False,
                                                     "id_task": 23,

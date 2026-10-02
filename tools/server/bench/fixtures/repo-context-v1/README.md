@@ -21,7 +21,7 @@ whether the natural selector nominated it, whether the policy admitted it,
 whether H2D completed and published, and whether the target attention consumed
 it. Answer correctness alone is not a promotion proof.
 
-For the 8K/4K baseline, use the complete primary A and B file groups first.
+For the 16K/8K baseline, use the complete primary A and B file groups first.
 Before any request, render and count the whole prompt using the Qwen tokenizer.
 Do not send if the projected context plus the recorded output/query/replay
 reserve exceeds L. If the full files leave too little reserve, omit only

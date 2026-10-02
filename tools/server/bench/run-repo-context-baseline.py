@@ -48,8 +48,8 @@ def response_content(record: Mapping[str, Any]) -> str:
             return str(response["content"])
     return ""
 
-CONTEXT = 8192
-HOT = 4096
+CONTEXT = 16384
+HOT = 8192
 PAGE = 256
 MAX_OUTPUT = 400
 SEQUENCES = ("warmup", "measured-1", "measured-2", "measured-3")
@@ -137,6 +137,10 @@ def expected_placement(identity: Mapping[str, Any], placement: str) -> None:
         raise ValueError(f"target placement mismatch: {identity.get('target_kv_placement')!r} != {target}")
     if placement == "selected" and str(identity.get("pager_mode")) != "selective":
         raise ValueError("selected row requires selective paging")
+    if placement == "selected" and int(identity.get("hot_pages", 0)) != HOT // PAGE:
+        raise ValueError(
+            f"selected row hot capacity mismatch: observed {identity.get('hot_pages')} pages, "
+            f"expected {HOT // PAGE} for H={HOT}")
     if placement != "selected" and str(identity.get("pager_mode")) not in {"off", "none"}:
         raise ValueError("GPU and host controls must run without the pager")
 
@@ -144,6 +148,32 @@ def expected_placement(identity: Mapping[str, Any], placement: str) -> None:
 def metric(snapshot: Mapping[str, Any], key: str) -> Any:
     data = snapshot.get("metrics")
     return data.get(key) if isinstance(data, Mapping) else None
+
+
+def host_offload_evidence(snapshot: Mapping[str, Any], slot_id: int = 0) -> dict[str, Any]:
+    """Require actual pageable host data, not merely a requested C>H geometry."""
+    selected = selected_slot(snapshot, slot_id)
+    slot = selected["slot"]
+    pager = slot.get("pager_metrics") if isinstance(slot, Mapping) else None
+    if not isinstance(pager, Mapping):
+        raise RuntimeError("selected row has no request-local slot pager_metrics")
+    pages = pager.get("page_inventory")
+    cold_host_pages = [page for page in pages if isinstance(page, Mapping)
+                       and page.get("resident") is False
+                       and page.get("host_backed") is True] if isinstance(pages, list) else []
+    rows = int(pager.get("host_valid_rows") or 0)
+    bytes_valid = int(pager.get("host_valid_bytes") or 0)
+    proof = {
+        "host_valid_rows": rows,
+        "host_valid_bytes": bytes_valid,
+        "cold_host_backed_page_count": len(cold_host_pages),
+        "cold_host_backed_page_ids": [page.get("logical_page_id") for page in cold_host_pages],
+    }
+    if rows <= 0 or bytes_valid <= 0 or not cold_host_pages:
+        raise RuntimeError(
+            "selected row did not prove real host offload: expected positive host_valid_rows/bytes "
+            "and a page with resident=false, host_backed=true")
+    return proof
 
 
 def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, key: str,
@@ -215,6 +245,13 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
         "reported_total_tokens": int(total_tokens),
         "frontier_validation": "slot occupied frontier matches prompt+completion within 2 tokens",
     }
+    if placement == "selected" and role == "B":
+        if int(actual["occupied_tokens"]) < HOT + 2048:
+            raise RuntimeError(
+                f"selected B frontier did not exceed H by the required 2048 tokens: "
+                f"C={actual['occupied_tokens']}, H={HOT}")
+        record["committed_slot"]["host_offload_proof"] = host_offload_evidence(
+            record.get("after", {}), 0)
     text = response_content(record)
     if not text:
         raise RuntimeError(f"request {request_id} returned an empty answer")
@@ -224,6 +261,7 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
 
 
 def main() -> int:
+    global HOT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--placement", choices=("gpu", "host", "selected"), required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
@@ -233,7 +271,15 @@ def main() -> int:
         "/srv/ai/config/llama/api-keys"))
     parser.add_argument("--endpoint", default="http://127.0.0.1:8080/v1/chat/completions")
     parser.add_argument("--model", default="qwen38-fast-turbo4-mtp")
+    parser.add_argument("--hot-tokens", type=int, default=HOT,
+                        help="page-aligned selected hot capacity; default is fixture H=8192")
+    parser.add_argument("--preflight-only", action="store_true",
+                        help="tokenize the complete mandatory A/B/A envelope and exit before generation")
     args = parser.parse_args()
+
+    HOT = args.hot_tokens
+    if HOT <= 0 or HOT > 8192 or HOT % PAGE:
+        parser.error("--hot-tokens must be page-aligned, positive, and no greater than 8192")
 
     args.output.mkdir(parents=True, exist_ok=True)
     args.shared_state.mkdir(parents=True, exist_ok=True)
@@ -247,6 +293,11 @@ def main() -> int:
         request_options=request_options(chat_template_kwargs={"enable_thinking": False}),
     )
     manifest = repo_context.load_manifest()
+    runtime = manifest.get("runtime_requirements", {})
+    if runtime.get("logical_context_tokens") != CONTEXT or \
+            runtime.get("selected_hot_tokens") != 8192 or \
+            runtime.get("page_tokens") != PAGE:
+        raise RuntimeError("fixture geometry does not match this runner's 16K/8K/256 baseline")
     prompts = repo_context.load_prompts()
     a_files = repo_context.load_group(manifest, "A_code")
     b_files = repo_context.load_group(manifest, "B_docs")
@@ -263,13 +314,21 @@ def main() -> int:
         "omitted_groups": ["supplemental_code", "supplemental_docs"],
         "requests_sent": 0,
         "reason": None if preflight["projected_b_total_tokens"] <= CONTEXT else
-                  "mandatory primary A/B fixture exceeds L=8192 with measured output/query/page/MTP reserve",
+                  "mandatory primary A/B fixture exceeds L=16384 with measured output/query/page/MTP reserve",
     })
     if preflight["projected_b_total_tokens"] > CONTEXT:
         raise RuntimeError(
             "mandatory primary A/B fixture does not fit before scale ingestion: "
             f"projected B occupancy {preflight['projected_b_total_tokens']} > L={CONTEXT}; "
             "no generation request was sent")
+    if args.preflight_only:
+        print(json.dumps({"status": "preflight_pass", "placement": args.placement,
+                          "logical_context_tokens": CONTEXT,
+                          "hot_tokens": HOT,
+                          "projected_b_total_tokens": preflight["projected_b_total_tokens"],
+                          "measured_reserve_tokens": preflight["measured_reserve_tokens"],
+                          "generation_requests_sent": 0}, sort_keys=True), flush=True)
+        return 0
     excluded = {row["path"] for group in manifest["groups"].values() for row in group}
     inventory = repo_context.tracked_inventory()
     chunks = repo_context.source_chunks(inventory, excluded_paths=excluded)
