@@ -2027,3 +2027,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-03`
 - Commit at update: `72689d872`
 - Summary: verified 32K/16K selected history and speed proof with candidate-bound receipt
+
+## 2026-10-02T18:50:05+00:00 — 102-04 — done
+
+- Branch: `codex/task-102-04`
+- Commit at update: `2c288ac5d`
+- Summary: Passed live 128K occupied-frontier proof at C=128281 with L=131072/H=16384; receipt and handoff validated; candidate remains loaded.

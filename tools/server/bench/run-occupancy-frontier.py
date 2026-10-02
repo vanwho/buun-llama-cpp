@@ -966,6 +966,8 @@ def main() -> int:
             stop_reason = record.get("error") or "request_failed_or_slot_frontier_unconfirmed"
 
         state.update({
+            "slot": {"slot_id": slot_after["slot_id"],
+                     "generation": slot_after["generation"]},
             "messages": messages,
             "records": records,
             "history": history,
