@@ -158,6 +158,27 @@ bool llama_kv_attention_refresh_page_ids(
     }
 }
 
+bool llama_kv_attention_resident_page_ids(
+        const std::vector<uint32_t> & candidate_pages,
+        const std::vector<uint32_t> & resident_pages,
+        std::vector<uint32_t> & page_ids) noexcept {
+    page_ids.clear();
+    try {
+        for (const uint32_t page : candidate_pages) {
+            if (std::find(resident_pages.begin(), resident_pages.end(), page) ==
+                    resident_pages.end() ||
+                    std::find(page_ids.begin(), page_ids.end(), page) != page_ids.end()) {
+                continue;
+            }
+            page_ids.push_back(page);
+        }
+        return true;
+    } catch (...) {
+        page_ids.clear();
+        return false;
+    }
+}
+
 llama_kv_attention_view::llama_kv_attention_view(
         std::shared_ptr<const state> state) noexcept : state_(std::move(state)) {}
 

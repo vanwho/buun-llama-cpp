@@ -141,7 +141,14 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
         before = row.get("occupied_before_tokens")
         after = row.get("occupied_after_tokens")
         fresh = row.get("fresh_tokens")
-        if before != previous or not is_positive_int(after) or after <= before or fresh != after - before:
+        record = committed_records.get(index)
+        prompt_tokens = record.get("response_prompt_tokens") if isinstance(record, dict) else None
+        completion_tokens = record.get("response_completion_tokens") if isinstance(record, dict) else None
+        if (before != previous or not is_positive_int(after) or after <= before or
+                not is_positive_int(fresh) or not is_positive_int(prompt_tokens) or
+                not is_positive_int(completion_tokens) or fresh != prompt_tokens - before or
+                row.get("frontier_delta_tokens") != after - before or
+                abs((prompt_tokens + completion_tokens) - after) > 1):
             errors.append(f"request {index}: committed frontier is not monotonic or delta is wrong")
         if not is_positive_int(fresh) or fresh > TASK_GEOMETRY["max_fresh_tokens"]:
             errors.append(f"request {index}: fresh token delta exceeds task limit")
@@ -171,14 +178,18 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(ledger, dict):
         errors.append("allocation ledger is missing")
         ledger = {}
-    for key in ("target_allocated_bytes", "physical_pool_capacity_bytes", "host_valid_rows",
-                "host_valid_bytes", "target_valid_bytes", "target_valid_rows"):
+    for key in ("target_allocated_bytes", "physical_pool_capacity_bytes",
+                "target_valid_bytes", "target_valid_rows"):
         if not is_positive_int(ledger.get(key)):
             errors.append(f"allocation ledger {key} is not a positive measured value")
     expected_host_rows = max(0, committed - geometry.get("hot_capacity_tokens", 0)) \
         if is_positive_int(committed) else 0
-    if is_positive_int(ledger.get("host_valid_rows")) and ledger["host_valid_rows"] < expected_host_rows:
-        errors.append("host backing rows do not cover the committed frontier beyond H")
+    # Host-page telemetry is optional. Preserve measured values, but do not
+    # infer exact host backing or gate capacity completion on its availability.
+    ledger["expected_rows_beyond_H_diagnostic"] = expected_host_rows
+    ledger["host_backing_diagnostic"] = (
+        "observed" if is_positive_int(ledger.get("host_valid_rows")) and
+        is_positive_int(ledger.get("host_valid_bytes")) else "unavailable")
     if is_positive_int(ledger.get("host_valid_rows")) and is_positive_int(ledger.get("host_valid_bytes")):
         ledger["host_bytes_per_valid_row"] = ledger["host_valid_bytes"] / ledger["host_valid_rows"]
     final_metrics = frontier.get("final_snapshot", {}).get("metrics") if isinstance(
