@@ -2021,3 +2021,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-02`
 - Commit at update: `4a9e55ba3`
 - Summary: Verified GPU/host controls, captured selected no_victim partial result, harness regression, and named receipt proofs
+
+## 2026-10-02T18:01:59+00:00 — 102-03 — done
+
+- Branch: `codex/task-102-03`
+- Commit at update: `72689d872`
+- Summary: verified 32K/16K selected history and speed proof with candidate-bound receipt

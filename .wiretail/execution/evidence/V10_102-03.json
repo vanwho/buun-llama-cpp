@@ -1,0 +1,558 @@
+{
+  "schema_version": 1,
+  "task": "102-03",
+  "source_commit": "72689d8728528989b59a26fd0cdc41fd79e327af",
+  "provenance": {
+    "scope_revision": "hotpath-v10-20260914",
+    "plan_amendment": "repo-context-scale-20261002",
+    "source_identity": {
+      "commit": "72689d8728528989b59a26fd0cdc41fd79e327af",
+      "dirty_fingerprint": "f13683e21bf752850f21a212b689a0848d419768acb6f49d5c87c47e219f9ed1"
+    },
+    "candidate_identity_fingerprint": "546976597c5a4b0ba1162e124e0e4546c9881fbf8db1c657e24c4265dd3d9246",
+    "candidate_identity": {
+      "batch": "1024",
+      "binary": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server",
+      "binary_sha256": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004",
+      "command": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 32768 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 64 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "context": "32768",
+      "exe": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server",
+      "host_budget": null,
+      "hot_pages": "64",
+      "loaded_dso_sha256": {
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "4b2aafacd48005baec260a033025930c0bf87f9a7a3e9207ac7cf931e63e80f3",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "a3af1a0a2da887f1a4ddf830d5a192650d9f3734ff8f29c32e8341cd4f5df9a8",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "756d2e002b1cb5ace6211e00fbb82fd4d2ba79bdece0b8181ec48529f2e59546",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "440ac1ebdb4142974ce0e1fa6cfb638ae3ae5746ae7b0adf0520b18d1b8e2966",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004"
+      },
+      "loaded_dsos": [
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server"
+      ],
+      "loaded_file_build_ids": {
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "31728d855c56bdbb63fe8ed6c9f2c42a190cd87c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "403aa3cdea398f1eb16da60568941fb363c5b1c4",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "165dcaae0979c35e71e5bdf97ea53a98d4161844",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "728e6cf2dcee1f720e38291a5dc1962b32dfcc90",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "1bd9523f9a7e30806cd5c4a8c468fd22efc597b2",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "94c1728f49a8e9135d777c2247b8dc1da2d7b7a6",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "a5f5eab70971c6fd74c7c7b49d38af2a007e1d4d",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "f2fe501c87619ee26fd40b00bcc96dbe84b42c1e",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "941fb6085f193d4832b0306ac18a5b05ac56b09b"
+      },
+      "loaded_file_hashes": {
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "4b2aafacd48005baec260a033025930c0bf87f9a7a3e9207ac7cf931e63e80f3",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "a3af1a0a2da887f1a4ddf830d5a192650d9f3734ff8f29c32e8341cd4f5df9a8",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "756d2e002b1cb5ace6211e00fbb82fd4d2ba79bdece0b8181ec48529f2e59546",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "440ac1ebdb4142974ce0e1fa6cfb638ae3ae5746ae7b0adf0520b18d1b8e2966",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004"
+      },
+      "main_pid": 533212,
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "mtp_placement": "gpu",
+      "mtp_type_k": "turbo4",
+      "mtp_type_v": "turbo4",
+      "no_kv_offload": false,
+      "page_size_tokens": "256",
+      "pager_mode": "selective",
+      "pid": 533212,
+      "pin_recent": null,
+      "proc_maps": [
+        "/dev/nvidia-uvm",
+        "/dev/nvidia0",
+        "/dev/nvidiactl",
+        "/dev/zero",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+        "/usr/lib/x86_64-linux-gnu/libcublas.so.12.4.5.8",
+        "/usr/lib/x86_64-linux-gnu/libcublasLt.so.12.4.5.8",
+        "/usr/lib/x86_64-linux-gnu/libcuda.so.595.91.07",
+        "/usr/lib/x86_64-linux-gnu/libcudart.so.12.4.127",
+        "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6",
+        "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+        "/usr/lib/x86_64-linux-gnu/librt.so.1",
+        "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+        "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.35",
+        "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+        "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7"
+      ],
+      "process_start_time_ticks": "5963403",
+      "profile": null,
+      "safety_headroom": null,
+      "spec_draft_n_max": "2",
+      "spec_type": "draft-mtp",
+      "target_kv_placement": "gpu",
+      "ubatch": "256",
+      "vram_budget": null
+    },
+    "build": {
+      "configuration": "Release; GGML_CUDA=ON; CUDA arch 89-real",
+      "build_directory": "build-cuda",
+      "executable_sha256": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "loaded_dso_sha256": {
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "4b2aafacd48005baec260a033025930c0bf87f9a7a3e9207ac7cf931e63e80f3",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "a3af1a0a2da887f1a4ddf830d5a192650d9f3734ff8f29c32e8341cd4f5df9a8",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "756d2e002b1cb5ace6211e00fbb82fd4d2ba79bdece0b8181ec48529f2e59546",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "440ac1ebdb4142974ce0e1fa6cfb638ae3ae5746ae7b0adf0520b18d1b8e2966",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004"
+      }
+    },
+    "dirty_tree_fingerprint_at_candidate_preflight": "f13683e21bf752850f21a212b689a0848d419768acb6f49d5c87c47e219f9ed1"
+  },
+  "checks": {
+    "32k_16k_committed_history_and_speed": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--target-tokens",
+        "30720",
+        "--context-tokens",
+        "32768",
+        "--hot-tokens",
+        "16384",
+        "--page-tokens",
+        "256",
+        "--batch-tokens",
+        "1024",
+        "--ubatch-tokens",
+        "256",
+        "--max-fresh-tokens",
+        "16000",
+        "--max-tokens",
+        "400",
+        "--repo-content"
+      ],
+      "commands": [
+        [
+          "python3",
+          "tools/server/bench/run-occupancy-frontier.py",
+          "--output",
+          "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11",
+          "--target-tokens",
+          "30720",
+          "--context-tokens",
+          "32768",
+          "--hot-tokens",
+          "16384",
+          "--page-tokens",
+          "256",
+          "--batch-tokens",
+          "1024",
+          "--ubatch-tokens",
+          "256",
+          "--max-fresh-tokens",
+          "16000",
+          "--max-tokens",
+          "400",
+          "--repo-content",
+          "--preflight-only",
+          "--adopt-a1-from",
+          "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09"
+        ],
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "test-kv-attention-execution",
+          "-j2"
+        ],
+        [
+          "./build-cuda/bin/test-kv-attention-execution"
+        ],
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--target",
+          "llama-server",
+          "-j2"
+        ],
+        [
+          "python3",
+          "tools/server/bench/test_occupancy_frontier.py"
+        ],
+        [
+          "python3",
+          "-m",
+          "py_compile",
+          "tools/server/bench/run-occupancy-frontier.py",
+          "tools/server/bench/validate-occupied-frontier.py"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/setup-attention-view-build.log",
+          "sha256": "850197528cb29ed9b732ed70e3a073abbd48d67f45eff6747a6499c250976374"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/setup-attention-view-test.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/setup-server-build.log",
+          "sha256": "7c8858d77f93c1dffe63d64e77ce71cb1f686b00e3ea523438fc4cfada240170"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/setup/bench-tests-final.log",
+          "sha256": "1fc8987015185dd6716e0e5f48f286af8a9ded73263dbabee186be9f39e277de"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/repo-content-preflight.json",
+          "sha256": "5012cadfaa21380552cb04dbd2279c8de3cc41a83c73b41bc9a116717ea700a6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/occupied-frontier.json",
+          "sha256": "5a3342139e6a18f5bcf450827358c593e19bfbd0522c37622f09acd3f50ae2eb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/incremental-state.json",
+          "sha256": "602004757237fca6f1bd34fad3aa34e41982fae92725ed5461cdb1635827b22a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/source-inventory.json",
+          "sha256": "3df645f0866eb46bd226123d2d1120d8bed9c8a3824f764b5dd0be4889033a47"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/request-journal.jsonl",
+          "sha256": "cf72de91a398d6550d460dcee9a201e766b8d712e2b843f0f14b1bb96ce1f1f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/setup/preflight-run.log",
+          "sha256": "465f198c4b85ca4a6da8d714224074a135fee873849f82feec9fa3d4060ff1e8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/setup/finalize-run.log",
+          "sha256": "1ca2c07da9975db267083ace4699eff06da3cace71b9c477e2353610a7e31092"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/recall/request.json",
+          "sha256": "c0cb98a06f1fc6152cabb9c4aaa73653caa94c6fa52ff7bb946c7093a6058296"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/recall/response.sse",
+          "sha256": "55dcaa9db54929623994a342a9e6e53e472653b53340f6d8e65daef7adfe1457"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/recall/result.json",
+          "sha256": "1147fa440441fa134a4785f53304d2d8bbb8191fa1f84d1c647fe90bd685c40c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/request-000000.json",
+          "sha256": "f79477957e2c5b20e3f3340e44c5651eef0c4c71e8ae2bf28e31b22bb9c85672"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/raw-000000.sse",
+          "sha256": "52e0a69f4b132e5a0d9cba6b62f037403a4558feb9bb847b9d62a8b9d7db4bf2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/request-000001.json",
+          "sha256": "48f44b2f05587fc9a3effc9d59446146efbbd88f3b6fe97ca61a7d16169d031e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/raw-000001.sse",
+          "sha256": "1dca79de1ab153e8e44e13dcdadd6f55ef2b07c4d0cb9691819a56a8d2ca90b0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/request-000002.json",
+          "sha256": "a10134d3ec9f3c2975d2f402136da6f48ef0793f941031d9896546d34d9ef69b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/raw-000002.sse",
+          "sha256": "e7809d4dd490639718d4557df36552a3b9ec1e395ff25f8ae5f80c61c618118e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/request-000003.json",
+          "sha256": "87a8fde609e869b13e10052188cbb66bac186ff997d8fdc96b5cbe2b1863cc87"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-09/raw-000003.sse",
+          "sha256": "cc7238021382e5224735ab255ab28c5f03fa78bc4c3e0b30e4e65e2862624825"
+        }
+      ],
+      "result": {
+        "status": "pass",
+        "measurement_valid": true,
+        "request_completed": true,
+        "logical_context_tokens": 32768,
+        "hot_capacity_tokens": 16384,
+        "page_tokens": 256,
+        "batch_tokens": 1024,
+        "ubatch_tokens": 256,
+        "committed_frontier_tokens": 29969,
+        "completion_threshold_tokens": 29806,
+        "required_minimum_tokens": 18432,
+        "frontier_greater_than_hot_capacity": true,
+        "per_request": [
+          {
+            "stage": "A1",
+            "status": "pass",
+            "fresh_tokens": 3890,
+            "output_tokens": 400,
+            "committed": true,
+            "server_pp_tok_s": 1307.5036931097243,
+            "server_tg_tok_s": 57.36922010499286,
+            "mtp": {
+              "acceptance_percent": 48.19672131147541,
+              "accepted_tokens": 147,
+              "draft_tokens": 305,
+              "mode": "native",
+              "status": "measured"
+            },
+            "response_prompt_tokens": 3890,
+            "response_completion_tokens": 400,
+            "frontier_accounting_delta_tokens": -1,
+            "live_slot_after": {
+              "generation": 1,
+              "occupied_tokens": 4289,
+              "slot_id": 0,
+              "task_id": 9
+            },
+            "restore_shape": "none",
+            "mtp_history_ready": true
+          },
+          {
+            "stage": "B",
+            "status": "pass",
+            "fresh_tokens": 15615,
+            "output_tokens": 400,
+            "committed": true,
+            "server_pp_tok_s": 1138.4327684913303,
+            "server_tg_tok_s": 83.61298629124227,
+            "mtp": {
+              "acceptance_percent": 91.14391143911439,
+              "accepted_tokens": 247,
+              "draft_tokens": 271,
+              "mode": "native",
+              "status": "measured"
+            },
+            "response_prompt_tokens": 19904,
+            "response_completion_tokens": 400,
+            "frontier_accounting_delta_tokens": -1,
+            "live_slot_after": {
+              "generation": 2,
+              "occupied_tokens": 20303,
+              "slot_id": 0,
+              "task_id": 275
+            },
+            "restore_shape": "target_and_draft",
+            "mtp_history_ready": true
+          },
+          {
+            "stage": "repo_continuation_2",
+            "status": "pass",
+            "fresh_tokens": 8916,
+            "output_tokens": 248,
+            "committed": true,
+            "server_pp_tok_s": 724.1809085186798,
+            "server_tg_tok_s": 53.63611608505863,
+            "mtp": {
+              "acceptance_percent": 51.61290322580645,
+              "accepted_tokens": 96,
+              "draft_tokens": 186,
+              "mode": "native",
+              "status": "measured"
+            },
+            "response_prompt_tokens": 29219,
+            "response_completion_tokens": 248,
+            "frontier_accounting_delta_tokens": -1,
+            "live_slot_after": {
+              "generation": 3,
+              "occupied_tokens": 29466,
+              "slot_id": 0,
+              "task_id": 453
+            },
+            "restore_shape": "target_and_draft",
+            "mtp_history_ready": true
+          },
+          {
+            "stage": "A2",
+            "status": "pass",
+            "fresh_tokens": 130,
+            "output_tokens": 372,
+            "committed": true,
+            "server_pp_tok_s": 183.3464966715559,
+            "server_tg_tok_s": 48.97586321609049,
+            "mtp": {
+              "acceptance_percent": 42.17687074829932,
+              "accepted_tokens": 124,
+              "draft_tokens": 294,
+              "mode": "native",
+              "status": "measured"
+            },
+            "response_prompt_tokens": 29596,
+            "response_completion_tokens": 372,
+            "frontier_accounting_delta_tokens": 1,
+            "live_slot_after": {
+              "generation": 4,
+              "occupied_tokens": 29969,
+              "slot_id": 0,
+              "task_id": 634
+            },
+            "restore_shape": "target_and_draft",
+            "mtp_history_ready": true
+          }
+        ],
+        "natural_selector_proof_observed_before_A2": {
+          "query_generation": 522,
+          "query_position": 29207,
+          "logical_page": 14,
+          "candidate_was_cold": true,
+          "host_ready": true,
+          "candidate_authenticated": true,
+          "query_commit_admitted": true,
+          "selector_published": true,
+          "h2d_queued": true,
+          "h2d_completed": true,
+          "mapping_published": true,
+          "target_graph_used": true,
+          "draft_graph_used": true,
+          "h2d_useful_bytes": 21626880,
+          "h2d_aligned_bytes": 21626880,
+          "selected_in_last_graph": true
+        },
+        "post_scale_old_file_recall": {
+          "status": "pass",
+          "preflight_prompt_tokens": 30036,
+          "usage": {
+            "completion_tokens": 70,
+            "prompt_tokens": 30036,
+            "total_tokens": 30106,
+            "prompt_tokens_details": {
+              "cached_tokens": 29969
+            }
+          },
+          "cached_rows": 29969,
+          "restore_shape": "target_and_draft",
+          "mtp_history": "paired_target_and_draft",
+          "mtp_history_ready": true,
+          "mtp": {
+            "mode": "native",
+            "status": "measured",
+            "draft_tokens": 52,
+            "accepted_tokens": 32,
+            "acceptance_percent": 61.53846153846154
+          },
+          "server_pp_tok_s": 114.17489890409139,
+          "server_tg_tok_s": 56.490005771804945,
+          "before_slot": {
+            "slot_id": 0,
+            "generation": 4,
+            "occupied_tokens": 29969
+          },
+          "after_slot": {
+            "slot_id": 0,
+            "generation": 5,
+            "occupied_tokens": 30107
+          },
+          "response_content": "*   `--stdin` takes precedence if both `--stdin` and `-f` are selected; otherwise, `-f` is used to read the file, and if neither is present, the already parsed `-p/--prompt` value is used.\n*   Binary file mode reads the file as binary bytes without removing a final newline.",
+          "raw_path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/recall/response.sse",
+          "raw_sha256": "55dcaa9db54929623994a342a9e6e53e472653b53340f6d8e65daef7adfe1457",
+          "request_path": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/selected-h16384-rerun-11/recall/request.json",
+          "request_sha256": "c0cb98a06f1fc6152cabb9c4aaa73653caa94c6fa52ff7bb946c7093a6058296"
+        },
+        "allocation_telemetry_bytes": {
+          "target_allocated": 276824000,
+          "target_resident": 272499000,
+          "target_valid": 272786000,
+          "physical_pool": 276824000,
+          "host_pageable": 506356000,
+          "host_pinned": 0,
+          "host_valid": 272786000,
+          "host_committed": null,
+          "mtp": 34734100,
+          "mtp_rows": 32768,
+          "recurrent_state": 470680000,
+          "catalogue": 12609500,
+          "attention_metadata": 13312,
+          "attention_ema": 512,
+          "attention_peak": 512,
+          "scratch_high_water": 276824000,
+          "turbo4_scratch": 128,
+          "graph": 268435000,
+          "packed_workspace": 553648000,
+          "live_allocation_peak": 276824000,
+          "headroom": 201327000,
+          "reported_reserved": 2148400000,
+          "mtp_verify_packed_routes": 529,
+          "graph_replay_count": 385
+        },
+        "telemetry_limits": {
+          "host_backing": "Do not infer exact per-page backing from aggregate allocator values.",
+          "query_replay_count_before_and_after_A2": [
+            0,
+            0
+          ],
+          "frozen_history_generation_before_and_after_A2": [
+            0,
+            0
+          ],
+          "query_replay_and_freeze": "Not demonstrated by this occupancy path; the exposed counters remained zero."
+        },
+        "deferred_verification": [
+          {
+            "item": "Full-GPU target-KV control",
+            "reason": "Not admitted/run for this high-context selected capacity/speed proof."
+          },
+          {
+            "item": "Changed-view query replay and frozen-history generation",
+            "reason": "The exposed occupancy counters remained zero; no claim of replay/freeze verification."
+          },
+          {
+            "item": "Exact whole-cache host backing",
+            "reason": "Aggregate host telemetry is not per-page backing proof."
+          }
+        ]
+      }
+    }
+  }
+}
