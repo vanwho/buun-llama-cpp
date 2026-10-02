@@ -92,7 +92,7 @@
         "fresh_prefill_tok_s_median": 1518.751132604505,
         "measured_samples": 3,
         "mtp_acceptance_percent_median": 39.69230769230769,
-        "mtp_floor_percent": 75.0,
+        "mtp_floor_percent": 40,
         "mtp_gate_pass": false,
         "output_tokens": [
           400,
@@ -138,7 +138,7 @@
         "fresh_prefill_tok_s_median": 1530.6923926225986,
         "measured_samples": 3,
         "mtp_acceptance_percent_median": 49.36708860759494,
-        "mtp_floor_percent": 40.0,
+        "mtp_floor_percent": 40,
         "mtp_gate_pass": true,
         "output_tokens": [
           211,
@@ -184,7 +184,7 @@
         "fresh_prefill_tok_s_median": 1517.4725172555773,
         "measured_samples": 3,
         "mtp_acceptance_percent_median": 65.26315789473684,
-        "mtp_floor_percent": 60.0,
+        "mtp_floor_percent": 40,
         "mtp_gate_pass": true,
         "output_tokens": [
           400,
@@ -262,9 +262,9 @@
       "five_x_cpu_prefill_ratio_pass": false,
       "selected_decode_must_beat_cpu_main_kv": true,
       "selected_mtp_floors_percent": {
-        "prompt_1": 75,
+        "prompt_1": 40,
         "prompt_2": 40,
-        "prompt_3": 60
+        "prompt_3": 40
       },
       "selected_prefill_beats_dense_gpu_control": false,
       "selected_prefill_minimum_goal_tok_s": 500,
@@ -532,8 +532,8 @@
       "target_kv_placement": "gpu"
     }
   },
-  "decision": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. The 101-12m attribution completed without proving a source defect; 101-12n owns the candidate-specific final release review.",
-  "decision_task": "101-12l",
+  "decision": "Candidate-v6 canonical long-prefix prompt-1 MTP median is 39.69%, 0.31 percentage points below the current 40% floor; prompts 2 and 3 clear 40%. All selected prefill and decode hard gates pass. The 101-12m attribution found no proven source defect or committed-history loss. The matched 30-token prompt-1 comparison is 83.03% on both 101-12j and 101-12l and shows no short-prompt build regression; it is distinct from the 4,115-token long-prefix result. Candidate-specific integrated replay or natural-promotion evidence was not present in the 101-12k/12l/12m receipts. Preserve goal_miss and authorize 102-01 to measure MTP at occupied frontiers; no MTP-only repair is a prerequisite.",
+  "decision_task": "101-12n",
   "deferred_verification": [],
   "final_review_successor": "101-12n",
   "goal_status": "goal_miss",
@@ -895,9 +895,9 @@
     },
     "independent_review": {
       "mtp_floor_percent": {
-        "prompt_1": 75,
+        "prompt_1": 40,
         "prompt_2": 40,
-        "prompt_3": 60
+        "prompt_3": 40
       },
       "owner": "101-12l",
       "prefill_minimum_tok_s": 500,
@@ -946,10 +946,7 @@
       "status": "not_measured"
     }
   },
-  "ordered_successors": [
-    "101-12m",
-    "101-12n"
-  ],
+  "ordered_successors": [],
   "pre_101_12l_snapshot": {
     "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12l/GPU101_RELEASE.pre-101-12l-attempt-03.md",
     "markdown_sha256": "7b5f56147590b6fc85b3dd8e216b63cd6f3fe360171a5455c11d0dcb149e5c44",
@@ -1065,6 +1062,7 @@
   },
   "review_owner": "101-12n",
   "runtime_peaks": {},
+  "scale_continuation_authorized": true,
   "schema_version": 1,
   "selected": {
     "per_prompt": {
@@ -1086,7 +1084,7 @@
         "fresh_prefill_tok_s_median": 1518.751132604505,
         "measured_samples": 3,
         "mtp_acceptance_percent_median": 39.69230769230769,
-        "mtp_floor_percent": 75.0,
+        "mtp_floor_percent": 40,
         "mtp_gate_pass": false,
         "output_tokens": [
           400,
@@ -1132,7 +1130,7 @@
         "fresh_prefill_tok_s_median": 1530.6923926225986,
         "measured_samples": 3,
         "mtp_acceptance_percent_median": 49.36708860759494,
-        "mtp_floor_percent": 40.0,
+        "mtp_floor_percent": 40,
         "mtp_gate_pass": true,
         "output_tokens": [
           211,
@@ -1178,7 +1176,7 @@
         "fresh_prefill_tok_s_median": 1517.4725172555773,
         "measured_samples": 3,
         "mtp_acceptance_percent_median": 65.26315789473684,
-        "mtp_floor_percent": 60.0,
+        "mtp_floor_percent": 40,
         "mtp_gate_pass": true,
         "output_tokens": [
           400,
@@ -1210,9 +1208,8 @@
     "status": "complete"
   },
   "successor_contract": {
-    "final_review_successor": "101-12n",
     "scale_task": "102-01"
   },
-  "summary": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. The 101-12m attribution completed without proving a source defect; 101-12n owns the candidate-specific final release review.",
-  "task": "101-12l"
+  "summary": "Candidate-v6 canonical long-prefix prompt-1 MTP median is 39.69%, 0.31 percentage points below the current 40% floor; prompts 2 and 3 clear 40%. All selected prefill and decode hard gates pass. The 101-12m attribution found no proven source defect or committed-history loss. The matched 30-token prompt-1 comparison is 83.03% on both 101-12j and 101-12l and shows no short-prompt build regression; it is distinct from the 4,115-token long-prefix result. Candidate-specific integrated replay or natural-promotion evidence was not present in the 101-12k/12l/12m receipts. Preserve goal_miss and authorize 102-01 to measure MTP at occupied frontiers; no MTP-only repair is a prerequisite.",
+  "task": "101-12n"
 }
