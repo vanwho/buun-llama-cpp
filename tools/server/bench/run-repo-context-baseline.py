@@ -64,6 +64,23 @@ class RecordedRequestFailure(RuntimeError):
         self.record = dict(record)
 
 
+def failed_sequence_result(sequence: str, placement: str,
+                           failure: RecordedRequestFailure,
+                           completed_records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Persist one failed sample and explicitly skip only dependent turns."""
+    dependent = {"A1": ["B", "A2"], "B": ["A2"], "A2": []}
+    return {
+        "sequence": sequence,
+        "placement": placement,
+        "status": "runtime_fault",
+        "failed_request": failure.request_id,
+        "error": str(failure),
+        "completed_records": completed_records,
+        "failed_record": failure.record,
+        "dependent_requests_skipped": dependent.get(failure.request_id, []),
+    }
+
+
 def atomic_json(path: pathlib.Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -515,10 +532,7 @@ def main() -> int:
                 PAGE + mtp_identity["draft_n_max"], True)
             completed_records.append(r1)
         except RecordedRequestFailure as failure:
-            failed = {"sequence": sequence, "placement": args.placement,
-                      "status": "runtime_fault", "failed_request": failure.request_id,
-                      "error": str(failure), "completed_records": completed_records,
-                      "failed_record": failure.record, "dependent_requests_skipped": ["B", "A2"]}
+            failed = failed_sequence_result(sequence, args.placement, failure, completed_records)
             request_failures.append(failed)
             results.append(failed)
             atomic_json(sequence_dir / "sequence-result.json", failed)
@@ -585,10 +599,7 @@ def main() -> int:
                 sequence_dir, identity, fingerprint, "B", "B", args.placement, reserve, True)
             completed_records.append(r2)
         except RecordedRequestFailure as failure:
-            failed = {"sequence": sequence, "placement": args.placement,
-                      "status": "runtime_fault", "failed_request": failure.request_id,
-                      "error": str(failure), "completed_records": completed_records,
-                      "failed_record": failure.record, "dependent_requests_skipped": ["A2"]}
+            failed = failed_sequence_result(sequence, args.placement, failure, completed_records)
             request_failures.append(failed)
             results.append(failed)
             atomic_json(sequence_dir / "sequence-result.json", failed)
@@ -608,10 +619,7 @@ def main() -> int:
                 a2_mtp_reserve, True)
             completed_records.append(r3)
         except RecordedRequestFailure as failure:
-            failed = {"sequence": sequence, "placement": args.placement,
-                      "status": "runtime_fault", "failed_request": failure.request_id,
-                      "error": str(failure), "completed_records": completed_records,
-                      "failed_record": failure.record, "dependent_requests_skipped": []}
+            failed = failed_sequence_result(sequence, args.placement, failure, completed_records)
             request_failures.append(failed)
             results.append(failed)
             atomic_json(sequence_dir / "sequence-result.json", failed)

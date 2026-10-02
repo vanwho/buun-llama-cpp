@@ -129,6 +129,18 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_repo_baseline_records_runtime_fault_and_skips_only_dependents(self) -> None:
+        completed = [{"request_id": "A1", "status": "pass"}]
+        failed_record = {"request_id": "B", "status": "runtime_fault",
+                         "error": "no_victim"}
+        failure = repo_baseline.RecordedRequestFailure("B", failed_record, "B failed: no_victim")
+        result = repo_baseline.failed_sequence_result(
+            "warmup", "selected", failure, completed)
+        self.assertEqual("runtime_fault", result["status"])
+        self.assertEqual(completed, result["completed_records"])
+        self.assertEqual(failed_record, result["failed_record"])
+        self.assertEqual(["A2"], result["dependent_requests_skipped"])
+
     def test_repo_request_rejects_reported_prompt_tokens_below_rendered_and_saves_result(self) -> None:
         class SmallRenderer:
             def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
