@@ -68,6 +68,52 @@ universal 240s bound. Long occupancy work is resumable with
 candidate-identity-bound checkpoints and per-request journals, never an
 in-memory loop whose partial work is discarded.
 
+### Live benchmark setup: fail fast, do not manufacture false failures
+
+Apply these rules to every live CUDA/MTP/pager benchmark, including all phase
+102 capacity rows:
+
+1. Resolve device arguments from the exact candidate executable before
+   touching the managed service. `llama-server --list-devices` gives the
+   identifiers accepted by `--device`; use an exact identifier such as
+   `CUDA0`, or `auto` followed by a runtime-identity check. Never pass a generic
+   backend word such as `cuda` as if it were a device ID. Validate the chosen
+   identifier locally and fail before writing service overrides/restarting if
+   it is not listed.
+2. A one-token generated response is not an MTP activity test: it may finish
+   without proposing any draft tokens. Do not fail setup or restore/reload the
+   model because its draft counter delta is zero. Establish startup readiness
+   from health plus candidate identity and startup allocation evidence for GPU
+   Turbo4 MTP. Measure MTP draft/accepted counts on the task's real benchmark
+   generations at the stated output budget. An optional readiness request may
+   validate only HTTP/identity and is not a benchmark sample or acceptance
+   gate.
+3. Token/context preflight must model the entire exact request being sent,
+   including all already-committed conversation turns, fixed fixture payload,
+   selected tracked-repo chunks, chat-template overhead, output budget, and
+   query/replay/MTP reserve. For a scaled repository workload, choose and
+   freeze the deterministic scale selection during a zero-generation preflight
+   before sending A1; preflighting only the unscaled A/B/A fixture is
+   insufficient. If the full workload does not fit, adjust the deterministic
+   scale selection to the largest safe prefix before any generation; do not
+   discover this after sending a partial campaign.
+4. A shared frozen selection is a resumable artifact. Re-running preflight
+   with the same source/candidate/fixture identity must validate and reuse it
+   idempotently. It must not fail just because the file exists or overwrite a
+   different selection. A mismatched source, prompt, inventory, tokenizer,
+   geometry, or candidate identity must fail before generation with an explicit
+   mismatch and a new named attempt path. Add a regression that runs preflight
+   twice against the same selection, verifies identical selected ranges and
+   zero generated requests, then proves that an identity mismatch is rejected
+   without modifying the saved selection.
+5. Separate setup validity from performance evidence. Fix a malformed device,
+   wrong profile, missing runner, or stale candidate identity at the setup
+   boundary and repeat only the zero-generation validation / affected short
+   request. Do not spend substantive retries on a configuration typo, a
+   zero-token MTP denominator, or a preflight that omitted the actual scaled
+   prompt. Once setup passes, freeze source/config and run the paired benchmark
+   rows against that same candidate.
+
 ### Build/test recovery ladder
 
 When a build or test fails, preserve its complete command, exit status and raw
