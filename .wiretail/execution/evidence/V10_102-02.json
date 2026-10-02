@@ -1,41 +1,88 @@
 {
   "schema_version": 1,
   "task": "102-02",
-  "source_commit": "890e4f7f113184f64e018be9ae4dd186e26af047",
+  "source_commit": "876ebaac09e0bd01978911ab74fb2c47701bc28b",
   "status": "incomplete",
   "checks": {
     "repo_content_builder_regression": {
       "status": "pass",
       "command": [
-        "python3",
-        "-m",
-        "py_compile",
-        "tools/server/bench/repo_context.py",
-        "tools/server/bench/run-occupancy-frontier.py",
-        "tools/server/bench/test_occupancy_frontier.py",
-        "&&",
-        "python3",
-        "tools/server/bench/test_occupancy_frontier.py"
+        "bash",
+        "-lc",
+        "python3 -m py_compile tools/server/bench/repo_context.py tools/server/bench/run-occupancy-frontier.py tools/server/bench/run-repo-context-baseline.py tools/server/bench/test_occupancy_frontier.py; compile_rc=$?; python3 tools/server/bench/test_occupancy_frontier.py; suite_rc=$?; printf 'compile_exit=%s\\nsuite_exit=%s\\n' \"$compile_rc\" \"$suite_rc\"; test \"$compile_rc\" -eq 0 && test \"$suite_rc\" -eq 0"
       ],
       "exit_code": 0,
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-01/local-validation.txt",
-          "sha256": "65e5db7630fc6b067dabaa4bc230b32c0066062fc413d0872b15997affbc3492"
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02/local-validation.txt",
+          "sha256": "44afb73f7c6896562b9b89b9d9bbc16588c4f707d1d441e4a12fc0becbbc9555"
         }
       ]
     },
     "repo_context_8k4k_three_placement_baseline": {
       "status": "not_measured",
-      "reason": "No A\u2192B\u2192A sequence or placement rows recorded; active port 8080 candidate has L=77824, B=128/U=64 and MTP disabled."
+      "reason": "Mandatory primary A_code and B_docs do not fit L=8192 with answer/query/page/MTP reserves. The full-conversation preflight measured 10829 tokens. GPU, host, and selected complete rows therefore cannot be run without violating the fixture/context contract.",
+      "command": [
+        "python3",
+        "tools/server/bench/run-repo-context-baseline.py",
+        "--placement",
+        "gpu",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-02/gpu-preflight",
+        "--shared-state",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-02/shared"
+      ],
+      "exit_code": 1,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02-gpu-preflight.log",
+          "sha256": "5fe6ffa855797d47bcbf26a990904094237564add5b5f6cf44ac30d88bb67abc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02/gpu-preflight/primary-conversation-preflight.json",
+          "sha256": "dd5c84bd0bf2dbec6819edb1953daf5a1f67de37f6833833a3bfe36d82e11867"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02/gpu-preflight/actual-primary-overflow.json",
+          "sha256": "7d50bd1fc40f91b7072f2cdc1d90f90023085be098f02d856295425122e36820"
+        }
+      ]
     },
     "repo_context_a_b_a_candidate_bound_telemetry": {
       "status": "not_measured",
-      "reason": "No candidate-bound request telemetry or promotion chain captured."
+      "reason": "The candidate-bound GPU A1 was captured, but the mandatory B turn cannot fit and no complete A→B→A sequence or promotion chain exists. No claims are made for host or selected rows.",
+      "command": [
+        "python3",
+        "tools/server/bench/run-repo-context-baseline.py",
+        "--placement",
+        "gpu",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-02/gpu",
+        "--shared-state",
+        "/srv/ai/paged-kv/results/forward/102-02/attempt-02/shared"
+      ],
+      "exit_code": 1,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02-gpu.log",
+          "sha256": "cebdc8e0cd1f7ea63567924aa14f2462745e2fdd8e867e7d8eebd43ab5b626e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02/gpu/warmup/raw/A1.sse",
+          "sha256": "3abcee11bbf975aeeba7cadd165bbe936f6a22f91f8ecbea79869422a0389499"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-02/attempt-02/gpu-preflight/actual-primary-overflow.json",
+          "sha256": "7d50bd1fc40f91b7072f2cdc1d90f90023085be098f02d856295425122e36820"
+        }
+      ]
     }
   },
   "required_proofs": [
     "repo_context_8k4k_three_placement_baseline",
     "repo_context_a_b_a_candidate_bound_telemetry"
+  ],
+  "deferred_verification": [
+    "Complete three-placement baseline and selected C>H run are deferred pending a fixture/context revision that makes the mandatory A/B/A history fit L=8192. This attempt intentionally did not reduce L, trim primary files, or enable context shifting."
   ]
 }
