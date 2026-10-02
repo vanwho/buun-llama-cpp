@@ -32462,7 +32462,7 @@
         "src/llama-kv-pager.cpp",
         "tests/test-kv-attention-execution.cpp"
       ],
-      "commit": "e56ee54fb9fea563b70230c2e5c832a3e6bd8ace",
+      "commit": "30103c9b4f7ebe37116bdde02de03748fd66abbb",
       "token_usage": {
         "schema_version": 2,
         "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
