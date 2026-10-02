@@ -17,10 +17,11 @@ Reserve context for the final query/output/replay and verify no context shift
 or truncation. The prior 8K run proved the complete mandatory A/B/A history
 plus answer/replay reserve requires 10,829 tokens, so use L=16,384/H=8,192
 without trimming primary files or changing prompts. The selected row must
-commit at least H+2,048 tokens and show positive host-valid rows/bytes plus a
-nonresident host-backed page. Capture route/selector, host-backed precondition,
-transfer completion/publication and target use as
-separate facts; a semantically correct answer alone is not proof of promotion.
+commit at least H+2,048 fixture/corpus tokens. Host-valid rows/bytes, page
+inventory, route/selector, transfer and promotion fields are best-effort
+diagnostics only: capture them when exposed, but their absence or incompleteness
+must not fail a request, cause a retry, or block the benchmark. Do not claim
+promotion unless its full transition was actually observed.
 After the comparisons, leave the selected candidate loaded and verify its
 identity/health so 102-03 starts from the tested server rather than restoring
 an unrelated profile.

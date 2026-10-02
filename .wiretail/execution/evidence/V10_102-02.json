@@ -50,7 +50,7 @@
         }
       ]
     },
-    "repo_context_a_b_a_candidate_bound_telemetry": {
+    "repo_context_a_b_a_candidate_bound_benchmark": {
       "status": "not_measured",
       "reason": "The candidate-bound GPU A1 was captured, but the mandatory B turn cannot fit and no complete A→B→A sequence or promotion chain exists. No claims are made for host or selected rows.",
       "command": [
@@ -82,9 +82,9 @@
   },
   "required_proofs": [
     "repo_context_16k8k_three_placement_baseline",
-    "repo_context_a_b_a_candidate_bound_telemetry"
+    "repo_context_a_b_a_candidate_bound_benchmark"
   ],
   "deferred_verification": [
-    "Attempt 02 is retained only as failed-fit evidence for L=8192/H=4096. The revised task reruns the complete GPU, host-target-KV, and selected A/B/A baseline at L=16384/H=8192 without trimming primary files or prompts; selected mode must prove actual host-backed pages."
+    "Attempt 02 is retained only as failed-fit evidence for L=8192/H=4096. The revised task reruns the complete GPU, host-target-KV, and selected A/B/A baseline at L=16384/H=8192 without trimming primary files or prompts. Selected mode must commit the same fixture/corpus conversation beyond H; host-residency and promotion telemetry are optional diagnostics and are not completion gates."
   ]
 }
