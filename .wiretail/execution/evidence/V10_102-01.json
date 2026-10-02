@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task": "102-01",
+  "source_commit": "ee7c0163deb7cc7dc40d25ec3d82a0628182884e",
+  "checks": {
+    "occupancy_context_limit_regression": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/test_occupancy_frontier.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_102-01-occupancy-context-limit-test.txt",
+          "sha256": "fa9e549b5282129682c1e092d18a744554c02e5f67a8689ec77210fa65a4947e"
+        }
+      ]
+    }
+  }
+}
