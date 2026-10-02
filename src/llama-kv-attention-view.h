@@ -67,6 +67,13 @@ bool llama_kv_attention_refresh_page_ids(
         uint32_t capacity,
         std::vector<uint32_t> & page_ids) noexcept;
 
+// Keep only unique optional logical pages represented by the current resident
+// snapshot. Routing refresh must not select host-only inventory entries.
+bool llama_kv_attention_resident_page_ids(
+        const std::vector<uint32_t> & candidate_pages,
+        const std::vector<uint32_t> & resident_pages,
+        std::vector<uint32_t> & page_ids) noexcept;
+
 class llama_kv_attention_view {
 public:
     llama_kv_attention_view() = default;

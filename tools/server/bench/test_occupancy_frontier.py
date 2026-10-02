@@ -285,12 +285,79 @@ class OccupancyFrontierTests(unittest.TestCase):
         unavailable = repo_baseline.host_residency_observation({"slots": [{"id": 0}]})
         self.assertEqual("unavailable", unavailable["status"])
 
-    def test_slot_task_id_is_a_generation_when_server_omits_lifecycle_generation(self) -> None:
+    def test_slot_task_id_is_not_a_stable_generation(self) -> None:
         slot = occupancy.selected_slot({"slots": [{"id": 0, "is_processing": False,
                                                     "id_task": 23,
                                                     "n_prompt_tokens": 4258}]}, 0)
-        self.assertEqual(23, slot["generation"])
+        self.assertIsNone(slot["generation"])
+        self.assertEqual(23, slot["task_id"])
         self.assertEqual(4258, slot["occupied_tokens"])
+
+    def test_resume_allows_task_id_change_when_frontier_is_preserved(self) -> None:
+        state = {"schema_version": 2, "geometry": {"context_tokens": 32768},
+                 "identity_fingerprint": "candidate", "slot": {"slot_id": 0,
+                 "generation": None}, "frontier": {"live_occupied_tokens": 4258}}
+        slot = {"slot_id": 0, "generation": None, "task_id": 24,
+                "occupied_tokens": 4258}
+        with patch.object(occupancy, "identity_fingerprint", return_value="candidate"):
+            occupancy.validate_resume_state(state, {}, {"context_tokens": 32768}, slot)
+
+    def test_adopts_hashed_completed_prefix_ending_at_live_frontier(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            records = []
+            prior_frontier = 0
+            messages = []
+            for index, (stage, user, prompt, completion, after) in enumerate((
+                    ("A1", "first", 100, 10, 109),
+                    ("B", "second", 200, 10, 209))):
+                request_path = root / f"request-{index}.json"
+                raw_path = root / f"raw-{index}.sse"
+                request_messages = messages + [{"role": "user", "content": user}]
+                request_path.write_text(json.dumps({"messages": request_messages}),
+                                        encoding="utf-8")
+                raw_path.write_text(f"response-{index}", encoding="utf-8")
+                response = {"choices": [{"message": {"content": f"answer-{index}"}}]}
+                records.append({
+                    "request_index": index, "status": "pass", "stage": stage,
+                    "request_path": str(request_path), "raw_path": str(raw_path),
+                    "request_sha256": occupancy.sha256_file(request_path),
+                    "raw_sha256": occupancy.sha256_file(raw_path),
+                    "request": {}, "response": response,
+                    "usage": {"prompt_tokens": prompt, "completion_tokens": completion},
+                    "frontier_before_tokens": prior_frontier,
+                    "live_slot_after": {"slot_id": 0, "occupied_tokens": after},
+                })
+                messages = request_messages + [{"role": "assistant",
+                                                "content": f"answer-{index}"}]
+                prior_frontier = after
+            with patch.object(occupancy, "_read_checkpoint", return_value={
+                    "identity_fingerprint": "candidate", "records": records}), \
+                    patch.object(occupancy, "identity_fingerprint", return_value="candidate"):
+                adopted_messages, adopted_records, history, next_index = \
+                    occupancy.adopt_completed_prefix(
+                        root, {}, "candidate", {"slot_id": 0, "occupied_tokens": 209},
+                        [{"stage": "A1", "user": "first"},
+                         {"stage": "B", "user": "second", "fresh_token_limit": 100}],
+                        1000)
+            self.assertEqual(2, len(adopted_records))
+            self.assertTrue(all(record["committed"] for record in adopted_records))
+            self.assertEqual(2, len(history))
+            self.assertEqual(2, next_index)
+            self.assertEqual("answer-1", adopted_messages[-1]["content"])
+
+    def test_slot_snapshot_uses_pager_frontier_for_empty_slot(self) -> None:
+        slot = occupancy.selected_slot(
+            {"slots": [{"id": 0, "is_processing": False,
+                        "pager_metrics": {"slot_generation": 7, "valid_rows": 0,
+                                          "target_valid_rows": 0, "host_valid_rows": 0}}]}, 0)
+        self.assertEqual(7, slot["generation"])
+        self.assertEqual(0, slot["occupied_tokens"])
+        populated = occupancy.selected_slot(
+            {"slots": [{"id": 0, "is_processing": False,
+                        "pager_metrics": {"slot_generation": 7, "valid_rows": 19000,
+                                          "target_valid_rows": 12000, "host_valid_rows": 7000}}]}, 0)
+        self.assertEqual(19000, populated["occupied_tokens"])
 
     def test_repo_context_manifest_identity_and_a_b_a_reserve_and_frontier(self) -> None:
         manifest = occupancy.repo_context.load_manifest()
@@ -348,6 +415,37 @@ class OccupancyFrontierTests(unittest.TestCase):
         occupancy.repo_context.enforce_reserve(tokens, 400, 800, 8192)
         with self.assertRaises(ValueError):
             occupancy.repo_context.enforce_reserve(7900, 400, 800, 8192)
+
+    def test_occupancy_freezes_repo_content_schedule_before_generation(self) -> None:
+        renderer = FakeRenderer()
+        source = occupancy.repo_context.SourceFile(
+            "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
+        chunks = occupancy.repo_context.source_chunks([source])
+        with patch.object(occupancy.repo_context, "tracked_inventory", return_value=[source]), \
+                patch.object(occupancy.repo_context, "git_identity",
+                             return_value={"commit": "candidate-source",
+                                           "dirty_fingerprint": "b" * 64}):
+            schedule, plan = occupancy.build_repo_schedule(
+                renderer, identity(), 32768, 16384, 16000)
+        self.assertEqual("pass", plan["status"])
+        self.assertEqual(0, plan["requests_sent"])
+        self.assertGreater(len(schedule), 3)
+        self.assertEqual("A1", schedule[0]["stage"])
+        self.assertEqual("A2", schedule[-1]["stage"])
+        self.assertEqual(chunks[0].path, plan["selected_ranges"][0]["path"])
+        self.assertNotIn("BEGIN FILE:", schedule[-1]["user"])
+        self.assertEqual(16000, plan["geometry"]["requested_max_fresh_tokens"])
+        self.assertEqual(15617, plan["geometry"]["max_fresh_tokens"])
+        self.assertEqual(2, plan["geometry"]["generation_write_pages"])
+        self.assertEqual(62, plan["geometry"]["max_query_pages"])
+        self.assertTrue(all(item.get("fresh_token_limit", 0) <= 15617
+                            for item in schedule[1:-1]))
+        self.assertTrue(all(item["rendered_prompt_tokens"] <= 32768
+                            for item in schedule))
+        self.assertGreater(schedule[-2]["rendered_prompt_tokens"], 16384 + 2048)
+        self.assertEqual(400, occupancy._scheduled_generation_budget("B", 400))
+        self.assertEqual(0, occupancy._scheduled_generation_budget("A2", 400))
+        self.assertEqual(29806, occupancy._repo_completion_threshold(30720, 16384, schedule))
 
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):

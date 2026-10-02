@@ -3334,8 +3334,20 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                         page != pager_snapshot.pages().rend(); ++page) {
                     optional_pages.push_back(page->id.logical_page);
                 }
+                std::vector<uint32_t> resident_logical_pages;
+                resident_logical_pages.reserve(pager_snapshot.pages().size());
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (resident_state(page)) {
+                        resident_logical_pages.push_back(page.id.logical_page);
+                    }
+                }
+                std::vector<uint32_t> resident_optional_pages;
+                if (!llama_kv_attention_resident_page_ids(optional_pages,
+                        resident_logical_pages, resident_optional_pages)) {
+                    return refuse("resident routing refresh allocation failed");
+                }
                 std::vector<uint32_t> refreshed_pages;
-                if (!llama_kv_attention_refresh_page_ids(query_pages, optional_pages,
+                if (!llama_kv_attention_refresh_page_ids(query_pages, resident_optional_pages,
                         bounded_pages, refreshed_pages)) {
                     return refuse("stale routing refresh cannot cover mandatory query pages");
                 }

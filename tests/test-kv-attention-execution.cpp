@@ -185,6 +185,11 @@ static void test_query_pages_cover_cross_page_ubatch() {
     assert(refreshed.size() == 2 && refreshed[0] == 0 && refreshed[1] == 1);
     assert(!llama_kv_attention_refresh_page_ids({ 0, 1, 2 }, { 7 }, 2, refreshed));
     assert(refreshed.empty());
+    std::vector<uint32_t> resident_optional;
+    assert(llama_kv_attention_resident_page_ids(
+        { 9, 8, 7, 8, 6 }, { 9, 7, 6 }, resident_optional));
+    assert(resident_optional.size() == 3 && resident_optional[0] == 9 &&
+        resident_optional[1] == 7 && resident_optional[2] == 6);
     assert(!llama_kv_attention_query_page_ids({ 0, -1 }, 256, pages));
     assert(pages.empty());
     std::fprintf(stdout, "mandatory_query_pages_survive_routing_refresh=pass "
