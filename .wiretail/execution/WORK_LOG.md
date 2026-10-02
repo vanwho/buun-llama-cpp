@@ -1913,3 +1913,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12k`
 - Commit at update: `e56ee54fb`
 - Summary: Same-prefix q4114 selected/dense score order and selected MTP visibility attributed; no source defect proven and production behavior unchanged. Local proof and validators pass; additional CUDA capture deferred because cuInit returns 100.
+
+## 2026-10-02T00:40:24+00:00 — 101-12l — done
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `e25f06f0e`
+- Summary: Reviewed the 101-12k candidate and 101-12j canonical release gate. Candidate-v6 canonical retake was attempted but CUDA initialization returned 100 and no candidate benchmark rows were available; deferred until CUDA runtime visibility is restored. Preserved goal_miss and scale gate. V10 receipt, release validation, 11 tests, and state validation passed.
+
+## 2026-10-02T00:42:07+00:00 — 101-12l — todo
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `e25f06f0e`
+- Summary: Reopened invalid completion: The full candidate-v6 selected, pager-off all-GPU, and CPU-main-KV/GPU-MTP live campaign is a required proof and was unavailable. V10 receipt now accurately marks that proof deferred; review-only analyzer is not represented as a passing live test.
+
+## 2026-10-02T00:42:25+00:00 — 101-12l — in_progress
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `e25f06f0e`
+- Summary: Task started

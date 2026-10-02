@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "in_progress",
   "current_phase": "101",
   "current_task": "101-12l",
-  "last_updated_utc": "2026-10-02T00:28:29+00:00",
+  "last_updated_utc": "2026-10-02T00:43:19+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -32516,7 +32516,7 @@
       "plan_amendment": "prefill-owner-101-20261001",
       "id": "101-12l",
       "title": "Review the MTP owner result and final release gate",
-      "status": "todo",
+      "status": "in_progress",
       "blocker": null,
       "packet": ".wiretail/execution/tasks/101-12l.md",
       "depends_on": [
@@ -32540,7 +32540,54 @@
         ".wiretail/execution/forward/TESTING.md",
         ".wiretail/execution/handoffs/101-12k.md",
         "tools/server/bench/validate-gpu101-release.py"
-      ]
+      ],
+      "commit": null,
+      "invalid_completion": {
+        "previous_commit": "e25f06f0e8633db4709b080a7ee5e75b26ec6bc9",
+        "check_exit_code": 1,
+        "reason": "The full candidate-v6 selected, pager-off all-GPU, and CPU-main-KV/GPU-MTP live campaign is a required proof and was unavailable. V10 receipt now accurately marks that proof deferred; review-only analyzer is not represented as a passing live test.",
+        "reopened_utc": "2026-10-02T00:42:07+00:00"
+      },
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/101-12l-attempt-1-20261002T002852843250502-20261002T002852845797222-liKnZW.jsonl:128",
+            "total_tokens": 79355097,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 78867655,
+            "cached_input_tokens": 76736256,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 2131399,
+            "output_tokens": 487442,
+            "thinking_tokens": 261170
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 79355097,
+          "input_tokens": 78867655,
+          "cached_input_tokens": 76736256,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 2131399,
+          "output_tokens": 487442,
+          "thinking_tokens": 261170,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "102-01",
@@ -34502,16 +34549,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 34,
-        "total_tokens": 1771372155,
-        "input_tokens": 1762380283,
-        "cached_input_tokens": 1717395456,
+        "usage_events": 35,
+        "total_tokens": 1850727252,
+        "input_tokens": 1841247938,
+        "cached_input_tokens": 1794131712,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 44984827,
-        "output_tokens": 8991872,
-        "thinking_tokens": 4903261,
+        "input_tokens_minus_cached_tokens": 47116226,
+        "output_tokens": 9479314,
+        "thinking_tokens": 5164431,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 34,
+        "total_tokens_derived_events": 35,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -34526,17 +34573,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 473,
-      "total_tokens": 11311237499,
-      "input_tokens": 11273171356,
-      "cached_input_tokens": 11016344064,
+      "usage_events": 474,
+      "total_tokens": 11390592596,
+      "input_tokens": 11352039011,
+      "cached_input_tokens": 11093080320,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 119,
-      "input_tokens_minus_cached_tokens": 256827292,
-      "output_tokens": 38066143,
-      "thinking_tokens": 17228968,
+      "cache_write_input_tokens_known_events": 120,
+      "input_tokens_minus_cached_tokens": 258958691,
+      "output_tokens": 38553585,
+      "thinking_tokens": 17490138,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 473,
+      "total_tokens_derived_events": 474,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

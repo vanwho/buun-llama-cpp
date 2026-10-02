@@ -1,0 +1,296 @@
+{
+  "checks": {
+    "owner_result_canonical_retake_and_release_gate": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review_101_12l.py",
+          "sha256": "bb8869d5cc780fbb74778b08906438b79db4ee6b3056c9b5761a547c8a85f6b7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review-summary.json",
+          "sha256": "740a5d3747cab94622924bdaa7931d375f1d3584d5f37138894f9b5dd2292dec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review-gate.log",
+          "sha256": "740a5d3747cab94622924bdaa7931d375f1d3584d5f37138894f9b5dd2292dec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/cuda-runtime-availability.log",
+          "sha256": "e1293fa97057603319f30ca82b7f4fb2533d7f27966e0b7c349364483bcff437"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/candidate-v6-selected-startup.log",
+          "sha256": "6be7b15215a7036aff8436fe8c610f93243a071b0181755426a20adc21baaeaa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/build-receipt.json",
+          "sha256": "7fb7de78efc462a986c246628923cb05edc2f92b8eff0b4989792fe12d93aa62"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_101-12j.json",
+          "sha256": "18fa7d6d0d4ced2d0d45d4e0e9eac4f5e9fa8dadb40dfadc409536285de364c3"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_101-12k.json",
+          "sha256": "70197870537028a6c878810192500a8a810b79d9491544a005eb9b37160988e3"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "f17ddd17a86924cbd91d5703118b1fc5b9b15b926e64a7ca175b6c01209195b2"
+        }
+      ],
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review_101_12l.py"
+      ],
+      "coverage": {
+        "canonical_101_12j_identity": {
+          "frozen_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+          "geometry": {
+            "batch": 1024,
+            "context_tokens": 8192,
+            "hot_tokens": 4096,
+            "page_tokens": 256,
+            "ubatch": 256
+          },
+          "measured_rows_per_prompt": 3,
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+          "output_cap_per_request": 400,
+          "selected": {
+            "prompt_1": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "canonical_ttft_ms": null,
+              "cpu_main_kv_decode_tok_s_median": 24.96563982233543,
+              "cpu_main_kv_prefill_tok_s_median": 672.7538767135607,
+              "fresh_input_tokens": [
+                4115,
+                4115,
+                4115
+              ],
+              "mtp_floor_pass": true,
+              "mtp_floor_percent": 75,
+              "output_tokens": [
+                400,
+                400,
+                400
+              ],
+              "pager_off_decode_tok_s_median": 75.0900251385801,
+              "pager_off_prefill_tok_s_median": 1632.4707355322034,
+              "prefill_500_floor_pass": true,
+              "prefill_750_goal_pass": true,
+              "raw_accepted_counts": [
+                223,
+                165,
+                234
+              ],
+              "raw_drafted_counts": [
+                279,
+                304,
+                274
+              ],
+              "raw_mtp_acceptance_percent": [
+                79.92831541,
+                54.27631579,
+                85.40145985
+              ],
+              "selected_decode_beats_cpu_main_kv": true,
+              "selected_decode_tok_s_median": 81.91721598079647,
+              "selected_mtp_acceptance_percent_median": 79.92831541,
+              "selected_prefill_tok_s_median": 1519.7147441875065,
+              "selected_to_cpu_decode_ratio": 3.281198341550594,
+              "selected_to_cpu_prefill_ratio": 2.2589460972137325,
+              "selected_to_pager_off_decode_ratio": 1.0909200766628677,
+              "selected_to_pager_off_prefill_ratio": 0.930929241859924,
+              "supplemental_first_content_ttft_ms": 3040.8743290463462
+            },
+            "prompt_2": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "canonical_ttft_ms": null,
+              "cpu_main_kv_decode_tok_s_median": 18.54086706864451,
+              "cpu_main_kv_prefill_tok_s_median": 676.9574516107949,
+              "fresh_input_tokens": [
+                4112,
+                4112,
+                4112
+              ],
+              "mtp_floor_pass": true,
+              "mtp_floor_percent": 40,
+              "output_tokens": [
+                168,
+                196,
+                138
+              ],
+              "pager_off_decode_tok_s_median": 62.895503124000584,
+              "pager_off_prefill_tok_s_median": 1631.0890653169458,
+              "prefill_500_floor_pass": true,
+              "prefill_750_goal_pass": true,
+              "raw_accepted_counts": [
+                58,
+                72,
+                51
+              ],
+              "raw_drafted_counts": [
+                128,
+                146,
+                104
+              ],
+              "raw_mtp_acceptance_percent": [
+                45.3125,
+                49.31506849,
+                49.03846154
+              ],
+              "selected_decode_beats_cpu_main_kv": true,
+              "selected_decode_tok_s_median": 58.76515425250271,
+              "selected_mtp_acceptance_percent_median": 49.03846154,
+              "selected_prefill_tok_s_median": 1535.3796349366078,
+              "selected_to_cpu_decode_ratio": 3.169493316301465,
+              "selected_to_cpu_prefill_ratio": 2.26805928686246,
+              "selected_to_pager_off_decode_ratio": 0.9343299812173416,
+              "selected_to_pager_off_prefill_ratio": 0.9413217632222063,
+              "supplemental_first_content_ttft_ms": 228.11430500587448
+            },
+            "prompt_3": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "canonical_ttft_ms": null,
+              "cpu_main_kv_decode_tok_s_median": 21.635461986249283,
+              "cpu_main_kv_prefill_tok_s_median": 671.781658711071,
+              "fresh_input_tokens": [
+                4113,
+                4113,
+                4113
+              ],
+              "mtp_floor_pass": false,
+              "mtp_floor_percent": 60,
+              "output_tokens": [
+                400,
+                400,
+                400
+              ],
+              "pager_off_decode_tok_s_median": 71.33704393235531,
+              "pager_off_prefill_tok_s_median": 1633.0429748778197,
+              "prefill_500_floor_pass": true,
+              "prefill_750_goal_pass": true,
+              "raw_accepted_counts": [
+                146,
+                135,
+                212
+              ],
+              "raw_drafted_counts": [
+                304,
+                313,
+                280
+              ],
+              "raw_mtp_acceptance_percent": [
+                48.02631579,
+                43.13099042,
+                75.71428571
+              ],
+              "selected_decode_beats_cpu_main_kv": true,
+              "selected_decode_tok_s_median": 58.85081613102346,
+              "selected_mtp_acceptance_percent_median": 48.02631579,
+              "selected_prefill_tok_s_median": 1519.688332724916,
+              "selected_to_cpu_decode_ratio": 2.7201090583795673,
+              "selected_to_cpu_prefill_ratio": 2.2621759808695883,
+              "selected_to_pager_off_decode_ratio": 0.8249685280879903,
+              "selected_to_pager_off_prefill_ratio": 0.9305868590743092,
+              "supplemental_first_content_ttft_ms": 232.9184869886376
+            }
+          },
+          "warmup_output_cap": 40
+        },
+        "canonical_candidate_retake": {
+          "candidate": {
+            "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+            "sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2"
+          },
+          "candidate_source_change_production_behavior": false,
+          "cuda_probe": "cuInit(0)=100 with explicit RTX 4080 UUID; candidate --list-devices reports no CUDA-capable device",
+          "matrix_completed": false,
+          "raw_probe_log": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/cuda-runtime-availability.log",
+          "raw_startup_log": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/candidate-v6-selected-startup.log",
+          "required_by_packet": true,
+          "required_proof_status": "deferred; full three-mode live campaign did not produce rows",
+          "runner_attempt": "candidate-v6 selected canonical command entered profile activation after a false-positive CUDA text match; runner logged jq invalid JSON and was terminated; no benchmark records were created",
+          "runner_command_argv": [
+            "/srv/ai/benchmarks/run-profile-benchmark.sh",
+            "fast",
+            "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/candidate-v6-selected",
+            "--mode",
+            "selective",
+            "--device",
+            "CUDA0",
+            "--page-size",
+            "256",
+            "--batch",
+            "1024",
+            "--ubatch",
+            "256",
+            "--context",
+            "8192",
+            "--mtp",
+            "native",
+            "--kv-hot-pages",
+            "16"
+          ],
+          "service_after_cleanup": "inactive, MainPID=0, AI_BENCHMARK_* systemd environment cleared",
+          "status": "deferred_cuda_runtime_unavailable"
+        },
+        "decision": {
+          "all_selected_decode_beats_cpu_main_kv": true,
+          "all_selected_prefill_at_least_500": true,
+          "all_selected_prefill_at_least_750": true,
+          "goal_status": "goal_miss",
+          "next_evidence_backed_owner": "Restore CUDA runtime visibility, then run the complete candidate-v6 canonical selected, pager-off all-GPU, and CPU-main-KV/GPU-MTP matrix at the unchanged model/prefix and geometry.",
+          "prompt_3_selected_mtp_floor_miss": {
+            "floor_percent": 60,
+            "median_percent": 48.02631579
+          },
+          "report_mutated": false,
+          "scale_authorized": false
+        },
+        "review_status": "release_gate_review_pass_candidate_retake_deferred",
+        "task": "101-12l",
+        "telemetry_limits": {
+          "cuda_driver_event_capture_launch_update_timing": "CUDA events are not enabled by this receipt",
+          "graph_reuse_log_proof": "driver graph reuse log lines recorded separately; pager logical graph counts are not CUDA graph counts",
+          "selected_route_snapshot": "Sparse post-request slot snapshot; cumulative runtime counters, not canonical per-prompt deltas. Inventory counts are retained as raw diagnostic fields only; they are inconsistent with the adjacent counters and are not used for this release decision.",
+          "ttft": "canonical TTFT is null; listed first-content TTFT is supplemental only"
+        }
+      },
+      "exit_code": 0,
+      "status": "deferred"
+    }
+  },
+  "provenance": {
+    "candidate_bundle": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+    "candidate_server_sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2",
+    "deferred_verification": "Candidate-v6 selected, pager-off all-GPU, and CPU-main-KV/GPU-MTP canonical campaign awaits restored CUDA runtime visibility.",
+    "frozen_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+    "geometry": "L8192/H4096/P256/B1024/U256",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "raw_result_root": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01"
+  },
+  "release_decision": {
+    "candidate_retake_status": "deferred_cuda_runtime_unavailable",
+    "goal_status": "goal_miss",
+    "next_evidence_backed_owner": "Restore CUDA runtime visibility, then run the complete candidate-v6 canonical selected, pager-off all-GPU, and CPU-main-KV/GPU-MTP matrix at the unchanged model/prefix and geometry.",
+    "release_report_mutated": false,
+    "scale_authorized": false
+  },
+  "schema_version": 1,
+  "source_commit": "e25f06f0e8633db4709b080a7ee5e75b26ec6bc9",
+  "summary": "Reviewed the 101-12k candidate and 101-12j release gate. The required candidate-v6 live canonical retake remains deferred because CUDA initialization returns 100 and the candidate reports no usable accelerator. The review preserves the measured goal_miss and scale gate, but the required live proof is unmet.",
+  "task": "101-12l"
+}
