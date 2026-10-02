@@ -195,7 +195,7 @@ def selected_slot(snapshot: Mapping[str, Any], slot_id: int) -> dict[str, Any]:
                 raise ValueError(f"slot {slot_id} is still processing")
             lifecycle = slot.get("lifecycle") if isinstance(slot.get("lifecycle"), dict) else {}
             generation = next((lifecycle.get(name, slot.get(name)) for name in
-                               ("session_generation", "slot_generation", "generation")
+                               ("session_generation", "slot_generation", "generation", "id_task")
                                if _as_int(lifecycle.get(name, slot.get(name))) is not None), None)
             frontier = _as_int(slot.get("n_prompt_tokens"))
             if frontier is None or generation is None:

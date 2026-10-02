@@ -123,8 +123,19 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_slot_task_id_is_a_generation_when_server_omits_lifecycle_generation(self) -> None:
+        slot = occupancy.selected_slot({"slots": [{"id": 0, "is_processing": False,
+                                                    "id_task": 23,
+                                                    "n_prompt_tokens": 4258}]}, 0)
+        self.assertEqual(23, slot["generation"])
+        self.assertEqual(4258, slot["occupied_tokens"])
+
     def test_repo_context_manifest_identity_and_a_b_a_reserve_and_frontier(self) -> None:
         manifest = occupancy.repo_context.load_manifest()
+        prompts = occupancy.repo_context.load_prompts()
+        self.assertIn("`--stdin` wins", prompts["A1"])
+        self.assertIn("N_KV", prompts["B"])
+        self.assertIn("Windows console", prompts["A2"])
         prompts = {"A1": "A1_QUERY", "B": "B_QUERY", "A2": "A2_QUERY"}
         turns = occupancy.build_repo_content_turns(manifest, prompts)
         self.assertEqual(3, len(turns))
@@ -167,6 +178,10 @@ class OccupancyFrontierTests(unittest.TestCase):
         self.assertIn("src/a.cpp", text)
         self.assertEqual(["src/a.cpp"], [item.path for item in selected])
         self.assertEqual((1, 1), (selected[0].start_line, selected[0].end_line))
+        restored = occupancy.repo_context.restore_chunks(
+            [occupancy.repo_context.SourceFile("src/a.cpp", "a" * 64, 8, "int a;\n")],
+            occupancy.repo_context.selection_record(selected))
+        self.assertEqual(selected, restored)
         self.assertEqual(tokens, len(renderer(prefix + [{"role": "user", "content": text}]).token_ids))
         occupancy.repo_context.enforce_reserve(tokens, 400, 800, 8192)
         with self.assertRaises(ValueError):

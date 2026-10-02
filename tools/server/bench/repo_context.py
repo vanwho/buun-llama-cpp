@@ -98,6 +98,29 @@ def load_group(manifest: Mapping[str, Any], name: str) -> list[SourceFile]:
     return [_read_repo_file(item["path"], item["sha256"]) for item in entries]
 
 
+def load_prompts(path: pathlib.Path = FIXTURE / "prompts.md") -> dict[str, str]:
+    """Read only the three quoted prompts, preserving their exact wording."""
+    text = path.read_text(encoding="utf-8")
+    result: dict[str, str] = {}
+    for key, heading in (("A1", "## A1 —"), ("B", "## B —"), ("A2", "## A2 —")):
+        try:
+            start = text.index(heading)
+        except ValueError as error:
+            raise SourceIdentityError(f"prompt fixture is missing {heading}") from error
+        after = text[start:].splitlines()[1:]
+        quoted = []
+        for line in after:
+            if not line.startswith(">"):
+                if quoted:
+                    break
+                continue
+            quoted.append(line[1:].removeprefix(" "))
+        if not quoted:
+            raise SourceIdentityError(f"prompt fixture has no quoted body for {key}")
+        result[key] = "\n".join(quoted).strip()
+    return result
+
+
 def render_sources(files: Sequence[SourceFile]) -> str:
     return "\n".join(f"--- BEGIN FILE: {item.path} ---\n{item.text}"
                      f"--- END FILE: {item.path} ---" for item in files)
@@ -182,6 +205,30 @@ def source_chunks(files: Sequence[SourceFile], *, excluded_paths: Iterable[str] 
         chunks.append(CorpusChunk(item.path, item.sha256, item.byte_length, 1, len(lines),
                                   item.text))
     return chunks
+
+
+def restore_chunks(files: Sequence[SourceFile], selection: Sequence[Mapping[str, Any]]) -> list[CorpusChunk]:
+    by_path = {item.path: item for item in files}
+    restored = []
+    for row in selection:
+        relative = row.get("path")
+        source = by_path.get(relative) if isinstance(relative, str) else None
+        if source is None or source.sha256 != row.get("sha256") or source.byte_length != row.get("byte_length"):
+            raise SourceIdentityError(f"scale corpus source identity changed: {relative}")
+        first, last = row.get("start_line"), row.get("end_line")
+        lines = source.text.splitlines(keepends=True)
+        if not isinstance(first, int) or not isinstance(last, int) or not 1 <= first <= last <= len(lines):
+            raise SourceIdentityError(f"invalid recorded source line range: {relative}")
+        restored.append(CorpusChunk(relative, source.sha256, source.byte_length, first, last,
+                                    "".join(lines[first - 1:last])))
+    return restored
+
+
+def selection_record(chunks: Sequence[CorpusChunk]) -> list[dict[str, Any]]:
+    return [{"path": chunk.path, "sha256": chunk.sha256,
+             "byte_length": chunk.byte_length,
+             "start_line": chunk.start_line, "end_line": chunk.end_line}
+            for chunk in chunks]
 
 
 def render_chunk(chunk: CorpusChunk) -> str:
