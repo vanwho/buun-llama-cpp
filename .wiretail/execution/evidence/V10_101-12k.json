@@ -1,0 +1,133 @@
+{
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+    "sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2"
+  },
+  "checks": {
+    "same_prefix_selected_target_mtp_visibility_and_score_owner": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix-attribution.json",
+          "sha256": "e77e64c633897bae66324fa9520e8ff7a594326fdea62057f7f9ffdf9755dab5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/analyze_same_prefix.py",
+          "sha256": "26b2f351a1ea1355129a23cf5957f859cdafb4592572168d07ff34e6e0dbbdb9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/analyze_same_prefix.log",
+          "sha256": "0dd7f65ab3b81ad365a6401946898e8f93ed9aadd9324329cdc2f6ad49421981"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/build-final.log",
+          "sha256": "633f6fba17b628857c5b7d1027e6188a97c0d4be6c4db40cd62e1dbbdd64c305"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/attention-test-final.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/diff-check-final.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/cuda-runtime-availability.log",
+          "sha256": "a1a0ccab07e6999f6f15421af2fdc6c23d44facbc018a297bd0d900408b7f7b4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/build-receipt.json",
+          "sha256": "7fb7de78efc462a986c246628923cb05edc2f92b8eff0b4989792fe12d93aa62"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/selected-mtp-v6-prefix-score.json",
+          "sha256": "6589fbc015219347b93a9ddabe83c8a3822ff5595ca7aabcb0d6582013d37768"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/dense-mtp-v6-prefix-score.json",
+          "sha256": "0de6d32c791f4348ea02bee4991b291d564db6238211769c035f13b961092b65"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/selected-mtp-v6-first-rejection.json",
+          "sha256": "0c64c148ce2e90b43e15d89be065740a62554ba66844a8b722ebd96ca19fcba7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/dense-mtp-v6-first-rejection.json",
+          "sha256": "d8dbefb7cd8c8d5a197b6f08e93d7a2c0e9760b68a533be218164e71eabc4a6d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/selected-v6-exact-prefix-request.json",
+          "sha256": "2c2222e0c0e995d456e49f964d73c563ad10e6adca3e7ba6f9726ee546fc3696"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/dense-v6-exact-prefix-request.json",
+          "sha256": "457af5e4fd9d30ed3eacc2284d283555801d3fb6a589c57cedc4332ceb226305"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/shared-selected-rejection-query-prefix.json",
+          "sha256": "1a269a4ddff9fc5468f56d2f77a190262663872a1b3a4674e21d63fd7b1c8b7c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/same-prefix/selected-original-v6-lifecycle.stderr",
+          "sha256": "213a7289f363e01e21264e54fcb617c8be26c5d2b61c79851924b25acc8b59c6"
+        }
+      ],
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/analyze_same_prefix.py"
+      ],
+      "coverage": {
+        "classification": "selected-vs-dense route distribution/visibility boundary; no source defect proven",
+        "dense_rejection_query_position": 4142,
+        "dense_top8": [
+          264,
+          17494,
+          364,
+          357,
+          321,
+          1478,
+          6916,
+          16867
+        ],
+        "effective_seed": 42,
+        "native_gpu_v6_original_chat_retry": "deferred_cuda_driver_cuinit_100",
+        "production_change": false,
+        "same_prefix_position": 4114,
+        "same_prefix_token_id": 66256,
+        "selected_rejection_carry_generation": 77,
+        "selected_rejection_proposal_position": 4125,
+        "selected_rejection_query_position": 4124,
+        "selected_top8": [
+          264,
+          364,
+          17494,
+          357,
+          6916,
+          16867,
+          321,
+          279
+        ],
+        "selected_turn_history_ids": [],
+        "selected_verify_visible_page_ids": [
+          16
+        ],
+        "vocabulary": 248320
+      },
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "provenance": {
+    "candidate_bundle": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6",
+    "candidate_bundle_receipt_sha256": "7fb7de78efc462a986c246628923cb05edc2f92b8eff0b4989792fe12d93aa62",
+    "deferred_verification": "CUDA driver/runtime initialization and exact dense MTP score at the selected first-rejection prefix; see handoff and cuda-runtime-availability.log",
+    "frozen_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+    "geometry": "L8192/H4096/P256/B1024/U256",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "raw_result_root": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01"
+  },
+  "schema_version": 1,
+  "source_commit": "e56ee54fb9fea563b70230c2e5c832a3e6bd8ace",
+  "source_diff_sha256": "41141985bde722282709fb93217ca71862740635bfd714bf8af2c497568fcd47",
+  "summary": "Completed bounded selected/dense same-prefix score and selected MTP visibility attribution on candidate v6. The identical q4114 score input has finite full-vocabulary vectors and the same top1, with ranks 2/3 swapped. The selected first-rejection verify graph is page16-only and records no selected-history IDs; no committed-page loss is proven. Later selected/dense rejection rows follow divergent sampled paths. No production behavior changed. A separate v6 original-chat follow-up was unavailable because CUDA cuInit returned error 100 despite nvidia-smi detecting the RTX 4080; it is deferred.",
+  "task": "101-12k"
+}

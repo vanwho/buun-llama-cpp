@@ -1907,3 +1907,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12j`
 - Commit at update: `61226a1e3`
 - Summary: Fresh canonical selected and matched control campaigns completed on the verified candidate; selected prompt-3 MTP misses its unchanged floor, so release is goal_miss and 101-12k/101-12l are scheduled before 102-01.
+
+## 2026-10-02T00:27:57+00:00 — 101-12k — done
+
+- Branch: `codex/task-101-12k`
+- Commit at update: `e56ee54fb`
+- Summary: Same-prefix q4114 selected/dense score order and selected MTP visibility attributed; no source defect proven and production behavior unchanged. Local proof and validators pass; additional CUDA capture deferred because cuInit returns 100.
