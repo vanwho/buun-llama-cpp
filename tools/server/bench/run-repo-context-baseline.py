@@ -55,6 +55,15 @@ MAX_OUTPUT = 400
 SEQUENCES = ("warmup", "measured-1", "measured-2", "measured-3")
 
 
+class RecordedRequestFailure(RuntimeError):
+    """A live benchmark request failed after its request/result was recorded."""
+
+    def __init__(self, request_id: str, record: Mapping[str, Any], message: str):
+        super().__init__(message)
+        self.request_id = request_id
+        self.record = dict(record)
+
+
 def atomic_json(path: pathlib.Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -240,7 +249,9 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
     result_path = requests_dir / f"{request_id}.result.json"
     atomic_json(result_path, record)
     if record.get("status") != "pass":
-        raise RuntimeError(f"request {request_id} failed: {record.get('error', record.get('status'))}")
+        raise RecordedRequestFailure(
+            request_id, record,
+            f"request {request_id} failed: {record.get('error', record.get('status'))}")
     actual = selected_slot(record.get("after", {}), 0)
     usage = record.get("usage", {})
     usage_tokens = usage.get("prompt_tokens")
@@ -256,7 +267,7 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
             "reported_prompt_tokens": int(usage_tokens),
         }
         atomic_json(result_path, record)
-        raise RuntimeError(
+        raise RecordedRequestFailure(request_id, record,
             f"request {request_id} rendered prompt {prompt_tokens} tokens but server reported "
             f"{usage_tokens}; possible prompt truncation")
     record["prompt_token_validation"] = {
@@ -264,7 +275,7 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
         "reported_prompt_tokens": int(usage_tokens),
     }
     if abs(actual["occupied_tokens"] - int(total_tokens)) > 2:
-        raise RuntimeError(
+        raise RecordedRequestFailure(request_id, record,
             f"request {request_id} slot frontier {actual['occupied_tokens']} differs from "
             f"reported prompt+completion {total_tokens}")
     record["committed_slot"] = {
@@ -285,7 +296,8 @@ def record_request(driver: Any, renderer: ServerPromptRenderer, endpoint: str, k
     atomic_json(result_path, record)
     text = response_content(record)
     if not text:
-        raise RuntimeError(f"request {request_id} returned an empty answer")
+        raise RecordedRequestFailure(request_id, record,
+                                     f"request {request_id} returned an empty answer")
     metrics = record.get("metrics") if isinstance(record.get("metrics"), Mapping) else {}
     speeds = record.get("speed_measurements")
     print(f"request done placement={placement} id={request_id} prompt={prompt_tokens} "
@@ -482,6 +494,7 @@ def main() -> int:
         fixed_chunks = None
 
     results = []
+    request_failures = []
     started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     mtp_identity = {"draft_n_max": int(identity["spec_draft_n_max"])}
     for sequence in SEQUENCES:
@@ -494,10 +507,22 @@ def main() -> int:
         a1_tokens = rendered(renderer, [a1])
         repo_context.enforce_reserve(a1_tokens, MAX_OUTPUT, PAGE + mtp_identity["draft_n_max"], CONTEXT)
         atomic_json(sequence_dir / "prompt-A1.json", a1)
-        r1, answer1 = record_request(
-            driver, renderer, args.endpoint, key, args.model, [a1], sequence_dir,
-            identity, fingerprint, "A1", "A1", args.placement,
-            PAGE + mtp_identity["draft_n_max"], True)
+        completed_records: list[dict[str, Any]] = []
+        try:
+            r1, answer1 = record_request(
+                driver, renderer, args.endpoint, key, args.model, [a1], sequence_dir,
+                identity, fingerprint, "A1", "A1", args.placement,
+                PAGE + mtp_identity["draft_n_max"], True)
+            completed_records.append(r1)
+        except RecordedRequestFailure as failure:
+            failed = {"sequence": sequence, "placement": args.placement,
+                      "status": "runtime_fault", "failed_request": failure.request_id,
+                      "error": str(failure), "completed_records": completed_records,
+                      "failed_record": failure.record, "dependent_requests_skipped": ["B", "A2"]}
+            request_failures.append(failed)
+            results.append(failed)
+            atomic_json(sequence_dir / "sequence-result.json", failed)
+            break
         messages = [a1, {"role": "assistant", "content": answer1}]
         conservative_answer, _ = token_pad(renderer, [a1], "assistant", MAX_OUTPUT)
         selection_prefix = [a1, {"role": "assistant", "content": conservative_answer}]
@@ -554,9 +579,20 @@ def main() -> int:
             "formula": "A2 query/template + 400 A2 output + 256 page alignment + draft_n_max replay reserve",
         }
         atomic_json(sequence_dir / "reserve.json", reserve_record)
-        r2, answer2 = record_request(
-            driver, renderer, args.endpoint, key, args.model, messages + [b_message],
-            sequence_dir, identity, fingerprint, "B", "B", args.placement, reserve, True)
+        try:
+            r2, answer2 = record_request(
+                driver, renderer, args.endpoint, key, args.model, messages + [b_message],
+                sequence_dir, identity, fingerprint, "B", "B", args.placement, reserve, True)
+            completed_records.append(r2)
+        except RecordedRequestFailure as failure:
+            failed = {"sequence": sequence, "placement": args.placement,
+                      "status": "runtime_fault", "failed_request": failure.request_id,
+                      "error": str(failure), "completed_records": completed_records,
+                      "failed_record": failure.record, "dependent_requests_skipped": ["A2"]}
+            request_failures.append(failed)
+            results.append(failed)
+            atomic_json(sequence_dir / "sequence-result.json", failed)
+            break
         messages.extend([b_message, {"role": "assistant", "content": answer2}])
 
         a2 = {"role": "user", "content": prompts["A2"]}
@@ -565,10 +601,21 @@ def main() -> int:
         a2_mtp_reserve = mtp_identity["draft_n_max"]
         repo_context.enforce_reserve(r2_prompt, MAX_OUTPUT, a2_mtp_reserve, CONTEXT)
         atomic_json(sequence_dir / "prompt-A2.json", a2)
-        r3, answer3 = record_request(
-            driver, renderer, args.endpoint, key, args.model, a2_messages,
-            sequence_dir, identity, fingerprint, "A2", "A2", args.placement,
-            a2_mtp_reserve, True)
+        try:
+            r3, answer3 = record_request(
+                driver, renderer, args.endpoint, key, args.model, a2_messages,
+                sequence_dir, identity, fingerprint, "A2", "A2", args.placement,
+                a2_mtp_reserve, True)
+            completed_records.append(r3)
+        except RecordedRequestFailure as failure:
+            failed = {"sequence": sequence, "placement": args.placement,
+                      "status": "runtime_fault", "failed_request": failure.request_id,
+                      "error": str(failure), "completed_records": completed_records,
+                      "failed_record": failure.record, "dependent_requests_skipped": []}
+            request_failures.append(failed)
+            results.append(failed)
+            atomic_json(sequence_dir / "sequence-result.json", failed)
+            break
         committed_c = int(r2["committed_slot"]["occupied_tokens"])
         if args.placement == "selected" and committed_c < HOT + 2048:
             raise RuntimeError(f"selected B committed C={committed_c} is below H+2048={HOT + 2048}")
@@ -580,7 +627,10 @@ def main() -> int:
         atomic_json(sequence_dir / "sequence-result.json", results[-1])
 
     row = {
-        "schema_version": 1, "status": "pass", "placement": args.placement,
+        "schema_version": 1,
+        "status": "partial" if request_failures else "pass",
+        "request_failures": request_failures,
+        "placement": args.placement,
         "logical_context_tokens": CONTEXT, "hot_tokens": HOT,
         "page_tokens": PAGE, "candidate_identity": identity,
         "candidate_fingerprint": fingerprint, "source_identity": source_identity,
@@ -591,7 +641,8 @@ def main() -> int:
     atomic_json(args.output / "row-result.json", row)
     print(json.dumps({"status": row["status"], "placement": args.placement,
                       "C_committed_B": [item["C_committed_B"] for item in results],
-                      "C_prompt_B": [item["C_prompt"] for item in results],
+                      "C_prompt_B": [item.get("C_prompt") for item in results],
+                      "request_failures": len(request_failures),
                       "H": HOT}, sort_keys=True))
     return 0
 
