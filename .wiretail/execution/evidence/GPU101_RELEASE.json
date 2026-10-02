@@ -1,4 +1,8 @@
 {
+  "canonical_measurement_telemetry": {
+    "scope": "Three matched canonical routes; exact-rendered prompt token preflight, prompt/generation timers, and native MTP Prometheus counter deltas. No CUDA driver events, per-kernel timing, GPU memory peaks, passive utilization samples, or TTFT values were captured. Canonical TTFT and supplemental first-content TTFT are null.",
+    "source": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/retake-verification.json"
+  },
   "canonical_protocol": {
     "fresh_slot_each_row": true,
     "geometry": {
@@ -46,9 +50,9 @@
           4112
         ],
         "output_tokens": [
-          168,
-          196,
-          138
+          211,
+          179,
+          203
         ]
       },
       "prompt_3": {
@@ -77,42 +81,44 @@
           0
         ],
         "canonical_ttft_ms": null,
-        "decode_tok_s_median": 81.91721598079647,
+        "decode_beats_cpu_kv": true,
+        "decode_tok_s_median": 54.95023835870938,
         "errors": 0,
         "fresh_input_tokens": [
           4115,
           4115,
           4115
         ],
-        "fresh_prefill_tok_s_median": 1519.7147441875065,
+        "fresh_prefill_tok_s_median": 1518.751132604505,
         "measured_samples": 3,
-        "mtp_acceptance_percent_median": 79.92831541,
+        "mtp_acceptance_percent_median": 39.69230769230769,
+        "mtp_floor_percent": 75.0,
+        "mtp_gate_pass": false,
         "output_tokens": [
           400,
           400,
           400
         ],
+        "prefill_750_goal_pass": true,
+        "prefill_gate_pass": true,
         "raw_accepted_counts": [
-          223,
-          165,
-          234
+          232,
+          129,
+          129
         ],
         "raw_drafted_counts": [
-          279,
-          304,
-          274
+          276,
+          325,
+          325
         ],
         "raw_mtp_acceptance_percent": [
-          79.92831541,
-          54.27631579,
-          85.40145985
+          84.05797101449275,
+          39.69230769230769,
+          39.69230769230769
         ],
         "samples": 3,
-        "supplemental_ttft_ms": 3040.8743290463462,
-        "prefill_gate_pass": true,
-        "mtp_gate_pass": true,
-        "decode_beats_cpu_kv": true,
-        "status": "pass"
+        "status": "measured_goal_miss",
+        "supplemental_ttft_ms": null
       },
       "prompt_2": {
         "cached_input_tokens": [
@@ -121,42 +127,44 @@
           0
         ],
         "canonical_ttft_ms": null,
-        "decode_tok_s_median": 58.76515425250271,
+        "decode_beats_cpu_kv": true,
+        "decode_tok_s_median": 59.23772890445744,
         "errors": 0,
         "fresh_input_tokens": [
           4112,
           4112,
           4112
         ],
-        "fresh_prefill_tok_s_median": 1535.3796349366078,
+        "fresh_prefill_tok_s_median": 1530.6923926225986,
         "measured_samples": 3,
-        "mtp_acceptance_percent_median": 49.03846154,
+        "mtp_acceptance_percent_median": 49.36708860759494,
+        "mtp_floor_percent": 40.0,
+        "mtp_gate_pass": true,
         "output_tokens": [
-          168,
-          196,
-          138
+          211,
+          179,
+          203
         ],
+        "prefill_750_goal_pass": true,
+        "prefill_gate_pass": true,
         "raw_accepted_counts": [
-          58,
-          72,
-          51
+          78,
+          67,
+          63
         ],
         "raw_drafted_counts": [
-          128,
-          146,
-          104
+          158,
+          134,
+          160
         ],
         "raw_mtp_acceptance_percent": [
-          45.3125,
-          49.31506849,
-          49.03846154
+          49.36708860759494,
+          50.0,
+          39.375
         ],
         "samples": 3,
-        "supplemental_ttft_ms": 228.11430500587448,
-        "prefill_gate_pass": true,
-        "mtp_gate_pass": true,
-        "decode_beats_cpu_kv": true,
-        "status": "pass"
+        "status": "pass",
+        "supplemental_ttft_ms": null
       },
       "prompt_3": {
         "cached_input_tokens": [
@@ -165,57 +173,56 @@
           0
         ],
         "canonical_ttft_ms": null,
-        "decode_tok_s_median": 58.85081613102346,
+        "decode_beats_cpu_kv": true,
+        "decode_tok_s_median": 68.59493504626978,
         "errors": 0,
         "fresh_input_tokens": [
           4113,
           4113,
           4113
         ],
-        "fresh_prefill_tok_s_median": 1519.688332724916,
+        "fresh_prefill_tok_s_median": 1517.4725172555773,
         "measured_samples": 3,
-        "mtp_acceptance_percent_median": 48.02631579,
+        "mtp_acceptance_percent_median": 65.26315789473684,
+        "mtp_floor_percent": 60.0,
+        "mtp_gate_pass": true,
         "output_tokens": [
           400,
           400,
           400
         ],
+        "prefill_750_goal_pass": true,
+        "prefill_gate_pass": true,
         "raw_accepted_counts": [
-          146,
-          135,
-          212
+          209,
+          159,
+          186
         ],
         "raw_drafted_counts": [
-          304,
-          313,
-          280
+          282,
+          297,
+          285
         ],
         "raw_mtp_acceptance_percent": [
-          48.02631579,
-          43.13099042,
-          75.71428571
+          74.11347517730496,
+          53.535353535353536,
+          65.26315789473684
         ],
         "samples": 3,
-        "supplemental_ttft_ms": 232.9184869886376,
-        "prefill_gate_pass": true,
-        "mtp_gate_pass": false,
-        "decode_beats_cpu_kv": true,
-        "status": "measured_goal_miss"
+        "status": "pass",
+        "supplemental_ttft_ms": null
       }
     },
     "shared_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
     "supplemental_ttft": {
-      "artifact": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/ttft.json",
-        "sha256": "6cebaa085099feccc13b85bb798100e342708ae1ed172941990deeaf831d1843"
-      },
-      "measurement": "One 32-token streaming request per prompt after canonical rows; client-side elapsed time to first non-empty content delta. Supplemental, not the canonical three-row median or release gate.",
+      "artifact": null,
+      "measurement": "not recorded by streaming runner",
       "per_prompt_ms": {
-        "prompt_1": 3040.8743290463462,
-        "prompt_2": 228.11430500587448,
-        "prompt_3": 232.9184869886376
+        "prompt_1": null,
+        "prompt_2": null,
+        "prompt_3": null
       },
-      "status": "complete"
+      "status": "not_recorded"
     },
     "temperature": 0,
     "warmup_outputs": 40
@@ -223,28 +230,28 @@
   "comparisons": {
     "per_prompt": {
       "prompt_1": {
-        "selected_to_cpu_decode_ratio": 3.281198341550594,
+        "selected_to_cpu_decode_ratio": 2.2033528384352192,
         "selected_to_cpu_prefill_3x": false,
         "selected_to_cpu_prefill_5x": false,
-        "selected_to_cpu_prefill_ratio": 2.2589460972137325,
-        "selected_to_pager_off_decode_ratio": 1.0909200766628677,
-        "selected_to_pager_off_prefill_ratio": 0.930929241859924
+        "selected_to_cpu_prefill_ratio": 2.259815690415407,
+        "selected_to_pager_off_decode_ratio": 0.6531636823147838,
+        "selected_to_pager_off_prefill_ratio": 0.929636979726241
       },
       "prompt_2": {
-        "selected_to_cpu_decode_ratio": 3.169493316301465,
+        "selected_to_cpu_decode_ratio": 3.208220333325616,
         "selected_to_cpu_prefill_3x": false,
         "selected_to_cpu_prefill_5x": false,
-        "selected_to_cpu_prefill_ratio": 2.26805928686246,
-        "selected_to_pager_off_decode_ratio": 0.9343299812173416,
-        "selected_to_pager_off_prefill_ratio": 0.9413217632222063
+        "selected_to_cpu_prefill_ratio": 2.2669788852300843,
+        "selected_to_pager_off_decode_ratio": 0.9461123355569621,
+        "selected_to_pager_off_prefill_ratio": 0.9388244193084635
       },
       "prompt_3": {
-        "selected_to_cpu_decode_ratio": 2.7201090583795673,
+        "selected_to_cpu_decode_ratio": 3.1679862452542276,
         "selected_to_cpu_prefill_3x": false,
         "selected_to_cpu_prefill_5x": false,
-        "selected_to_cpu_prefill_ratio": 2.2621759808695883,
-        "selected_to_pager_off_decode_ratio": 0.8249685280879903,
-        "selected_to_pager_off_prefill_ratio": 0.9305868590743092
+        "selected_to_cpu_prefill_ratio": 2.2590406386002506,
+        "selected_to_pager_off_decode_ratio": 0.9640242774494925,
+        "selected_to_pager_off_prefill_ratio": 0.9298136678044945
       }
     },
     "summary": {
@@ -254,24 +261,22 @@
       "all_selected_prefill_at_least_750": true,
       "five_x_cpu_prefill_ratio_pass": false,
       "selected_decode_must_beat_cpu_main_kv": true,
-      "selected_prefill_beats_dense_gpu_control": false,
-      "selected_prefill_minimum_goal_tok_s": 500,
-      "selected_prefill_preferred_goal_tok_s": 750,
       "selected_mtp_floors_percent": {
         "prompt_1": 75,
         "prompt_2": 40,
         "prompt_3": 60
       },
+      "selected_prefill_beats_dense_gpu_control": false,
+      "selected_prefill_minimum_goal_tok_s": 500,
+      "selected_prefill_preferred_goal_tok_s": 750,
       "three_x_cpu_prefill_ratio_pass": false
     }
   },
   "controls": {
-    "pager_off_all_gpu": {
-      "status": "complete",
-      "pager_mode": "off",
-      "target_kv_placement": "gpu",
-      "mtp_placement": "gpu",
+    "cpu_main_kv_gpu_mtp": {
       "codec_capability_exception": null,
+      "mtp_placement": "gpu",
+      "pager_mode": "off",
       "per_prompt": {
         "prompt_1": {
           "cached_input_tokens": [
@@ -280,35 +285,35 @@
             0
           ],
           "canonical_ttft_ms": null,
-          "decode_tok_s_median": 75.0900251385801,
+          "decode_tok_s_median": 24.93937303193529,
           "errors": 0,
           "fresh_input_tokens": [
             4115,
             4115,
             4115
           ],
-          "fresh_prefill_tok_s_median": 1632.4707355322034,
+          "fresh_prefill_tok_s_median": 672.068584639893,
           "measured_samples": 3,
-          "mtp_acceptance_percent_median": 68.11594203,
+          "mtp_acceptance_percent_median": 80.37037037037037,
           "output_tokens": [
-            379,
+            386,
             386,
             386
           ],
           "raw_accepted_counts": [
-            208,
-            188,
-            188
+            217,
+            217,
+            217
           ],
           "raw_drafted_counts": [
-            266,
-            276,
-            276
+            270,
+            270,
+            270
           ],
           "raw_mtp_acceptance_percent": [
-            78.19548872,
-            68.11594203,
-            68.11594203
+            80.37037037037037,
+            80.37037037037037,
+            80.37037037037037
           ],
           "samples": 3,
           "supplemental_ttft_ms": null
@@ -320,16 +325,145 @@
             0
           ],
           "canonical_ttft_ms": null,
-          "decode_tok_s_median": 62.895503124000584,
+          "decode_tok_s_median": 18.464358039602622,
           "errors": 0,
           "fresh_input_tokens": [
             4112,
             4112,
             4112
           ],
-          "fresh_prefill_tok_s_median": 1631.0890653169458,
+          "fresh_prefill_tok_s_median": 675.2124612167453,
           "measured_samples": 3,
-          "mtp_acceptance_percent_median": 51.61290323,
+          "mtp_acceptance_percent_median": 50.0,
+          "output_tokens": [
+            168,
+            168,
+            168
+          ],
+          "raw_accepted_counts": [
+            63,
+            63,
+            63
+          ],
+          "raw_drafted_counts": [
+            126,
+            126,
+            126
+          ],
+          "raw_mtp_acceptance_percent": [
+            50.0,
+            50.0,
+            50.0
+          ],
+          "samples": 3,
+          "supplemental_ttft_ms": null
+        },
+        "prompt_3": {
+          "cached_input_tokens": [
+            0,
+            0,
+            0
+          ],
+          "canonical_ttft_ms": null,
+          "decode_tok_s_median": 21.652535628596176,
+          "errors": 0,
+          "fresh_input_tokens": [
+            4113,
+            4113,
+            4113
+          ],
+          "fresh_prefill_tok_s_median": 671.7331646569384,
+          "measured_samples": 3,
+          "mtp_acceptance_percent_median": 65.03496503496504,
+          "output_tokens": [
+            400,
+            400,
+            400
+          ],
+          "raw_accepted_counts": [
+            186,
+            186,
+            186
+          ],
+          "raw_drafted_counts": [
+            286,
+            286,
+            286
+          ],
+          "raw_mtp_acceptance_percent": [
+            65.03496503496504,
+            65.03496503496504,
+            65.03496503496504
+          ],
+          "samples": 3,
+          "supplemental_ttft_ms": null
+        }
+      },
+      "status": "complete",
+      "target_kv_placement": "cpu"
+    },
+    "pager_off_all_gpu": {
+      "codec_capability_exception": null,
+      "mtp_placement": "gpu",
+      "pager_mode": "off",
+      "per_prompt": {
+        "prompt_1": {
+          "cached_input_tokens": [
+            0,
+            0,
+            0
+          ],
+          "canonical_ttft_ms": null,
+          "decode_tok_s_median": 84.1293535549437,
+          "errors": 0,
+          "fresh_input_tokens": [
+            4115,
+            4115,
+            4115
+          ],
+          "fresh_prefill_tok_s_median": 1633.7034409407272,
+          "measured_samples": 3,
+          "mtp_acceptance_percent_median": 78.19548872180451,
+          "output_tokens": [
+            386,
+            379,
+            379
+          ],
+          "raw_accepted_counts": [
+            188,
+            208,
+            208
+          ],
+          "raw_drafted_counts": [
+            276,
+            266,
+            266
+          ],
+          "raw_mtp_acceptance_percent": [
+            68.1159420289855,
+            78.19548872180451,
+            78.19548872180451
+          ],
+          "samples": 3,
+          "supplemental_ttft_ms": null
+        },
+        "prompt_2": {
+          "cached_input_tokens": [
+            0,
+            0,
+            0
+          ],
+          "canonical_ttft_ms": null,
+          "decode_tok_s_median": 62.61172873259821,
+          "errors": 0,
+          "fresh_input_tokens": [
+            4112,
+            4112,
+            4112
+          ],
+          "fresh_prefill_tok_s_median": 1630.4352135941501,
+          "measured_samples": 3,
+          "mtp_acceptance_percent_median": 51.61290322580645,
           "output_tokens": [
             168,
             166,
@@ -347,8 +481,8 @@
           ],
           "raw_mtp_acceptance_percent": [
             50.0,
-            51.61290323,
-            51.61290323
+            51.61290322580645,
+            51.61290322580645
           ],
           "samples": 3,
           "supplemental_ttft_ms": null
@@ -360,16 +494,16 @@
             0
           ],
           "canonical_ttft_ms": null,
-          "decode_tok_s_median": 71.33704393235531,
+          "decode_tok_s_median": 71.15477965736567,
           "errors": 0,
           "fresh_input_tokens": [
             4113,
             4113,
             4113
           ],
-          "fresh_prefill_tok_s_median": 1633.0429748778197,
+          "fresh_prefill_tok_s_median": 1632.0178652984114,
           "measured_samples": 3,
-          "mtp_acceptance_percent_median": 63.32179931,
+          "mtp_acceptance_percent_median": 63.32179930795848,
           "output_tokens": [
             400,
             400,
@@ -386,147 +520,20 @@
             289
           ],
           "raw_mtp_acceptance_percent": [
-            63.32179931,
-            63.32179931,
-            63.32179931
+            63.32179930795848,
+            63.32179930795848,
+            63.32179930795848
           ],
           "samples": 3,
           "supplemental_ttft_ms": null
         }
-      }
-    },
-    "cpu_main_kv_gpu_mtp": {
+      },
       "status": "complete",
-      "pager_mode": "off",
-      "target_kv_placement": "cpu",
-      "mtp_placement": "gpu",
-      "codec_capability_exception": null,
-      "per_prompt": {
-        "prompt_1": {
-          "cached_input_tokens": [
-            0,
-            0,
-            0
-          ],
-          "canonical_ttft_ms": null,
-          "decode_tok_s_median": 24.96563982233543,
-          "errors": 0,
-          "fresh_input_tokens": [
-            4115,
-            4115,
-            4115
-          ],
-          "fresh_prefill_tok_s_median": 672.7538767135607,
-          "measured_samples": 3,
-          "mtp_acceptance_percent_median": 80.37037037,
-          "output_tokens": [
-            386,
-            386,
-            386
-          ],
-          "raw_accepted_counts": [
-            217,
-            217,
-            217
-          ],
-          "raw_drafted_counts": [
-            270,
-            270,
-            270
-          ],
-          "raw_mtp_acceptance_percent": [
-            80.37037037,
-            80.37037037,
-            80.37037037
-          ],
-          "samples": 3,
-          "supplemental_ttft_ms": null
-        },
-        "prompt_2": {
-          "cached_input_tokens": [
-            0,
-            0,
-            0
-          ],
-          "canonical_ttft_ms": null,
-          "decode_tok_s_median": 18.54086706864451,
-          "errors": 0,
-          "fresh_input_tokens": [
-            4112,
-            4112,
-            4112
-          ],
-          "fresh_prefill_tok_s_median": 676.9574516107949,
-          "measured_samples": 3,
-          "mtp_acceptance_percent_median": 50.0,
-          "output_tokens": [
-            168,
-            168,
-            168
-          ],
-          "raw_accepted_counts": [
-            62,
-            63,
-            63
-          ],
-          "raw_drafted_counts": [
-            126,
-            126,
-            126
-          ],
-          "raw_mtp_acceptance_percent": [
-            49.20634921,
-            50.0,
-            50.0
-          ],
-          "samples": 3,
-          "supplemental_ttft_ms": null
-        },
-        "prompt_3": {
-          "cached_input_tokens": [
-            0,
-            0,
-            0
-          ],
-          "canonical_ttft_ms": null,
-          "decode_tok_s_median": 21.635461986249283,
-          "errors": 0,
-          "fresh_input_tokens": [
-            4113,
-            4113,
-            4113
-          ],
-          "fresh_prefill_tok_s_median": 671.781658711071,
-          "measured_samples": 3,
-          "mtp_acceptance_percent_median": 65.03496503,
-          "output_tokens": [
-            400,
-            400,
-            400
-          ],
-          "raw_accepted_counts": [
-            186,
-            186,
-            186
-          ],
-          "raw_drafted_counts": [
-            286,
-            286,
-            286
-          ],
-          "raw_mtp_acceptance_percent": [
-            65.03496503,
-            65.03496503,
-            65.03496503
-          ],
-          "samples": 3,
-          "supplemental_ttft_ms": null
-        }
-      }
+      "target_kv_placement": "gpu"
     }
   },
-  "decision": "The 101-12j fresh canonical selected matrix passes the 500 tok/s minimum and 750 tok/s preferred prefill target on all prompts, and selected decode beats the CPU-main-KV control on all prompts. Selected MTP medians are 79.93%, 49.04%, and 48.03%; prompt 3 misses its unchanged 60% floor. Selected prefill is 2.26x CPU-main-KV and 0.93-0.94x pager-off GPU; selected decode is 3.28x/3.17x/2.72x CPU-main-KV and 1.09x/0.93x/0.82x pager-off GPU. Release remains goal_miss. Schedule only 101-12k for same-prefix target/draft score and mask visibility attribution, then 101-12l for candidate-specific final review; 102-01 depends on 101-12l and remains gated.",
-  "decision_task": "101-12j",
+  "decision": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. Schedule 101-12m to attribute prompt-1 same-prefix target/draft ordering and verify-visible page/history IDs; no dropped-history defect is established.",
+  "decision_task": "101-12l",
   "deferred_verification": [],
   "final_review_successor": "101-12l",
   "goal_status": "goal_miss",
@@ -703,118 +710,118 @@
     "sha256": "9f35a4f25c8b8c3a68d5a5c38a4b8ecb3cb3c84a2fc447e77a46308b13765cfa"
   },
   "identity": {
-    "backend_reported_source_commit": "a0086f056",
-    "backend_reported_version": "version: 0.5.0-dev (build 14189, commit a0086f056) built with GNU 15.2.0 for Linux x86_64",
+    "backend_reported_source_commit": "e56ee54fb",
+    "backend_reported_version": "version: 0.5.0-dev (build 14202, commit e56ee54fb) built with GNU 15.2.0 for Linux x86_64",
     "batch": 1024,
     "binary": {
-      "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
-      "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+      "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+      "sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2"
     },
     "candidate_runtime_identity": {
-      "selected": {
-        "profile": "qwen38-fast",
-        "pid": 2252838,
-        "binary": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
-        "command": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
-        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
-        "context": "8192",
+      "cpu_main_kv_gpu_mtp": {
         "batch": "1024",
-        "ubatch": "256",
-        "target_kv_placement": "gpu",
-        "no_kv_offload": false,
-        "pager_mode": "selective",
-        "page_size_tokens": "256",
+        "binary": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+        "command": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-hot-pages 16 --device CUDA0 --no-kv-offload --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "context": "8192",
+        "host_budget": null,
+        "hot_pages": "16",
+        "loaded_dsos": [
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-base.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cpu.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cuda.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-common.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-server-impl.so",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libmtmd.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server"
+        ],
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
         "mtp_placement": "gpu",
         "mtp_type_k": "turbo4",
         "mtp_type_v": "turbo4",
-        "spec_type": "draft-mtp",
-        "spec_draft_n_max": 2,
-        "loaded_dsos": [
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-base.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cpu.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cuda.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-common.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-server-impl.so",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libmtmd.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server"
-        ],
-        "hot_pages": "16",
-        "vram_budget": null,
-        "host_budget": null,
+        "no_kv_offload": true,
+        "page_size_tokens": "",
+        "pager_mode": "off",
+        "pid": 80557,
+        "pin_recent": null,
+        "profile": "qwen38-fast",
         "safety_headroom": null,
-        "pin_recent": null
+        "spec_draft_n_max": 2,
+        "spec_type": "draft-mtp",
+        "target_kv_placement": "cpu",
+        "ubatch": "256",
+        "vram_budget": null
       },
       "pager_off_all_gpu": {
-        "profile": "qwen38-fast",
-        "pid": 2275790,
-        "binary": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
-        "command": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-hot-pages 16 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
-        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
-        "context": "8192",
         "batch": "1024",
-        "ubatch": "256",
-        "target_kv_placement": "gpu",
+        "binary": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+        "command": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-hot-pages 16 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "context": "8192",
+        "host_budget": null,
+        "hot_pages": "16",
+        "loaded_dsos": [
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-base.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cpu.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cuda.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-common.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-server-impl.so",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libmtmd.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server"
+        ],
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
         "no_kv_offload": false,
-        "pager_mode": "off",
         "page_size_tokens": "",
-        "mtp_placement": "gpu",
-        "mtp_type_k": "turbo4",
-        "mtp_type_v": "turbo4",
-        "spec_type": "draft-mtp",
-        "spec_draft_n_max": 2,
-        "loaded_dsos": [
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-base.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cpu.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cuda.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-common.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-server-impl.so",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libmtmd.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server"
-        ],
-        "hot_pages": "16",
-        "vram_budget": null,
-        "host_budget": null,
-        "safety_headroom": null,
-        "pin_recent": null
-      },
-      "cpu_main_kv_gpu_mtp": {
+        "pager_mode": "off",
+        "pid": 77307,
+        "pin_recent": null,
         "profile": "qwen38-fast",
-        "pid": 2278997,
-        "binary": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
-        "command": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-hot-pages 16 --no-kv-offload --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
-        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
-        "context": "8192",
-        "batch": "1024",
+        "safety_headroom": null,
+        "spec_draft_n_max": 2,
+        "spec_type": "draft-mtp",
+        "target_kv_placement": "gpu",
         "ubatch": "256",
-        "target_kv_placement": "cpu",
-        "no_kv_offload": true,
-        "pager_mode": "off",
-        "page_size_tokens": "",
+        "vram_budget": null
+      },
+      "selected": {
+        "batch": "1024",
+        "binary": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+        "command": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "context": "8192",
+        "host_budget": null,
+        "hot_pages": "16",
+        "loaded_dsos": [
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-base.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cpu.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cuda.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-common.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-server-impl.so",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libmtmd.so.0",
+          "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server"
+        ],
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
         "mtp_placement": "gpu",
         "mtp_type_k": "turbo4",
         "mtp_type_v": "turbo4",
-        "spec_type": "draft-mtp",
-        "spec_draft_n_max": 2,
-        "loaded_dsos": [
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-base.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cpu.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cuda.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml.so.0.25.3",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-common.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-server-impl.so",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libmtmd.so.0.5.0",
-          "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server"
-        ],
-        "hot_pages": "16",
-        "vram_budget": null,
-        "host_budget": null,
+        "no_kv_offload": false,
+        "page_size_tokens": "256",
+        "pager_mode": "selective",
+        "pid": 54083,
+        "pin_recent": null,
+        "profile": "qwen38-fast",
         "safety_headroom": null,
-        "pin_recent": null
+        "spec_draft_n_max": 2,
+        "spec_type": "draft-mtp",
+        "target_kv_placement": "gpu",
+        "ubatch": "256",
+        "vram_budget": null
       }
     },
     "context_tokens": 8192,
@@ -822,40 +829,40 @@
     "hot_tokens": 4096,
     "loaded_dsos": [
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-base.so.0.25.3",
-        "sha256": "4e5b69f41a2748033a794891b7448430c6ca4d29e87481ca27369aa9ee7efb6f"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-base.so.0",
+        "sha256": "e07b6806063ed24bcfe65b5e08ede9eee9406c3f60f59abaf61f99986ac882ec"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cpu.so.0.25.3",
-        "sha256": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cpu.so.0",
+        "sha256": "35f54ee15b5313ffea9eb9a8ace49a2fb4e222d5cd78992f109baff26b894d97"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml-cuda.so.0.25.3",
-        "sha256": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml-cuda.so.0",
+        "sha256": "06c0c1e5578969cf434446b82437b360dfbdec7fb423c1c56f091e075c10c263"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libggml.so.0.25.3",
-        "sha256": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libggml.so.0",
+        "sha256": "7b2b6920ab9d434ca594c0838303da342d24f6b99299bd50224f7589e4c56bd8"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-common.so.0.5.0",
-        "sha256": "d0e2b570de1817c560ac5f13ffdb0c88f3377ae21e95ae240192ead45e0ce1d7"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-common.so.0",
+        "sha256": "18668cf3cf2eb355efa0ed367b1df664226e3902ebe933cb91d3bdf0c1a58a33"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama-server-impl.so",
-        "sha256": "9c2524621bc24e6a0f2aad3fb70c9387efe50ad1b63c5590b672708ae6dc8fd3"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama-server-impl.so",
+        "sha256": "2cb46faf7f1281b920cf6a6914fcd86ccb0a00020efc2060bd8555d123e938b4"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libllama.so.0.5.0",
-        "sha256": "a9d27f905422acc2c9de09d5d4f0dca3045d0f122554acbc0fbb7acd2a019d6a"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libllama.so.0",
+        "sha256": "7843ad6eb0be6dd5dc50d452ce102c62e8123f7a11cb6735287478ad13357025"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/libmtmd.so.0.5.0",
-        "sha256": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/libmtmd.so.0",
+        "sha256": "5ba0418b03f2411c8cbdcb0c904a0b0153cddcecab4fa49849452876cb0c6d7b"
       },
       {
-        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-12i/candidate-bundle/llama-server",
-        "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+        "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+        "sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2"
       }
     ],
     "model": {
@@ -868,38 +875,41 @@
       "path": "/srv/ai/paged-kv/results/forward/101-12/attempt-01/frozen-prefix/messages.json",
       "sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
     },
-    "retained_service_pid_after_probe": 2285717,
-    "route": "automatic selective pager; matched pager-off and CPU-main-KV controls",
+    "route": "selected paged attention, pager-off all-GPU, CPU-main-KV/GPU-MTP matched controls",
     "shared_prefix_messages_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
-    "source_commit": "a0086f056f20efa519100718f010bc15c2efb830",
-    "source_diff_sha256": "93e16327869c36a468ed55e47db6750d1b833a2320eb3477ce96aaae8592a845",
+    "source_commit": "e56ee54fb9fea563b70230c2e5c832a3e6bd8ace",
+    "source_diff_sha256": "0f4ccaeb14d42b55788c0da75b523b09ad29e8cae2b21652f192c4430982ebd5",
     "ubatch": 256
   },
   "measurement_complete": true,
   "metrics": {
+    "canonical_measurement_telemetry": {
+      "scope": "Three matched canonical routes; exact-rendered prompt token preflight, prompt/generation timers, and native MTP Prometheus counter deltas. No CUDA driver events, per-kernel timing, GPU memory peaks, passive utilization samples, or TTFT values were captured. Canonical TTFT and supplemental first-content TTFT are null.",
+      "source": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/retake-verification.json"
+    },
     "driver_graph_reuse": {
-      "actual_cuda_graph_reuse_log_lines": 12,
+      "actual_cuda_graph_reuse_log_lines": "not_measured",
       "pager_logical_graph_counts_are_separate": true,
-      "proof_log": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.log"
+      "proof_log": null,
+      "scope": "Canonical benchmark did not capture CUDA graph reuse; logical pager counters do not prove driver graph capture/replay."
     },
     "independent_review": {
-      "owner": "101-12j",
       "mtp_floor_percent": {
         "prompt_1": 75,
         "prompt_2": 40,
         "prompt_3": 60
       },
+      "owner": "101-12l",
       "prefill_minimum_tok_s": 500,
       "prefill_preferred_tok_s": 750,
-      "remaining_owner": "Prompt-3 selected MTP acceptance misses 60%; the previous bounded diagnostic did not isolate a source owner. 101-12k owns identical-prefix target/draft score, visibility, carry and state attribution.",
-      "source": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/recalculation.json",
+      "remaining_owner": "Prompt-1 selected MTP acceptance is 39.69% against 75%. Attribute the same-prefix score ordering and verify-visible page/history boundary using the missing backend mask-bit evidence; do not infer dropped history.",
+      "source": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/retake-verification.json",
       "successors": [
-        "101-12k",
-        "101-12l"
+        "101-12m"
       ],
       "summary_optimization_gate": "Not scheduled; no isolated summary-time evidence."
     },
-    "natural_old_file_recall": {
+    "natural_old_file_recall_historical_101_18": {
       "admission_status": "pass",
       "cold_before": true,
       "completed_transition_chain": [
@@ -929,121 +939,133 @@
     "selected_route_snapshot": {
       "actual_cuda_capture_count": "not_measured",
       "actual_cuda_launch_count": "not_measured",
-      "actual_cuda_timing_reason": "CUDA events are not enabled by this receipt",
+      "actual_cuda_timing_reason": "CUDA event capture is not enabled by the release runner",
       "actual_cuda_update_count": "not_measured",
-      "attention_pages": 16,
-      "attention_tokens": 4096,
-      "copy_time_us": 0,
-      "headroom_bytes": 201326592,
-      "host_pageable_bytes": 73531392,
-      "host_pinned_bytes": 0,
-      "mtp_backend": "gpu",
-      "mtp_type_k": "turbo4",
-      "mtp_type_v": "turbo4",
-      "overlap_us": 0,
-      "page_capacity": 16,
-      "page_inventory": {
-        "host_backed_pages": 17,
-        "logical_pages": 18,
-        "neither_backed_pages": 0,
-        "resident_and_host_backed_pages": 15,
-        "resident_pages": 16
-      },
-      "pager_logical_graph_capture_count": 153,
-      "pager_logical_graph_rebuild_count": 153,
-      "pager_logical_graph_replay_count": 97,
-      "physical_pool_capacity_bytes": 69206016,
-      "queue_time_us": 1532278,
-      "raw_path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/raw/progress-off-measured-1-p0.jsonl",
-      "request_generation": 2,
-      "route": "selected packed",
-      "scope": "Sparse post-request slot snapshot; cumulative runtime counters, not canonical per-prompt deltas. Inventory counts are retained as raw diagnostic fields only; they are inconsistent with the adjacent counters and are not used for this release decision.",
-      "selected_pages": 16,
-      "snapshot_utc": "2026-10-01T21:13:00+02:00",
-      "summary_build_bytes": 71368704,
-      "summary_build_calls": 2112,
-      "summary_read_bytes": 0,
-      "summary_read_calls": 0,
-      "target_type_k": "turbo4",
-      "target_type_v": "turbo4",
-      "transfer_backpressure_waits": 0,
-      "wait_time_us": 7815207,
-      "waits": 250
-    },
-    "canonical_measurement_telemetry": {
-      "source": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/recalculation.json",
-      "scope": "Canonical runner prompt/generation timers and MTP Prometheus counter deltas; no CUDA driver events, per-kernel timing, GPU memory peaks, or passive utilization samples were captured for these rows. Canonical rows have no TTFT. Supplemental first-content TTFT is separately referenced in canonical_protocol."
+      "route": "selected",
+      "scope": "The canonical throughput runner did not capture post-request pager snapshot or CUDA driver event data.",
+      "status": "not_measured"
     }
   },
   "ordered_successors": [
-    "101-12k",
-    "101-12l"
+    "101-12m"
   ],
-  "raw_result_root": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01",
+  "pre_101_12l_snapshot": {
+    "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12l/GPU101_RELEASE.pre-101-12l-attempt-03.md",
+    "markdown_sha256": "7b5f56147590b6fc85b3dd8e216b63cd6f3fe360171a5455c11d0dcb149e5c44",
+    "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12l/GPU101_RELEASE.pre-101-12l-attempt-03.json",
+    "sha256": "f17ddd17a86924cbd91d5703118b1fc5b9b15b926e64a7ca175b6c01209195b2"
+  },
+  "prior_review_snapshot": {
+    "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.md",
+    "markdown_sha256": "8a6c06f248ee67c8d17f0a69c0664a1bef3884029b84d5ce651f256d6dbf8f06",
+    "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.json",
+    "raw_result_root": "/srv/ai/paged-kv/results/forward/101-18/attempt-01",
+    "sha256": "7d8ae9d7f8eb2e625bc88deef3fa25093cb85a2163036743139bdb7647655c5b"
+  },
+  "raw_result_root": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03",
   "raw_runs": {
-    "selected": {
-      "status": "complete",
+    "cpu_main_kv_gpu_mtp": {
+      "case_manifest": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-gpu-mtp/case-manifest.json",
+        "sha256": "644e30c1ed0f8ef0fbae992c3e929bdec8468e912466ac36165496947ea7e948"
+      },
+      "lifecycle_state": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-gpu-mtp/lifecycle-state.json",
+        "sha256": "298b9b98b91823ce5343c28f98d11a68f8b24208be2836f7d8023a0c5011fe53"
+      },
+      "progress": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-gpu-mtp/progress.json",
+        "sha256": "02d86f8fd8b983e58ba9bca86fa835ec21a00febd1ed6271d42844f38cf968ca"
+      },
       "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected/records.jsonl",
-        "sha256": "a2ae36dc38630f1b4c41413d465159ac263966d77fbe5d1d95d96ad70c69046c"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-gpu-mtp/records.jsonl",
+        "sha256": "439727a7383061e85a249e651897578a5f2d70b9fbfe4e222992f1bd7875caf9"
       },
       "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected/run-config.json",
-        "sha256": "a6caa660f611d50af06a05fbdce78dc8a16cd74c610124a008eb37ea31401ebc"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected/summary.json",
-        "sha256": "1f7b81e35e855ba220ea99e400bf78e87aed7ffb597074cfebeec7b1618d715f"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-gpu-mtp/run-config.json",
+        "sha256": "93ef5ddb5f9315f8bfa32674024c459c7a2dda7ba6870317027d0cd680eba306"
       },
       "runner_log": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/selected-runner.log",
-        "sha256": "424e9abdfbaeaf2c81a29bc0fbed35309922a3cc9b20ed776b21ad1fe67b064a"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-runner.log",
+        "sha256": "a24786acead4ec795802c54724dabe0da75f15979895bded134377d29c6e122b"
+      },
+      "status": "complete",
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/cpu-main-kv-gpu-mtp/summary.json",
+        "sha256": "c56b1ab6c6a59b518c21908c41001010d48d9c6b2ae22bd8e722495809f1f33f"
       }
     },
     "pager_off_all_gpu": {
-      "status": "complete",
+      "case_manifest": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-all-gpu/case-manifest.json",
+        "sha256": "1b768e35f68db6b2ffc63e989cacc3cbd47bc533d9ab4305594342e815a4ed8e"
+      },
+      "lifecycle_state": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-all-gpu/lifecycle-state.json",
+        "sha256": "1b718de3deba80a1d7936d529e0ee770a43271fd4974c0d300261cd1e21795ab"
+      },
+      "progress": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-all-gpu/progress.json",
+        "sha256": "fdf42ba9c1e7a6ac6aa1c7c1d3fe07a5f6a57a62dacaed0c89849a15a7779cbd"
+      },
       "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu/records.jsonl",
-        "sha256": "95084f75cc2a1813faf1bf1c84fdc65ad1929169bbcf7015b93cd13cf57858ae"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-all-gpu/records.jsonl",
+        "sha256": "3bfddbabe3b8c406d1ce078b966e1d78ddb72f290d17f9caceb95ecbcfa0b2d4"
       },
       "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu/run-config.json",
-        "sha256": "710fdee21cfcf5914c5b8f61921f38b291b008fb647782b204c36de15fa962fd"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-all-gpu/summary.json",
-        "sha256": "e625de61aabd2ad15452edfd4bfaadbd61357bceaa9968f667629987b4030bcb"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-all-gpu/run-config.json",
+        "sha256": "e2c7408763c20eb919c37460d659b7b70367162d884b36680efa3d823efed885"
       },
       "runner_log": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/pager-off-runner.log",
-        "sha256": "07747953b98a558d84592e457b9cfe48e69bfc0efa3ce1dc701a78fc48a1a398"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-runner.log",
+        "sha256": "68234d0d48f449e01badb8f2aaf0a36e81edd4ab2a0c32dffd1bc3b920adf0e8"
+      },
+      "status": "complete",
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/pager-off-all-gpu/summary.json",
+        "sha256": "3f078001d9ed67767f9b9f74f2c7aa710570e4160fa5b5e0d58f42a72250f16b"
       }
     },
-    "cpu_main_kv_gpu_mtp": {
-      "status": "complete",
+    "selected": {
+      "case_manifest": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected/case-manifest.json",
+        "sha256": "053d7314a36fd410bb22a55da62a587e367a93c41730522953e15e53e2465175"
+      },
+      "lifecycle_state": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected/lifecycle-state.json",
+        "sha256": "3a06f344beeb9c84ee6f2611e29a592b13710d47c6e6b2366ef615eaac4bac37"
+      },
+      "progress": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected/progress.json",
+        "sha256": "3956f923415b2e31852c4ab10a03c9591c46bff8055ca4a7226d660fe1805b23"
+      },
       "records": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp/records.jsonl",
-        "sha256": "f8f76cd4f619c277525051e3ffe5f384de8427d0ee1e25442ba419f73269950a"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected/records.jsonl",
+        "sha256": "d27a36ae7d8cfb347c8054c0f02d4034afb3837530d0b11f0c29c3ff06623165"
       },
       "run_config": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp/run-config.json",
-        "sha256": "06252a8701a27aea81e1fcfeaff381c3abbbb1a66e18f0cda9284efca9904526"
-      },
-      "summary": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-gpu-mtp/summary.json",
-        "sha256": "698c4caa9655e5e339361b5d7d451f6b8215a843b70d1c30c83145aa62e817f9"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected/run-config.json",
+        "sha256": "466e856aea0b0e0ef201e3c7ee3b2498da0f71faf2bcc70c760460d10b5d8581"
       },
       "runner_log": {
-        "path": "/srv/ai/paged-kv/results/forward/101-12j/attempt-01/cpu-main-kv-runner.log",
-        "sha256": "e9a0f13aec4649d592f31d793930bd8acb9a83e875253c0a249b805e7d50254c"
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected-runner.log",
+        "sha256": "3dcdf363db0defbad2ae591b19345a1e1b5aceeb420e96745ddbae831f6fe1ed"
+      },
+      "status": "complete",
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/selected/summary.json",
+        "sha256": "a76d48015b92503215a2877508570bad433c5986f8c939088313c4baf1a25291"
       }
     }
   },
-  "review_owner": "101-12j",
+  "retake_verification": {
+    "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/retake-verification.json",
+    "sha256": "0ef3c692162fcfc597e603a87e8b567f549d0b89b70bf179275bcf28a8c387bb"
+  },
+  "review_owner": "101-12l",
   "runtime_peaks": {},
   "schema_version": 1,
   "selected": {
-    "status": "complete",
     "per_prompt": {
       "prompt_1": {
         "cached_input_tokens": [
@@ -1052,42 +1074,44 @@
           0
         ],
         "canonical_ttft_ms": null,
-        "decode_tok_s_median": 81.91721598079647,
+        "decode_beats_cpu_kv": true,
+        "decode_tok_s_median": 54.95023835870938,
         "errors": 0,
         "fresh_input_tokens": [
           4115,
           4115,
           4115
         ],
-        "fresh_prefill_tok_s_median": 1519.7147441875065,
+        "fresh_prefill_tok_s_median": 1518.751132604505,
         "measured_samples": 3,
-        "mtp_acceptance_percent_median": 79.92831541,
+        "mtp_acceptance_percent_median": 39.69230769230769,
+        "mtp_floor_percent": 75.0,
+        "mtp_gate_pass": false,
         "output_tokens": [
           400,
           400,
           400
         ],
+        "prefill_750_goal_pass": true,
+        "prefill_gate_pass": true,
         "raw_accepted_counts": [
-          223,
-          165,
-          234
+          232,
+          129,
+          129
         ],
         "raw_drafted_counts": [
-          279,
-          304,
-          274
+          276,
+          325,
+          325
         ],
         "raw_mtp_acceptance_percent": [
-          79.92831541,
-          54.27631579,
-          85.40145985
+          84.05797101449275,
+          39.69230769230769,
+          39.69230769230769
         ],
         "samples": 3,
-        "supplemental_ttft_ms": 3040.8743290463462,
-        "prefill_gate_pass": true,
-        "mtp_gate_pass": true,
-        "decode_beats_cpu_kv": true,
-        "status": "pass"
+        "status": "measured_goal_miss",
+        "supplemental_ttft_ms": null
       },
       "prompt_2": {
         "cached_input_tokens": [
@@ -1096,42 +1120,44 @@
           0
         ],
         "canonical_ttft_ms": null,
-        "decode_tok_s_median": 58.76515425250271,
+        "decode_beats_cpu_kv": true,
+        "decode_tok_s_median": 59.23772890445744,
         "errors": 0,
         "fresh_input_tokens": [
           4112,
           4112,
           4112
         ],
-        "fresh_prefill_tok_s_median": 1535.3796349366078,
+        "fresh_prefill_tok_s_median": 1530.6923926225986,
         "measured_samples": 3,
-        "mtp_acceptance_percent_median": 49.03846154,
+        "mtp_acceptance_percent_median": 49.36708860759494,
+        "mtp_floor_percent": 40.0,
+        "mtp_gate_pass": true,
         "output_tokens": [
-          168,
-          196,
-          138
+          211,
+          179,
+          203
         ],
+        "prefill_750_goal_pass": true,
+        "prefill_gate_pass": true,
         "raw_accepted_counts": [
-          58,
-          72,
-          51
+          78,
+          67,
+          63
         ],
         "raw_drafted_counts": [
-          128,
-          146,
-          104
+          158,
+          134,
+          160
         ],
         "raw_mtp_acceptance_percent": [
-          45.3125,
-          49.31506849,
-          49.03846154
+          49.36708860759494,
+          50.0,
+          39.375
         ],
         "samples": 3,
-        "supplemental_ttft_ms": 228.11430500587448,
-        "prefill_gate_pass": true,
-        "mtp_gate_pass": true,
-        "decode_beats_cpu_kv": true,
-        "status": "pass"
+        "status": "pass",
+        "supplemental_ttft_ms": null
       },
       "prompt_3": {
         "cached_input_tokens": [
@@ -1140,55 +1166,52 @@
           0
         ],
         "canonical_ttft_ms": null,
-        "decode_tok_s_median": 58.85081613102346,
+        "decode_beats_cpu_kv": true,
+        "decode_tok_s_median": 68.59493504626978,
         "errors": 0,
         "fresh_input_tokens": [
           4113,
           4113,
           4113
         ],
-        "fresh_prefill_tok_s_median": 1519.688332724916,
+        "fresh_prefill_tok_s_median": 1517.4725172555773,
         "measured_samples": 3,
-        "mtp_acceptance_percent_median": 48.02631579,
+        "mtp_acceptance_percent_median": 65.26315789473684,
+        "mtp_floor_percent": 60.0,
+        "mtp_gate_pass": true,
         "output_tokens": [
           400,
           400,
           400
         ],
+        "prefill_750_goal_pass": true,
+        "prefill_gate_pass": true,
         "raw_accepted_counts": [
-          146,
-          135,
-          212
+          209,
+          159,
+          186
         ],
         "raw_drafted_counts": [
-          304,
-          313,
-          280
+          282,
+          297,
+          285
         ],
         "raw_mtp_acceptance_percent": [
-          48.02631579,
-          43.13099042,
-          75.71428571
+          74.11347517730496,
+          53.535353535353536,
+          65.26315789473684
         ],
         "samples": 3,
-        "supplemental_ttft_ms": 232.9184869886376,
-        "prefill_gate_pass": true,
-        "mtp_gate_pass": false,
-        "decode_beats_cpu_kv": true,
-        "status": "measured_goal_miss"
+        "status": "pass",
+        "supplemental_ttft_ms": null
       }
-    }
+    },
+    "status": "complete"
   },
   "successor_contract": {
-    "final_review_successor": "101-12l",
+    "final_review_successor": "101-12m",
     "scale_task": "102-01"
   },
-  "task": "101-12j",
-  "prior_review_snapshot": {
-    "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.json",
-    "sha256": "7d8ae9d7f8eb2e625bc88deef3fa25093cb85a2163036743139bdb7647655c5b",
-    "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12j/GPU101_RELEASE.pre-101-12j.md",
-    "markdown_sha256": "8a6c06f248ee67c8d17f0a69c0664a1bef3884029b84d5ce651f256d6dbf8f06",
-    "raw_result_root": "/srv/ai/paged-kv/results/forward/101-18/attempt-01"
-  }
+  "summary": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. Schedule 101-12m to attribute prompt-1 same-prefix target/draft ordering and verify-visible page/history IDs; no dropped-history defect is established.",
+  "task": "101-12l"
 }

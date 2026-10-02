@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "101",
-  "current_task": "101-12l",
-  "last_updated_utc": "2026-10-02T01:52:15+00:00",
+  "current_task": "101-12m",
+  "last_updated_utc": "2026-10-02T02:16:23+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -32516,7 +32516,7 @@
       "plan_amendment": "prefill-owner-101-20261001",
       "id": "101-12l",
       "title": "Review the MTP owner result and final release gate",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "packet": ".wiretail/execution/tasks/101-12l.md",
       "depends_on": [
@@ -32541,7 +32541,7 @@
         ".wiretail/execution/handoffs/101-12k.md",
         "tools/server/bench/validate-gpu101-release.py"
       ],
-      "commit": null,
+      "commit": "7307dc00c4cf517a3ba2501b5a8baae50e24d8de",
       "invalid_completion": {
         "previous_commit": "e25f06f0e8633db4709b080a7ee5e75b26ec6bc9",
         "check_exit_code": 1,
@@ -32619,23 +32619,81 @@
             "input_tokens_minus_cached_tokens": 64035,
             "output_tokens": 6863,
             "thinking_tokens": 1707
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/101-12l-attempt-3-20261002T015215409911125-20261002T015215412563852-n0H1bL.jsonl:148",
+            "total_tokens": 89460891,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 88901995,
+            "cached_input_tokens": 86518016,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 2383979,
+            "output_tokens": 558896,
+            "thinking_tokens": 293971
           }
         ],
         "totals": {
-          "usage_events": 4,
-          "total_tokens": 162314527,
-          "input_tokens": 161306771,
-          "cached_input_tokens": 156882432,
+          "usage_events": 5,
+          "total_tokens": 251775418,
+          "input_tokens": 250208766,
+          "cached_input_tokens": 243400448,
           "cache_write_input_tokens": 0,
-          "input_tokens_minus_cached_tokens": 4424339,
-          "output_tokens": 1007756,
-          "thinking_tokens": 536900,
+          "input_tokens_minus_cached_tokens": 6808318,
+          "output_tokens": 1566652,
+          "thinking_tokens": 830871,
           "total_tokens_reported_events": 0,
-          "total_tokens_derived_events": 4,
+          "total_tokens_derived_events": 5,
           "total_tokens_source": "derived_input_plus_output",
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
       }
+    },
+    {
+      "id": "101-12m",
+      "phase": "101",
+      "cluster": "gpu101-owner-release",
+      "title": "Attribute the canonical selected MTP prompt-1 miss",
+      "status": "todo",
+      "blocker": null,
+      "packet": ".wiretail/execution/tasks/101-12m.md",
+      "depends_on": [
+        "101-12l"
+      ],
+      "required_proofs": [
+        "canonical_prompt1_selected_mtp_attribution_and_owner"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-12m",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-12m.json"
+      ],
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "prefill-owner-101-20261001",
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-owner-release.md",
+        ".wiretail/execution/tasks/101-12m.md",
+        ".wiretail/execution/forward/PREFILL101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-12l.md",
+        "tools/server/bench/verify-gpu101-retake.py",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-kv-pager.cpp",
+        "tests/test-kv-attention-execution.cpp"
+      ],
+      "commit": null
     },
     {
       "id": "102-01",
@@ -32656,7 +32714,7 @@
         "32k_16k_committed_history_and_speed"
       ],
       "depends_on": [
-        "101-12l"
+        "101-12m"
       ],
       "commit": null,
       "context_files": [
@@ -34597,16 +34655,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 38,
-        "total_tokens": 1933686682,
-        "input_tokens": 1923687054,
-        "cached_input_tokens": 1874277888,
+        "usage_events": 39,
+        "total_tokens": 2023147573,
+        "input_tokens": 2012589049,
+        "cached_input_tokens": 1960795904,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 49409166,
-        "output_tokens": 9999628,
-        "thinking_tokens": 5440161,
+        "input_tokens_minus_cached_tokens": 51793145,
+        "output_tokens": 10558524,
+        "thinking_tokens": 5734132,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 38,
+        "total_tokens_derived_events": 39,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -34621,17 +34679,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 477,
-      "total_tokens": 11473552026,
-      "input_tokens": 11434478127,
-      "cached_input_tokens": 11173226496,
+      "usage_events": 478,
+      "total_tokens": 11563012917,
+      "input_tokens": 11523380122,
+      "cached_input_tokens": 11259744512,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 123,
-      "input_tokens_minus_cached_tokens": 261251631,
-      "output_tokens": 39073899,
-      "thinking_tokens": 17765868,
+      "cache_write_input_tokens_known_events": 124,
+      "input_tokens_minus_cached_tokens": 263635610,
+      "output_tokens": 39632795,
+      "thinking_tokens": 18059839,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 477,
+      "total_tokens_derived_events": 478,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

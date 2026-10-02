@@ -1949,3 +1949,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12l`
 - Commit at update: `46afb2d40`
 - Summary: Task started
+
+## 2026-10-02T02:15:57+00:00 — 101-12l — done
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `7307dc00c`
+- Summary: Completed candidate-v6 canonical retake; release remains goal_miss on prompt-1 MTP floor; scheduled 101-12m and kept 102-01 gated.
