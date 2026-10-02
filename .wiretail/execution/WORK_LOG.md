@@ -1931,3 +1931,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12l`
 - Commit at update: `e25f06f0e`
 - Summary: Task started
+
+## 2026-10-02T00:49:30+00:00 — 101-12l — blocked
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `46afb2d40`
+- Summary: Required candidate-v6 CUDA canonical matrix cannot run: cuInit(0) returns 100 as user and root, candidate v6 enumerates no CUDA devices, and NVIDIA kernel logs report NV_ERR_RESET_REQUIRED despite matching 595.91.07 user/kernel driver versions. Host GPU/driver recovery is required before the live proof can pass.
+
+## 2026-10-02T00:50:10+00:00 — 101-12l — todo
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `46afb2d40`
+- Summary: Keep 101-12l as the active runnable successor while awaiting host NVIDIA recovery. Attempt 2 tested the runtime as user and root, verified matching 595.91.07 versions, and found NV_ERR_RESET_REQUIRED; canonical live proof remains unmet. Retry budget remains.
+
+## 2026-10-02T00:50:21+00:00 — 101-12l — in_progress
+
+- Branch: `codex/task-101-12l`
+- Commit at update: `46afb2d40`
+- Summary: Task started

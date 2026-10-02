@@ -4,15 +4,15 @@
       "artifacts": [
         {
           "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review_101_12l.py",
-          "sha256": "bb8869d5cc780fbb74778b08906438b79db4ee6b3056c9b5761a547c8a85f6b7"
+          "sha256": "ea58687ce51249aab546120f6ce026261d4356054836d15c64b5be5ab15560dc"
         },
         {
           "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review-summary.json",
-          "sha256": "740a5d3747cab94622924bdaa7931d375f1d3584d5f37138894f9b5dd2292dec"
+          "sha256": "6cd670242a018a4d428b5e06f1dcf03b8af0d842eb3aae97eeb7b134081bffb8"
         },
         {
           "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/review-gate.log",
-          "sha256": "740a5d3747cab94622924bdaa7931d375f1d3584d5f37138894f9b5dd2292dec"
+          "sha256": "6cd670242a018a4d428b5e06f1dcf03b8af0d842eb3aae97eeb7b134081bffb8"
         },
         {
           "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/cuda-runtime-availability.log",
@@ -37,6 +37,18 @@
         {
           "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.json",
           "sha256": "f17ddd17a86924cbd91d5703118b1fc5b9b15b926e64a7ca175b6c01209195b2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-02/root-and-unmasked-cuda-probe.log",
+          "sha256": "854e9e914a43d5eddc3d551e0c475ef19adc8893f79d4f6aff6a305574a34523"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-02/driver-runtime-diagnostics.log",
+          "sha256": "d1caa478488572c6bca3ff4a95deb832d68224a4c5a6a7a0cd203d54862dbb6b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-02/llama-server-cuda-startup-journal.log",
+          "sha256": "1539d5408b25cc61fc04406fd958f15f91cdcce32645ca9f9d040f86d2e96791"
         }
       ],
       "command": [
@@ -222,6 +234,12 @@
           "raw_startup_log": "/srv/ai/paged-kv/results/forward/101-12l/attempt-01/candidate-v6-selected-startup.log",
           "required_by_packet": true,
           "required_proof_status": "deferred; full three-mode live campaign did not produce rows",
+          "retry_attempt_02": {
+            "driver_versions": "kernel module, libcuda package, and NVIDIA utilities match at 595.91.07",
+            "kernel_fault": "NVRM reports NV_ERR_RESET_REQUIRED while querying GPU state",
+            "root_unmasked_probe": "cuInit(0)=100; candidate --list-devices reports no device",
+            "service_restored": "inactive, MainPID=0, benchmark systemd environment cleared"
+          },
           "runner_attempt": "candidate-v6 selected canonical command entered profile activation after a false-positive CUDA text match; runner logged jq invalid JSON and was terminated; no benchmark records were created",
           "runner_command_argv": [
             "/srv/ai/benchmarks/run-profile-benchmark.sh",
@@ -245,7 +263,7 @@
             "16"
           ],
           "service_after_cleanup": "inactive, MainPID=0, AI_BENCHMARK_* systemd environment cleared",
-          "status": "deferred_cuda_runtime_unavailable"
+          "status": "deferred_cuda_reset_required"
         },
         "decision": {
           "all_selected_decode_beats_cpu_main_kv": true,
@@ -276,7 +294,7 @@
   "provenance": {
     "candidate_bundle": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
     "candidate_server_sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2",
-    "deferred_verification": "Candidate-v6 selected, pager-off all-GPU, and CPU-main-KV/GPU-MTP canonical campaign awaits restored CUDA runtime visibility.",
+    "deferred_verification": "The full candidate-v6 canonical matrix requires recovery of the host NVIDIA device; kernel logs report NV_ERR_RESET_REQUIRED. Retest after authorized GPU/driver recovery.",
     "frozen_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
     "geometry": "L8192/H4096/P256/B1024/U256",
     "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
@@ -291,6 +309,6 @@
   },
   "schema_version": 1,
   "source_commit": "e25f06f0e8633db4709b080a7ee5e75b26ec6bc9",
-  "summary": "Reviewed the 101-12k candidate and 101-12j release gate. The required candidate-v6 live canonical retake remains deferred because CUDA initialization returns 100 and the candidate reports no usable accelerator. The review preserves the measured goal_miss and scale gate, but the required live proof is unmet.",
+  "summary": "Reviewed the 101-12k candidate and 101-12j release gate. The required candidate-v6 live canonical retake remains deferred: user and root CUDA initialization return 100, no candidate device enumerates, and the kernel reports NV_ERR_RESET_REQUIRED. Release stays goal_miss and scale gated. The required live proof did not pass.",
   "task": "101-12l"
 }
