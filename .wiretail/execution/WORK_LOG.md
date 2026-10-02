@@ -1973,3 +1973,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-01`
 - Commit at update: `729a5a8ea`
 - Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Recovery attempt 3 implemented and validated the local resumable occupancy harness, but completion is gated by scheduled predecessor 101-12n: GPU101_RELEASE.json remains goal_miss. Required exact-candidate 32K live proofs cannot run until release passes; V10 receipt is therefore absent.
+
+## 2026-10-02T14:08:04+00:00 — 101-12n — done
+
+- Branch: `codex/task-101-12n`
+- Commit at update: `207aacc80`
+- Summary: Final candidate-v6 release review applied current 40% MTP floors and reproduced the 39.69% long-prefix prompt-1 miss. All prefill/decode hard gates pass; no source defect proven. Short matched prompt-1 comparison is 83.03% on both builds at 30 tokens only. Preserve goal_miss and authorize 102-01 capacity measurements.

@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "task": "101-12n",
+  "source_commit": "207aacc809e59a5a9ab573771f2774126273edb3",
+  "checks": {
+    "candidate_specific_final_release_review_and_scale_gate": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/raw/101-12n/review_release_10112n.py"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/review_release_10112n.py",
+          "sha256": "337bd76e25b3ea0f117907f57518a51e78146ca5a0d3f385543d2ef749e5c46f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/release-review.json",
+          "sha256": "acccd566b7e85d7ba9598ab7d4e7be6729717379f874ee9cdb167ee1f239645a"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/release-review.md",
+          "sha256": "165d7af2593937b996c3ab7fb80d9b3a717d5098593b28dbe21d7ed4cda61002"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/review.log",
+          "sha256": "2511f7ed5627c615b248043383eaf7f8b793f4641bc915c64fecff6db511ac34"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "5fcc231c9865581ff696d405dcfb10be64e47750978314a798e650da80481ff6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "1d987fb4d9ace808efc488f5e81d6cb3ff5f6a9c4d110a1e579b2e5567df9e75"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12m/prompt1-attribution.json",
+          "sha256": "2bc4861ff18efc47ab0d4769cb888e7761aa70ade3f80e854daef52be08d908f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_101-12m.json",
+          "sha256": "a11253faa8a599409467966746113d945fde97acd2aa9c66b52428c29e5fcb3b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12j/case-manifest.json",
+          "sha256": "ecc084dd98de72a8406f7f589bf209496125582871f2c1a3bd5989048ffe7691"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12j/run-config.json",
+          "sha256": "5797ed9e28bf892ea8cd0f2a2ec7d91e4e6eeef867adad8a0ffadacdfa67aac2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12j/summary.json",
+          "sha256": "259f0785e2fc2cc78a00ef09ef9ee0177c23bc4c526ce3488c1496ff5bde1348"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12j/records.jsonl",
+          "sha256": "3610cdd841530fceb383a66ebae893cef733b7d4ac000abfdd8152f3bce44b4c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12l/case-manifest.json",
+          "sha256": "4e2c4df4f89e13c6e7a5ac44c55edde79eb6cfe748de9566b4a581ebf526c1fa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12l/run-config.json",
+          "sha256": "a3f991777aa85f265d86425802bcbfd4315e9c8c511b959c34bae74f6d7d330f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12l/summary.json",
+          "sha256": "15ddada658f9d40560ccf00d81c230eafbacff6e82efb6a7d6bb578272e1d7b2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/mtp-regression-101-12j-vs-12l-20261002/101-12l/records.jsonl",
+          "sha256": "3c335725b5de113a53169a6b8d3c61a983995b3900195576ce960d9dc78e9959"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/release-field-extract.json",
+          "sha256": "20c3acb9c7e3e7100a651f51e9119836e496314460b249a444458aea86725a10"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/release-validator.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": "tools/server/bench/validate-gpu101-release.py",
+          "sha256": "3db51831ec3fb485812e0d4701fffeff6d847c847e34a03bb411a9556354af57"
+        }
+      ]
+    },
+    "gpu101_release_validator": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-gpu101-release.py"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/release-validator.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/101-12n/release-field-extract.json",
+          "sha256": "20c3acb9c7e3e7100a651f51e9119836e496314460b249a444458aea86725a10"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "5fcc231c9865581ff696d405dcfb10be64e47750978314a798e650da80481ff6"
+        }
+      ]
+    }
+  },
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/forward/101-12k/attempt-01/candidate-bundle-prefix-score-v6/llama-server",
+    "sha256": "1b01e3f0d568abbb136da95f7c7f6a22d53964852d13583042d81e6ebf0f61a2"
+  },
+  "provenance": {
+    "release_report": {
+      "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+      "sha256": "5fcc231c9865581ff696d405dcfb10be64e47750978314a798e650da80481ff6"
+    },
+    "release_markdown": {
+      "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+      "sha256": "1d987fb4d9ace808efc488f5e81d6cb3ff5f6a9c4d110a1e579b2e5567df9e75"
+    },
+    "review_report": ".wiretail/execution/evidence/raw/101-12n/release-review.json",
+    "current_mtp_floor_percent": {
+      "prompt_1": 40,
+      "prompt_2": 40,
+      "prompt_3": 40
+    },
+    "goal_status": "goal_miss",
+    "scale_continuation_authorized": true,
+    "scale_task": "102-01",
+    "scale_task_dependency": [
+      "101-12n"
+    ],
+    "candidate_specific_replay_or_natural_promotion": "not_present_in_reviewed_101-12k_12l_12m_receipts",
+    "release_validator": {
+      "path": ".wiretail/execution/evidence/raw/101-12n/release-validator.log",
+      "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+    },
+    "field_extract": {
+      "path": ".wiretail/execution/evidence/raw/101-12n/release-field-extract.json",
+      "sha256": "20c3acb9c7e3e7100a651f51e9119836e496314460b249a444458aea86725a10"
+    }
+  },
+  "summary": "Candidate-specific review and GPU101 release validator pass. Preserve goal_miss at the 40% MTP floor: the long-prefix prompt-1 median is 39.69%, while all prefill/decode hard gates pass. Short matched prompt-1 results are 83.03% on both builds at 30 tokens, separate from long-prefix rows. Authorize 102-01 occupied-context measurements with no MTP-only repair prerequisite."
+}

@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "101",
-  "current_task": "101-12n",
-  "last_updated_utc": "2026-10-02T13:11:51+00:00",
+  "current_phase": "102",
+  "current_task": "102-01",
+  "last_updated_utc": "2026-10-02T14:10:58+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01–12, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Former101 capacity is102; final review is103.",
+    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01\u201312, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Former101 capacity is102; final review is103.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -32747,7 +32747,7 @@
       "plan_amendment": "prefill-owner-101-20261001",
       "id": "101-12n",
       "title": "Final release review after prompt-1 MTP attribution",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "packet": ".wiretail/execution/tasks/101-12n.md",
       "depends_on": [
@@ -32764,13 +32764,53 @@
         "--receipt",
         ".wiretail/execution/evidence/V10_101-12n.json"
       ],
-      "commit": null,
+      "commit": "4c2293e865b9cad1adf4516c823ca6e6792c4c59",
       "context_files": [
         ".wiretail/execution/clusters/gpu101-owner-release.md",
         ".wiretail/execution/tasks/101-12n.md",
         ".wiretail/execution/handoffs/101-12m.md",
         "tools/server/bench/validate-gpu101-release.py"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/101-12n-attempt-1-20261002T135939554905512-20261002T135939557633819-rOvla3.jsonl:73",
+            "total_tokens": 100948491,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 100311887,
+            "cached_input_tokens": 97521664,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 2790223,
+            "output_tokens": 636604,
+            "thinking_tokens": 331826
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 100948491,
+          "input_tokens": 100311887,
+          "cached_input_tokens": 97521664,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 2790223,
+          "output_tokens": 636604,
+          "thinking_tokens": 331826,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "102-01",
@@ -34909,16 +34949,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 40,
-        "total_tokens": 2119907939,
-        "input_tokens": 2108746923,
-        "cached_input_tokens": 2054317568,
+        "usage_events": 41,
+        "total_tokens": 2220856430,
+        "input_tokens": 2209058810,
+        "cached_input_tokens": 2151839232,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 54429355,
-        "output_tokens": 11161016,
-        "thinking_tokens": 6052204,
+        "input_tokens_minus_cached_tokens": 57219578,
+        "output_tokens": 11797620,
+        "thinking_tokens": 6384030,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 40,
+        "total_tokens_derived_events": 41,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -34954,17 +34994,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 483,
-      "total_tokens": 11669853820,
-      "input_tokens": 11629505411,
-      "cached_input_tokens": 11362777344,
+      "usage_events": 484,
+      "total_tokens": 11770802311,
+      "input_tokens": 11729817298,
+      "cached_input_tokens": 11460299008,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 129,
-      "input_tokens_minus_cached_tokens": 266728067,
-      "output_tokens": 40348409,
-      "thinking_tokens": 18438887,
+      "cache_write_input_tokens_known_events": 130,
+      "input_tokens_minus_cached_tokens": 269518290,
+      "output_tokens": 40985013,
+      "thinking_tokens": 18770713,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 483,
+      "total_tokens_derived_events": 484,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
