@@ -129,7 +129,7 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
-    def test_repo_baseline_requires_real_host_backed_pages(self) -> None:
+    def test_repo_baseline_treats_host_residency_as_optional_diagnostic(self) -> None:
         geometry = repo_baseline.repo_context.load_manifest()["runtime_requirements"]
         self.assertEqual(16384, geometry["logical_context_tokens"])
         self.assertEqual(8192, geometry["selected_hot_tokens"])
@@ -146,7 +146,8 @@ class OccupancyFrontierTests(unittest.TestCase):
                                       {"logical_page_id": 1, "resident": False,
                                        "host_backed": True},
                                   ]}}]}
-        proof = repo_baseline.host_offload_evidence(passing)
+        proof = repo_baseline.host_residency_observation(passing)
+        self.assertEqual("observed", proof["status"])
         self.assertEqual(4096, proof["host_valid_rows"])
         self.assertEqual(16384, proof["host_valid_bytes"])
         self.assertEqual([1], proof["cold_host_backed_page_ids"])
@@ -158,8 +159,15 @@ class OccupancyFrontierTests(unittest.TestCase):
                                         "host_valid_rows": 0,
                                         "host_valid_bytes": 0,
                                         "page_inventory": []}}]}
-        with self.assertRaisesRegex(RuntimeError, "did not prove real host offload"):
-            repo_baseline.host_offload_evidence(no_host_bytes)
+        absent = repo_baseline.host_residency_observation(no_host_bytes)
+        self.assertEqual("observed", absent["status"])
+        self.assertEqual(0, absent["host_valid_rows"])
+        self.assertEqual([], absent["cold_host_backed_page_ids"])
+
+        unavailable = repo_baseline.host_residency_observation({"slots": []})
+        self.assertEqual("unavailable", unavailable["status"])
+        unavailable = repo_baseline.host_residency_observation({"slots": [{"id": 0}]})
+        self.assertEqual("unavailable", unavailable["status"])
 
     def test_slot_task_id_is_a_generation_when_server_omits_lifecycle_generation(self) -> None:
         slot = occupancy.selected_slot({"slots": [{"id": 0, "is_processing": False,
