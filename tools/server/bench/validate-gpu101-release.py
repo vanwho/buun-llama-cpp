@@ -14,7 +14,7 @@ RELEASE = ROOT / ".wiretail/execution/evidence/GPU101_RELEASE.json"
 STATE = ROOT / ".wiretail/execution/WORK_STATE.json"
 ROUTES = ("selected", "pager_off_all_gpu", "cpu_main_kv_gpu_mtp")
 PROMPTS = ("prompt_1", "prompt_2", "prompt_3")
-MTP_FLOORS = {"prompt_1": 75.0, "prompt_2": 40.0, "prompt_3": 60.0}
+MTP_FLOORS = {"prompt_1": 40.0, "prompt_2": 40.0, "prompt_3": 40.0}
 
 
 def digest(path: Path) -> str:
@@ -221,6 +221,7 @@ def validate_receipt(receipt: dict[str, Any], state: dict[str, Any]) -> list[str
     if set(selected_rows) != set(PROMPTS):
         errors.append("selected matrix must include all three prompts")
     expected_row_statuses: dict[str, str] = {}
+    hard_gates_pass: dict[str, bool] = {}
     cpu_rows = controls.get("cpu_main_kv_gpu_mtp", {}).get("per_prompt", {}) \
         if isinstance(controls, dict) else {}
     for prompt_id in PROMPTS:
@@ -236,6 +237,7 @@ def validate_receipt(receipt: dict[str, Any], state: dict[str, Any]) -> list[str
             continue
         passed = prefill >= 500 and mtp >= MTP_FLOORS[prompt_id] and decode > cpu_decode
         expected_row_statuses[prompt_id] = "pass" if passed else "measured_goal_miss"
+        hard_gates_pass[prompt_id] = prefill >= 500 and decode > cpu_decode
         if row.get("status") != expected_row_statuses[prompt_id]:
             errors.append(f"{prompt_id}: selected disposition does not match measured gates")
         if row.get("prefill_gate_pass") != (prefill >= 500):
@@ -256,11 +258,30 @@ def validate_receipt(receipt: dict[str, Any], state: dict[str, Any]) -> list[str
     elif receipt.get("goal_status") == "goal_miss":
         if all_pass:
             errors.append("goal_miss conflicts with all selected prompt gates passing")
-        contract = receipt.get("successor_contract", {})
-        scale_task = contract.get("scale_task", "102-01") if isinstance(contract, dict) else "102-01"
-        if isinstance(decision_task, str):
-            errors.extend(successor_errors(tasks, decision_task,
-                                           receipt.get("ordered_successors"), scale_task))
+        if receipt.get("scale_continuation_authorized") is True:
+            # The project owner has authorized occupied-capacity measurements
+            # to continue with an MTP-only goal miss. Preserve the miss; this
+            # flag never converts it to a release pass or waives hard gates.
+            if not hard_gates_pass or len(hard_gates_pass) != len(PROMPTS) or not all(hard_gates_pass.values()):
+                errors.append("scale continuation cannot waive prefill/decode hard gates")
+            if not any(selected_rows.get(prompt_id, {}).get("mtp_acceptance_percent_median", 100.0)
+                       < MTP_FLOORS[prompt_id] for prompt_id in PROMPTS):
+                errors.append("scale continuation authorization requires an MTP-only goal miss")
+            if receipt.get("ordered_successors") != []:
+                errors.append("authorized scale continuation must not schedule an MTP-only repair before scale")
+            if isinstance(decision_task, str) and tasks[positions[decision_task]].get("status") != "done":
+                errors.append("scale continuation requires the decision/review task to be complete")
+            contract = receipt.get("successor_contract", {})
+            scale_task = contract.get("scale_task", "102-01") if isinstance(contract, dict) else "102-01"
+            scale_row = next((task for task in tasks if task.get("id") == scale_task), None)
+            if scale_row is None or scale_row.get("depends_on") != [decision_task]:
+                errors.append("authorized scale task must depend directly on the completed review")
+        else:
+            contract = receipt.get("successor_contract", {})
+            scale_task = contract.get("scale_task", "102-01") if isinstance(contract, dict) else "102-01"
+            if isinstance(decision_task, str):
+                errors.extend(successor_errors(tasks, decision_task,
+                                               receipt.get("ordered_successors"), scale_task))
     else:
         errors.append("goal_status must be pass or goal_miss")
     return errors

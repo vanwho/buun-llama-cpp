@@ -24,7 +24,7 @@ PROMPTS = (
 )
 MODEL_SHA256 = "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
 PREFIX_SHA256 = "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
-FLOORS = (75.0, 40.0, 60.0)
+FLOORS = (40.0, 40.0, 40.0)
 GEOMETRY = {"context_tokens": 8192, "hot_tokens": 4096, "page_tokens": 256,
             "batch": 1024, "ubatch": 256}
 

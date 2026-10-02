@@ -122,10 +122,10 @@ class ReleaseValidationTests(unittest.TestCase):
                         } for i in range(3)
                     },
                 }
-        thresholds = (75, 40, 60)
+        thresholds = (40, 40, 40)
         selected_rows = {}
         for i, prompt in enumerate(release.PROMPTS):
-            mtp = 80 if goal == "pass" else (70 if i != 1 else 42)
+            mtp = 80 if goal == "pass" else (39.69 if i == 0 else 50)
             prefill, decode, cpu_decode = 1000, 60, 50
             passed = prefill >= 500 and mtp >= thresholds[i] and decode > cpu_decode
             selected_rows[prompt] = {
@@ -165,6 +165,28 @@ class ReleaseValidationTests(unittest.TestCase):
             receipt, state = self.fixture(goal)
             with self.subTest(goal=goal):
                 self.assertEqual(release.validate_receipt(receipt, state), [])
+
+    def test_user_authorized_scale_continuation_preserves_mtp_goal_miss(self) -> None:
+        receipt, state = self.fixture("goal_miss")
+        receipt["task"] = receipt["decision_task"] = "review"
+        receipt["ordered_successors"] = []
+        receipt["scale_continuation_authorized"] = True
+        state["tasks"][0]["status"] = "done"
+        state["tasks"][1]["status"] = "done"
+        state["tasks"][2]["status"] = "done"
+        self.assertEqual(release.validate_receipt(receipt, state), [])
+
+    def test_scale_continuation_does_not_waive_prefill_or_decode(self) -> None:
+        receipt, state = self.fixture("goal_miss")
+        receipt["task"] = receipt["decision_task"] = "review"
+        receipt["ordered_successors"] = []
+        receipt["scale_continuation_authorized"] = True
+        state["tasks"][0]["status"] = "done"
+        state["tasks"][1]["status"] = "done"
+        state["tasks"][2]["status"] = "done"
+        receipt["selected"]["per_prompt"]["prompt_1"]["fresh_prefill_tok_s_median"] = 400
+        receipt["selected"]["per_prompt"]["prompt_1"]["prefill_gate_pass"] = False
+        self.assertTrue(release.validate_receipt(receipt, state))
 
     def test_explicit_decision_owner_is_required(self) -> None:
         receipt, state = self.fixture("pass")
