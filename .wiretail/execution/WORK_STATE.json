@@ -32826,7 +32826,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "repo-context-scale-20261002",
+      "plan_amendment": "repo-context-scale-20261002-16k",
       "required_proofs": [
         "occupancy_context_limit_regression"
       ],
@@ -32958,7 +32958,7 @@
       "id": "102-02",
       "phase": "102",
       "cluster": "forward102-repo-baseline",
-      "title": "Establish the 8K/4K repo-content baseline across GPU, host and selected KV",
+      "title": "Establish the 16K/8K repo-content baseline across GPU, host and selected KV",
       "packet": ".wiretail/execution/tasks/102-02.md",
       "status": "in_progress",
       "blocker": null,
@@ -32970,7 +32970,7 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "repo-context-scale-20261002",
       "required_proofs": [
-        "repo_context_8k4k_three_placement_baseline",
+        "repo_context_16k8k_three_placement_baseline",
         "repo_context_a_b_a_candidate_bound_telemetry"
       ],
       "depends_on": [
@@ -32980,6 +32980,8 @@
       "context_files": [
         ".wiretail/execution/clusters/forward102-repo-baseline.md",
         ".wiretail/execution/tasks/102-02.md",
+        "tools/server/bench/repo_context.py",
+        "tools/server/bench/run-repo-context-baseline.py",
         "tools/server/bench/fixtures/repo-context-v1/README.md",
         "tools/server/bench/fixtures/repo-context-v1/manifest.json",
         "tools/server/bench/fixtures/repo-context-v1/prompts.md",

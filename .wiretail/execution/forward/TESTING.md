@@ -30,7 +30,9 @@ Retain a successful candidate loaded for the next task.
   tiny page sizes belong only in deterministic tests. CPU float math is an
   oracle, not CPU Turbo4 inference. A CPU fixture refusing TurboQuant execution
   is a known backend boundary, not a host-storage failure.
-- First corrected live semantics: L=8192, H=4096, page=256, one slot;
+- Historical corrected live-semantics coordinate: L=8192, H=4096, page=256,
+  one slot. Phase 102's repo-content benchmark instead uses its explicit
+  L=16384/H=8192 fixture;
   R/G derive from each invariant. Ring test may choose G=256 with R<=H-G.
 - Use B=1024/U=256 for all new comparable speeds, target/draft Turbo4, native
   GPU MTP, draft-n-max=2, temperature=0, reasoning/thinking off. These are test
@@ -39,7 +41,7 @@ Retain a successful candidate loaded for the next task.
   Do not rerun it as a prerequisite. Final integrated replay/cancellation is
   owned by101-10; natural promotion by101-11, after GPU execution repairs.
   Missing100-04a receipt is not a gate on these implementation tasks.
-- Keep fresh input speed probes <=16K tokens. In phase 102, use L/H=8K/4K,
+- Keep fresh input speed probes <=16K tokens. In phase 102, use L/H=16K/8K,
   32K/16K, 128K/<=60K, then 256K/<=60K. The 60K value is only the upper
   bound for the two high-context test hotsets, not a production default;
   product code derives H/G from model/backend/memory and remains tunable.
@@ -171,11 +173,11 @@ map, not history recomputed under a different map. These proofs precede102.
 ## Scaling/final findings
 
 Phase 102 order is fixed: first a regression-only occupancy-driver limit task;
-then the repo-backed 8K/4K A→B→A baseline with GPU-resident, host-resident
+then the repo-backed 16K/8K A→B→A baseline with GPU-resident, host-resident
 target-KV, and selected placements; then 32K/16K; then L=128K/C=120,000 and
 L=256K/C=250,000. Every
 stage uses deterministic tracked Buun source/docs as input, with file hashes,
-line ranges and rendered Qwen token counts. The 8K/4K placement comparison is
+line ranges and rendered Qwen token counts. The 16K/8K placement comparison is
 the only host-resident target-KV row; all rows keep model compute and full-L
 Turbo4 MTP on GPU, and higher-context stages compare GPU-resident control only
 when memory admission safely permits it, plus selected mode. Do not run CPU

@@ -71,7 +71,7 @@ card, service paths or these counts in portable production logic.
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
 | 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
-| 102 | 102-01–05 | driver-limit regression; 8K/4K repo-content baseline; 32K/16K; 128K; then 256K occupancy after 101-12n review (an MTP-only miss may continue) |
+| 102 | 102-01–05 | driver-limit regression; 16K/8K repo-content baseline; 32K/16K; 128K; then 256K occupancy after 101-12n review (an MTP-only miss may continue) |
 | 103 | 103-01 | Goal assessment, useful final curve, concrete next remediation |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
@@ -123,7 +123,7 @@ Full-resident Turbo4 identity and feature-off controls remain unchanged.
 
 Phase102 uses `tools/server/bench/fixtures/repo-context-v1/` as its small
 repo-grounded A→B→A baseline, then deterministic tracked source/document text
-for larger occupancy. The 8K/4K baseline has GPU-resident, host-resident and
+for larger occupancy. The 16K/8K baseline has GPU-resident, host-resident and
 selected target-KV rows; all model compute and full-L GPU Turbo4 MTP stay on
 GPU. CPU target-KV is omitted at higher contexts. The larger occupancy targets
 are L=131,072/C=120,000 and L=262,144/C=250,000 tokens; these leave explicit
