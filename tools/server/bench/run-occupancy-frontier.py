@@ -179,7 +179,8 @@ def _remaining_chunks(chunks: list[Any], selected: list[Any]) -> list[Any]:
 
 def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, Any],
                         context_tokens: int, hot_tokens: int,
-                        max_fresh_tokens: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                        max_fresh_tokens: int,
+                        target_tokens: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Freeze a safe A/B/A repository-content sequence before generation."""
     manifest = repo_context.load_manifest()
     prompts = repo_context.load_prompts()
@@ -219,6 +220,8 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
     stage = "B"
     total_selected: list[Any] = []
     reserve_record: dict[str, int] | None = None
+    requested_frontier = max(hot_tokens + 2048,
+                             min(target_tokens, context_tokens))
     # The first turn adds benchmark B documentation and the next deterministic
     # repository ranges. Continuations append further non-overlapping ranges.
     for _ in range(len(chunks) + 1):
@@ -227,10 +230,20 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
             "role": "assistant", "content": _answer_envelope(renderer, projected)}]
         reserve_record = _future_a2_reserve(
             renderer, projected_prefix, a2, mtp_reserve, context_tokens)
+        frontier_target = min(requested_frontier,
+                              reserve_record["C_target_tokens"])
+        current_frontier = render_tokens(renderer, simulated)
+        remaining_frontier_tokens = (frontier_target - current_frontier -
+                                     MAX_OUTPUT_TOKENS)
+        if remaining_frontier_tokens <= 0:
+            if current_frontier > hot_tokens + 2048:
+                break
+            raise RuntimeError("repository-content preflight cannot reach H+2048 before its target")
         content, prompt_tokens, selected = repo_context.append_chunks_to_frontier(
             renderer, simulated, base_user, remaining,
             context_tokens=context_tokens, reserve_tokens=reserve_record["total_tokens"],
-            generation_tokens=MAX_OUTPUT_TOKENS, max_fresh_tokens=effective_fresh_tokens)
+            generation_tokens=MAX_OUTPUT_TOKENS,
+            max_fresh_tokens=min(effective_fresh_tokens, remaining_frontier_tokens))
         if not selected:
             break
         if prompt_tokens - render_tokens(renderer, simulated) > effective_fresh_tokens:
@@ -251,9 +264,10 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         total_selected.extend(selected)
         remaining = _remaining_chunks(remaining, selected)
         projected_frontier = render_tokens(renderer, simulated)
-        # The target is the safe A2 frontier, and the minimum crossing is a
-        # hard lower bound even if the repo corpus cannot fill the remaining L.
-        if projected_frontier >= reserve_record["C_target_tokens"] - 256:
+        # The measured reserve is a ceiling, not a fill target. Stop at the
+        # requested committed corpus frontier when it is lower, leaving the
+        # unused L-C gap available to the final query and output.
+        if projected_frontier >= frontier_target - 256:
             break
         if projected_frontier > hot_tokens + 2048 and not remaining:
             break
@@ -306,6 +320,9 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         "schedule": schedule,
         "selected_ranges": repo_context.selection_record(total_selected),
         "reserve": schedule[-2]["reserve"],
+        "requested_occupied_target_tokens": target_tokens,
+        "pre_A2_frontier_target_tokens": min(
+            requested_frontier, schedule[-2]["reserve"]["C_target_tokens"]),
         "requests_sent": 0,
         "projected_A2_prompt_tokens": a2_tokens,
     }
@@ -741,6 +758,8 @@ def main() -> int:
             raise ResumeStateError("resume checkpoint has no next request index")
         successes_this_run = 0
         next_turn_index = _as_int(state.get("next_turn_index")) or 0
+        repo_preflight = state.get("repo_preflight") if args.repo_content else None
+        schedule = state.get("schedule") if args.repo_content else None
         # Repair a checkpoint/journal write interrupted between the atomic checkpoint and append.
         _write_checkpoint(output, state)
     else:
@@ -780,7 +799,7 @@ def main() -> int:
         if args.repo_content:
             schedule, repo_preflight = build_repo_schedule(
                 renderer, identity, args.context_tokens, args.hot_tokens,
-                args.max_fresh_tokens)
+                args.max_fresh_tokens, args.target_tokens)
             geometry["completion_threshold_tokens"] = _repo_completion_threshold(
                 args.target_tokens, args.hot_tokens, schedule)
             if args.adopt_a1_from is not None:
@@ -825,15 +844,17 @@ def main() -> int:
             "schedule": schedule,
         }
         _write_checkpoint(output, state)
-        if args.preflight_only:
-            if not args.repo_content:
-                raise SystemExit("--preflight-only requires --repo-content")
-            print(json.dumps({"status": "preflight_pass", "requests_sent": 0,
-                              "selected_ranges": len(repo_preflight["selected_ranges"]),
-                              "schedule_turns": len(schedule),
-                              "projected_A2_prompt_tokens":
-                                  repo_preflight["projected_A2_prompt_tokens"]}, sort_keys=True))
-            return 0
+
+    if args.preflight_only:
+        if not args.repo_content or not isinstance(repo_preflight, Mapping) or \
+                not isinstance(schedule, list):
+            raise SystemExit("--preflight-only requires a frozen --repo-content plan")
+        print(json.dumps({"status": "preflight_pass", "requests_sent": 0,
+                          "selected_ranges": len(repo_preflight["selected_ranges"]),
+                          "schedule_turns": len(schedule),
+                          "projected_A2_prompt_tokens":
+                              repo_preflight["projected_A2_prompt_tokens"]}, sort_keys=True))
+        return 0
 
     started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     start_monotonic = time.monotonic()

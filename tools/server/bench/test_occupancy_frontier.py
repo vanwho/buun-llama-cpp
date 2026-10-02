@@ -444,6 +444,7 @@ class OccupancyFrontierTests(unittest.TestCase):
             occupancy.repo_context.enforce_reserve(7900, 400, 800, 8192)
 
     def test_occupancy_freezes_repo_content_schedule_before_generation(self) -> None:
+        self.assertIn(262144, validator.SUPPORTED_CONTEXTS)
         renderer = FakeRenderer()
         source = occupancy.repo_context.SourceFile(
             "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
@@ -453,7 +454,7 @@ class OccupancyFrontierTests(unittest.TestCase):
                              return_value={"commit": "candidate-source",
                                            "dirty_fingerprint": "b" * 64}):
             schedule, plan = occupancy.build_repo_schedule(
-                renderer, identity(), 32768, 16384, 16000)
+                renderer, identity(), 32768, 16384, 16000, 30720)
         self.assertEqual("pass", plan["status"])
         self.assertEqual(0, plan["requests_sent"])
         self.assertGreater(len(schedule), 3)
@@ -473,6 +474,9 @@ class OccupancyFrontierTests(unittest.TestCase):
         self.assertEqual(400, occupancy._scheduled_generation_budget("B", 400))
         self.assertEqual(0, occupancy._scheduled_generation_budget("A2", 400))
         self.assertEqual(29806, occupancy._repo_completion_threshold(30720, 16384, schedule))
+        self.assertEqual(30720, plan["requested_occupied_target_tokens"])
+        self.assertLessEqual(plan["pre_A2_frontier_target_tokens"], 30720)
+        self.assertGreater(plan["pre_A2_frontier_target_tokens"], 16384 + 2048)
 
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):

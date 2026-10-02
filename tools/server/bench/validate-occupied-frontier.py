@@ -16,7 +16,7 @@ TASK_GEOMETRY = {
     "ubatch_tokens": 256,
     "max_fresh_tokens": 16000,
 }
-SUPPORTED_CONTEXTS = {32768, 131072}  # 32K regression fixture and phase-102 live proof.
+SUPPORTED_CONTEXTS = {32768, 131072, 262144}  # 32K fixture and phase-102 live proofs.
 MAX_HOT_CAPACITY_TOKENS = 60000
 
 
