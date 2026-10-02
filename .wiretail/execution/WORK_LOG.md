@@ -1961,3 +1961,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12m`
 - Commit at update: `9ebeb13c6`
 - Summary: Captured candidate-v6 prompt-1 selected/dense attribution; reproduced 39.69% selected acceptance; focused CPU attention execution test and V10 completion check pass. No committed-history loss or source defect proven. Device mask readback and CUDA test build are documented limits; 102-01 remains gated.
+
+## 2026-10-02T03:05:49+00:00 — 102-01 — blocked
+
+- Branch: `codex/task-102-01`
+- Commit at update: `3710a6c78`
+- Summary: Recovery attempt 3 implemented and validated the local resumable occupancy harness, but completion is gated by scheduled predecessor 101-12n: GPU101_RELEASE.json remains goal_miss. Required exact-candidate 32K live proofs cannot run until release passes; V10 receipt is therefore absent.
