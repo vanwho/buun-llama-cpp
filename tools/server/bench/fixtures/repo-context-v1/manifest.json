@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "fixture": "repo-context-v1",
+  "tokenizer": "Qwen3.8-27B model tokenizer, no guessed word-to-token conversion",
+  "file_content_source": "tracked repository files, exact bytes at the recorded source commit",
+  "groups": {
+    "A_code": [
+      {
+        "path": "tools/tokenize/tokenize.cpp",
+        "sha256": "db0cd035294b91009250029a1435a1a688d72eb489c406b630d2293b30d6fb34"
+      },
+      {
+        "path": "src/llama-vram-demand.h",
+        "sha256": "434f77fb93d42f22c3f01bde1a2af4accc0b9f0e4054b9a0586fc94ac66fbbf8"
+      },
+      {
+        "path": "src/llama-vbr-controller-id.h",
+        "sha256": "7a1722435f41cd93a705c31df6d242f747b04ba5fedde92d6625d131a05a2785"
+      }
+    ],
+    "B_docs": [
+      {
+        "path": "CONTRIBUTING.md",
+        "sha256": "cf80093cca52e66dc1592175c3a2bcb1acf6aec1e30adaf212c5bedf0967da0e"
+      },
+      {
+        "path": "tools/batched-bench/README.md",
+        "sha256": "db9158e439e1d31e7b931d65fd50771093ef6667e14d617fc6d2fde6798bc12c"
+      }
+    ],
+    "supplemental_code": [
+      {
+        "path": "src/llama-sampler.h",
+        "sha256": "f37dc271805bb1f84202bf599d724254808d7d70b902571ad7b4db57674d9bc9"
+      },
+      {
+        "path": "tools/server/server-tools.h",
+        "sha256": "497713579fbf6436dd0ceb927e6b541bc22ed88a65d4d04d929bbbc6914e91e9"
+      }
+    ],
+    "supplemental_docs": [
+      {
+        "path": "docs/development/token_generation_performance_tips.md",
+        "sha256": "0401c2af372af0467713e00833bfcf86126a4e03f608bcd8f58045855f0f8f7a"
+      }
+    ]
+  },
+  "runtime_requirements": {
+    "logical_context_tokens": 8192,
+    "selected_hot_tokens": 4096,
+    "page_tokens": 256,
+    "same_slot_same_candidate": true,
+    "max_new_tokens_per_ingest_request": 16000,
+    "target_kv": "turbo4",
+    "mtp": "always enabled; full logical context on GPU with Turbo4 K/V",
+    "reasoning": "off",
+    "batch": 1024,
+    "ubatch": 256,
+    "compaction": "not permitted; compute and record a per-run reserve before sending any request"
+  }
+}
