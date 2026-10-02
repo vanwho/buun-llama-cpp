@@ -65,3 +65,20 @@ see task [92-01](tasks/92-01.md).
 The final review reads only the new benchmark summary. If the goal is unmet,
 it must append actual remediation/benchmark/summary/review task entries before
 completing, not merely recommend another action in prose.
+
+## Local-only benchmark fixture cleanup before upstream PR
+
+The phase-102 repo-context fixture is intentionally kept in its own commit so
+it can be excluded cleanly from a later upstream code PR. The following paths
+are campaign/test data, not portable Buun product changes, and must be removed
+from the upstream PR commit range (or relocated to external benchmark storage)
+during final cleanup:
+
+- `tools/server/bench/fixtures/repo-context-v1/README.md`
+- `tools/server/bench/fixtures/repo-context-v1/manifest.json`
+- `tools/server/bench/fixtures/repo-context-v1/prompts.md`
+
+Also remove or rewrite references to this fixture in the phase-102 packets,
+clusters, overview and testing plan before preparing the upstream PR. Preserve
+the local fixture commit/history until that publication cleanup is performed;
+do not include these files in an upstream PR.

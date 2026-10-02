@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Next prefill-owner-101-20261001: PREFILL101/TESTING, current packet/cluster and one compact predecessor; inspect symbol-sized source spans on demand. Preserve the in-flight task context. Completed journals/packets, whole source files and raw Codex JSONL are not startup context. Cluster by shared subsystem/lifecycle, not fixed task counts.",
+  "context_policy": "Current next sequence after 101-12n: 102-01 driver-range regression only; 102-02 8K/4K repo-content A-B-A baseline; 102-03 32K/16K; 102-04 128K; 102-05 256K. Read only task/cluster/fixture and compact immediate handoff. Never load raw JSONL or WORK_LOG. Large-context requests use deterministic tracked repo text, <=16K fresh tokens per request, candidate-bound resumable state, and measured per-test reserve to prevent context shifting.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -17,7 +17,7 @@
   "status": "ready",
   "current_phase": "101",
   "current_task": "101-12n",
-  "last_updated_utc": "2026-10-02T03:08:08+00:00",
+  "last_updated_utc": "2026-10-02T13:11:51+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01\u201312, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Former101 capacity is102; final review is103.",
+    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01–12, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Former101 capacity is102; final review is103.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -57,7 +57,7 @@
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
     "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
-    "scale_policy": "8K/4K useful short-path release ->32K/16K ->128K ->256K actual committed occupancy; H dynamically admitted; final context curve findings only",
+    "scale_policy": "Ordered: 102-01 occupancy-driver-limit regression only; 102-02 repo-content L=8192/H=4096 baseline (GPU target-KV, host target-KV and selected); 102-03 L=32768/H=16384; 102-04 L=131072/C=120000/H<=60000; 102-05 L=262144/C=250000/H<=60000. CPU target-KV comparison is limited to 8K; higher-context GPU-target control runs only when admitted, plus selected. Full-L GPU Turbo4 MTP remains required. Fill from deterministic tracked Buun files in resumable <=16K fresh-token chunks and measure the output/query/replay/MTP reserve before requests. At 128K/256K OOM or scratch exhaustion lowers H only; never change L, B/U, batching or other server settings. Record any safe-reserve shortfall honestly without triggering compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
     "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication",
@@ -32768,8 +32768,6 @@
       "context_files": [
         ".wiretail/execution/clusters/gpu101-owner-release.md",
         ".wiretail/execution/tasks/101-12n.md",
-        ".wiretail/execution/evidence/GPU101_RELEASE.json",
-        ".wiretail/execution/evidence/GPU101_RELEASE.md",
         ".wiretail/execution/handoffs/101-12m.md",
         "tools/server/bench/validate-gpu101-release.py"
       ]
@@ -32777,33 +32775,30 @@
     {
       "id": "102-01",
       "phase": "102",
-      "cluster": "forward102-capacity",
-      "title": "Prove 32K logical history with 16K hot capacity",
+      "cluster": "forward102-driver",
+      "title": "Raise occupancy-driver context validation to 256K",
       "packet": ".wiretail/execution/tasks/102-01.md",
-      "status": "blocked",
-      "blocker": "Recovery attempt 3 implemented and validated the local resumable occupancy harness, but completion is gated by scheduled predecessor 101-12n: GPU101_RELEASE.json remains goal_miss. Required exact-candidate 32K live proofs cannot run until release passes; V10 receipt is therefore absent.",
+      "status": "todo",
+      "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "medium",
+      "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "gpu-execution-101-20260930",
+      "plan_amendment": "repo-context-scale-20261002",
       "required_proofs": [
-        "32k_16k_committed_history_and_speed"
+        "occupancy_context_limit_regression"
       ],
       "depends_on": [
         "101-12n"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward102-capacity.md",
+        ".wiretail/execution/clusters/forward102-driver.md",
         ".wiretail/execution/tasks/102-01.md",
-        ".wiretail/execution/forward/OVERVIEW.md",
-        ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/tasks/101-12n.md",
-        ".wiretail/execution/handoffs/101-12n.md",
-        ".wiretail/execution/evidence/GPU101_RELEASE.json"
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/test_occupancy_frontier.py"
       ],
       "completion_check": [
         "python3",
@@ -32900,36 +32895,41 @@
           "total_tokens_source": "derived_input_plus_output",
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
-      }
+      },
+      "historical_scope_note": "Existing task token_usage events were reported for the pre-amendment 32K/16K occupancy objective. They are preserved unchanged for audit, are not proof of the new driver regression, and must not be re-counted or moved to another task."
     },
     {
       "id": "102-02",
       "phase": "102",
-      "cluster": "forward102-capacity",
-      "title": "Scale to occupied 128K with a measured bounded hot pool",
+      "cluster": "forward102-repo-baseline",
+      "title": "Establish the 8K/4K repo-content baseline across GPU, host and selected KV",
       "packet": ".wiretail/execution/tasks/102-02.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "medium",
+      "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "gpu-execution-101-20260930",
+      "plan_amendment": "repo-context-scale-20261002",
       "required_proofs": [
-        "128k_occupancy_memory_and_turn_boundary"
+        "repo_context_8k4k_three_placement_baseline",
+        "repo_context_a_b_a_candidate_bound_telemetry"
       ],
       "depends_on": [
         "102-01"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward102-capacity.md",
+        ".wiretail/execution/clusters/forward102-repo-baseline.md",
         ".wiretail/execution/tasks/102-02.md",
-        ".wiretail/execution/forward/OVERVIEW.md",
-        ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/102-01.md"
+        "tools/server/bench/fixtures/repo-context-v1/README.md",
+        "tools/server/bench/fixtures/repo-context-v1/manifest.json",
+        "tools/server/bench/fixtures/repo-context-v1/prompts.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/test_occupancy_frontier.py",
+        ".wiretail/execution/forward/TESTING.md"
       ],
       "completion_check": [
         "python3",
@@ -32943,8 +32943,8 @@
     {
       "id": "102-03",
       "phase": "102",
-      "cluster": "forward102-full-256k",
-      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "cluster": "forward102-capacity",
+      "title": "Prove 32K logical history with 16K hot capacity",
       "packet": ".wiretail/execution/tasks/102-03.md",
       "status": "todo",
       "blocker": null,
@@ -32954,21 +32954,24 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "gpu-execution-101-20260930",
+      "plan_amendment": "repo-context-scale-20261002",
       "required_proofs": [
-        "256k_allocation_and_committed_occupancy",
-        "256k_promotion_replay_ring_mtp_and_memory"
+        "32k_16k_committed_history_and_speed"
       ],
       "depends_on": [
         "102-02"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward102-full-256k.md",
+        ".wiretail/execution/clusters/forward102-capacity.md",
         ".wiretail/execution/tasks/102-03.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/102-02.md"
+        ".wiretail/execution/tasks/102-02.md",
+        ".wiretail/execution/handoffs/102-02.md",
+        "tools/server/bench/fixtures/repo-context-v1/README.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py"
       ],
       "completion_check": [
         "python3",
@@ -32977,6 +32980,88 @@
         "102-03",
         "--receipt",
         ".wiretail/execution/evidence/V10_102-03.json"
+      ]
+    },
+    {
+      "id": "102-04",
+      "phase": "102",
+      "cluster": "forward102-capacity",
+      "title": "Scale to occupied 128K with a measured bounded hot pool",
+      "packet": ".wiretail/execution/tasks/102-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repo-context-scale-20261002",
+      "required_proofs": [
+        "128k_occupancy_memory_and_turn_boundary"
+      ],
+      "depends_on": [
+        "102-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-capacity.md",
+        ".wiretail/execution/tasks/102-04.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/102-03.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "102-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_102-04.json"
+      ]
+    },
+    {
+      "id": "102-05",
+      "phase": "102",
+      "cluster": "forward102-full-256k",
+      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "packet": ".wiretail/execution/tasks/102-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repo-context-scale-20261002",
+      "required_proofs": [
+        "256k_allocation_and_committed_occupancy",
+        "256k_promotion_replay_ring_mtp_and_memory"
+      ],
+      "depends_on": [
+        "102-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-full-256k.md",
+        ".wiretail/execution/tasks/102-05.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/102-04.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py",
+        "tools/server/bench/run-pager-promotion.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "102-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_102-05.json"
       ]
     },
     {
@@ -32993,12 +33078,12 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "gpu-execution-101-20260930",
+      "plan_amendment": "repo-context-scale-20261002",
       "required_proofs": [
         "final_goal_summary_and_successors"
       ],
       "depends_on": [
-        "102-03"
+        "102-05"
       ],
       "commit": null,
       "context_files": [
@@ -33006,7 +33091,7 @@
         ".wiretail/execution/tasks/103-01.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/102-03.md"
+        ".wiretail/execution/handoffs/102-05.md"
       ],
       "completion_check": [
         "python3",

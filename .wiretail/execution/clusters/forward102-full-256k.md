@@ -1,10 +1,21 @@
 # Cluster forward102-full-256k
 
-Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
+Revision: `hotpath-v10-20260914`. Amendment: `repo-context-scale-20261002`.
 
-Tasks in this context area: `102-03`.
+Tasks in this context area: `102-05`.
 
-Purpose: Prove full 256K history, hot paging and full-L GPU Turbo4 MTP.
+Purpose: Prove full 256K history, hot paging and full-L GPU Turbo4 MTP using
+the deterministic tracked-repository corpus built and validated in 102-02.
+Start at L=262144 with target C=250,000 committed repository tokens (decimal
+250K), leaving 12,144 tokens for the measured final query/output/replay/MTP
+reserve. Start H=59,904 tokens (the largest page-aligned value <=60,000); H
+may never exceed 60,000. If the measured reserve does not fit, stop at the
+safe C and record the shortfall; never trigger compaction to reach the target.
+CPU target-KV is
+omitted; compare selected mode with all-GPU target KV only if a read-only
+capacity check shows the latter fits alongside weights, full-L draft, scratch
+and reserve. On selected OOM/scratch pressure lower H only; keep L, B/U,
+batching and all other server settings unchanged.
 
 Read the current packet and forward/OVERVIEW + forward/TESTING only, plus
 its explicit source regions and compact immediate-predecessor handoff.

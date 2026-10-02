@@ -39,9 +39,10 @@ Retain a successful candidate loaded for the next task.
   Do not rerun it as a prerequisite. Final integrated replay/cancellation is
   owned by101-10; natural promotion by101-11, after GPU execution repairs.
   Missing100-04a receipt is not a gate on these implementation tasks.
-- Keep fresh input speed probes <=16K tokens. For local tests and scaling,
-  physical target hot capacity H <=49,152; L may grow to 128K/256K independently.
-  Product code derives H/G from model/backend/memory and remains tunable.
+- Keep fresh input speed probes <=16K tokens. In phase 102, use L/H=8K/4K,
+  32K/16K, 128K/<=60K, then 256K/<=60K. The 60K value is only the upper
+  bound for the two high-context test hotsets, not a production default;
+  product code derives H/G from model/backend/memory and remains tunable.
 - Reserve full-L draft, weights, GDN, catalogue, transfer slabs, graph/scratch,
   peak verify/replay usage and measured safety headroom before H. If OOM, stop
   only the owned restart loop, ensure one model is loaded, reduce H/R or packed
@@ -123,8 +124,14 @@ Keep the exact final user prompts:
 One warmup with 40 requested output tokens, then three measured requests per
 prompt with 400 requested output tokens. EOG can shorten actual output; record
 actual tokens and elapsed time. Never require exactly 400 generated tokens or
-strict answer formatting. B=1024/U=256. MTP acceptance median goals are 75%,
-40%,60% respectively; report drafted/accepted raw counts independently.
+strict answer formatting. B=1024/U=256. Current MTP acceptance median floor is
+40% for each of the three prompts; report drafted/accepted raw counts
+independently. A sub-40% observed median remains an honest MTP goal miss, but
+does not by itself invalidate a run or block the next capacity/frontier
+benchmark after the scheduled release review. Continue to require verified
+GPU Turbo4 draft placement, correct target/draft state behavior, and report
+the MTP miss without relabeling it as a pass. Setup, identity, or correctness
+failures remain blockers.
 
 The final paired short campaign uses fixture-backed actual C>H, same rendered
 prefix/final prompts, one binary/model and one B/U. Separate cold fresh ingest
@@ -163,12 +170,30 @@ map, not history recomputed under a different map. These proofs precede102.
 
 ## Scaling/final findings
 
-Prove 32K/16K useful speed before 128K, then 256K. Allocation and occupied C
-are different proofs. Grow C using cached incremental input chunks <=16K;
-fresh-token accounting excludes prior history. Keep enough logical space for
-query/replay/output; use a final no-output commit probe to measure full-L
-occupancy if supported by the existing driver, and report the last actual C.
-Do not claim C=262144 from allocation or a partial frontier.
+Phase 102 order is fixed: first a regression-only occupancy-driver limit task;
+then the repo-backed 8K/4K A→B→A baseline with GPU-resident, host-resident
+target-KV, and selected placements; then 32K/16K; then L=128K/C=120,000 and
+L=256K/C=250,000. Every
+stage uses deterministic tracked Buun source/docs as input, with file hashes,
+line ranges and rendered Qwen token counts. The 8K/4K placement comparison is
+the only host-resident target-KV row; all rows keep model compute and full-L
+Turbo4 MTP on GPU, and higher-context stages compare GPU-resident control only
+when memory admission safely permits it, plus selected mode. Do not run CPU
+target-KV at higher contexts.
+
+For occupancy, extend one same-slot history from repository files in cached
+incremental input chunks no larger than 16K fresh rendered tokens. Stop before
+the measured reserve for the final query, output, replay and MTP verification;
+record the exact reserve and last committed C. Do not allow context shift,
+truncation or compaction. Allocation and occupied C are different proofs; do
+not claim C=262144 from allocation or a partial frontier. At 128K and 256K,
+target C=120,000 and C=250,000 respectively; reserve 11,072 and 12,144 tokens
+for measured final query/output/replay/MTP requirements. Start selected mode
+with H<=60,000 tokens (page aligned). If startup, request,
+OOM or scratch admission fails, lower only H in page-aligned steps and retry;
+do not change L, B/U, batch, ubatch, model, MTP, codec, or other server
+settings to make the test pass. The final 20K/40K/60K/100K/175K/256K speed
+curve remains a later findings-only experiment, after the architecture works.
 
 The 20K/40K/60K/100K/175K/256K speed curve is a final reporting experiment
 after the architecture works, not an implementation gate. Prefer samples from

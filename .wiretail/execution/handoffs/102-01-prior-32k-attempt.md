@@ -1,4 +1,10 @@
-# 102-01 handoff
+# Historical handoff — pre-amendment 102-01 (32K occupancy attempt)
+
+This is preserved provenance for the earlier 32K/16K live-occupancy task.
+After amendment `repo-context-scale-20261002`, task 102-01 is a driver-limit
+regression-only task and task 102-02 owns the new 8K/4K repo-content baseline.
+Do not load this historical handoff as task context or treat its missing live
+proof as a blocker for the amended task sequence.
 
 ## Result and current state
 
@@ -29,15 +35,14 @@ Raw command logs are in `.wiretail/build/102-01-attempt-3/`:
 
 ## Deferred verification
 
-The required 32K/16K hardware proof, natural retrieval/replay/MTP proof, allocation/headroom ledger, and canonical speed suite remain deferred behind the unmet GPU101 release gate. This is a release dependency, not an assertion of unavailable hardware or credentials. The 102-01 V10 receipt must be generated only after those live proofs run.
+The required 32K/16K hardware proof, natural retrieval/replay/MTP proof, allocation/headroom ledger, and canonical speed suite remain unrun pending 101-12n review. Under the owner-approved policy, an MTP-only result below the 40% median floor remains a reported goal miss but does not block these capacity measurements after review. Candidate identity, Turbo4 GPU draft placement, state correctness, and setup failures remain hard requirements. The 102-01 V10 receipt must be generated only after the live proofs run.
 
 ## Next concrete action
 
-Complete scheduled 101-12n's exact-candidate release review and repair/review chain. Resume 102-01 only if that chain produces `goal_status=pass` for the candidate/build identity; then run the required live proofs and generate the V10 receipt.
+Complete scheduled 101-12n's exact-candidate release review. Then proceed with 102-01 using the reviewed candidate even if the preserved release decision is `goal_miss` solely because of MTP acceptance; keep that miss explicit while measuring occupied-context MTP and capacity. Run the required live proofs and generate the V10 receipt only from actual evidence.
 
 ## Wiretail status
 <!-- wiretail:runner-status:start -->
-- State: `blocked`
+- State: `in_progress`
 - Source of truth: `.wiretail/execution/WORK_STATE.json`
-- Blocker: Recovery attempt 3 implemented and validated the local resumable occupancy harness, but completion is gated by scheduled predecessor 101-12n: GPU101_RELEASE.json remains goal_miss. Required exact-candidate 32K live proofs cannot run until release passes; V10 receipt is therefore absent.
 <!-- wiretail:runner-status:end -->

@@ -71,7 +71,7 @@ card, service paths or these counts in portable production logic.
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
 | 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
-| 102 | 102-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof after GPU101_RELEASE passes |
+| 102 | 102-01–05 | driver-limit regression; 8K/4K repo-content baseline; 32K/16K; 128K; then 256K occupancy after 101-12n review (an MTP-only miss may continue) |
 | 103 | 103-01 | Goal assessment, useful final curve, concrete next remediation |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
@@ -120,6 +120,18 @@ goal findings and must cause actual repair tasks, not another unchanged audit.
 Use 3x CPU-KV decode as the reporting target; final acceptance requires a
 positive matched speed advantage and the architectural no-decode-PCIe proof.
 Full-resident Turbo4 identity and feature-off controls remain unchanged.
+
+Phase102 uses `tools/server/bench/fixtures/repo-context-v1/` as its small
+repo-grounded A→B→A baseline, then deterministic tracked source/document text
+for larger occupancy. The 8K/4K baseline has GPU-resident, host-resident and
+selected target-KV rows; all model compute and full-L GPU Turbo4 MTP stay on
+GPU. CPU target-KV is omitted at higher contexts. The larger occupancy targets
+are L=131,072/C=120,000 and L=262,144/C=250,000 tokens; these leave explicit
+measured query/replay/output reserves. At 128K/256K, selected H is limited to
+60,000 tokens (start at page-aligned 59,904); if scratch/OOM requires
+adjustment, reduce H only and keep L, B/U, batching and other server settings
+fixed. Each test computes a rendered-token reserve so the live context never
+shifts or compacts.
 
 Server-specific artifacts stay under `/srv/ai` or `.wiretail`. Preserve
 uncommitted source work; Wiretail owns separate implementation/metadata
