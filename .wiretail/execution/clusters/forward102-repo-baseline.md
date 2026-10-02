@@ -15,9 +15,10 @@ Use exact file hashes and full rendered Qwen token counts. Keep the same slot,
 conversation and candidate through A, B, A2; A2 must not resend A files.
 Reserve context for the final query/output/replay and verify no context shift
 or truncation. The prior 8K run proved the complete mandatory A/B/A history
-plus answer/replay reserve requires 10,829 tokens, so use L=16,384/H=8,192
-without trimming primary files or changing prompts. The selected row must
-commit at least H+2,048 fixture/corpus tokens. Host-valid rows/bytes, page
+plus answer/replay reserve requires 10,829 tokens, so use L=16,384. The
+selected B request must be rendered to at least H+2,048 before sending; a
+runtime failure after request start is recorded as a partial result and does
+not require committed occupancy. Host-valid rows/bytes, page
 inventory, route/selector, transfer and promotion fields are best-effort
 diagnostics only: capture them when exposed, but their absence or incompleteness
 must not fail a request, cause a retry, or block the benchmark. Do not claim
@@ -25,6 +26,13 @@ promotion unless its full transition was actually observed.
 After the comparisons, leave the selected candidate loaded and verify its
 identity/health so 102-03 starts from the tested server rather than restoring
 an unrelated profile.
+
+If a live request in any row returns a runtime error, capture that failed
+sample once and stop that row; do not investigate/fix eviction or promotion
+here. Continue to the next independent row/task. Mark the measurement artifact
+partial and keep its speed null for the failed request; do not mislabel it as
+a passing selected-speed result. Only pre-request setup errors are repaired
+and repeated in this baseline.
 
 This is the only stage with a CPU target-KV baseline. Use an already-supported
 ordinary host/offload codec and label its actual type if CPU Turbo4 attention

@@ -114,6 +114,17 @@ Apply these rules to every live CUDA/MTP/pager benchmark, including all phase
    prompt. Once setup passes, freeze source/config and run the paired benchmark
    rows against that same candidate.
 
+6. Once a real benchmark request has been sent, preserve any runtime error as
+   a failed sample, retain its raw request/response/error and candidate identity,
+   skip only dependent turns in that conversation, stop repeating that
+   placement after its first runtime failure, and continue independent rows or
+   the next context task. Do not turn a benchmark task into pager-policy,
+   eviction, promotion, or page-table debugging unless that task explicitly
+   owns a pager repair. Failed requests have null speed and cannot be described
+   as successful performance. Runtime sample failures are findings, not setup
+   retries; pre-request identity, geometry, and reserve errors remain setup
+   defects and must be fixed before generation.
+
 ### Build/test recovery ladder
 
 When a build or test fails, preserve its complete command, exit status and raw

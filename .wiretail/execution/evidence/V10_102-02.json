@@ -20,7 +20,7 @@
         "/srv/ai/paged-kv/results/forward/102-02/attempt-03/shared"
       ],
       "exit_code": 1,
-      "status": "fail"
+      "status": "recorded"
     },
     "repo_context_a_b_a_candidate_bound_benchmark": {
       "artifacts": [
@@ -42,7 +42,7 @@
         "/srv/ai/paged-kv/results/forward/102-02/attempt-03/shared"
       ],
       "exit_code": 1,
-      "status": "fail"
+      "status": "recorded"
     }
   },
   "diagnostic": {
@@ -99,6 +99,6 @@
   },
   "schema_version": 1,
   "source_commit": "a35ebb638bb6ac10f141b8409459592ad4fc08b9",
-  "status": "incomplete",
+  "status": "partial",
   "task": "102-02"
 }
