@@ -26,6 +26,6 @@ This campaign did not measure CUDA driver graph capture/replay, CUDA event timin
 
 ## Gate and next owner
 
-The low prompt-1 acceptance remains unexplained. The previous same-prefix probe recorded same top-1 but different top-8 score ordering, verify-visible selected page 16, and no committed selected-history IDs; backend mask bits were not captured, so this does not establish a dropped-history defect. Task 101-12m owns that narrow prompt-1 attribution. Task 102-01 remains dependent on 101-12m and must not begin while the release is a goal miss.
+The low prompt-1 acceptance remains unexplained. The 101-12m attribution reproduced the canonical miss but did not establish a source defect or dropped-history defect. Task 101-12n now owns the candidate-specific final release review. The measured goal remains `goal_miss`; 102-01 depends on 101-12n and must not begin unless the release is updated to `goal_status=pass` with exact-candidate evidence.
 
 Raw rows, run configs, lifecycle identity, summaries, and runner logs are hashed in `GPU101_RELEASE.json`. Independent row and identity verification: `/srv/ai/paged-kv/results/forward/101-12l/attempt-03/retake-verification.json`. Pre-retake report bytes are preserved under `.wiretail/execution/evidence/provenance/101-12l/`.

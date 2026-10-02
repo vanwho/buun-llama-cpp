@@ -532,10 +532,10 @@
       "target_kv_placement": "gpu"
     }
   },
-  "decision": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. Schedule 101-12m to attribute prompt-1 same-prefix target/draft ordering and verify-visible page/history IDs; no dropped-history defect is established.",
+  "decision": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. The 101-12m attribution completed without proving a source defect; 101-12n owns the candidate-specific final release review.",
   "decision_task": "101-12l",
   "deferred_verification": [],
-  "final_review_successor": "101-12l",
+  "final_review_successor": "101-12n",
   "goal_status": "goal_miss",
   "historical_release_snapshot": {
     "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-18/GPU101_RELEASE.pre-101-18.md",
@@ -947,7 +947,8 @@
     }
   },
   "ordered_successors": [
-    "101-12m"
+    "101-12m",
+    "101-12n"
   ],
   "pre_101_12l_snapshot": {
     "markdown_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-12l/GPU101_RELEASE.pre-101-12l-attempt-03.md",
@@ -1062,7 +1063,7 @@
     "path": "/srv/ai/paged-kv/results/forward/101-12l/attempt-03/retake-verification.json",
     "sha256": "0ef3c692162fcfc597e603a87e8b567f549d0b89b70bf179275bcf28a8c387bb"
   },
-  "review_owner": "101-12l",
+  "review_owner": "101-12n",
   "runtime_peaks": {},
   "schema_version": 1,
   "selected": {
@@ -1209,9 +1210,9 @@
     "status": "complete"
   },
   "successor_contract": {
-    "final_review_successor": "101-12m",
+    "final_review_successor": "101-12n",
     "scale_task": "102-01"
   },
-  "summary": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. Schedule 101-12m to attribute prompt-1 same-prefix target/draft ordering and verify-visible page/history IDs; no dropped-history defect is established.",
+  "summary": "Candidate-v6 fresh canonical retake completed with 3 warmups and 9 measured requests per route at the unchanged model/prefix and L8192/H4096/P256/B1024/U256. Selected prefill medians clear 500/750 tok/s and selected decode beats CPU-main-KV on all prompts. Selected MTP medians are 39.69%, 49.37%, and 65.26%; prompt 1 misses its 75% floor while prompt 2 clears 40% and prompt 3 clears 60%. Release remains goal_miss and scale stays gated. The 101-12m attribution completed without proving a source defect; 101-12n owns the candidate-specific final release review.",
   "task": "101-12l"
 }
