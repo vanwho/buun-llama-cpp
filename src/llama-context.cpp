@@ -3143,8 +3143,12 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             ? cparams.kv_attention_tokens
             : uint64_t(hot_capacity) * page_tokens;
         const auto turn = pager.turn_state(sequence_id);
-        const bool committed_generation_view = phase != llama_kv_attention_execution_phase::prefill &&
-            (turn.phase == llama_kv_pager_turn_phase::query_replay ||
+        // Query replay is a prompt-shaped forward pass, but it must consume
+        // the final committed history just like generation/MTP verification.
+        // It cannot silently replace a missing frozen page with an advisory
+        // fallback merely because this ubatch is classified as prefill.
+        const bool committed_generation_view = turn.phase == llama_kv_pager_turn_phase::query_replay ||
+            (phase != llama_kv_attention_execution_phase::prefill &&
              turn.phase == llama_kv_pager_turn_phase::generating);
         if (phase != llama_kv_attention_execution_phase::prefill) {
             kv_attention_prefill_active_ = false;
@@ -3183,13 +3187,21 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 // The mandatory write-frontier page may extend between the
                 // policy boundary and graph construction, changing its
                 // authenticated extent while retaining its logical page.
-                // Rebind only that write-frontier page by stable sequence/logical
-                // identity; cold routed pages still require an exact ID.
+                // Rebind only a current/query write-frontier extent. Every
+                // other identity field must still match, including sequence,
+                // page and representation generations. An old advisory ID
+                // must not authenticate a replacement allocation at the same
+                // logical position; cold routed pages require an exact ID.
                 page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
                     [&](const auto & value) {
-                        return value.id.sequence_id == id.sequence_id &&
-                            value.id.logical_page == id.logical_page &&
-                            value.id.position_begin == id.position_begin &&
+                        auto frontier_id = value.id;
+                        frontier_id.position_end = id.position_end;
+                        return frontier_id == id &&
+                            llama_kv_page_id_is_tail(id) &&
+                            value.id.position_end >= id.position_end &&
+                            (pager.is_current_page(value.id) ||
+                             std::find(query_pages.begin(), query_pages.end(),
+                                     value.id.logical_page) != query_pages.end()) &&
                             (value.state == llama_kv_page_state::filling_gpu ||
                              value.state == llama_kv_page_state::gpu_dirty);
                     });
@@ -3307,21 +3319,23 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             for (const auto & id : routed_pages) {
                 if (!append_page(id)) {
                     routed_valid = false;
-                    break;
+                    // Keep looking: valid routed history after this stale
+                    // entry still has priority over optional fallback pages.
                 }
             }
             if (!routed_valid) {
                 // A subsequent write may have replaced a routed cold page
-                // before this graph acquired its snapshot. Discard only the
-                // stale advisory route and rebuild a bounded working set from
-                // current, sink, recent, then prior-resident pages.
-                selected_pages.clear();
-                // The routed set is advisory. Rebuild every page touched by
-                // this ubatch before filling any remaining capacity with
-                // recent, sink, or fallback pages.
-                std::vector<uint32_t> optional_pages;
+                // before this graph acquired its snapshot. Keep the mandatory
+                // query/frontier pages and every routed entry already validated
+                // against that same snapshot. Only fill their remaining bounded
+                // capacity with resident fallback; do not reload evicted route
+                // entries or perform promotion in graph construction.
+                std::vector<uint32_t> optional_pages = selected_pages;
                 for (const auto & page : pager_snapshot.pages()) {
                     if (pager.is_current_page(page.id)) optional_pages.push_back(page.id.logical_page);
+                }
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (page.pin_count != 0) optional_pages.push_back(page.id.logical_page);
                 }
                 for (const auto & page : pager_snapshot.pages()) {
                     if (page.id.logical_page == 0) optional_pages.push_back(page.id.logical_page);
