@@ -3314,6 +3314,33 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     return refuse("committed frozen history does not fit admitted attention view");
                 }
             }
+            // R (selected_history) freezes retrieved *prior-turn* history,
+            // not the whole attention view. Q (this turn's prompt) and the
+            // generated suffix remain ordinary resident KV. Restricting the
+            // graph to R plus this ubatch's write pages discarded almost all
+            // of Q on the first verification call; R can legitimately be
+            // empty on a fresh request. The full-context MTP draft then saw
+            // a different prompt from the target verifying its proposals.
+            //
+            // Keep resident Q/output pages in the remaining admitted window,
+            // including the page straddling query_start and sealed output
+            // pages behind the mutable tail. Do not add them to frozen R:
+            // replay must still be able to rewrite Q, and generation's FIFO
+            // must still be able to evict clean output pages. Read only this
+            // immutable H-bounded snapshot; do not scan host history, promote
+            // pages, rerank R, or change pins here. Native causal masking
+            // handles individual rows within a boundary page.
+            const llama_pos last_query_position =
+                *std::max_element(query_positions.begin(), query_positions.end());
+            for (auto page = pager_snapshot.pages().rbegin();
+                    page != pager_snapshot.pages().rend(); ++page) {
+                if (page->id.sequence_id == sequence_id &&
+                        page->id.position_end > turn.query_start &&
+                        page->id.position_begin <= last_query_position &&
+                        resident_state(*page)) {
+                    append_fallback(page->id);
+                }
+            }
         } else if (!routed_pages.empty()) {
             bool routed_valid = true;
             for (const auto & id : routed_pages) {

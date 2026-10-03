@@ -366,6 +366,9 @@ struct llama_kv_pager_turn_state {
     bool has_committed_frontier = false;
     uint64_t frozen_history_generation = 0;
     uint64_t mutable_page_table_epoch = 0;
+    // Retrieved prior-turn R only, not the full attention view. Resident
+    // current-query Q and generated output are separately visible without
+    // being frozen here; replay rewrites Q and the FIFO evicts clean output.
     std::vector<llama_kv_pager_selected_history> selected_history;
     // Clean generation pages in logical order. Entries are authenticated by
     // full page identity and discarded lazily after rollback or rewrite.
