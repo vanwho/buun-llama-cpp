@@ -249,6 +249,7 @@ public:
             llama_kv_routing_summary_status & status) const noexcept;
 
     bool contains(uint32_t logical_page) const noexcept;
+    bool contains(const llama_kv_page_id & id) const noexcept;
 
     bool valid() const noexcept { return !pages_.empty() && snapshot_epoch_ != 0; }
     uint64_t version() const noexcept { return LLAMA_KV_ROUTING_SUMMARY_VERSION; }
@@ -296,7 +297,7 @@ private:
         uint64_t digest_float_count = 0;
     };
 
-    void rebuild_accounting(
+    bool rebuild_accounting(
             const llama_kv_routing_summary_config & config,
             std::chrono::steady_clock::time_point start) noexcept;
     static std::shared_ptr<const payload> make_payload(
@@ -308,6 +309,8 @@ private:
         uint64_t content_version = 0;
         std::shared_ptr<const payload> data;
     };
+
+    const page * find_page(const llama_kv_page_id & id) const noexcept;
 
     uint64_t snapshot_epoch_ = 0;
     uint32_t representative_count_ = 0;

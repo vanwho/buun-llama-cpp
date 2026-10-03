@@ -12,6 +12,7 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#include <set>
 #include <utility>
 
 bool llama_kv_pager_history_selection_equal(
@@ -145,13 +146,9 @@ uint64_t routing_coordinate_identity(
 // The catalog is the authority for cold-page metadata.  Keep this conversion
 // in one place so exact and routing inventories cannot disagree about which
 // canonical pages are executable candidates.
-bool stable_page_identity_equal(
-        const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) noexcept {
-    return lhs.session_generation == rhs.session_generation &&
-           lhs.sequence_id == rhs.sequence_id &&
-           lhs.sequence_generation == rhs.sequence_generation &&
-           lhs.logical_page == rhs.logical_page &&
-           lhs.attention_layer == rhs.attention_layer;
+auto stable_page_identity_key(const llama_kv_page_id & id) noexcept {
+    return std::make_tuple(id.session_generation, id.sequence_id,
+            id.sequence_generation, id.logical_page, id.attention_layer);
 }
 
 bool canonical_host_page_record(
@@ -1096,16 +1093,15 @@ std::vector<llama_kv_page_record> llama_kv_pager::exact_page_records(
     try {
         const auto resident = residency(sequence_id);
         output = resident.pages();
-        for (const auto & logical : logical_catalogue_) {
+        std::set<logical_page_key> resident_keys;
+        for (const auto & page : output) resident_keys.insert(stable_page_identity_key(page.id));
+        for (const auto & entry : logical_catalogue_) {
+            const auto & logical = entry.second;
             const auto & id = logical.id;
             if (id.sequence_id != sequence_id || id.logical_page >= snapshot_.logical_page_count) {
                 continue;
             }
-            const bool resident_page = std::any_of(output.begin(), output.end(),
-                    [&](const llama_kv_page_record & page) {
-                        return stable_page_identity_equal(page.id, id);
-            });
-            if (resident_page) {
+            if (resident_keys.find(entry.first) != resident_keys.end()) {
                 continue;
             }
             output.push_back(logical);
@@ -2264,12 +2260,12 @@ llama_kv_routing_page_inventory llama_kv_pager::routing_inventory() const noexce
     llama_kv_routing_page_inventory output;
     try {
         output = residency_.snapshot().pages();
-        for (const auto & logical : logical_catalogue_) {
-            const auto existing = std::find_if(output.begin(), output.end(),
-                    [&](const auto & page) {
-                return stable_page_identity_equal(page.id, logical.id);
-            });
-            if (existing == output.end()) output.push_back(logical);
+        std::set<logical_page_key> resident_keys;
+        for (const auto & page : output) resident_keys.insert(stable_page_identity_key(page.id));
+        for (const auto & entry : logical_catalogue_) {
+            // Catalogue keys are unique; only the bounded resident set needs
+            // a membership check, not the growing resident+cold output.
+            if (resident_keys.find(entry.first) == resident_keys.end()) output.push_back(entry.second);
         }
         std::sort(output.begin(), output.end(), [](const auto & lhs, const auto & rhs) {
             if (lhs.id.sequence_id != rhs.id.sequence_id) {
@@ -2291,16 +2287,7 @@ void llama_kv_pager::remember_logical_page(
     if (page.id.sequence_id < 0 || page.id.sequence_generation == 0 ||
             page.id.page_generation == 0) return;
     try {
-        const auto it = std::find_if(logical_catalogue_.begin(), logical_catalogue_.end(),
-                [&](const auto & old) {
-            return old.id.session_generation == page.id.session_generation &&
-                old.id.sequence_id == page.id.sequence_id &&
-                old.id.sequence_generation == page.id.sequence_generation &&
-                old.id.logical_page == page.id.logical_page &&
-                old.id.attention_layer == page.id.attention_layer;
-        });
-        if (it == logical_catalogue_.end()) logical_catalogue_.push_back(page);
-        else *it = page;
+        logical_catalogue_.insert_or_assign(stable_page_identity_key(page.id), page);
     } catch (...) {
         // Residency remains authoritative if this diagnostic index cannot grow.
     }
@@ -2308,10 +2295,7 @@ void llama_kv_pager::remember_logical_page(
 
 void llama_kv_pager::forget_logical_page(
         const llama_kv_page_id & page) noexcept {
-    logical_catalogue_.erase(std::remove_if(logical_catalogue_.begin(),
-            logical_catalogue_.end(), [&](const auto & old) {
-        return stable_page_identity_equal(old.id, page);
-    }), logical_catalogue_.end());
+    logical_catalogue_.erase(stable_page_identity_key(page));
 }
 
 std::vector<llama_kv_routing_summary_config>
@@ -2341,22 +2325,42 @@ llama_kv_pager::routing_summary_configs() const noexcept {
     return output;
 }
 
-void llama_kv_pager::invalidate_routing_summaries(
+bool llama_kv_pager::invalidate_routing_summaries(
         const std::vector<llama_kv_page_id> & page_ids) noexcept {
-    if (page_ids.empty()) return;
-    llama_kv_routing_summary_status status;
-    const auto snapshot = residency_.snapshot();
-    auto invalidated = routing_summaries_.invalidate_pages(snapshot, page_ids, status);
-    if (status == llama_kv_routing_summary_status::ok) {
-        routing_summaries_ = std::move(invalidated);
-    }
-    for (const auto & config : routing_summary_configs()) {
-        auto * current = routing_summary_index_.find(config.layer_index, config.head_index);
-        if (current == nullptr || !current->valid()) continue;
-        auto next = current->invalidate_pages(snapshot, page_ids, status);
-        if (status == llama_kv_routing_summary_status::ok) {
-            routing_summary_index_.set(std::move(next));
+    if (page_ids.empty()) return true;
+    try {
+        llama_kv_routing_summary_status status;
+        const auto snapshot = residency_.snapshot();
+        const auto affected = [&](const llama_kv_routing_summary_store & store) {
+            return std::any_of(page_ids.begin(), page_ids.end(),
+                    [&](const auto & id) { return store.contains(id); });
+        };
+        // Avoid even the descriptor copy when no requested identity is present.
+        // Retained cold summaries intentionally outlive residency epoch changes.
+        const bool compatibility_changed = affected(routing_summaries_);
+        llama_kv_routing_summary_store compatibility_next;
+        if (compatibility_changed) {
+            compatibility_next = routing_summaries_.invalidate_pages(snapshot, page_ids, status);
+            if (status != llama_kv_routing_summary_status::ok) return false;
         }
+        std::vector<std::pair<llama_kv_routing_summary_store *, llama_kv_routing_summary_store>> staged;
+        const auto configs = routing_summary_configs();
+        if (configs.empty()) return false;
+        for (const auto & config : configs) {
+            auto * current = routing_summary_index_.find(config.layer_index, config.head_index);
+            if (current == nullptr || !current->valid() || !affected(*current)) continue;
+            auto next = current->invalidate_pages(snapshot, page_ids, status);
+            if (status != llama_kv_routing_summary_status::ok) return false;
+            staged.emplace_back(current, std::move(next));
+        }
+        // Publish only after every affected head succeeds. Existing index
+        // entries are replaced in place, so this step cannot allocate or
+        // invalidate the staged pointers.
+        if (compatibility_changed) routing_summaries_ = std::move(compatibility_next);
+        for (auto & entry : staged) *entry.first = std::move(entry.second);
+        return true;
+    } catch (...) {
+        return false;
     }
 }
 
@@ -2922,12 +2926,14 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
 
 bool llama_kv_pager::invalidate_host_page(
         const llama_kv_page_id & page) noexcept {
+    if (!invalidate_routing_summaries({ page })) return false;
     const bool invalidated = !host_ || host_->invalidate(page);
     for (auto & resident : pages_) {
         if (!resident.present || resident.record.id != page) continue;
         resident.record.host_valid = false;
         resident.record.dirty = true;
         resident.host_content_version = 0;
+        resident.summary_content_version = 0;
         if (resident.record.state == llama_kv_page_state::host_clean ||
                 resident.record.state == llama_kv_page_state::gpu_host_clean) {
             resident.record.state = llama_kv_page_state::gpu_dirty;
@@ -2935,7 +2941,6 @@ bool llama_kv_pager::invalidate_host_page(
         queue_maintenance(resident);
         (void) publish_page(resident);
     }
-    invalidate_routing_summaries({ page });
     return invalidated;
 }
 
@@ -3219,7 +3224,15 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
     const uint64_t owner_turn_before = page != nullptr ? page->owner_turn_id : 0;
     const bool generation_queued_before = page != nullptr && page->generation_queued;
     if (page != nullptr) {
-        invalidate_routing_summaries({ previous_id });
+        // The first rewrite invalidates a sealed summary; subsequent rows of
+        // the dirty append tail must not copy/recount every historical store.
+        // A promoted cold page can still have a retained summary with a zero
+        // resident marker, so also check its complete retained identity.
+        if (page->summary_content_version != 0 || routing_summaries_.contains(previous_id)) {
+            if (!invalidate_routing_summaries({ previous_id })) {
+                return llama_kv_pager_write_status::transaction;
+            }
+        }
         page->content_version = advance_content_version(page->content_version);
         page->host_content_version = 0;
         page->summary_content_version = 0;
@@ -3791,6 +3804,11 @@ llama_kv_pager_write_status llama_kv_pager::cancel_write(
         page->record.id.page_generation != ticket.page_generation ||
         page->record.id.sequence_generation != ticket.sequence_generation) {
         return llama_kv_pager_write_status::stale_generation;
+    }
+    if (page->summary_content_version != 0 || routing_summaries_.contains(page->record.id)) {
+        if (!invalidate_routing_summaries({ page->record.id })) {
+            return llama_kv_pager_write_status::transaction;
+        }
     }
     if (page->record.pin_count != 0) {
         page->record.pin_count--;

@@ -9,8 +9,11 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <map>
 #include <new>
+#include <set>
 #include <tuple>
+#include <unordered_set>
 #include <time.h>
 
 namespace {
@@ -39,30 +42,39 @@ bool valid_inventory_record(const llama_kv_page_record & record) {
     return true;
 }
 
-bool same_logical(const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) {
-    return lhs.session_generation == rhs.session_generation &&
-           lhs.sequence_id == rhs.sequence_id &&
-           lhs.sequence_generation == rhs.sequence_generation &&
-           lhs.logical_page == rhs.logical_page;
+auto logical_key(const llama_kv_page_id & id) noexcept {
+    return std::make_tuple(id.session_generation, id.sequence_id,
+            id.sequence_generation, id.logical_page);
+}
+
+using inventory_index = std::map<decltype(logical_key(llama_kv_page_id{})),
+        const llama_kv_page_record *>;
+
+inventory_index index_inventory(const llama_kv_routing_page_inventory & inventory) {
+    inventory_index indexed;
+    for (const auto & record : inventory) indexed.emplace(logical_key(record.id), &record);
+    return indexed;
 }
 
 bool inventory_matches_snapshot(
         const llama_kv_residency_snapshot & snapshot,
-        const llama_kv_routing_page_inventory & inventory) {
-    for (size_t i = 0; i < inventory.size(); ++i) {
-        if (!valid_inventory_record(inventory[i])) return false;
-        for (size_t j = i + 1; j < inventory.size(); ++j) {
-            if (same_logical(inventory[i].id, inventory[j].id)) return false;
+        const llama_kv_routing_page_inventory & inventory) noexcept {
+    try {
+        const auto indexed = index_inventory(inventory);
+        if (indexed.size() != inventory.size()) return false;
+        for (const auto & record : inventory) {
+            if (!valid_inventory_record(record)) return false;
         }
+        for (const auto & resident : snapshot.pages()) {
+            if (!valid_inventory_record(resident)) continue;
+            const auto it = indexed.find(logical_key(resident.id));
+            if (it == indexed.end() || it->second->id != resident.id ||
+                    it->second->physical_slot != resident.physical_slot) return false;
+        }
+        return true;
+    } catch (...) {
+        return false;
     }
-    for (const auto & resident : snapshot.pages()) {
-        if (!valid_inventory_record(resident)) continue;
-        const auto it = std::find_if(inventory.begin(), inventory.end(),
-                [&](const auto & record) { return same_logical(record.id, resident.id); });
-        if (it == inventory.end() || it->id != resident.id ||
-            it->physical_slot != resident.physical_slot) return false;
-    }
-    return true;
 }
 
 bool valid_form(llama_kv_routing_summary_form form) {
@@ -119,12 +131,12 @@ bool page_id_less(const llama_kv_page_id & a, const llama_kv_page_id & b) {
             a.logical_page, a.page_generation, a.representation_epoch,
             a.model_identity, a.topology_identity, a.codec_digest,
             a.codebook_digest, a.rotation_digest, a.meansub_digest,
-            a.position_begin, a.position_end) <
+            a.position_begin, a.position_end, a.attention_layer) <
         std::tie(b.session_generation, b.sequence_id, b.sequence_generation,
             b.logical_page, b.page_generation, b.representation_epoch,
             b.model_identity, b.topology_identity, b.codec_digest,
             b.codebook_digest, b.rotation_digest, b.meansub_digest,
-            b.position_begin, b.position_end);
+            b.position_begin, b.position_end, b.attention_layer);
 }
 
 float fp16_outward_lower(float value) {
@@ -393,18 +405,21 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
         result.form_ = config.form;
         result.allocation_granularity_ = config.allocation_granularity;
         result.subblock_tokens_ = config.subblock_tokens;
-        for (size_t i = 0; i < inputs.size(); ++i) {
-            for (size_t j = i + 1; j < inputs.size(); ++j) {
-                if (inputs[i].id.logical_page == inputs[j].id.logical_page) {
-                    status = llama_kv_routing_summary_status::duplicate_page;
-                    return {};
-                }
+        const auto indexed = index_inventory(inventory);
+        std::set<uint32_t> input_pages;
+        std::map<decltype(logical_key(llama_kv_page_id{})),
+                const llama_kv_routing_page_input *> indexed_inputs;
+        for (const auto & input : inputs) {
+            // Preserve the full-build API's logical-page duplicate rejection.
+            if (!input_pages.insert(input.id.logical_page).second) {
+                status = llama_kv_routing_summary_status::duplicate_page;
+                return {};
             }
+            indexed_inputs.emplace(logical_key(input.id), &input);
         }
         for (const auto & input : inputs) {
-            const auto it = std::find_if(inventory.begin(), inventory.end(),
-                    [&](const auto & record) { return record.id == input.id; });
-            if (it == inventory.end()) {
+            const auto it = indexed.find(logical_key(input.id));
+            if (it == indexed.end() || it->second->id != input.id) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
@@ -412,13 +427,12 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
         for (const auto & record : inventory) {
             const bool tail = llama_kv_page_id_is_tail(record.id);
             if (!valid_state(record.state) || !llama_kv_page_id_valid(record.id, tail)) continue;
-            const auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto & input) {
-                return input.id == record.id;
-            });
-            if (it == inputs.end()) {
+            const auto it = indexed_inputs.find(logical_key(record.id));
+            if (it == indexed_inputs.end() || it->second->id != record.id) {
                 status = llama_kv_routing_summary_status::missing_page;
                 return {};
             }
+            const auto * input = it->second;
             page summary;
             summary.id = record.id;
             summary.content_version = record.content_version;
@@ -426,25 +440,25 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             data.has_radius = config.form == llama_kv_routing_summary_form::centroid_upper_bound;
             const uint64_t row_count = uint64_t(record.id.position_end - record.id.position_begin);
             const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
-                ? make_ranges(*it, row_count, config, data.range_min,
+                ? make_ranges(*input, row_count, config, data.range_min,
                     data.range_max, data.source_rows)
-                : make_vectors(*it, row_count, config, data.vectors,
+                : make_vectors(*input, row_count, config, data.vectors,
                     data.radius, data.source_rows);
             if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
             if (config.form == llama_kv_routing_summary_form::minmax_ranges &&
-                    !it->mean_k_values.empty()) {
-                if (it->mean_k_values.size() != config.vector_dim ||
-                        std::any_of(it->mean_k_values.begin(), it->mean_k_values.end(),
+                    !input->mean_k_values.empty()) {
+                if (input->mean_k_values.size() != config.vector_dim ||
+                        std::any_of(input->mean_k_values.begin(), input->mean_k_values.end(),
                                 [](float value) { return !std::isfinite(value); })) {
                     status = llama_kv_routing_summary_status::invalid_page;
                     return {};
                 }
-                data.vectors = it->mean_k_values;
+                data.vectors = input->mean_k_values;
             }
-            data.source_bytes = it->source_bytes;
+            data.source_bytes = input->source_bytes;
             uint64_t floats_hashed = 0;
             summary.data = make_payload(std::move(data), floats_hashed);
             if (!summary.data) {
@@ -468,7 +482,10 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
                 return {};
             }
         }
-        result.rebuild_accounting(config, start);
+        if (!result.rebuild_accounting(config, start)) {
+            status = llama_kv_routing_summary_status::overflow;
+            return {};
+        }
         if (config.byte_budget != 0 && result.accounting_.charged_bytes > config.byte_budget) {
             status = llama_kv_routing_summary_status::insufficient_budget;
             return {};
@@ -586,19 +603,19 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
         std::vector<page> updates;
         uint64_t payload_floats_hashed = 0;
         updates.reserve(inputs.size());
+        const auto indexed = index_inventory(inventory);
+        std::set<decltype(logical_key(llama_kv_page_id{}))> updated_keys;
         for (size_t i = 0; i < inputs.size(); ++i) {
-            for (size_t j = i + 1; j < inputs.size(); ++j) {
-                if (same_logical(inputs[i].id, inputs[j].id)) {
-                    status = llama_kv_routing_summary_status::duplicate_page;
-                    return {};
-                }
+            if (!updated_keys.insert(logical_key(inputs[i].id)).second) {
+                status = llama_kv_routing_summary_status::duplicate_page;
+                return {};
             }
-            const auto record = std::find_if(inventory.begin(), inventory.end(),
-                    [&](const auto & candidate) { return candidate.id == inputs[i].id; });
-            if (record == inventory.end()) {
+            const auto entry = indexed.find(logical_key(inputs[i].id));
+            if (entry == indexed.end() || entry->second->id != inputs[i].id) {
                 status = llama_kv_routing_summary_status::stale_summary;
                 return {};
             }
+            const auto * record = entry->second;
             const bool tail = record->state == llama_kv_page_state::filling_gpu;
             if (!valid_state(record->state) || !llama_kv_page_id_valid(record->id, tail)) {
                 status = llama_kv_routing_summary_status::invalid_page;
@@ -640,19 +657,39 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             }
             updates.push_back(std::move(summary));
         }
-        for (auto & summary : updates) {
-            const auto existing = std::find_if(result.pages_.begin(), result.pages_.end(),
-                    [&](const auto & value) { return same_logical(value.id, summary.id); });
-            if (existing == result.pages_.end()) result.pages_.push_back(std::move(summary));
-            else *existing = std::move(summary);
-        }
-        std::sort(result.pages_.begin(), result.pages_.end(),
+        std::sort(updates.begin(), updates.end(),
                 [](const auto & lhs, const auto & rhs) {
                     return page_id_less(lhs.id, rhs.id);
                 });
+        // Merge one seal wave into sorted immutable descriptors. A changed
+        // generation/content tag replaces the same logical owner; unchanged
+        // payload allocations remain shared with in-flight readers.
+        std::vector<page> merged;
+        if (updates.size() > merged.max_size() - result.pages_.size()) {
+            status = llama_kv_routing_summary_status::overflow;
+            return {};
+        }
+        merged.reserve(result.pages_.size() + updates.size());
+        size_t old_index = 0, update_index = 0;
+        while (old_index < result.pages_.size() && update_index < updates.size()) {
+            const auto old_key = logical_key(result.pages_[old_index].id);
+            const auto update_key = logical_key(updates[update_index].id);
+            if (old_key < update_key) {
+                merged.push_back(std::move(result.pages_[old_index++]));
+            } else {
+                merged.push_back(std::move(updates[update_index++]));
+                if (old_key == update_key) ++old_index;
+            }
+        }
+        while (old_index < result.pages_.size()) merged.push_back(std::move(result.pages_[old_index++]));
+        while (update_index < updates.size()) merged.push_back(std::move(updates[update_index++]));
+        result.pages_ = std::move(merged);
         const uint64_t previous_build_count = accounting_.build_count;
         result.accounting_.payload_floats_hashed = payload_floats_hashed;
-        result.rebuild_accounting(config, start);
+        if (!result.rebuild_accounting(config, start)) {
+            status = llama_kv_routing_summary_status::overflow;
+            return {};
+        }
         result.accounting_.build_count = previous_build_count + inputs.size();
         if (config.byte_budget != 0 && result.accounting_.charged_bytes > config.byte_budget) {
             status = llama_kv_routing_summary_status::insufficient_budget;
@@ -683,15 +720,19 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::reconcile(
         result.snapshot_epoch_ = snapshot.epoch();
         const uint64_t previous_build_count = accounting_.build_count;
         const uint64_t before = result.pages_.size();
+        const auto indexed = index_inventory(inventory);
         result.pages_.erase(std::remove_if(result.pages_.begin(), result.pages_.end(),
                 [&](const auto & summary) {
-                    const auto it = std::find_if(inventory.begin(), inventory.end(),
-                            [&](const auto & page) { return same_logical(page.id, summary.id); });
-                    return it == inventory.end() || it->id != summary.id ||
-                        it->content_version != summary.content_version;
+                    const auto it = indexed.find(logical_key(summary.id));
+                    return it == indexed.end() || it->second->id != summary.id ||
+                        it->second->content_version != summary.content_version;
                 }), result.pages_.end());
         result.accounting_.payload_floats_hashed = 0;
-        result.rebuild_accounting({}, std::chrono::steady_clock::now());
+        if ((result.pages_.size() != before || result.accounting_.content_hash == 0) &&
+                !result.rebuild_accounting({}, std::chrono::steady_clock::now())) {
+            status = llama_kv_routing_summary_status::overflow;
+            return {};
+        }
         result.accounting_.invalidation_count = accounting_.invalidation_count + before - result.pages_.size();
         result.accounting_.build_count = previous_build_count;
         status = llama_kv_routing_summary_status::ok;
@@ -717,7 +758,13 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::invalidate_page(
                 [&](const auto & page) { return page.id.logical_page == logical_page; }),
                 result.pages_.end());
         result.accounting_.payload_floats_hashed = 0;
-        result.rebuild_accounting({}, std::chrono::steady_clock::now());
+        // An absent page only rebinds the snapshot epoch; immutable payload
+        // charges and their digest have not changed.
+        if ((result.pages_.size() != old_size || result.accounting_.content_hash == 0) &&
+                !result.rebuild_accounting({}, std::chrono::steady_clock::now())) {
+            status = llama_kv_routing_summary_status::overflow;
+            return {};
+        }
         result.accounting_.invalidation_count = accounting_.invalidation_count +
             (old_size - result.pages_.size());
         result.accounting_.build_count = previous_build_count;
@@ -740,13 +787,22 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::invalidate_pages(
         result.snapshot_epoch_ = snapshot.epoch();
         const uint64_t previous_build_count = accounting_.build_count;
         const auto old_size = result.pages_.size();
+        auto invalidated_ids = page_ids;
+        std::sort(invalidated_ids.begin(), invalidated_ids.end(), page_id_less);
+        invalidated_ids.erase(std::unique(invalidated_ids.begin(), invalidated_ids.end()),
+                invalidated_ids.end());
         result.pages_.erase(std::remove_if(result.pages_.begin(), result.pages_.end(),
                 [&](const auto & page) {
-                    return std::find(page_ids.begin(), page_ids.end(), page.id) != page_ids.end();
+                    return std::binary_search(invalidated_ids.begin(), invalidated_ids.end(),
+                            page.id, page_id_less);
                 }),
                 result.pages_.end());
         result.accounting_.payload_floats_hashed = 0;
-        result.rebuild_accounting({}, std::chrono::steady_clock::now());
+        if ((result.pages_.size() != old_size || result.accounting_.content_hash == 0) &&
+                !result.rebuild_accounting({}, std::chrono::steady_clock::now())) {
+            status = llama_kv_routing_summary_status::overflow;
+            return {};
+        }
         result.accounting_.invalidation_count = accounting_.invalidation_count +
             (old_size - result.pages_.size());
         result.accounting_.build_count = previous_build_count;
@@ -762,6 +818,22 @@ bool llama_kv_routing_summary_store::contains(uint32_t logical_page) const noexc
     return std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
         return page.id.logical_page == logical_page;
     }) != pages_.end();
+}
+
+const llama_kv_routing_summary_store::page * llama_kv_routing_summary_store::find_page(
+        const llama_kv_page_id & id) const noexcept {
+    // Build/update sort descriptors by the complete identity, and invalidation
+    // preserves that order. Logical page alone is not safe across sequences,
+    // generations or representation changes.
+    const auto it = std::lower_bound(pages_.begin(), pages_.end(), id,
+            [](const page & value, const llama_kv_page_id & key) {
+                return page_id_less(value.id, key);
+            });
+    return it != pages_.end() && it->id == id ? &*it : nullptr;
+}
+
+bool llama_kv_routing_summary_store::contains(const llama_kv_page_id & id) const noexcept {
+    return find_page(id) != nullptr;
 }
 
 uint32_t llama_kv_routing_summary_store::subblock_count(uint32_t logical_page) const noexcept {
@@ -789,18 +861,16 @@ const std::vector<float> * llama_kv_routing_summary_store::range_max(
 
 const std::vector<float> * llama_kv_routing_summary_store::range_min(
         const llama_kv_page_id & id) const noexcept {
-    const auto it = std::find_if(pages_.begin(), pages_.end(),
-            [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() || !it->data || it->data->range_min.empty()
-        ? nullptr : &it->data->range_min;
+    const auto * value = find_page(id);
+    return value == nullptr || !value->data || value->data->range_min.empty()
+        ? nullptr : &value->data->range_min;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::range_max(
         const llama_kv_page_id & id) const noexcept {
-    const auto it = std::find_if(pages_.begin(), pages_.end(),
-            [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() || !it->data || it->data->range_max.empty()
-        ? nullptr : &it->data->range_max;
+    const auto * value = find_page(id);
+    return value == nullptr || !value->data || value->data->range_max.empty()
+        ? nullptr : &value->data->range_max;
 }
 
 const std::vector<float> * llama_kv_routing_summary_store::mean_k(
@@ -815,21 +885,19 @@ const std::vector<float> * llama_kv_routing_summary_store::mean_k(
 
 const std::vector<float> * llama_kv_routing_summary_store::mean_k(
         const llama_kv_page_id & id) const noexcept {
-    const auto it = std::find_if(pages_.begin(), pages_.end(),
-            [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() || !it->data || it->data->vectors.empty() ||
+    const auto * value = find_page(id);
+    return value == nullptr || !value->data || value->data->vectors.empty() ||
             (form_ != llama_kv_routing_summary_form::mean_k &&
-             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->data->vectors;
+             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &value->data->vectors;
 }
 
 uint64_t llama_kv_routing_summary_store::content_version(
         const llama_kv_page_id & id) const noexcept {
-    const auto it = std::find_if(pages_.begin(), pages_.end(),
-            [&](const auto & page) { return page.id == id; });
-    return it == pages_.end() ? 0 : it->content_version;
+    const auto * value = find_page(id);
+    return value == nullptr ? 0 : value->content_version;
 }
 
-void llama_kv_routing_summary_store::rebuild_accounting(
+bool llama_kv_routing_summary_store::rebuild_accounting(
         const llama_kv_routing_summary_config & config,
         std::chrono::steady_clock::time_point start) noexcept {
     const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
@@ -845,24 +913,31 @@ void llama_kv_routing_summary_store::rebuild_accounting(
         }
     }
 #endif
-    uint64_t payload = 0, metadata = 0, logical = 0, charged = 0;
+    uint64_t payload_bytes = 0, metadata = 0, logical = 0, charged = 0;
     if (!mul(pages_.size(), sizeof(llama_kv_page_id), metadata)) {
         accounting_ = {};
-        return;
+        return false;
     }
-    // Count each immutable backing allocation once, even if descriptors share it.
-    for (size_t i = 0; i < pages_.size(); ++i) {
-        if (!pages_[i].data) { accounting_ = {}; return; }
-        bool seen = false;
-        for (size_t j = 0; j < i; ++j) {
-            if (pages_[j].data.get() == pages_[i].data.get()) { seen = true; break; }
+    // Count each immutable allocation once in expected linear time. Comparing
+    // every descriptor with its predecessors makes a seal wave quadratic in
+    // the entire retained history, even when all payloads are distinct.
+    try {
+        std::unordered_set<const payload *> allocations;
+        allocations.reserve(pages_.size());
+        for (const auto & page : pages_) {
+            if (!page.data || (allocations.insert(page.data.get()).second &&
+                    !add(payload_bytes, page.data->byte_count, payload_bytes))) {
+                accounting_ = {};
+                return false;
+            }
         }
-        if (!seen && !add(payload, pages_[i].data->byte_count, payload)) {
-            accounting_ = {};
-            return;
-        }
+    } catch (...) {
+        // This function is noexcept; inability to account must fail publication,
+        // not terminate the process or make a failed charge look like zero.
+        accounting_ = {};
+        return false;
     }
-    if (!add(payload, metadata, logical)) { accounting_ = {}; return; }
+    if (!add(payload_bytes, metadata, logical)) { accounting_ = {}; return false; }
     const uint64_t granularity = config.allocation_granularity != 0
         ? config.allocation_granularity : allocation_granularity_;
     const uint64_t remainder = logical % granularity;
@@ -870,7 +945,7 @@ void llama_kv_routing_summary_store::rebuild_accounting(
     accounting_.page_count = pages_.size();
     accounting_.representative_count = representative_count_;
     accounting_.vector_dim = vector_dim_;
-    accounting_.payload_bytes = payload;
+    accounting_.payload_bytes = payload_bytes;
     accounting_.metadata_bytes = metadata;
     accounting_.logical_bytes = logical;
     accounting_.charged_bytes = charged;
@@ -879,7 +954,7 @@ void llama_kv_routing_summary_store::rebuild_accounting(
         std::chrono::steady_clock::now() - start).count());
     accounting_.build_count = pages_.size();
     for (const auto & page : pages_) {
-        if (!page.data) { accounting_ = {}; return; }
+        if (!page.data) { accounting_ = {}; return false; }
         if (!add(accounting_.source_bytes, page.data->source_bytes, accounting_.source_bytes)) {
             accounting_.source_bytes = UINT64_MAX;
         }
@@ -915,11 +990,12 @@ void llama_kv_routing_summary_store::rebuild_accounting(
                 "layer=%u head=%u pages=%zu payload_bytes=%" PRIu64
                 " payload_floats_hashed=%" PRIu64 " digest_wall_us=%" PRId64
                 " digest_thread_us=%" PRIu64 "\n",
-                config.layer_index, config.head_index, pages_.size(), payload,
+                config.layer_index, config.head_index, pages_.size(), payload_bytes,
                 accounting_.payload_floats_hashed,
                 std::max<int64_t>(0, ggml_time_us() - wall_start_us),
                 thread_end_us >= thread_start_us ? thread_end_us - thread_start_us : 0);
     }
+    return true;
 }
 
 llama_kv_routing_score_result llama_kv_routing_summary_store::score(
@@ -945,42 +1021,37 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
         result.status = llama_kv_routing_summary_status::invalid_argument;
         return result;
     }
-    for (const auto & summary_page : pages_) {
-        const auto it = std::find_if(inventory.begin(), inventory.end(),
-                [&](const auto & record) { return same_logical(record.id, summary_page.id); });
-        // A pager may retain one index across sequences. Pages outside this
-        // query's sequence are ignored; a matching logical page with a new
-        // authenticated identity is stale evidence and must fail closed.
-        if (it != inventory.end() && (it->id != summary_page.id ||
-                it->content_version != summary_page.content_version)) {
-            result.status = llama_kv_routing_summary_status::stale_summary;
-            return result;
-        }
-    }
-    // A partial write frontier is mandatory structural context and may be
-    // intentionally absent from the router. Every other live page must have a
-    // current summary; silently scoring a subset would make a cold page
-    // permanently undiscoverable.
-    for (const auto & record : inventory) {
-        const bool tail = record.state == llama_kv_page_state::filling_gpu;
-        if (!valid_state(record.state) || !llama_kv_page_id_valid(record.id, tail) || tail) continue;
-        const bool found = std::find_if(pages_.begin(), pages_.end(),
-                [&](const auto & page) { return page.id == record.id; }) != pages_.end();
-        if (!found) {
-            result.status = llama_kv_routing_summary_status::stale_summary;
-            return result;
-        }
-    }
-    const auto start = std::chrono::steady_clock::now();
+    auto start = std::chrono::steady_clock::now();
     try {
+        const auto indexed = index_inventory(inventory);
+        for (const auto & summary_page : pages_) {
+            const auto it = indexed.find(logical_key(summary_page.id));
+            // Pages outside this query's sequence are ignored; a matching
+            // owner with a different complete identity must fail closed.
+            if (it != indexed.end() && (it->second->id != summary_page.id ||
+                    it->second->content_version != summary_page.content_version)) {
+                result.status = llama_kv_routing_summary_status::stale_summary;
+                return result;
+            }
+        }
+        // A partial write frontier is mandatory structural context and may be
+        // absent from the router. All other live pages need a current summary.
+        for (const auto & record : inventory) {
+            const bool tail = record.state == llama_kv_page_state::filling_gpu;
+            if (!valid_state(record.state) || !llama_kv_page_id_valid(record.id, tail) || tail) continue;
+            if (!contains(record.id)) {
+                result.status = llama_kv_routing_summary_status::stale_summary;
+                return result;
+            }
+        }
+        start = std::chrono::steady_clock::now();
         result.top_pages.reserve(pages_.size());
         double query_sum = 0.0;
         for (float value : query) query_sum += double(value) * value;
         const float query_norm = float(std::sqrt(query_sum));
         for (const auto & page : pages_) {
-            const auto in_inventory = std::find_if(inventory.begin(), inventory.end(),
-                    [&](const auto & record) { return record.id == page.id; });
-            if (in_inventory == inventory.end()) continue;
+            const auto in_inventory = indexed.find(logical_key(page.id));
+            if (in_inventory == indexed.end() || in_inventory->second->id != page.id) continue;
             const uint32_t vector_count = form_ == llama_kv_routing_summary_form::representatives
                 ? representative_count_ : 1;
             float best = -std::numeric_limits<float>::infinity();

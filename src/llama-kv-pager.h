@@ -20,6 +20,7 @@
 #include <map>
 #include <mutex>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 class vbr_h2d_chunk_ring;
@@ -998,7 +999,7 @@ private:
             bool preserve_host = false) noexcept;
     llama_kv_routing_page_inventory routing_inventory() const noexcept;
     std::vector<llama_kv_routing_summary_config> routing_summary_configs() const noexcept;
-    void invalidate_routing_summaries(
+    bool invalidate_routing_summaries(
             const std::vector<llama_kv_page_id> & page_ids) noexcept;
     void queue_maintenance(page_state & page) noexcept;
     void remember_logical_page(const llama_kv_page_record & page) noexcept;
@@ -1061,10 +1062,11 @@ private:
     llama_kv_pager_allocation allocation_;
     bool owns_allocation_ = true;
     std::vector<page_state> pages_;
-    // Indexed logical records for canonical cold pages. The host catalog owns
-    // the bytes; this compact metadata index is the pager's hot-path authority
-    // for lookup and avoids rebuilding a full host-page vector at each fence.
-    std::vector<llama_kv_page_record> logical_catalogue_;
+    // Stable logical ownership, not the mutable content/representation tag.
+    // Publishing another row replaces this owner's record in O(log P), rather
+    // than scanning every cold page. The record retains the complete identity.
+    using logical_page_key = std::tuple<uint64_t, int32_t, uint64_t, uint32_t, uint32_t>;
+    std::map<logical_page_key, llama_kv_page_record> logical_catalogue_;
     std::vector<int32_t> slot_pages_;
     std::vector<size_t> maintenance_page_indices_;
     std::vector<size_t> maintenance_processing_indices_;
