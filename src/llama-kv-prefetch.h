@@ -66,6 +66,10 @@ struct llama_kv_prefetch_candidate {
     uint64_t rollback_generation = 0;
 };
 
+// Shared by graph output construction and startup mailbox sizing. Changing
+// the cold ranking width must not silently exceed readback storage.
+constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 5;
+
 enum class llama_kv_prefetch_mailbox_poll : uint8_t {
     pending = 0,
     completed,
@@ -118,6 +122,10 @@ public:
     bool configured() const noexcept { return !slots_.empty(); }
     uint32_t slot_count() const noexcept { return uint32_t(slots_.size()); }
     uint32_t candidates_per_slot() const noexcept { return capacity_; }
+    // Startup-only sizing, before attaching pinned storage or publishing an
+    // event. Capacity follows the admitted selector geometry, not a token or
+    // hot-page ceiling. Existing live ownership is never resized.
+    bool configure(const llama_kv_prefetch_mailbox_config & config) noexcept;
     uint32_t pending_slots() const noexcept;
     uint32_t ready_slots() const noexcept;
 

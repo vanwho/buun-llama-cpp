@@ -21974,7 +21974,16 @@ private:
                                 // The final-user selector result is owned by its graph until
                                 // this scheduler fence. Apply pager policy while the turn is
                                 // still provisional, before commit freezes history.
+                                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                                    SRV_INF("kv-pager-progress stage=server-query-sync-begin slot=%d context=%p query_end=%" PRId64 "\n",
+                                            slot.id, static_cast<void *>(ctx_tgt),
+                                            query_end);
+                                }
                                 llama_synchronize(ctx_tgt);
+                                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                                    SRV_INF("kv-pager-progress stage=server-query-sync-complete slot=%d\n",
+                                            slot.id);
+                                }
                                 return true;
                             });
                         slot.pager_query_committed = transition.committed;
@@ -24481,7 +24490,17 @@ private:
                 // The final-user selector graph must reach its scheduler fence while
                 // the pager turn is provisional. The next slot-loop iteration commits
                 // selected history and may replay only the changed query.
+                if (final_user_boundary_nearby &&
+                        std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                    SRV_INF("kv-pager-progress stage=server-decode-sync-begin tokens=%d final_user=%d\n",
+                            batch_view.n_tokens, has_final_user_query_token ? 1 : 0);
+                }
                 llama_synchronize(ctx_tgt);
+                if (final_user_boundary_nearby &&
+                        std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                    SRV_INF("kv-pager-progress stage=server-decode-sync-complete tokens=%d final_user=%d\n",
+                            batch_view.n_tokens, has_final_user_query_token ? 1 : 0);
+                }
                 if (synchronize_start_us != 0) {
                     explicit_compute_wait_us =
                         ggml_time_us() - synchronize_start_us;

@@ -57,19 +57,27 @@ const char * llama_kv_prefetch_mailbox_status_name(
 
 llama_kv_prefetch_mailbox::llama_kv_prefetch_mailbox(
         const llama_kv_prefetch_mailbox_config & config) noexcept
-    : capacity_(config.candidates_per_slot) {
-    if (config.slot_count == 0 || config.candidates_per_slot == 0) {
-        capacity_ = 0;
-        return;
+    : capacity_(0) {
+    (void) configure(config);
+}
+
+bool llama_kv_prefetch_mailbox::configure(
+        const llama_kv_prefetch_mailbox_config & config) noexcept {
+    if (config.slot_count == 0 || config.candidates_per_slot == 0) return false;
+    for (const auto & value : slots_) {
+        if (value.state != slot_state::free || value.external_records != nullptr) return false;
     }
     try {
-        slots_.resize(config.slot_count);
-        for (auto & slot : slots_) {
-            slot.records.resize(capacity_);
+        std::vector<slot> next(config.slot_count);
+        for (auto & value : next) {
+            value.records.resize(config.candidates_per_slot);
         }
+        slots_.swap(next);
+        capacity_ = config.candidates_per_slot;
+        return true;
     } catch (...) {
-        slots_.clear();
-        capacity_ = 0;
+        // Preserve the previous configuration if allocation fails.
+        return false;
     }
 }
 
