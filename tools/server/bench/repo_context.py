@@ -45,6 +45,8 @@ class CorpusChunk:
     start_line: int
     end_line: int
     text: str
+    start_byte: int | None = None
+    end_byte: int | None = None
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -209,7 +211,7 @@ def source_chunks(files: Sequence[SourceFile], *, excluded_paths: Iterable[str] 
         if not lines:
             continue
         chunks.append(CorpusChunk(item.path, item.sha256, item.byte_length, 1, len(lines),
-                                  item.text))
+                                  item.text, 0, item.byte_length))
     return chunks
 
 
@@ -225,20 +227,35 @@ def restore_chunks(files: Sequence[SourceFile], selection: Sequence[Mapping[str,
         lines = source.text.splitlines(keepends=True)
         if not isinstance(first, int) or not isinstance(last, int) or not 1 <= first <= last <= len(lines):
             raise SourceIdentityError(f"invalid recorded source line range: {relative}")
-        restored.append(CorpusChunk(relative, source.sha256, source.byte_length, first, last,
-                                    "".join(lines[first - 1:last])))
+        start_byte, end_byte = row.get("start_byte"), row.get("end_byte")
+        if start_byte is not None or end_byte is not None:
+            data = source.text.encode("utf-8")
+            if (not isinstance(start_byte, int) or not isinstance(end_byte, int) or
+                    not 0 <= start_byte < end_byte <= len(data)):
+                raise SourceIdentityError(f"invalid recorded source byte range: {relative}")
+            text = data[start_byte:end_byte].decode("utf-8")
+            restored.append(CorpusChunk(relative, source.sha256, source.byte_length, first, last,
+                                        text, start_byte, end_byte))
+        else:
+            start_byte = len("".join(lines[:first - 1]).encode("utf-8"))
+            end_byte = start_byte + len("".join(lines[first - 1:last]).encode("utf-8"))
+            restored.append(CorpusChunk(relative, source.sha256, source.byte_length, first, last,
+                                        "".join(lines[first - 1:last]), start_byte, end_byte))
     return restored
 
 
 def selection_record(chunks: Sequence[CorpusChunk]) -> list[dict[str, Any]]:
     return [{"path": chunk.path, "sha256": chunk.sha256,
              "byte_length": chunk.byte_length,
-             "start_line": chunk.start_line, "end_line": chunk.end_line}
+             "start_line": chunk.start_line, "end_line": chunk.end_line,
+             "start_byte": chunk.start_byte, "end_byte": chunk.end_byte}
             for chunk in chunks]
 
 
 def render_chunk(chunk: CorpusChunk) -> str:
-    return (f"--- BEGIN FILE: {chunk.path} (lines {chunk.start_line}-{chunk.end_line}) ---\n"
+    extent = (f"bytes {chunk.start_byte}-{chunk.end_byte} (lines {chunk.start_line}-{chunk.end_line})"
+              if chunk.start_byte is not None else f"lines {chunk.start_line}-{chunk.end_line}")
+    return (f"--- BEGIN FILE: {chunk.path} ({extent}) ---\n"
             f"{chunk.text}--- END FILE: {chunk.path} ---")
 
 
@@ -270,7 +287,7 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                               context_tokens: int, reserve_tokens: int,
                               generation_tokens: int = 400,
                               max_fresh_tokens: int = 16000) -> tuple[str, int, list[CorpusChunk]]:
-    """Append whole line chunks while respecting the rendered-token frontier."""
+    """Append ordered source prefixes, splitting a line only when needed at the frontier."""
     selected: list[CorpusChunk] = []
     content = base_user
     # The complete user message is the fresh request payload.  In particular,
@@ -308,10 +325,58 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                 else:
                     high = mid - 1
             if best_end == offset:
-                return content, len(renderer(list(prefix) + [{"role": "user", "content": content}]).token_ids), selected
+                # A line boundary can leave a small safe gap that no complete
+                # next line fits. Select the longest UTF-8 character prefix of
+                # that line, retaining exact source byte offsets for replay.
+                line = lines[offset]
+                low_chars, high_chars = 1, len(line)
+                best_chars = 0
+                best_candidate = ""
+                best_rendered = 0
+                preceding = len("".join(lines[:offset]).encode("utf-8"))
+                source_byte_start = chunk.start_byte or 0
+                while low_chars <= high_chars:
+                    mid_chars = (low_chars + high_chars) // 2
+                    piece = line[:mid_chars]
+                    absolute_start = source_byte_start + preceding
+                    absolute_end = absolute_start + len(piece.encode("utf-8"))
+                    piece_chunk = CorpusChunk(chunk.path, chunk.sha256, chunk.byte_length,
+                                              start + offset, start + offset, piece,
+                                              absolute_start, absolute_end)
+                    candidate = content + "\n\n" + render_chunk(piece_chunk)
+                    messages = list(prefix) + [{"role": "user", "content": candidate}]
+                    rendered = len(renderer(messages).token_ids)
+                    fits = rendered - entry_tokens <= max_fresh_tokens
+                    if fits:
+                        try:
+                            enforce_reserve(rendered, generation_tokens, reserve_tokens,
+                                            context_tokens)
+                        except ValueError:
+                            fits = False
+                    if fits:
+                        best_chars, best_candidate, best_rendered = (
+                            mid_chars, candidate, rendered)
+                        low_chars = mid_chars + 1
+                    else:
+                        high_chars = mid_chars - 1
+                if best_chars == 0:
+                    return content, len(renderer(list(prefix) + [{"role": "user", "content": content}]).token_ids), selected
+                piece = line[:best_chars]
+                absolute_start = source_byte_start + preceding
+                absolute_end = absolute_start + len(piece.encode("utf-8"))
+                selected.append(CorpusChunk(chunk.path, chunk.sha256, chunk.byte_length,
+                                            start + offset, start + offset, piece,
+                                            absolute_start, absolute_end))
+                content = best_candidate
+                return content, best_rendered, selected
+            preceding = len("".join(lines[:offset]).encode("utf-8"))
+            source_byte_start = chunk.start_byte or 0
             selected.append(CorpusChunk(chunk.path, chunk.sha256, chunk.byte_length,
                                         start + offset, start + best_end - 1,
-                                        "".join(lines[offset:best_end])))
+                                        "".join(lines[offset:best_end]),
+                                        source_byte_start + preceding,
+                                        source_byte_start + preceding +
+                                        len("".join(lines[offset:best_end]).encode("utf-8"))))
             content = best_candidate
             offset = best_end
             if offset < len(lines):

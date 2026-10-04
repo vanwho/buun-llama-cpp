@@ -1,16 +1,16 @@
 {
-  "attempt": 1,
+  "attempt": 2,
   "candidate": {
     "build_receipt": {
       "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/build-receipt.json",
-      "sha256": "86b12d737c0b110d1f497c2a61c04ad4188c15264c49fc3b5ecb8027dc23f74e"
+      "sha256": "d3b0106d057bd7a2ff6056fcde5779cb2ee9e85b4421c950bd9b72d8fbb3e07f"
     },
     "loaded_dsos": {
       "objects": [
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libggml-base.so.0.25.3",
-          "sha256": "5e940f819ba192608dcf26f77e8988a3f88ccb43cd85f86c103530433329f680"
+          "sha256": "e76ade0c27c15549ff4e0ac38d0f3f5b394df9b1f3ab9987149a8b1b5b9b0616"
         },
         {
           "exists": true,
@@ -30,17 +30,17 @@
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libllama-common.so.0.5.0",
-          "sha256": "4777ff859b7d24f3bd17f2ec424bfe1535a17ed6d37f1ab67820b6c089172fc5"
+          "sha256": "2ae5496bead2b7283eb6af4be8cf83e79c30c90d8fdce7e8178cdeeb34ca9f0f"
         },
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libllama-server-impl.so",
-          "sha256": "afda9e2a84b503bd286499352ae86277136fc6e706aff43b73048d1f031121b7"
+          "sha256": "5eef2a9ed9a1d49c199ed90cae4e1e690db2df3b409a8e50dcdbd8e488bfb148"
         },
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libllama.so.0.5.0",
-          "sha256": "c44cb946ab09383bdbf34ae92c5ca1f1dffeb0da20179c749bf1168a581ac114"
+          "sha256": "96989d94cabac93fde93d1467ac7536ec964889cfd5022f3d2d7a15aaf9f90d2"
         },
         {
           "exists": true,
@@ -50,136 +50,109 @@
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/llama-server",
-          "sha256": "1a3c4706a765fee194c13a7e278970a78ff7f914ba86002da447325b4d1bf5aa"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
-          "sha256": "bda779ea9e9ad234f60315477d7cfd0bdde861cd8ddd9df8cdaf62f18c4cec14"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
-          "sha256": "85e64f97e348786a8fb4d9f3d52fec289e2fb86bba20f0731dfe61990525e0f7"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
-          "sha256": "5385f0436ac2e284ba8c5fb1488874057c29c04be72dea32add832694f381e28"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcublas.so.12.4.5.8",
-          "sha256": "4cc45526449a95d3985389785e985b7832460ea3db178bc9e9963be2111fbee8"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcublasLt.so.12.4.5.8",
-          "sha256": "44a813aa2da08830f9083f81d0eb73f1ae4052a4d9b0b0de480a8f6cd9eb3078"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcuda.so.595.91.07",
-          "sha256": "4839b5da17cd8f58a8e9c57e97c9b61f3c41be7934479f48afc983416b2492c3"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcudart.so.12.4.127",
-          "sha256": "8774224f5b11a73b15d074a3fcce7327322c5c4cfdfd924d6a826779eec968fe"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
-          "sha256": "59d725ca30596a9863f4fa2552a7125f834842abc86b40890231c129358965d2"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
-          "sha256": "9d339ecb409578d6a5d587e6c537a8f9589b8a13fefba30d167433a4b5758bee"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
-          "sha256": "645478cbe100d1465b9d45f7047bca3965358f4d399937e544f55ac7a924d5a3"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libm.so.6",
-          "sha256": "1c488db6f4fe8cecb72456bc018de000b7a9b539c2994864b0416b5e8371b3d8"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
-          "sha256": "1327fc40710691dbd94e88b6cf4efce27fefe8fbb93f7d1164a75b4dccaea696"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/librt.so.1",
-          "sha256": "9f3cc59207bcaaac74aaf7aca961f4816f0f4d945e4bd1c3cb98ec516becf161"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libssl.so.3",
-          "sha256": "63b47f444efa588e291e9b650a5ba2ab02f856356f2d50f13a2e477db9119e09"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.35",
-          "sha256": "5bb0d21308f123b6ad46c6f35b42cedfcb8d6d439a53aa3dae04d880aaffdde3"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
-          "sha256": "47b61967895b30e8c0c6818dd633ffeb87711cf637c688f981896f0dd84ce23b"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7",
-          "sha256": "060eeb79531d435306665fd78329d8a9dd579f95876c5960bb67937825362a80"
+          "sha256": "30c9abd3e60702062764ae71b52f473dacc6051099fd9bbea39eea97af8fbd50"
         }
       ],
-      "pid": 2227738
+      "pid": 2646324
     },
     "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/llama-server",
-    "sha256": "1a3c4706a765fee194c13a7e278970a78ff7f914ba86002da447325b4d1bf5aa"
+    "sha256": "30c9abd3e60702062764ae71b52f473dacc6051099fd9bbea39eea97af8fbd50"
   },
   "checks": {
     "128k_50k_hot_load_prefill_vram_and_gpu_mtp": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy-preflight.log",
-          "sha256": "18805c79b39c9878973ae40d1502fe75831ff738b1708b1cee249a93734502c1"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy-execution.log",
+          "sha256": "0e6178e14a3312b770c1bb08c78fdfc1c2d532653e413dc627f6de2981969a7c"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/server-metrics-after-smoke.prom",
-          "sha256": "29c5e516beec7fd699345208e1bde560e27a8f126b793902a5dedc711ea33b6b"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy-preflight.log",
+          "sha256": "1c23bebf733ab713958e482ee0778e8dc62e77b580fb0123fa09bf4b470d5330"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/service-current-argv.txt",
-          "sha256": "d0a0a5473c5998cde60be9b56bc2677c017e912fb8134bed68939f50340d541f"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/repo-content-preflight.json",
+          "sha256": "c0969a5e32672a655ec30423f13bba6ad23c6089309b967c478c271459786e56"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/service-start-journal.log",
-          "sha256": "6132a2368fd9cf4ccbab128816582e045a8ae3bb50e68daefd8690ee14dcaa99"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/incremental-state.json",
+          "sha256": "17b6fe7b58446e687d3a531afa09c0019854b6fabd888131d4269bb1714dba6e"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/gpu-memory-after-model-load.csv",
-          "sha256": "cac2039bc5adff592a912b898c7eb5ec710bc2d210a1ca148ca2e6dfd46b678e"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/occupied-frontier.json",
+          "sha256": "3bdb4927d924ab8a76f7346bcbce591f946d5ce86b5070929e3fb7fb90924be2"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/gpu-memory-after-smoke.csv",
-          "sha256": "3e01172084abfef76226adadd71cb638309fa6757003c1de8e371422ea18e98d"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/request-journal.jsonl",
+          "sha256": "d9e4b799c53822388bdedc7301b677686dc37c84fad92a808a8a55da8b46e6f2"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke.log",
-          "sha256": "f1dbecc6aea96e82dabf87cb5b69ef8bbd9e6c412b56894d5f1dcc8509f3e71e"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/memory-samples.jsonl",
+          "sha256": "5e8a78425987b1faabf5c175f10d59b1e872261e123ead858599155ec9208535"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/memory-summary.json",
+          "sha256": "2f931a321a76f8836c768288c83ce2b20ba62f10138393088153df887e7472ec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000000.sse",
+          "sha256": "e99e6c8fe15ff0fa048494ee67416cb6086318e74a7d3596bc0a1cabfe554ce2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000001.sse",
+          "sha256": "6dd4bd4a42bbd2826d26e173ed9ae8d1250203cf23cd281a794f2555ebeaeb62"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000002.sse",
+          "sha256": "1eb9cf81dbfae086c39c60a473e0351767bee5ba261f96287099907a20aeade0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000003.sse",
+          "sha256": "46b86a054bcd0dbeb061128704d7710a1a8720de61786226f3059c955a478be9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000004.sse",
+          "sha256": "b172f49640b4b4d3c008ccaa6b9cfa5bbb8b658e049bf901f0a1911d5e8f9ebd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000005.sse",
+          "sha256": "28443238ef6a7b33da1ac256c70886269e91032fa5c133cfc4b2325e01f061db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000006.sse",
+          "sha256": "9f389da6af1eb6b7c06231e81c591f597d63ba975f8ac064220a2fc0e2c94403"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000007.sse",
+          "sha256": "7050f6a2dc7fb7a49f165e4a480b84f4539f9e7a40be95f5a17feff6850c5621"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000008.sse",
+          "sha256": "68a8fff55c22d76c6bc2b636caa9021a79ae7144f5f221aa1843db37e781c92d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000009.sse",
+          "sha256": "9a2131e725d1ffe0a929de295df17c3eb1ce5d09e8b1bef59cab78485f2b3dba"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000010.sse",
+          "sha256": "6eff5c18033893dd52d051684f9ca23ab3364fa8d812af9ee53f93b34cadaf50"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000011.sse",
+          "sha256": "3aec94cb47bee77c6753b097d6db5b1ad6269c80e2ef967dfd781ab43d6f77a9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/raw-000012.sse",
+          "sha256": "81ce03936ce08cec72e59b3a576ae05f75bc484dce9c50363caefce3c3289088"
         }
       ],
       "command": [
         "python3",
         "tools/server/bench/run-occupancy-frontier.py",
         "--output",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy",
         "--api-key-file",
         "/srv/ai/config/llama/api-keys",
         "--target-tokens",
@@ -194,41 +167,49 @@
         "1024",
         "--ubatch-tokens",
         "256",
-        "--slot-id",
-        "0",
+        "--turn-delta",
+        "16000",
         "--max-fresh-tokens",
         "16000",
         "--max-tokens",
         "400",
         "--repo-content",
-        "--preflight-only",
+        "--post-load-canonical",
         "--wall-budget",
-        "7200",
-        "--prefill-timeout",
-        "900",
-        "--total-timeout",
-        "1200"
+        "900"
       ],
-      "exit_code": 1,
-      "reason": "Fresh server argv requested 200 pages, but runtime page_capacity was 66 (16896 tokens), so the mandatory 51200-token hot window was not admitted. Preflight failed before creating a schedule or sending an occupancy request.",
-      "status": "not_admitted"
+      "exit_code": 0,
+      "result": {
+        "hot_pages": 200,
+        "hot_tokens": 51200,
+        "logical_context_tokens": 131072,
+        "minimum_gpu_free_mib_sampled": 232.0,
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "occupied_tokens": 120000,
+        "requests_sent": 13,
+        "status": "pass"
+      },
+      "status": "pass"
     },
     "bounded_startup_smoke": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke.log",
-          "sha256": "f1dbecc6aea96e82dabf87cb5b69ef8bbd9e6c412b56894d5f1dcc8509f3e71e"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/mtp-startup-smoke-repair-01.log",
+          "sha256": "333e87634c9d582b7dad2e4f313cf82cc3a421574d66c82f1d5639d9064a57c5"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke/campaign.json",
-          "sha256": "723895685c057e0a388c22d12a69182c93ac0c498d04d5aa0c4c163c5aed6f35"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/mtp-startup-smoke-repair-01/raw-q0-measured-1.sse",
+          "sha256": "a56e65c253e159a130f342f9af63497eede7c932838c34ce01aebec76e63dd7e"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke/raw-q0-measured-1.sse",
-          "sha256": "3c59ffa5092109207158de42fc6a67abbc0290d79ea4027bc2b99008169be6d0"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/startup-journal-repair.log",
+          "sha256": "8ac9e04671f70701f4c87e2ca9681d0e22b4dc60b7aac7aef654e05508716e75"
         }
       ],
       "command": [
+        "env",
+        "PAGER_BUNDLE_ROOT=/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin",
+        "PAGER_BUILD_RECEIPT=/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/build-receipt.json",
         "python3",
         "tools/server/bench/run-final-curve.py",
         "--suite",
@@ -240,7 +221,7 @@
         "--question-index",
         "0",
         "--output",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/mtp-startup-smoke-repair-01",
         "--endpoint",
         "http://127.0.0.1:8080/v1/chat/completions",
         "--api-key-file",
@@ -292,27 +273,117 @@
     "canonical_mtp_after_occupied_128k_load": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy-preflight.log",
-          "sha256": "18805c79b39c9878973ae40d1502fe75831ff738b1708b1cee249a93734502c1"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy-execution.log",
+          "sha256": "0e6178e14a3312b770c1bb08c78fdfc1c2d532653e413dc627f6de2981969a7c"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/server-metrics-after-smoke.prom",
-          "sha256": "29c5e516beec7fd699345208e1bde560e27a8f126b793902a5dedc711ea33b6b"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/incremental-state.json",
+          "sha256": "17b6fe7b58446e687d3a531afa09c0019854b6fabd888131d4269bb1714dba6e"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/service-current-argv.txt",
-          "sha256": "d0a0a5473c5998cde60be9b56bc2677c017e912fb8134bed68939f50340d541f"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-00.json",
+          "sha256": "f97caa87fa37adec4a9d31ece9b7679a5e42a0ecef1d366f1e657be56fbc438a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-01.json",
+          "sha256": "47825452d37ef9ec2eca86cd012250599b33471db311d4aa47395249c0936ed2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-02.json",
+          "sha256": "47825452d37ef9ec2eca86cd012250599b33471db311d4aa47395249c0936ed2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-03.json",
+          "sha256": "47825452d37ef9ec2eca86cd012250599b33471db311d4aa47395249c0936ed2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-04.json",
+          "sha256": "888018b5aae1ffdb74220afc94008c5ceec2c20bf20bbf8b1baefa809431eb54"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-05.json",
+          "sha256": "ca2fdbd0d9316f9aeb0d0191847ec8eeabbd8d09f17495faea96fecf30551304"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-06.json",
+          "sha256": "ca2fdbd0d9316f9aeb0d0191847ec8eeabbd8d09f17495faea96fecf30551304"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-07.json",
+          "sha256": "ca2fdbd0d9316f9aeb0d0191847ec8eeabbd8d09f17495faea96fecf30551304"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-08.json",
+          "sha256": "6b4ba6e28d2cbf8941f576b584677f66a92fb3223b2590b8c5dc047f69ade065"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-09.json",
+          "sha256": "48377d8f67461bf94a0536bed9a016983bc272fc3f04b0b0060b1dc795f09843"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-10.json",
+          "sha256": "48377d8f67461bf94a0536bed9a016983bc272fc3f04b0b0060b1dc795f09843"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-request-11.json",
+          "sha256": "48377d8f67461bf94a0536bed9a016983bc272fc3f04b0b0060b1dc795f09843"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-00.sse",
+          "sha256": "d6f387ac6c3e181b494bd1774df9b1d65f5e02ab5d8cf5ef3f85812ac8937449"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-01.sse",
+          "sha256": "917870b2e26e8f408c205b55c245010d1b45cda14ac364dc0c6cac4a8d96bcdc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-02.sse",
+          "sha256": "c2afe8d3114d1d54d31edcd903d7248e5f541ba98dbe61a5e394d74d6ffecc8e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-03.sse",
+          "sha256": "6de8d93a1f7d75d449c82e6e7fcc25b2fab50a753a75a85c0355e2af92161957"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-04.sse",
+          "sha256": "7e2d0c963bd6b9d15942d46bcf3cff7a26ff8f3d64c049b02d7ab2f55fed5d29"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-05.sse",
+          "sha256": "ee1666397368938c78da7beeac28d1a90e42870365d1821895281501565bd27b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-06.sse",
+          "sha256": "da4580106fde04d9a28190a2a3e4d505632f01ac79bcc1341465271d8f68ba6d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-07.sse",
+          "sha256": "f1683eb54a7459fd38c51dba10a59993d9096d8cdbace50291c6167151472fcc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-08.sse",
+          "sha256": "748b9022c67101d8bf0f9c31b343ec38167d24a9b69010e73f4066481c5f8a23"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-09.sse",
+          "sha256": "c71797b55ff403d3887e0aed9e59516825dab825027cc105885d5ef79c1b227a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-10.sse",
+          "sha256": "dae183fed9b5bff510f2d00b10aa5867fb52a37d8b61365377c1df8bc3e08bbb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/canonical-raw-11.sse",
+          "sha256": "95d0dd81776e58383f4d77ffb49ed9339c156d59fa2dde6357cb782bbc5a8eda"
         }
       ],
-      "command": [],
-      "exit_code": null,
-      "planned_command": [
+      "command": [
         "python3",
         "tools/server/bench/run-occupancy-frontier.py",
         "--output",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy",
         "--resume-state",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy",
         "--api-key-file",
         "/srv/ai/config/llama/api-keys",
         "--target-tokens",
@@ -327,8 +398,8 @@
         "1024",
         "--ubatch-tokens",
         "256",
-        "--slot-id",
-        "0",
+        "--turn-delta",
+        "16000",
         "--max-fresh-tokens",
         "16000",
         "--max-tokens",
@@ -336,20 +407,29 @@
         "--repo-content",
         "--post-load-canonical",
         "--wall-budget",
-        "7200",
-        "--prefill-timeout",
-        "900",
-        "--total-timeout",
-        "1200"
+        "900"
       ],
-      "reason": "Not run because the mandatory 200-page admission check failed; no 120000-token occupied history exists.",
-      "status": "not_run"
+      "exit_code": 0,
+      "result": {
+        "completed_probes": 12,
+        "immutable_occupied_frontier_tokens": 120000,
+        "measured_trials_per_prompt": 3,
+        "mtp_acceptance_medians_percent": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "prompt_branches": 3,
+        "status": "pass",
+        "warmups": 3
+      },
+      "status": "pass"
     },
     "test_post_load_canonical_reuses_immutable_prefix_and_mtp_deltas": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/test-post-load-canonical.log",
-          "sha256": "d0bbd3fb4fcf80c9cbf5ce59bf4ce44bb927e9e40a6269d0b33dc8c4a94c4755"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/focused-regression.log",
+          "sha256": "2299339565fdc7c4fedeb54e99b181ba53b821f77194926422cc7df3301ba0ee"
         }
       ],
       "command": [
@@ -362,16 +442,17 @@
     }
   },
   "deferred_verification": [
-    "120000-token occupied fill with the admitted 51200-token hot window",
-    "all nine post-load canonical measured MTP generations plus three warmups"
+    "C=120000 occupancy fill and per-chunk measurements",
+    "three canonical prompts with nine measured generations plus warmups",
+    "post-load canonical MTP counters and acceptance summary"
   ],
   "model": {
     "resolved_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
     "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
   },
   "runtime": {
-    "admitted_hot_tokens": 16896,
-    "admitted_pages": 66,
+    "admitted_hot_tokens": 51200,
+    "admitted_pages": 200,
     "argv_lines": [
       "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/llama-server",
       "-m",
@@ -432,32 +513,50 @@
       "turbo4"
     ],
     "batch_tokens": 1024,
-    "logical_context_tokens": 131072,
-    "metrics": {
-      "context_tokens": "131072",
-      "mtp_bytes": "1.38543e+08",
-      "mtp_rows": "131072",
-      "page_capacity": "66",
-      "page_tokens": "256",
-      "physical_pool_capacity_bytes": "2.85475e+08",
-      "target_bytes": "2.85475e+08",
-      "vram_budget_bytes": "1.67202e+10"
+    "device_total_bytes": 16720199680,
+    "first_chunk": {
+      "decode_tokens_per_second": null,
+      "elapsed_seconds": 14.579406870005187,
+      "end_tokens": null,
+      "fresh_tokens": 3890,
+      "mtp_accepted": null,
+      "mtp_denominator": null,
+      "output_tokens": 400,
+      "prefill_tokens_per_second": null,
+      "start_tokens": null
     },
+    "logical_context_tokens": 131072,
+    "memory_summary_path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/memory-summary.json",
+    "minimum_device_free_bytes": 242483200,
+    "minimum_gpu_free_mib_sampled": 232.0,
+    "mtp_compute_bytes": 102768768,
+    "mtp_dequant_max_bytes": 536870912,
+    "mtp_dequant_measured": true,
     "mtp_kv": "gpu/turbo4",
     "mtp_reserved_bytes": 138543104,
     "mtp_rows": 131072,
-    "occupancy_requests_sent": 0,
-    "occupied_tokens": 0,
+    "occupancy_requests_sent": 13,
+    "occupied_tokens": 120000,
+    "packed_live_peak_bytes_across_candidates": 0,
+    "packed_owners_peak_across_candidates": 0,
     "page_tokens": 256,
-    "preflight_exit_code": 1,
+    "preflight_exit_code": 0,
     "requested_hot_tokens": 51200,
     "requested_pages": 200,
+    "sample_count": 110,
+    "stage_b_live_packed_after_bytes": 8651780,
+    "stage_b_live_packed_before_bytes": 69214200,
+    "stage_b_packed_peak_bytes": 368213000,
+    "target_allocated_bytes": 865075200,
+    "target_compute_max_bytes": 131326208,
+    "target_dequant_bytes": 0,
+    "target_dequant_measured": true,
     "target_kv": "turbo4",
-    "tested_pid": 2227738,
+    "tested_pid": 2646324,
     "ubatch_tokens": 256
   },
   "schema_version": 1,
-  "source_commit": "92ee3c57a7b5c212ae832b61a643fc1e4ec26d04",
-  "status": "not_admitted",
+  "source_commit": "09e3225089488efec7a5d8a6b7433add47b2deb0",
+  "status": "pass",
   "task": "102-05"
 }

@@ -712,6 +712,27 @@ static void test_packed_view_copy_intervals() {
     assert(pages[0].native_position_begin == 0 && pages[0].row_count == 256);
     assert(pages[1].native_position_begin == 512 && pages[1].row_count == 188);
 
+    // Transient staging has no content cache: one full encoded copy per page
+    // runs after each layer's canonical KV writes on every graph execution.
+    // This includes rows belonging to the current query and invalidates no
+    // layer when page generations change.
+    std::vector<llama_kv_attention_view_copy_interval> transient_copies;
+    assert(llama_kv_attention_view_copy_intervals(pages, {}, transient_copies));
+    assert(transient_copies.size() == pages.size());
+    for (size_t i = 0; i < pages.size(); ++i) {
+        assert(transient_copies[i].page_index == i);
+        assert(transient_copies[i].row_begin == 0);
+        assert(transient_copies[i].row_count == pages[i].row_count);
+        assert(!transient_copies[i].current_rows);
+    }
+    auto changed_generation_pages = pages;
+    ++changed_generation_pages[1].page_generation;
+    std::vector<llama_kv_attention_view_copy_interval> after_generation_change;
+    assert(llama_kv_attention_view_copy_intervals(
+            changed_generation_pages, {}, after_generation_change));
+    assert(after_generation_change.size() == transient_copies.size());
+    assert(after_generation_change[1].row_count == transient_copies[1].row_count);
+
     // Metadata query positions can be duplicated and nonmonotonic. The
     // optimized plan must preserve membership semantics across both selected
     // pages and retain the same current/history span boundaries.
@@ -802,9 +823,11 @@ static void test_packed_view_copy_intervals() {
     std::fprintf(stdout, "packed_view_copy_intervals=pass "
         "old_row_membership_comparisons=%llu new_query_positions_examined=%llu "
         "cross_page_intervals=%zu append_direct_write_rows=1 "
+        "transient_full_pages=%zu generation_repopulates=1 "
         "frozen_page_reused=1 rollback_invalidated_pages=1\n",
         (unsigned long long) old_membership_comparisons,
-        (unsigned long long) query_positions_examined, intervals.size());
+        (unsigned long long) query_positions_examined, intervals.size(),
+        transient_copies.size());
 }
 
 static void test_view_sized_scratch_contract() {

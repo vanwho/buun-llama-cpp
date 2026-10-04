@@ -495,9 +495,6 @@ public:
     // capacity. The compact destination of each current cache row is mutable
     // input data.
     uint32_t packed_row_capacity = 0;
-    ggml_tensor * packed_current_idxs = nullptr; // I64 [n_tokens]
-    std::vector<int64_t> packed_current_rows;
-    std::vector<llama_kv_attention_packed_cache::entry *> packed_graph_owners;
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
 
@@ -523,11 +520,10 @@ public:
         uint32_t layer_id = 0;
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
-        llama_kv_attention_packed_cache::entry * cache_entry = nullptr;
+        ggml_tensor * source_k = nullptr;
+        ggml_tensor * source_v = nullptr;
         ggml_backend_t backend = nullptr;
         uint32_t row_capacity = 0;
-        mutable ggml_tensor * current_k = nullptr;
-        mutable ggml_tensor * current_v = nullptr;
         // Borrowed source tensors remain owned by the pager/cache context;
         // these identities document the lifetime and physical slab against
         // which the compact duplicate was captured.
@@ -536,7 +532,11 @@ public:
         std::vector<packed_copy> copies;
     };
     std::vector<packed_layer> packed_layers;
-    llama_kv_attention_packed_cache * packed_cache = nullptr;
+    // One graph-owned Turbo4 workspace is shared by layer-specific views.
+    // Transformer dependencies serialize its producers and consumers, so
+    // every layer can repopulate it after the preceding attention completes.
+    ggml_tensor * packed_staging_k = nullptr;
+    ggml_tensor * packed_staging_v = nullptr;
 
     // Direct CUDA paged Turbo4 inputs. The K/V views are created per layer
     // over the pager's persistent physical slot slab; metadata is copied into
