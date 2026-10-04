@@ -605,6 +605,20 @@ def _as_int(value: Any) -> int | None:
         return None
 
 
+def _fresh_prompt_tokens(observed: int | None, before_tokens: int,
+                         usage: Mapping[str, Any]) -> int | None:
+    details = usage.get("prompt_tokens_details")
+    cached = _as_int(details.get("cached_tokens") if isinstance(details, Mapping) else None)
+    if observed is None:
+        return None
+    # For a monotonic append, the branch frontier gives the exact fresh delta.
+    # A/B/A replay can reuse a cached prefix longer than the live branch, so
+    # use the reported uncached tail only when prompt accounting rolls back.
+    if observed >= before_tokens:
+        return observed - before_tokens
+    return observed - cached if cached is not None else None
+
+
 def selected_slot(snapshot: Mapping[str, Any], slot_id: int) -> dict[str, Any]:
     slots = snapshot.get("slots")
     if not isinstance(slots, list):
@@ -1172,7 +1186,7 @@ def main() -> int:
         committed = (record["status"] == "pass" and observed is not None and completion is not None and
                      frontier_accounting_delta is not None and abs(frontier_accounting_delta) <= 1 and
                      slot_after["occupied_tokens"] > before_tokens)
-        fresh = observed - before_tokens if observed is not None else None
+        fresh = _fresh_prompt_tokens(observed, before_tokens, usage)
         record["committed"] = committed
         record["fresh_tokens"] = fresh if committed else None
         record["frontier_delta_tokens"] = (slot_after["occupied_tokens"] - before_tokens
