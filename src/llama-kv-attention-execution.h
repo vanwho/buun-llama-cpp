@@ -104,6 +104,9 @@ size_t llama_kv_attention_packed_allocation_bytes(
 // completed, so graph rebuilds do not create an unbounded duplicate cache.
 class llama_kv_attention_packed_cache {
 public:
+    // TEMPORARY phase-102 memory investigation telemetry. Remove the snapshot
+    // API and associated gauges after 102-06/102-07 record the measured peak,
+    // unless a follow-up explicitly keeps this as supported observability.
     struct allocation_snapshot {
         uint64_t live_bytes = 0; // all currently allocated owners, including draining
         uint64_t draining_bytes = 0;
@@ -202,6 +205,7 @@ public:
     void clear() noexcept;
     size_t size() const noexcept { return entries_.size(); }
     size_t allocation_count() const noexcept { return entries_.size(); }
+    // TEMPORARY phase-102 measurement hook; only called from /slots scrapes.
     allocation_snapshot allocations() const noexcept;
 
     uint64_t content_version(
@@ -481,6 +485,8 @@ struct llama_kv_attention_execution_metrics {
     // graph allocation and incremental copy work visible beside the normal H
     // ledger instead of presenting only a kernel-time counter.
     uint64_t packed_storage_bytes = 0;
+    // TEMPORARY phase-102 measurements. Remove after the 256K evidence and
+    // final sizing review, unless an explicit follow-up retains the telemetry.
     uint64_t packed_live_allocated_bytes = 0;
     uint64_t packed_peak_allocated_bytes = 0;
     uint64_t packed_draining_allocated_bytes = 0;

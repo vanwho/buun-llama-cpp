@@ -1153,6 +1153,9 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();
     result.execution = kv_attention_execution.metrics();
+    // TEMPORARY phase-102 sizing instrumentation. This opt-in branch is only
+    // requested by the server metrics scrape; remove its fields/callback use
+    // after 102-07 has recorded both scale runs unless explicitly retained.
     if (measure_allocations) {
         const auto packed_allocations = kv_attention_packed_cache.allocations();
         result.execution.packed_live_allocated_bytes = packed_allocations.live_bytes;

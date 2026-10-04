@@ -195,6 +195,9 @@ llama_kv_attention_packed_cache::~llama_kv_attention_packed_cache() {
 
 llama_kv_attention_packed_cache::allocation_snapshot
 llama_kv_attention_packed_cache::allocations() const noexcept {
+    // TEMPORARY phase-102 measurement implementation; see the header cleanup
+    // note. Sampling happens on /slots reads; allocation-site peak capture is
+    // retained only until the 128K/256K memory evidence is summarized.
     allocation_snapshot result;
     result.peak_bytes = peak_allocated_bytes_;
     for (const auto & cached : entries_) {
@@ -614,9 +617,11 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         if (cached->buffer == nullptr) {
             return nullptr;
         }
-        // Record the real allocator-visible overlap before the old owner can
-        // retire. Only allocation events scan the bounded owner collection;
-        // ordinary per-token cache reuse adds no accounting work or GPU fence.
+        // TEMPORARY phase-102 peak measurement: record allocator-visible
+        // overlap before the old owner can retire. Only allocation events scan
+        // owners; ordinary cache reuse adds no work or GPU fence. Remove with
+        // the allocation_snapshot telemetry after the phase-102 review unless
+        // a follow-up explicitly retains it.
         peak_allocated_bytes_ = std::max(peak_allocated_bytes_,
                 saturating_add(allocations().live_bytes,
                     uint64_t(ggml_backend_buffer_get_size(cached->buffer))));

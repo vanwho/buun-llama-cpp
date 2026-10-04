@@ -4976,6 +4976,9 @@ public:
                     {"recurrent_state_bytes", pager.recurrent_state_bytes},
                     {"mtp_compute_bytes", pager.mtp_compute_bytes},
                     {"graph_bytes", pager.graph_bytes},
+                    // TEMPORARY phase-102 sizing telemetry. Remove these JSON
+                    // keys with the context metrics after the 256K review unless
+                    // an explicit follow-up keeps the measurements supported.
                     {"target_compute_allocated_bytes", pager.target_compute_allocated_bytes},
                     {"mtp_compute_allocated_bytes", pager.mtp_compute_allocated_bytes},
                     {"target_dequant_allocated_bytes", pager.target_dequant_allocated_bytes},
