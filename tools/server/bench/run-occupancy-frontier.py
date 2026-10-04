@@ -16,6 +16,11 @@ from typing import Any, Mapping
 MAX_CONTEXT_TOKENS = 262144
 MAX_OUTPUT_TOKENS = 400
 MIN_SAFETY_GAP_TOKENS = 2048
+CANONICAL_POST_LOAD_PROMPTS = (
+    "write a python function that merges two sorted lists into one sorted list, with docstring.",
+    "explain the difference between mmap and read for loading large files, one paragraph.",
+    "write a bash script that watches a directory and prints new files as they appear.",
+)
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -340,6 +345,158 @@ def response_content(record: Mapping[str, Any]) -> str:
         if isinstance(response.get("content"), str):
             return str(response["content"])
     return ""
+
+
+def run_post_load_canonical(driver: Any, endpoint: str, key: str, model: str,
+                            renderer: ServerPromptRenderer, base_messages: list[dict[str, str]],
+                            output: pathlib.Path, state: dict[str, Any],
+                            identity: Mapping[str, Any], fingerprint: str,
+                            context_tokens: int, slot_id: int,
+                            pre_probe_snapshot: Mapping[str, Any],
+                            pre_probe_slot: Mapping[str, Any],
+                            *, prefill_timeout: float, total_timeout: float) -> dict[str, Any]:
+    """Run durable, independent canonical branches after occupied-context loading."""
+    checkpoint = state.get("post_load_probes")
+    if checkpoint is None:
+        checkpoint = {
+            "schema_version": 1,
+            "base_messages": json.loads(json.dumps(base_messages)),
+            "base_messages_sha256": hashlib.sha256(json.dumps(
+                base_messages, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False).encode()).hexdigest(),
+            "pre_probe_frontier": dict(pre_probe_slot),
+            "pre_probe_snapshot": dict(pre_probe_snapshot),
+            "completed": [], "records": [],
+        }
+        state["post_load_probes"] = checkpoint
+        _write_checkpoint(output, state)
+    saved_base = checkpoint.get("base_messages")
+    if not isinstance(saved_base, list) or saved_base != base_messages:
+        raise ResumeStateError("post-load canonical base conversation changed")
+    if checkpoint.get("identity_fingerprint") not in (None, fingerprint):
+        raise ResumeStateError("post-load canonical candidate/process identity changed")
+    checkpoint["identity_fingerprint"] = fingerprint
+    base_hash = hashlib.sha256(json.dumps(saved_base, sort_keys=True,
+        separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+    if checkpoint.get("base_messages_sha256") != base_hash:
+        raise ResumeStateError("post-load canonical base conversation hash mismatch")
+
+    completed = {int(item) for item in checkpoint.get("completed", [])}
+    rows = checkpoint.setdefault("records", [])
+    for prompt_index, prompt in enumerate(CANONICAL_POST_LOAD_PROMPTS):
+        for repetition, budget in enumerate((40, 400, 400, 400)):
+            probe_index = prompt_index * 4 + repetition
+            if probe_index in completed:
+                continue
+            messages = json.loads(json.dumps(saved_base)) + [{"role": "user", "content": prompt}]
+            rendered = render_tokens(renderer, messages)
+            occupied = int(checkpoint["pre_probe_frontier"]["occupied_tokens"])
+            # Retain the packet's 11,072-token post-frontier reserve and ensure
+            # each rendered request plus its requested output fits logical L.
+            reserve = max(0, context_tokens - occupied)
+            if reserve < 11072 or rendered + budget > context_tokens:
+                raise ResumeStateError(
+                    f"canonical branch {probe_index} violates L/output/replay/MTP reserve: "
+                    f"rendered={rendered} output={budget} L={context_tokens} "
+                    f"post_frontier_reserve={reserve}")
+            attempts = sum(1 for item in rows if item.get("probe_index") == probe_index)
+            suffix = "" if attempts == 0 else f"-retry-{attempts:02d}"
+            request_path = output / f"canonical-request-{probe_index:02d}{suffix}.json"
+            raw_path = output / f"canonical-raw-{probe_index:02d}{suffix}.sse"
+            if request_path.exists() or raw_path.exists():
+                raise ResumeStateError(f"refusing to overwrite canonical probe attempt {probe_index}/{attempts}")
+            payload = {
+                "model": model, "messages": messages, "max_tokens": budget,
+                "temperature": 0, "seed": 42, "stream": True,
+                "stream_options": {"include_usage": True},
+                "chat_template_kwargs": {"enable_thinking": False},
+                "n_ctx": context_tokens,
+            }
+            atomic_json(request_path, payload)
+            record: dict[str, Any] = {
+                "probe_index": probe_index, "prompt_index": prompt_index,
+                "prompt": prompt, "repetition": repetition,
+                "kind": "warmup" if repetition == 0 else "measured",
+                "attempt": attempts,
+                "max_tokens": budget, "rendered_prompt_tokens": rendered,
+                "request_path": str(request_path.resolve()),
+                "request_sha256": sha256_file(request_path),
+                "base_messages_sha256": base_hash,
+            }
+            try:
+                result = driver.run_request(
+                    endpoint, key, model, messages, budget, context_tokens,
+                    "post-load-canonical-mtp", probe_index, repetition, rendered,
+                    prefill_timeout, raw_path, cache_condition="live-continuation",
+                    mode="selective", prefill_policy="runtime", startup_timeout=180,
+                    progress_idle_timeout=prefill_timeout, decode_idle_timeout=120,
+                    total_timeout=total_timeout)
+                record.update(result)
+            except Exception as error:
+                record.update({"status": "runtime_fault", "error": str(error)})
+            finally:
+                # Keep failed request evidence even when a post-failure slot or
+                # counter snapshot cannot be obtained.
+                try:
+                    live = driver.snapshot(endpoint, key)
+                    live_slot = selected_slot(live, slot_id)
+                    record["live_slot_after"] = {
+                        "slot_id": live_slot["slot_id"],
+                        "generation": live_slot["generation"],
+                        "task_id": live_slot["task_id"],
+                        "occupied_tokens": live_slot["occupied_tokens"],
+                    }
+                    checkpoint["latest_live_frontier"] = record["live_slot_after"]
+                except Exception as error:
+                    record["slot_snapshot_error"] = str(error)
+                if raw_path.is_file():
+                    record["raw_path"] = str(raw_path.resolve())
+                    record["raw_sha256"] = sha256_file(raw_path)
+                record["request_artifact"] = _artifact(request_path, output)
+                if raw_path.is_file():
+                    record["response_artifact"] = _artifact(raw_path, output)
+            response = record.get("response")
+            usage = record.get("usage") if isinstance(record.get("usage"), Mapping) else {}
+            mtp = record.get("mtp") if isinstance(record.get("mtp"), Mapping) else {}
+            output_tokens = record.get("output_tokens", usage.get("completion_tokens"))
+            record["answer_text"] = response_content(record)
+            record["actual_output_tokens"] = _as_int(output_tokens)
+            record["mtp_drafted_tokens"] = _as_int(mtp.get("draft_tokens"))
+            record["mtp_accepted_tokens"] = _as_int(mtp.get("accepted_tokens"))
+            drafted, accepted = record["mtp_drafted_tokens"], record["mtp_accepted_tokens"]
+            record["mtp_acceptance_percent"] = (
+                100.0 * accepted / drafted if drafted is not None and drafted > 0 and
+                accepted is not None else None)
+            record["mtp_denominator_status"] = (
+                "measured" if drafted is not None and drafted > 0 and accepted is not None
+                else "unavailable_or_zero")
+            rows.append(record)
+            if record.get("status") == "pass":
+                completed.add(probe_index)
+                checkpoint["completed"] = sorted(completed)
+            # Preserve progress and current KV generation after every attempt.
+            checkpoint["records"] = rows
+            state["post_load_probes"] = checkpoint
+            _write_checkpoint(output, state)
+            if probe_index not in completed:
+                break
+        if len(completed) != (prompt_index + 1) * 4:
+            break
+    summaries = []
+    for prompt_index, prompt in enumerate(CANONICAL_POST_LOAD_PROMPTS):
+        measured = [row for row in rows if row.get("prompt_index") == prompt_index and
+                    row.get("kind") == "measured" and row.get("status") == "pass"]
+        percentages = [row.get("mtp_acceptance_percent") for row in measured
+                       if isinstance(row.get("mtp_acceptance_percent"), (int, float))]
+        summaries.append({"prompt_index": prompt_index, "prompt": prompt,
+                          "measured_rows": len(measured),
+                          "median_acceptance_percent": (
+                              sorted(percentages)[len(percentages) // 2]
+                              if len(percentages) == 3 else None)})
+    checkpoint["prompt_summaries"] = summaries
+    checkpoint["complete"] = len(completed) == 12
+    _write_checkpoint(output, state)
+    return checkpoint
 
 
 def _proc_start_ticks(pid: int) -> str:
@@ -680,6 +837,8 @@ def main() -> int:
     parser.add_argument("--max-tokens", type=int, default=16)
     parser.add_argument("--repo-content", action="store_true",
                         help="run the frozen repo-content A/B/A sequence for phase 102")
+    parser.add_argument("--post-load-canonical", action="store_true",
+                        help="run the resumable three-prompt MTP branches after occupancy")
     parser.add_argument("--preflight-only", action="store_true",
                         help="clear the slot and freeze the zero-generation plan")
     parser.add_argument("--adopt-a1-from", type=pathlib.Path,
@@ -740,8 +899,32 @@ def main() -> int:
                 args.target_tokens, args.hot_tokens, saved_schedule)
         live = driver.snapshot(endpoint, key)
         effective = validate_effective_geometry(identity, live, geometry)
-        slot = selected_slot(live, args.slot_id)
-        validate_resume_state(state, identity, geometry, slot)
+        live_slot = selected_slot(live, args.slot_id)
+        post_probe_checkpoint = state.get("post_load_probes")
+        if isinstance(post_probe_checkpoint, Mapping):
+            # Probe branches advance the live generation/frontier. Validate the
+            # original occupancy commit independently, then bind probe resume
+            # to its own latest saved live state.
+            occupancy_slot = state.get("slot")
+            occupancy_frontier = state.get("frontier")
+            if not isinstance(occupancy_slot, Mapping) or not isinstance(occupancy_frontier, Mapping):
+                raise ResumeStateError("post-load probe checkpoint lost its occupancy commit")
+            validate_resume_state(state, identity, geometry, {
+                "slot_id": occupancy_slot.get("slot_id"),
+                "generation": occupancy_slot.get("generation"),
+                "occupied_tokens": occupancy_frontier.get("live_occupied_tokens"),
+            })
+            latest = post_probe_checkpoint.get("latest_live_frontier")
+            if not isinstance(latest, Mapping) or any(
+                    latest.get(name) != live_slot.get(name)
+                    for name in ("slot_id", "generation", "occupied_tokens")):
+                raise ResumeStateError("live slot differs from the post-load probe resume checkpoint")
+            slot = {"slot_id": occupancy_slot.get("slot_id"),
+                    "generation": occupancy_slot.get("generation"),
+                    "occupied_tokens": occupancy_frontier.get("live_occupied_tokens")}
+        else:
+            slot = live_slot
+            validate_resume_state(state, identity, geometry, slot)
         if state.get("effective_geometry") != effective:
             raise ResumeStateError("resume checkpoint effective runtime geometry changed")
         if args.repo_content:
@@ -832,7 +1015,8 @@ def main() -> int:
             "effective_geometry": effective,
             "candidate_identity": identity,
             "identity_fingerprint": fingerprint,
-            "slot": {"slot_id": slot["slot_id"], "generation": slot["generation"]},
+            "slot": {"slot_id": slot["slot_id"], "generation": slot["generation"],
+                     "occupied_tokens": slot["occupied_tokens"]},
             "messages": messages,
             "records": records,
             "history": history,
@@ -988,7 +1172,8 @@ def main() -> int:
 
         state.update({
             "slot": {"slot_id": slot_after["slot_id"],
-                     "generation": slot_after["generation"]},
+                     "generation": slot_after["generation"],
+                     "occupied_tokens": slot_after["occupied_tokens"]},
             "messages": messages,
             "records": records,
             "history": history,
@@ -1004,9 +1189,40 @@ def main() -> int:
 
     final = driver.snapshot(endpoint, key)
     final_slot = selected_slot(final, args.slot_id)
-    frontier_consistent = final_slot["occupied_tokens"] == current_tokens and \
-        (final_slot["generation"] is None or slot["generation"] is None or
-         final_slot["generation"] == slot["generation"])
+    prior_probe = state.get("post_load_probes")
+    resuming_probes = isinstance(prior_probe, Mapping)
+    if args.post_load_canonical and isinstance(schedule, list) and next_turn_index >= len(schedule):
+        occupancy_matches = (not resuming_probes and
+            final_slot["occupied_tokens"] == current_tokens and
+            (final_slot["generation"] is None or slot["generation"] is None or
+             final_slot["generation"] == slot["generation"]))
+        if resuming_probes:
+            latest = prior_probe.get("latest_live_frontier")
+            occupancy_matches = isinstance(latest, Mapping) and all(
+                latest.get(name) == final_slot.get(name)
+                for name in ("slot_id", "generation", "occupied_tokens"))
+        if occupancy_matches:
+            state["occupancy_snapshot"] = state.get("occupancy_snapshot", final)
+            probe_base = state.get("messages", [])
+            probes = run_post_load_canonical(
+                driver, endpoint, key, args.model, renderer, probe_base, output,
+                state, identity, fingerprint, args.context_tokens, args.slot_id,
+                state["occupancy_snapshot"],
+                state.get("slot", {"slot_id": args.slot_id,
+                                    "generation": slot.get("generation"),
+                                    "occupied_tokens": current_tokens}),
+                prefill_timeout=args.prefill_timeout, total_timeout=args.total_timeout)
+            if probes.get("complete") is not True:
+                stop_reason = "post_load_canonical_incomplete"
+            final = probes.get("pre_probe_snapshot", final)
+            final_slot = probes.get("pre_probe_frontier", final_slot)
+            frontier_consistent = True
+        else:
+            frontier_consistent = False
+    else:
+        frontier_consistent = final_slot["occupied_tokens"] == current_tokens and \
+            (final_slot["generation"] is None or slot["generation"] is None or
+             final_slot["generation"] == slot["generation"])
     if not frontier_consistent:
         stop_reason = "final_live_slot_frontier_or_generation_mismatch"
     sequence_complete = (next_turn_index >= len(schedule)) if isinstance(schedule, list) else True
@@ -1040,6 +1256,7 @@ def main() -> int:
             "history": history,
         },
         "records": records,
+        "post_load_probes": state.get("post_load_probes"),
         "allocation_ledger": _allocation_ledger(final),
         "final_snapshot": final,
         "artifacts": {

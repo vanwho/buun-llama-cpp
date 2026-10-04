@@ -131,6 +131,72 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_post_load_canonical_reuses_immutable_prefix_and_mtp_deltas(self) -> None:
+        class ProbeRuntime:
+            def __init__(self) -> None:
+                self.calls: list[tuple[list[dict[str, str]], int]] = []
+                self.frontier = 20000
+                self.generation = 9
+                self.clear_count = 0
+
+            def snapshot(self, _endpoint: str, _key: str) -> dict[str, object]:
+                return {"slots": [{"id": 0, "n_prompt_tokens": self.frontier,
+                                   "lifecycle": {"session_generation": self.generation}}]}
+
+            def run_request(self, _endpoint: str, _key: str, _model: str,
+                            messages: list[dict[str, str]], maximum: int, *args: object,
+                            **_kwargs: object) -> dict[str, object]:
+                index = len(self.calls)
+                raw_path = pathlib.Path(args[6])
+                self.calls.append((json.loads(json.dumps(messages)), maximum))
+                self.generation += 1
+                raw_path.write_text(f"data: probe-{index}\n", encoding="utf-8")
+                drafted = 10 + index
+                accepted = 2 + index % 5
+                return {
+                    "status": "pass", "usage": {"completion_tokens": maximum - 1},
+                    "output_tokens": maximum - 1,
+                    "response": {"choices": [{"message": {"content": f"answer-{index}"}}]},
+                    "timings": {"predicted_ms": index + 1},
+                    "mtp": {"draft_tokens": drafted, "accepted_tokens": accepted},
+                }
+
+        runtime = ProbeRuntime()
+        original_base = [{"role": "user", "content": "occupied history"},
+                         {"role": "assistant", "content": "retained answer"}]
+        base_copy = json.loads(json.dumps(original_base))
+        current_identity = identity()
+        fingerprint = "f" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            state: dict[str, object] = {}
+            pre_snapshot = runtime.snapshot("", "")
+            pre_slot = {"slot_id": 0, "generation": 9, "occupied_tokens": 20000}
+            result = occupancy.run_post_load_canonical(
+                runtime, "", "", "fake", FakeRenderer(), original_base, root,
+                state, current_identity, fingerprint, 32768, 0, pre_snapshot,
+                pre_slot, prefill_timeout=1, total_timeout=2)
+
+            self.assertEqual(12, len(runtime.calls))
+            self.assertEqual([40, 400, 400, 400] * 3,
+                             [budget for _messages, budget in runtime.calls])
+            self.assertEqual(base_copy, original_base)
+            self.assertEqual(0, runtime.clear_count)
+            prefixes = [messages[:-1] for messages, _budget in runtime.calls]
+            self.assertTrue(all(prefix == base_copy for prefix in prefixes))
+            self.assertEqual(12, len({row["mtp_drafted_tokens"] for row in result["records"]}))
+            self.assertEqual(3, len(result["prompt_summaries"]))
+            self.assertTrue(all(row["median_acceptance_percent"] is not None
+                                for row in result["prompt_summaries"]))
+            self.assertEqual(list(range(12)), result["completed"])
+
+            # A resumed helper invocation skips every checkpointed probe.
+            occupancy.run_post_load_canonical(
+                runtime, "", "", "fake", FakeRenderer(), original_base, root,
+                state, current_identity, fingerprint, 32768, 0, pre_snapshot,
+                pre_slot, prefill_timeout=1, total_timeout=2)
+            self.assertEqual(12, len(runtime.calls))
+
     def test_repo_identity_ignores_wiretail_checkpoint_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
