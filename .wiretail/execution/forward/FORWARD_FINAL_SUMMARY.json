@@ -423,11 +423,11 @@
     },
     {
       "path": ".wiretail/execution/evidence/V10_102-05.json",
-      "sha256": "2abb852fe358295dfa094d1dfce0ad73e4b2d6949b0ffcb668ed3886e128b905"
+      "sha256": "bb629059cc495a72cb4a6dd52647df5f192ce3926176315f801048a41f3ae22b"
     },
     {
       "path": ".wiretail/execution/evidence/V10_102-06.json",
-      "sha256": "46b11ce015e1d279b243b8ae98ad00e0f241b29c84c1cd6bc2d696fe828e92cf"
+      "sha256": "9cd36693952c99bf89a73f3a3a5f3349c3b651640fb2fe47e1875a3a18c03927"
     },
     {
       "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/memory-summary.json",
@@ -438,6 +438,14 @@
       "sha256": "fb83c6e16f023adf93034709ac25f72d88eb14462dc1dda2c641262880f8d479"
     },
     {
+      "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/request-journal.jsonl",
+      "sha256": "d9e4b799c53822388bdedc7301b677686dc37c84fad92a808a8a55da8b46e6f2"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/request-journal.jsonl",
+      "sha256": "92e92b6c43891f1a43994e02b0e267aace68706e5e5e1aaf58a35f2e01659ae7"
+    },
+    {
       "path": ".wiretail/execution/evidence/V10_101-10.json",
       "sha256": "fe449ff02d7e8216b8cbd70bcde75c99a5a20df9098460347aaf32ab8d8794a7"
     },
@@ -446,7 +454,7 @@
       "sha256": "7cdc8866870bcfd0dd77f49a3ced463bc061345724da74583f0e94de21aa7d76"
     }
   ],
-  "curve_findings": "not collected: architecture is not accepted; defer until core repair and review.",
+  "curve_findings": "Incremental occupancy-fill prompt rates were recovered from the 102-05 and 102-06 raw request journals and are now recorded in both compact handoffs and V10 receipts. They are not the canonical three-prompt benchmark or a paired A/B comparison; see occupied_context_prefill_curve in each receipt.",
   "memory_128k": {
     "target_gpu_pool_high_water_bytes": 865075200,
     "target_gpu_compute_high_water_bytes": 193974912,

@@ -555,6 +555,31 @@
     "tested_pid": 2646324,
     "ubatch_tokens": 256
   },
+  "occupied_context_prefill_curve": {
+    "interpretation": "Incremental repository-content occupancy-fill requests in one slot; C is rendered prompt length and rate is server timings.prompt_per_second. Not the canonical three-prompt benchmark or a paired A/B comparison.",
+    "excluded_short_tail_requests": [
+      {"stage": "repo_continuation_11", "context_tokens": 119465, "fresh_prompt_tokens": 112, "prompt_tokens_per_second": 144.9015},
+      {"stage": "A2", "context_tokens": 119601, "fresh_prompt_tokens": 140, "prompt_tokens_per_second": 185.4491}
+    ],
+    "journal": {
+      "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/occupancy/request-journal.jsonl",
+      "sha256": "d9e4b799c53822388bdedc7301b677686dc37c84fad92a808a8a55da8b46e6f2"
+    },
+    "candidate_server_sha256": "30c9abd3e60702062764ae71b52f473dacc6051099fd9bbea39eea97af8fbd50",
+    "points": [
+      {"context_tokens":3890,"fresh_prompt_tokens":3890,"prompt_tokens_per_second":1117.1577},
+      {"context_tokens":15787,"fresh_prompt_tokens":11901,"prompt_tokens_per_second":1068.3050},
+      {"context_tokens":27687,"fresh_prompt_tokens":11904,"prompt_tokens_per_second":935.4411},
+      {"context_tokens":39595,"fresh_prompt_tokens":11912,"prompt_tokens_per_second":832.1792},
+      {"context_tokens":51488,"fresh_prompt_tokens":11897,"prompt_tokens_per_second":754.0934},
+      {"context_tokens":63355,"fresh_prompt_tokens":11871,"prompt_tokens_per_second":725.0734},
+      {"context_tokens":75248,"fresh_prompt_tokens":11897,"prompt_tokens_per_second":712.4403},
+      {"context_tokens":86994,"fresh_prompt_tokens":11750,"prompt_tokens_per_second":699.2339},
+      {"context_tokens":98899,"fresh_prompt_tokens":11909,"prompt_tokens_per_second":692.3558},
+      {"context_tokens":110806,"fresh_prompt_tokens":11911,"prompt_tokens_per_second":684.2681},
+      {"context_tokens":119357,"fresh_prompt_tokens":8555,"prompt_tokens_per_second":667.8240}
+    ]
+  },
   "schema_version": 1,
   "source_commit": "09e3225089488efec7a5d8a6b7433add47b2deb0",
   "status": "pass",

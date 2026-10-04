@@ -17,6 +17,18 @@ The 8K/4K selected run used three fresh-input trials per prompt. Selected prefil
 
 At C=120,000, 128K post-load rows completed three 400-token trials per prompt, but MTP acceptance was 0% on all prompts. Each reused the occupied prefix; about 42 prompt tokens were newly processed, so these are not fresh-prefill comparisons. At 256K, no canonical speed matrix ran. The 249,921-token recall generated 400 tokens with 398 drafts, 0 accepted, and slash filler.
 
+The occupancy-fill journals do contain incremental fresh-input prefill curves,
+which were previously omitted from this compact summary. In the 128K run,
+server-reported prompt rate declined from 1,117 tok/s at C=3,890 to 668 tok/s
+at C=119,357 (multi-thousand-token fresh chunks; short 112/140-token tail
+requests excluded). In the separate 256K build/run it declined from 1,131
+tok/s at C=3,890 to 585 tok/s at C=250,037 (the final point processed 7,754
+fresh tokens). These are occupancy-fill measurements, not the three-prompt
+canonical benchmark, not paired A/B, and from different candidate binaries;
+they must not be attributed to a specific code change. Complete point tables,
+fresh-token counts, candidate hashes, and raw journal SHA256 values are recorded
+in the 102-05/102-06 handoffs and V10 receipts.
+
 ## Retrieval, replay, memory and quality
 
 A prior 101-18 candidate passed natural cold promotion (page 5, 34,603,008 useful H2D bytes, mapping published, target/draft consumed). Final 256K replay restored target and draft, kept 200/200 pages resident and frozen-history generation at 0, advanced slot generation 36→37, and observed zero historical H2D in that interval. It failed semantic file retrieval. Selector/replay/promotion/view timings, final 256K route comparison, generation rollback count and exact full-C commit are not measured.
@@ -27,4 +39,4 @@ At 256K: target pool 865,075,200 B; target compute 244,929,152 B; full-L GPU Tur
 
 ## Goal verdict
 
-All 15 items are listed in `FORWARD_FINAL_SUMMARY.json`. Core misses are occupied-context MTP acceptance, final semantic retrieval, exact-full C, final route/scale attribution and feature-off reassessment. The 8K selected-prefill floor and CPU-main-KV comparison pass. Earlier replay, freeze, promotion and ring proofs remain scoped to their executable evidence. The final context curve is deferred until the architecture is accepted. Receipt-backed raw roots and hashes are listed in the JSON.
+All 15 items are listed in `FORWARD_FINAL_SUMMARY.json`. Core misses are occupied-context MTP acceptance, final semantic retrieval, exact-full C, final route/scale attribution and feature-off reassessment. The 8K selected-prefill floor and CPU-main-KV comparison pass. Earlier replay, freeze, promotion and ring proofs remain scoped to their executable evidence. The full canonical three-prompt benchmark at each context and a paired before/after context-speed comparison remain unmeasured; the incremental occupancy-fill curves above are findings, not acceptance gates. Receipt-backed raw roots and hashes are listed in the JSON.
