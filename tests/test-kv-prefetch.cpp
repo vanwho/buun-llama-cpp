@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <vector>
 
@@ -129,6 +130,96 @@ static void test_candidate_mailbox() {
            llama_kv_prefetch_mailbox_status::ok);
     assert(mailbox.poll(9, 12) == llama_kv_prefetch_mailbox_status::stale_generation);
     assert(fake.cancelled == 1 && mailbox.pending_slots() == 0);
+}
+
+static void test_scaled_candidate_mailbox() {
+    constexpr uint32_t resident_pages = 200;
+    constexpr uint32_t cold_pages = LLAMA_KV_QUERY_COLD_SELECTOR_PAGES;
+    constexpr uint32_t layers = 16;
+    const uint32_t width = (resident_pages + cold_pages) * layers;
+    llama_kv_prefetch_mailbox mailbox({ 2, width });
+    assert(mailbox.configured() && mailbox.candidates_per_slot() >= width);
+
+    uint32_t slot = UINT32_MAX;
+    llama_kv_prefetch_candidate * records = nullptr;
+    assert(mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    uint32_t count = 0;
+    for (uint32_t layer = 0; layer < layers; ++layer) {
+        for (uint32_t rank = 0; rank < resident_pages + cold_pages; ++rank) {
+            auto & candidate = records[count++];
+            const uint32_t logical_page = rank < resident_pages
+                ? rank + (rank >= 31 ? 1 : 0) : 1000 + rank - resident_pages;
+            candidate.identity = mailbox_page(logical_page, layer);
+            candidate.attention_layer = layer;
+            candidate.generation = 17;
+            candidate.table_epoch = 23;
+            candidate.score = 1.0f / (1.0f + float(rank));
+            candidate.requested_bytes = 4096;
+            candidate.content_version = 100 + logical_page;
+            candidate.summary_version = candidate.content_version;
+            candidate.speculation_generation = 3;
+            candidate.selector_rank = rank;
+            candidate.query_position = 8193;
+            candidate.cold = rank >= resident_pages;
+            candidate.rollback_generation = candidate.identity.page_generation;
+        }
+    }
+    assert(count == width);
+    assert(mailbox.publish_ready(slot, count, 17) ==
+           llama_kv_prefetch_mailbox_status::ok);
+    std::vector<llama_kv_prefetch_candidate> ready;
+    assert(mailbox.take_ready(ready) == width);
+    assert(ready.back().attention_layer == layers - 1 && ready.back().cold &&
+           ready.back().identity.logical_page == 1004 &&
+           ready.back().content_version == 1104 &&
+           ready.back().selector_rank == resident_pages + cold_pages - 1);
+    assert(ready[(layers - 1) * (resident_pages + cold_pages) + 31].identity.logical_page ==
+           32);
+
+    assert(mailbox.configure({ 2, (32 + cold_pages) * 4 }));
+    assert(mailbox.candidates_per_slot() == (32 + cold_pages) * 4);
+
+    // Run the production completion decoder against compact IDs and candidate
+    // records sharing the same acquired mailbox allocation, as the async
+    // callback does. This exercises the in-place expansion path above 128 IDs.
+    llama_kv_prefetch_mailbox expansion_mailbox({ 2, width });
+    assert(expansion_mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    std::vector<int32_t> raw(width);
+    std::vector<std::vector<llama_kv_prefetch_page_descriptor>> pages(layers);
+    std::vector<llama_kv_prefetch_selector_segment> segments;
+    segments.reserve(layers);
+    for (uint32_t layer = 0; layer < layers; ++layer) {
+        pages[layer].resize(resident_pages + cold_pages);
+        for (uint32_t rank = 0; rank < resident_pages + cold_pages; ++rank) {
+            const uint32_t logical = rank < resident_pages
+                ? rank + (rank >= 31 ? 1 : 0) : 1000 + rank - resident_pages;
+            auto & page = pages[layer][rank];
+            page.identity = mailbox_page(logical, layer);
+            page.content_version = 5000 + logical;
+            page.summary_version = page.content_version;
+            raw[layer * (resident_pages + cold_pages) + rank] = int32_t(rank);
+        }
+        segments.push_back({
+            layer * (resident_pages + cold_pages), resident_pages + cold_pages,
+            0, resident_pages, resident_pages, cold_pages,
+            0, layer, 1, 1, 17, 23, 8193, 31, 4096, &pages[layer],
+        });
+    }
+    std::memcpy(records, raw.data(), raw.size() * sizeof(raw[0]));
+    std::vector<int32_t> copied;
+    uint32_t expanded = 0;
+    assert(llama_kv_prefetch_expand_selector_ids(
+        reinterpret_cast<const int32_t *>(records), uint32_t(raw.size()), segments,
+        expansion_mailbox.candidates_per_slot(), copied, records, expanded));
+    assert(copied == raw && expanded == width && expanded > 128);
+    const auto & remapped = records[(layers - 1) * (resident_pages + cold_pages) + 31];
+    assert(remapped.identity.logical_page == 32 && remapped.attention_layer == layers - 1 &&
+           remapped.generation == 17 && remapped.table_epoch == 23 &&
+           remapped.selector_rank == 31 && remapped.content_version == 5032);
+    const auto & last = records[expanded - 1];
+    assert(last.identity.logical_page == 1004 && last.attention_layer == layers - 1 &&
+           last.cold && last.selector_rank == cold_pages - 1 &&
+           last.content_version == 6004);
 }
 
 static void test_layer_duplicate_and_refresh_budget(prefetch_fake & fake) {
@@ -271,6 +362,7 @@ int main() {
     assert(scheduler->stopped() && scheduler->queued_pages() == 0 &&
            scheduler->active_events() == 0);
     test_candidate_mailbox();
+    test_scaled_candidate_mailbox();
     test_layer_duplicate_and_refresh_budget(fake);
     std::cout << "kv prefetch checks passed\n";
 }

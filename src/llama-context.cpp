@@ -3355,7 +3355,22 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             for (const auto & layer : routed_layer_pages) {
                 std::vector<uint32_t> logical_pages;
                 logical_pages.reserve(layer.size());
-                for (const auto & page : layer) logical_pages.push_back(page.logical_page);
+                for (const auto & page : layer) {
+                    // Routing nominees are advisory until the residency
+                    // transaction publishes their exact content version.
+                    // A failed all-pinned admission must not make the
+                    // generation graph request a cold page through its
+                    // frozen attention view.
+                    const auto resident = std::find_if(pager_snapshot.pages().begin(),
+                            pager_snapshot.pages().end(), [&](const auto & value) {
+                        return value.id.logical_page == page.logical_page &&
+                            value.id == page &&
+                            resident_state(value);
+                    });
+                    if (resident != pager_snapshot.pages().end()) {
+                        logical_pages.push_back(page.logical_page);
+                    }
+                }
                 layer_logical_pages.push_back(std::move(logical_pages));
             }
             if (!llama_kv_attention_committed_pages(layer_logical_pages,
@@ -3375,9 +3390,14 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     return value.id == selected->identity &&
                         value.content_version == selected->content_version;
                 });
-                if (page == pager_snapshot.pages().end() || !resident_state(*page) ||
-                        !append_page(selected->identity)) {
-                    return refuse("committed frozen history does not fit admitted attention view");
+                if (page == pager_snapshot.pages().end()) {
+                    return refuse("committed frozen history identity is absent from pager snapshot");
+                }
+                if (!resident_state(*page)) {
+                    return refuse("committed frozen history page is not resident in admitted attention view");
+                }
+                if (!append_page(selected->identity)) {
+                    return refuse("committed frozen history exceeds admitted attention view capacity");
                 }
             }
             // R (selected_history) freezes retrieved *prior-turn* history,

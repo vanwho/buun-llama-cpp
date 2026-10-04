@@ -509,6 +509,13 @@ struct llama_context {
             std::vector<llama_kv_pager_selected_history> & history) const {
         return memory && memory->get_kv_pager_history_for_test(sequence_id, history);
     }
+    llama_kv_pager * get_kv_pager_owner_for_test() const noexcept {
+        return kv_pager_owner.get();
+    }
+    void request_graph_reserve_for_test() {
+        sched_need_reserve = true;
+        sched_reserve();
+    }
     int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const {
         return memory ? memory->get_kv_pager_turn_phase_for_test(sequence_id) : -1;
     }

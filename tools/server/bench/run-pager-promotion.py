@@ -280,7 +280,7 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
                        model: str, cache_prompt: bool, output: pathlib.Path,
                        step_index: int, tracked_fixture: Any | None = None,
                        selector_trace_page: int | None = None,
-                       output_budget: int = 256
+                       output_budget: int = 400
                        ) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]:
     request_options_value = request_options(chat_template_kwargs={"enable_thinking": False})
     request_options_value["reasoning_effort"] = "none"
@@ -296,11 +296,11 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
     # context, minus only a small guard for accounting/template differences.
     # Natural EOS ends short acknowledgements; no exact-answer token cap or
     # newline stop can truncate ordinary prose.
-    if output_budget < 256:
-        raise ValueError("natural promotion completions must allow at least 256 output tokens")
+    if output_budget < 400:
+        raise ValueError("natural promotion completions must allow at least 400 output tokens")
     n_predict = min(response_budget(len(rendered.token_ids), CONTEXT), output_budget)
-    if n_predict < 256:
-        raise RuntimeError("natural promotion completions must retain a 256-token budget")
+    if n_predict < 400:
+        raise RuntimeError("natural promotion completions must retain a 400-token budget")
 
     # Tokenize prefixes of the candidate-rendered prompt to map the complete
     # winning fixture body and its answer-bearing source line.
@@ -490,11 +490,11 @@ def preflight_messages(base: str, key: str, messages: list[dict[str, str]], mode
     try:
         planned_completion_tokens = response_budget(
             token_count + planned_prior_reply_tokens, CONTEXT)
-        fits = planned_completion_tokens >= 256
+        fits = planned_completion_tokens >= 400
     except ValueError:
         planned_completion_tokens = 0
         fits = False
-    result = {"context_tokens": CONTEXT, "completion_reserve_tokens": 256,
+    result = {"context_tokens": CONTEXT, "completion_reserve_tokens": 400,
               "planned_prior_reply_reserve_tokens": planned_prior_reply_tokens,
               "context_safety_reserve_tokens": 128,
               "rendered_prompt_tokens": token_count,
@@ -531,7 +531,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
             base, key, messages, model=model, cache_prompt=step.cache_prompt,
             output=request_root, step_index=step_index, tracked_fixture=tracked_fixture,
             selector_trace_page=selector_trace_page,
-            output_budget=256)
+            output_budget=400)
         http_status = 200
     except CompletionFailure as error:
         answer, response, payload, render = None, error.response, error.payload, error.render
@@ -845,7 +845,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         result = preflight_messages(
             base, key, messages, model,
             case_root / f"preflight-request-{index + 1:02d}",
-            planned_prior_reply_tokens=index * 256)
+            planned_prior_reply_tokens=0)
         result["request_index"] = index
         result["stage"] = step.stage
         result["message_count"] = len(messages)
@@ -854,7 +854,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     write_json(case_root / "preflight-summary.json", {
         "context_tokens": CONTEXT,
         "hot_tokens": HOT_TOKENS,
-        "completion_reserve_tokens": 256,
+        "completion_reserve_tokens": 400,
         "requests": preflight_rows,
         "all_fit": all(item.get("fits") is True for item in preflight_rows),
     })
@@ -862,7 +862,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         for index, result in enumerate(preflight_rows):
             if not result.get("fits"):
                 print(f"preflight request {index + 1}: rendered={result.get('rendered_prompt_tokens')} "
-                      f"completion_reserve=256 context={CONTEXT} does not fit", flush=True)
+                      f"completion_reserve=400 context={CONTEXT} does not fit", flush=True)
         raise RuntimeError("one or more rendered cumulative messages do not fit with completion reserve")
     answers: list[str] = []
     records: list[dict[str, Any]] = []
@@ -877,9 +877,9 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                 base, key, actual_messages, model,
                 case_root / f"preflight-request-{index + 1:02d}-actual")
             if not actual_preflight["fits"]:
-                raise RuntimeError(f"actual request {index + 1} does not fit with a 256-token output reserve")
+                raise RuntimeError(f"actual request {index + 1} does not fit with a 400-token output reserve")
             if index == final_index and actual_preflight["rendered_prompt_tokens"] <= HOT_TOKENS:
-                raise RuntimeError("actual final request does not exceed H with a 256-token output reserve")
+                raise RuntimeError("actual final request does not exceed H with a 400-token output reserve")
         record = request_record(base, key, case_root, steps, index, answers, model,
                                 tracked_fixture=target if index == 0 else None,
                                 selector_trace_page=selector_trace_page if index == final_index else None)

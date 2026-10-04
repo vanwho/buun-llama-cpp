@@ -66,6 +66,45 @@ struct llama_kv_prefetch_candidate {
     uint64_t rollback_generation = 0;
 };
 
+struct llama_kv_prefetch_page_descriptor {
+    llama_kv_page_id identity;
+    uint64_t content_version = 0;
+    uint64_t summary_version = 0;
+};
+
+// Non-owning segment from one immutable selector submission. Compact IDs are
+// indices into `pages`, with resident and cold ranks occupying separate
+// output regions in the mailbox allocation.
+struct llama_kv_prefetch_selector_segment {
+    uint32_t raw_offset = 0;
+    uint32_t count = 0;
+    uint32_t resident_offset = 0;
+    uint32_t resident_count = 0;
+    uint32_t cold_offset = 0;
+    uint32_t cold_count = 0;
+    int32_t sequence_id = -1;
+    uint32_t attention_layer = UINT32_MAX;
+    uint64_t session_generation = 0;
+    uint64_t sequence_generation = 0;
+    uint64_t query_generation = 0;
+    uint64_t table_epoch = 0;
+    uint64_t query_position = 0;
+    uint64_t rollback_generation = 0;
+    uint64_t requested_bytes = 0;
+    const std::vector<llama_kv_prefetch_page_descriptor> * pages = nullptr;
+};
+
+// Decode a completed selector slot into candidate records. The compact input
+// may alias the output allocation; it is copied in full before any record is
+// written so expansion cannot overwrite IDs belonging to later layers.
+bool llama_kv_prefetch_expand_selector_ids(
+        const int32_t * raw_ids, uint32_t raw_count,
+        const std::vector<llama_kv_prefetch_selector_segment> & segments,
+        uint32_t mailbox_capacity,
+        std::vector<int32_t> & copied_ids,
+        llama_kv_prefetch_candidate * records,
+        uint32_t & written) noexcept;
+
 // Shared by graph output construction and startup mailbox sizing. Changing
 // the cold ranking width must not silently exceed readback storage.
 constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 5;
