@@ -68,7 +68,7 @@ card, service paths or these counts in portable production logic.
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
 | 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
-| 102 | 102-01–07 | driver-limit regression; 16K/8K baseline; 32K/16K; completed 128K/C=128,281 with effective H=16,384 after admission; fresh 128K/C=120K with a filled H=51,200 hot window and per-chunk prefill/VRAM/post-load MTP; 256K/C=250K with the same filled H=51,200 hot window; final goal review |
+| 102 | 102-01–07 | driver-limit regression; 16K/8K baseline; 32K/16K baseline; 102-05 is a fresh independent L=131,072/C=120,000 run with filled H=51,200 and a newly built candidate; 102-06 is L=262,144/C=250,000 with the same H; final goal review |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
 specified in `OPTIONAL_ADVANCEMENTS.md`. Schedule them as phases 104/105 (or

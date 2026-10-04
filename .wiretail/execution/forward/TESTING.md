@@ -42,9 +42,8 @@ Retain a successful candidate loaded for the next task.
   owned by101-10; natural promotion by101-11, after GPU execution repairs.
   Missing100-04a receipt is not a gate on these implementation tasks.
 - Keep fresh input speed probes <=16K tokens. Phase 102's ordered geometries
-  are L/H=16K/8K, 32K/16K, the completed 102-04 row at L=131,072/C=128,281
-  with effective H=16,384 (the requested 59,904 cap admitted only 64 pages),
-  the fresh 102-05 repeat at L=131,072/C=120,000 with a filled H=51,200 hot
+  are L/H=16K/8K, 32K/16K, then a fresh independent 102-05 row at
+  L=131,072/C=120,000 with a filled H=51,200 hot
   window (200 pages), then L=262,144/C=250,000 with the same filled H=51,200
   window (200 pages) in 102-06. Both future higher-context tests require the
   full configured hot window; no 16K or smaller-H substitute is accepted.

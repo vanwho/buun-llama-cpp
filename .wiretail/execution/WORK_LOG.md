@@ -2063,3 +2063,7 @@ receives `PROJECT_ROOT` from the shared runner.
 
 - Branch: `plan/attention-aware-kv-paging`
 - Summary: Reset the failed, unaccepted start to a first-run state. Preserved the useful resumable post-load canonical MTP helper and its focused regression on the plan branch. The packet now requires a forced-clean `build-102-05` build before service actions, explicit live `--no-context-shift` verification, and a bounded 80-token prompt-1 diagnostic smoke before long occupancy. The reported stale 102-03/64-page service and MTP-verification `unsupported_shape` core dump are recorded for diagnosis, not accepted as a valid task result. Existing token accounting/history is preserved; no prior result is claimed.
+
+## 2026-10-04T03:02:52+00:00 — 102-05 — todo
+
+- Summary: A second start inherited `.wiretail/build/current-run.json` at attempt 3, which caused Wiretail to advance to attempt 4 and load earlier attempt context. Reset the task and handoff to `todo`, archived only that active-run pointer so old raw logs remain auditable but cannot be resumed, and removed predecessor measurements/handoffs and broad history from 102-05 startup context. `attempt-01` for the 128K result root is empty. The next invocation must be a fresh attempt 1 from the plan branch.
