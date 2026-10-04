@@ -193,6 +193,23 @@ llama_kv_attention_packed_cache::~llama_kv_attention_packed_cache() {
     }
 }
 
+llama_kv_attention_packed_cache::allocation_snapshot
+llama_kv_attention_packed_cache::allocations() const noexcept {
+    allocation_snapshot result;
+    result.peak_bytes = peak_allocated_bytes_;
+    for (const auto & cached : entries_) {
+        if (cached->buffer == nullptr) continue;
+        const uint64_t bytes = ggml_backend_buffer_get_size(cached->buffer);
+        result.live_bytes = saturating_add(result.live_bytes, bytes);
+        ++result.owners;
+        if (cached->draining) {
+            result.draining_bytes = saturating_add(result.draining_bytes, bytes);
+            ++result.draining_owners;
+        }
+    }
+    return result;
+}
+
 void llama_kv_attention_packed_cache::release_entry(entry * cached) noexcept {
     if (cached == nullptr) {
         return;
@@ -597,6 +614,12 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         if (cached->buffer == nullptr) {
             return nullptr;
         }
+        // Record the real allocator-visible overlap before the old owner can
+        // retire. Only allocation events scan the bounded owner collection;
+        // ordinary per-token cache reuse adds no accounting work or GPU fence.
+        peak_allocated_bytes_ = std::max(peak_allocated_bytes_,
+                saturating_add(allocations().live_bytes,
+                    uint64_t(ggml_backend_buffer_get_size(cached->buffer))));
 
         for (auto & previous : entries_) {
             if (!previous->draining && same_domain(*previous, layer_id, sequence_id, backend)) {

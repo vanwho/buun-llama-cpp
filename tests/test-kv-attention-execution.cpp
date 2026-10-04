@@ -492,6 +492,11 @@ static void test_packed_cache_identity_and_versions() {
     auto * first = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
             backend, row_capacity);
     assert(first != nullptr);
+    const uint64_t first_allocation_bytes = ggml_backend_buffer_get_size(first->buffer);
+    assert(cache.allocations().live_bytes == first_allocation_bytes);
+    assert(cache.allocations().peak_bytes == first_allocation_bytes);
+    assert(cache.allocations().owners == 1);
+    assert(cache.allocations().draining_bytes == 0);
     assert(std::strcmp(first->k->name, source_k->name) == 0);
     assert(std::strcmp(first->v->name, source_v->name) == 0);
     assert(first->k->ne[2] == row_capacity && first->v->ne[2] == row_capacity);
@@ -625,6 +630,11 @@ static void test_packed_cache_identity_and_versions() {
     assert(new_lifetime != nullptr && new_lifetime != first);
     assert(cache.content_version(new_lifetime, 0) == UINT64_MAX);
     assert(cache.size() == 2);
+    const uint64_t replacement_bytes = ggml_backend_buffer_get_size(new_lifetime->buffer);
+    assert(cache.allocations().live_bytes == first_allocation_bytes + replacement_bytes);
+    assert(cache.allocations().draining_bytes == first_allocation_bytes);
+    assert(cache.allocations().draining_owners == 1);
+    assert(cache.allocations().peak_bytes >= cache.allocations().live_bytes);
 
     cache.begin_graph_build();
     cache.release_completed();
@@ -634,6 +644,8 @@ static void test_packed_cache_identity_and_versions() {
     cache.complete_one_graph();
     cache.release_completed();
     assert(cache.size() == 1);
+    assert(cache.allocations().live_bytes == replacement_bytes);
+    assert(cache.allocations().draining_bytes == 0);
 
     // A capacity change is structural, while a representation epoch change
     // above was deliberately not. Clearing the sequence retires the active
@@ -645,6 +657,9 @@ static void test_packed_cache_identity_and_versions() {
     assert(cache.size() == 2);
     cache.clear_sequence(0);
     assert(cache.size() == 0);
+    assert(cache.allocations().live_bytes == 0);
+    assert(cache.allocations().owners == 0);
+    assert(cache.allocations().peak_bytes >= first_allocation_bytes + replacement_bytes);
 
     // Owners created during a graph build are provisional until the graph
     // lease is submitted. A failed allocation/bind must reclaim that owner

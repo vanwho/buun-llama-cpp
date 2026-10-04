@@ -2,6 +2,7 @@
 #include "llama-vbr-codec.h"
 
 #include "ggml.h"
+#include "ggml-vbr.h"
 #include "llama-arch.h"
 #include "llama-graph.h"
 #include "llama-impl.h"
@@ -261,13 +262,27 @@ static void llama_context_fill_pager_memory_admission(
         const llama_kv_pager_geometry & geometry,
         uint64_t alignment,
         llama_kv_pager_resources & resources) noexcept {
-    resources.admission.packed_workspace_page_bytes = geometry.page_bytes;
-    // One active owner and one bounded draining replacement are both live
-    // during a structural A/source replacement. The destination is therefore
-    // charged as A storage, not hidden in an H-sized scratch estimate.
-    resources.admission.packed_workspace_owner_count = 2;
-    resources.admission.packed_dequant_page_bytes =
-            llama_context_packed_dequant_page_bytes(model, geometry);
+    if (config.hot_pages.automatic) {
+        // Automatic H still needs a prospective workspace estimate before its
+        // target slab exists. Explicit H is a caller-requested allocation:
+        // admit its actual slab and measure lazy route buffers at runtime.
+        resources.admission.packed_workspace_page_bytes = geometry.page_bytes;
+        resources.admission.packed_workspace_owner_count = 2;
+        resources.admission.packed_dequant_page_bytes =
+                llama_context_packed_dequant_page_bytes(model, geometry);
+    } else {
+        // Disabled for explicit H: charging two H-sized packed owners and an
+        // F16 view here treats a possible replacement/fallback peak as already
+        // required storage, even when the submitted graph uses dense/direct
+        // fused Turbo4. Packed-cache buffer sizes and live overlap are observed
+        // at their allocation sites; CUDA remains the final allocation check.
+        // resources.admission.packed_workspace_page_bytes = geometry.page_bytes;
+        // resources.admission.packed_workspace_owner_count = 2;
+        // resources.admission.packed_dequant_page_bytes = ...;
+        resources.admission.packed_workspace_page_bytes = 0;
+        resources.admission.packed_workspace_owner_count = 0;
+        resources.admission.packed_dequant_page_bytes = 0;
+    }
     resources.admission.catalogue_bytes =
             llama_context_catalogue_reserve_bytes(model, geometry, alignment);
     const uint64_t logical_pages = (geometry.context_tokens - 1) /
@@ -1087,7 +1102,8 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
         const llama_context * native_mtp_context,
         uint64_t request_generation,
         uint64_t slot_generation,
-        uint64_t config_generation) const noexcept {
+        uint64_t config_generation,
+        bool measure_allocations) const noexcept {
     llama_kv_pager_metrics_snapshot result;
     result.enabled = kv_pager.enabled();
     result.mode = kv_pager.mode;
@@ -1100,6 +1116,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.target_type_v = pager_target_type_v_;
     const char * fallback_backend = nullptr;
     const char * accelerator_backend = nullptr;
+    ggml_backend_dev_t measured_device = nullptr;
     for (const auto & backend : backend_ptrs) {
         const auto device = ggml_backend_get_device(backend);
         if (device == nullptr) {
@@ -1114,6 +1131,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
             if (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
                     ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU) {
                 accelerator_backend = name;
+                measured_device = device;
                 break;
             }
         }
@@ -1135,6 +1153,66 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();
     result.execution = kv_attention_execution.metrics();
+    if (measure_allocations) {
+        const auto packed_allocations = kv_attention_packed_cache.allocations();
+        result.execution.packed_live_allocated_bytes = packed_allocations.live_bytes;
+        result.execution.packed_peak_allocated_bytes = packed_allocations.peak_bytes;
+        result.execution.packed_draining_allocated_bytes = packed_allocations.draining_bytes;
+        result.execution.packed_live_owners = packed_allocations.owners;
+        result.execution.packed_draining_owners = packed_allocations.draining_owners;
+
+        // Diagnostic reads run at the scrape boundary, never at a decode/token
+        // boundary. The VBR callback with zero requested bytes reads existing
+        // physical scratch and does not allocate, fence, or change a CUDA graph.
+        const auto measure_buffers = [&](const llama_context & context,
+                                         uint64_t & compute, uint64_t & dequant,
+                                         bool & dequant_measured) {
+            if (measured_device == nullptr) return;
+            const auto add_bytes = [](uint64_t & total, uint64_t bytes) {
+                total = bytes > UINT64_MAX - total ? UINT64_MAX : total + bytes;
+            };
+            for (const auto & [buft, breakdown] : context.memory_breakdown()) {
+                if (!ggml_backend_buft_is_host(buft) &&
+                        ggml_backend_buft_get_device(buft) == measured_device) {
+                    add_bytes(compute, uint64_t(breakdown.compute));
+                }
+            }
+            const auto reg = ggml_backend_dev_backend_reg(measured_device);
+            const auto get = reg == nullptr ? nullptr :
+                (ggml_backend_vbr_iface_fn_t) ggml_backend_reg_get_proc_address(
+                        reg, GGML_VBR_BACKEND_IFACE_PROC);
+            const auto * iface = get == nullptr ? nullptr : get();
+            if (iface == nullptr || iface->kv_dequant_scratch_memory == nullptr) return;
+            for (const auto & backend : context.backend_ptrs) {
+                if (ggml_backend_get_device(backend) != measured_device) continue;
+                size_t current = 0;
+                size_t projected = 0;
+                iface->kv_dequant_scratch_memory(backend, 0, 0, &current, &projected);
+                add_bytes(dequant, uint64_t(current));
+                dequant_measured = true;
+            }
+        };
+        try {
+            if (measured_device != nullptr) {
+                size_t free = 0;
+                size_t total = 0;
+                ggml_backend_dev_memory(measured_device, &free, &total);
+                result.device_total_bytes = total;
+                result.device_free_bytes = std::min(free, total);
+                result.device_used_bytes = total - result.device_free_bytes;
+            }
+            measure_buffers(*this, result.target_compute_allocated_bytes,
+                    result.target_dequant_allocated_bytes, result.target_dequant_measured);
+            if (native_mtp_context != nullptr) {
+                measure_buffers(*native_mtp_context, result.mtp_compute_allocated_bytes,
+                        result.mtp_dequant_allocated_bytes, result.mtp_dequant_measured);
+            }
+        } catch (...) {
+            // A missing optional scrape must not interrupt a running context fill.
+            result.target_dequant_measured = false;
+            result.mtp_dequant_measured = false;
+        }
+    }
     if (kv_pager_owner != nullptr && kv_pager.enabled()) {
         try {
             // The diagnostic server uses one slot (sequence zero) for the
@@ -1431,7 +1509,11 @@ void llama_context::plan_kv_pager() {
     resources.admission.fixed_bytes = 0;
     resources.admission.recurrent_state_bytes =
             llama_context_recurrent_state_bytes(model, cparams, dev);
-    resources.admission.graph_bytes = llama_context_estimated_compute_bytes();
+    // For explicit H, do not reject a caller's geometry on an unmeasured
+    // co-tenancy nominal ask. graph_reserve() allocates the real scheduler
+    // buffers; init_kv_pager() reconciles their measured bytes afterwards.
+    resources.admission.graph_bytes = kv_pager.hot_pages.automatic
+        ? llama_context_estimated_compute_bytes() : 0;
     resources.admission.mtp_compute_bytes = 0;
     resources.admission.turbo4_scratch_bytes = alignment;
     resources.admission.staging_bytes = alignment;
@@ -1455,7 +1537,11 @@ void llama_context::plan_kv_pager() {
     }
     resources.admission.mtp_present = mtp_loaded;
     resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
-    resources.admission.mtp_compute_bytes = mtp_loaded
+    // MTP has a separate context/scheduler. Its actual compute allocation is
+    // unknown until the server constructs it; a second nominal ask is not a
+    // measurement. Preserve the auto-sizing estimate, but allow explicit H
+    // to proceed to that real allocation and expose its bytes in telemetry.
+    resources.admission.mtp_compute_bytes = mtp_loaded && kv_pager.hot_pages.automatic
         ? llama_context_estimated_compute_bytes() : 0;
     if (mtp_loaded) {
         resources.admission.mtp_is_turbo4 =
@@ -1694,10 +1780,11 @@ void llama_context::init_kv_pager() {
     }
     resources.admission.fixed_bytes = recurrent_bytes > resources.admission.fixed_bytes
         ? 0 : resources.admission.fixed_bytes - recurrent_bytes;
-    // The pre-plan already reserved a conservative graph ask. Preserve that
-    // bound during reconciliation so a late graph measurement cannot make the
-    // borrowed slab and the pager disagree about physical capacity.
-    if (kv_pager_plan_valid_) {
+    // Automatic sizing retains its prospective bounds. Explicit H uses the
+    // actual target scheduler/recurrent allocations and current external
+    // occupancy above, rather than retaining an earlier transient/nominal
+    // maximum as though it were a live buffer.
+    if (kv_pager_plan_valid_ && kv_pager.hot_pages.automatic) {
         resources.admission.graph_bytes = std::max(
                 resources.admission.graph_bytes,
                 kv_pager_plan_.admission.graph_bytes);

@@ -403,6 +403,30 @@ static void test_dynamic_lha_admission() {
     CHECK(explicit_result.attention_pages == 4);
     CHECK(explicit_result.attention_tokens == 4 * explicit_a.page_tokens);
 
+    // Explicit H can measure lazy route buffers instead of treating a
+    // prospective packed/F16 workspace as an already allocated resource.
+    // The attention bound must still be enforced when its charge is zero.
+    auto measured = make_lha_fixture(131072, std::numeric_limits<uint64_t>::max());
+    measured.packed_workspace_page_bytes = 0;
+    measured.packed_workspace_owner_count = 0;
+    measured.packed_dequant_page_bytes = 0;
+    const auto measured_full = llama_cache_budget_admit(measured);
+    CHECK(measured_full.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(measured_full.packed_workspace_bytes == 0);
+    CHECK(measured_full.packed_dequant_bytes == 0);
+    CHECK(measured_full.attention_pages == measured_full.admitted_pages);
+    measured.user_page_cap = 200;
+    measured.capacity_bytes = measured_full.charged_bytes + 200 * measured_full.page_charge_bytes;
+    const auto explicit_h = llama_cache_budget_admit(measured);
+    CHECK(explicit_h.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(explicit_h.admitted_pages == 200);
+    CHECK(explicit_h.attention_pages == 200);
+    measured.attention_page_limit = 4;
+    CHECK(llama_cache_budget_admit(measured).attention_pages == 4);
+    measured.attention_page_limit = measured.logical_page_count + 1;
+    CHECK(llama_cache_budget_admit(measured).refusal ==
+          llama_cache_budget_admission_refusal::insufficient_capacity);
+
     auto mismatch = make_lha_fixture(8192, std::numeric_limits<uint64_t>::max());
     mismatch.requested_context_tokens = 8192;
     mismatch.resolved_context_tokens = 4096;

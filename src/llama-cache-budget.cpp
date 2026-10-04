@@ -466,10 +466,20 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
             return out;
         }
         out.attention_pages = a_pages;
-        out.attention_tokens = a_pages > UINT64_MAX / input.page_tokens
-            ? UINT64_MAX : a_pages * input.page_tokens;
         out.remaining_bytes = out.usable_device_bytes - out.charged_bytes;
+    } else {
+        // Attention geometry also applies when a caller measures lazy packed
+        // buffers instead of reserving an estimated per-page workspace. Do
+        // not lose an explicit A limit merely because the charge is zero.
+        out.attention_pages = input.attention_page_limit != 0
+            ? input.attention_page_limit : admitted;
+        if (out.attention_pages > admitted) {
+            out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
+            return out;
+        }
     }
+    out.attention_tokens = out.attention_pages > UINT64_MAX / input.page_tokens
+        ? UINT64_MAX : out.attention_pages * input.page_tokens;
     out.admitted_pages = admitted;
     out.capacity_pages = admitted;
     uint64_t admitted_bytes = 0;

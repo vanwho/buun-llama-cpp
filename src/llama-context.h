@@ -80,6 +80,17 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t recurrent_state_bytes = 0;
     uint64_t mtp_compute_bytes = 0;
     uint64_t graph_bytes = 0;
+    // Observed allocations at scrape time; unlike the startup admission
+    // columns these include the actual target and companion schedulers.
+    uint64_t target_compute_allocated_bytes = 0;
+    uint64_t mtp_compute_allocated_bytes = 0;
+    uint64_t target_dequant_allocated_bytes = 0;
+    uint64_t mtp_dequant_allocated_bytes = 0;
+    bool target_dequant_measured = false;
+    bool mtp_dequant_measured = false;
+    uint64_t device_total_bytes = 0;
+    uint64_t device_used_bytes = 0;
+    uint64_t device_free_bytes = 0;
     uint64_t turbo4_scratch_bytes = 0;
     uint64_t routing_table_bytes = 0;
     uint64_t staging_bytes = 0;
@@ -451,12 +462,14 @@ struct llama_context {
     // `native_mtp_context` is the separately allocated native draft context,
     // when one is live. The target owns the pager, but the draft owns its MTP
     // allocation and is therefore the authoritative source for its placement
-    // and realized bytes.
+    // and realized bytes. Expensive allocation reads are opt-in for scrapes,
+    // not internal replay/checkpoint/token-boundary callers.
     llama_kv_pager_metrics_snapshot get_kv_pager_metrics(
             const llama_context * native_mtp_context = nullptr,
             uint64_t request_generation = 0,
             uint64_t slot_generation = 0,
-            uint64_t config_generation = 0) const noexcept;
+            uint64_t config_generation = 0,
+            bool measure_allocations = false) const noexcept;
     void begin_kv_pager_proof_request() noexcept;
     llama_memory_failure_reason get_last_memory_failure_reason() const noexcept {
         return last_memory_failure_reason_;
