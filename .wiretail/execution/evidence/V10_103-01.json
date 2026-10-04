@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "task": "103-01",
+  "attempt": 1,
+  "status": "not_met",
+  "source_commit": "013afc63de817b1f54ae1c43b9c04616fb0e7560",
+  "source_identity": {
+    "dirty_source_fingerprint": "d5a3a4f5408bbd6b93c0a129ea3148510a12b4dd1d5530f5a8d905d476338c50",
+    "fingerprint_method": "SHA-256 over ordered changed production/test source paths and each file content SHA-256",
+    "paths": [
+      "src/llama-kv-attention-execution.cpp",
+      "tests/test-kv-attention-execution.cpp",
+      "tests/test-server-query-replay.cpp"
+    ]
+  },
+  "candidate": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+    "sha256": "43b25d94ca69bde1a74ba89d2681e4d7b8982796d4006aeef4871dfde6b92424",
+    "build_identity": {
+      "source_commit": "013afc63de817b1f54ae1c43b9c04616fb0e7560",
+      "dirty_source_fingerprint": "d5a3a4f5408bbd6b93c0a129ea3148510a12b4dd1d5530f5a8d905d476338c50",
+      "server_impl_sha256": "c64e1e8de12ea551aefade73d2a2b83cab39964e46269d72a5e68b96c592522e",
+      "llama_sha256": "e2eec421df25faa3bc5ee80b13f2e4d84c45678f2ba6b0a825c56ba2f063fb8f",
+      "command": [
+        "cmake",
+        "--build",
+        "build-102-06",
+        "--target",
+        "test-kv-attention-execution",
+        "test-server-query-replay",
+        "llama-server",
+        "--parallel",
+        "16"
+      ],
+      "log": {
+        "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/build-unsplit.log",
+        "sha256": "f3c0965ebefed4843acd6efc1ca15a9d8371faee5337b3be66a58128df08a173"
+      }
+    },
+    "loaded_process": {
+      "pid": 3928373,
+      "start_time_ticks": "22820056",
+      "loaded_executable_sha256": "43b25d94ca69bde1a74ba89d2681e4d7b8982796d4006aeef4871dfde6b92424",
+      "loaded_executable_path": "/proc/3928373/exe",
+      "argv": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+        "-m",
+        "/srv/ai/models/text/current.gguf",
+        "--alias",
+        "qwen38-fast-turbo4-mtp",
+        "-ngl",
+        "999",
+        "--fit",
+        "off",
+        "-fa",
+        "on",
+        "-c",
+        "131072",
+        "-np",
+        "1",
+        "-ctk",
+        "turbo4",
+        "-ctv",
+        "turbo4",
+        "-b",
+        "1024",
+        "-ub",
+        "256",
+        "--poll",
+        "0",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--metrics",
+        "--reasoning-preserve",
+        "--no-context-shift",
+        "--kv-pager",
+        "selective",
+        "--kv-page-size",
+        "256",
+        "--kv-hot-pages",
+        "200",
+        "--device",
+        "CUDA0",
+        "--ctx-checkpoints",
+        "0",
+        "--cache-ram",
+        "0",
+        "--no-cache-idle-slots",
+        "--spec-draft-kv-device",
+        "gpu",
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        "2",
+        "--spec-draft-type-k",
+        "turbo4",
+        "--spec-draft-type-v",
+        "turbo4"
+      ]
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "runtime": {
+    "port": 8080,
+    "service_restarted": true,
+    "service_active": true,
+    "health": "ok",
+    "context": 131072,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "turbo4/turbo4",
+    "draft_kv": "turbo4/turbo4",
+    "mtp": "native",
+    "mtp_n_max": 2,
+    "kv_pager": "selective",
+    "route": "auto",
+    "temperature": 0,
+    "thinking": false
+  },
+  "checks": {
+    "occupied_context_mtp_correctness_and_acceptance": {
+      "status": "not_met",
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/103-01/attempt-01/check-occupied-context-proof.py"
+      ],
+      "exit_code": 1,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/check-occupied-context-proof.py",
+          "sha256": "7872393e5d7927941cafd92de86c73d08c2757df00d4ae087c4abbcdc9300c75"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/occupied-context-proof.log",
+          "sha256": "42b054f19c8dea6a908e251bbd89fae4e5cebe305a5e2d1444622d7b9f769163"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/120k-prefix-state-trace.json",
+          "sha256": "30df219215a82b482d8fab07e535aabcf234a9be0c1aff17a0f36baea12d0ed2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/120k-first-reject-unsplit-final.json",
+          "sha256": "874237039579c14645f6d93ecd8d442177ebda6aefef45eb6840f449ba172732"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/120k-unsplit-final-response.sse",
+          "sha256": "a4fce7860bc9584b5cffe2048d1025bc983e329a9fb0a17445264755e59095f6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/250k-prefix-state-trace.json",
+          "sha256": "4ed50fa2a1a17e73e5813f7872665df3ef2026331d7f4938178c123cc2e6e067"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/250k-first-reject.json",
+          "sha256": "ae97a2399b9d6c62ba53ca9aa5af8ba2045868e152436d4432be0816b8583d27"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/250k-native-response.sse",
+          "sha256": "f50df9449f9aced3be23a83374f9c29b985f6973b45cd9840b4c6e82d1f73048"
+        }
+      ],
+      "result": {
+        "120k": {
+          "prompt_tokens": 120233,
+          "drafted_tokens": 398,
+          "accepted_tokens": 0,
+          "prefix_finite_logits": 0,
+          "prefix_vocab_size": 248320,
+          "first_reject_position": 120233,
+          "first_reject_target_finite": false
+        },
+        "250k": {
+          "prompt_tokens": 249921,
+          "drafted_tokens": 398,
+          "accepted_tokens": 0,
+          "prefix_finite_logits": 0,
+          "prefix_vocab_size": 248320,
+          "first_reject_position": 249921,
+          "first_reject_target_finite": false
+        },
+        "assessment": "Required target logits are non-finite at both occupied frontiers; native MTP acceptance is 0/398 on both rows."
+      }
+    },
+    "kv_attention_execution_route_regression": {
+      "status": "pass",
+      "command": [
+        "build-102-06/bin/test-kv-attention-execution"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/test-kv-final.log",
+          "sha256": "5ee1fa219fc1512190437dc4c1a03da93c7b14df3a022f746dd89b743ec68e7d"
+        }
+      ],
+      "result": {
+        "result": "pass"
+      }
+    },
+    "server_query_replay_restore_and_cancellation": {
+      "status": "pass",
+      "command": [
+        "build-102-06/bin/test-server-query-replay",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--B",
+        "1024",
+        "--U",
+        "256",
+        "--L",
+        "8192",
+        "--H",
+        "4096",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/103-01/attempt-01/replay-mtp-final.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/replay-mtp-final.log",
+          "sha256": "56546cb55ebdc606dacfab9f6afbc26eb03d1bf176c18164d0798ea5eb76833c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/replay-mtp-final.json",
+          "sha256": "555a6b774921982f666db0723a367ee402ac35175b4a631875ed38a89a0b9e83"
+        }
+      ],
+      "result": {
+        "target_draft_replay_frontier": 514,
+        "target_draft_control_frontier": 514,
+        "target_draft_restored_mtp_frontier": 518,
+        "cancellation_recovered": true
+      }
+    },
+    "build_candidate": {
+      "status": "pass",
+      "command": [
+        "cmake",
+        "--build",
+        "build-102-06",
+        "--target",
+        "test-kv-attention-execution",
+        "test-server-query-replay",
+        "llama-server",
+        "--parallel",
+        "16"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/build-unsplit.log",
+          "sha256": "f3c0965ebefed4843acd6efc1ca15a9d8371faee5337b3be66a58128df08a173"
+        }
+      ],
+      "result": {
+        "server_sha256": "43b25d94ca69bde1a74ba89d2681e4d7b8982796d4006aeef4871dfde6b92424"
+      }
+    }
+  },
+  "deferred_verification": [
+    "Pager-off dense run could not allocate its 125.24 MiB graph with 45.2 MiB free.",
+    "Selected-reference route returned selected KV attention rows are not available before prompt completion.",
+    "Forced selected-direct route aborted before processing prompt rows because a graph tensor had no assigned backend."
+  ]
+}
