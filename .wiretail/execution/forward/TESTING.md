@@ -52,6 +52,14 @@ Retain a successful candidate loaded for the next task.
   admission fails, diagnose configuration, process identity and memory
   accounting first; if real capacity still cannot admit 200 pages, report
   not-admitted and do not continue with a smaller H.
+  For 102-05, build `llama-server` cleanly from the current plan-branch HEAD
+  into `build-102-05` before touching the managed service (`cmake --fresh`,
+  then `--clean-first`). The exact 128K and 256K argv are in tasks 102-05 and
+  102-06. Both must explicitly pass `--no-context-shift` and verify it in the
+  live process argv; the default-off behavior is not a substitute for recording
+  the effective setting. Run the single bounded prompt-1 startup smoke before
+  the long 128K fill; it diagnoses early candidate/MTP runtime faults only and
+  has no speed or acceptance threshold.
 - Reserve full-L draft, weights, GDN, catalogue, transfer slabs, graph/scratch,
   peak verify/replay usage and measured safety headroom before H. If OOM, stop
   only the owned restart loop, ensure one model is loaded, reduce H/R or packed

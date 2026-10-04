@@ -2058,3 +2058,8 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `plan/attention-aware-kv-paging`
 - Commit at update: `b4c2141ef`
 - Summary: Restored the verified 102-04 completion after correcting the missing current-revision marker in the new 102-05 cluster; receipt validation passes.
+
+## 2026-10-04T02:39:42+00:00 — 102-05 — todo
+
+- Branch: `plan/attention-aware-kv-paging`
+- Summary: Reset the failed, unaccepted start to a first-run state. Preserved the useful resumable post-load canonical MTP helper and its focused regression on the plan branch. The packet now requires a forced-clean `build-102-05` build before service actions, explicit live `--no-context-shift` verification, and a bounded 80-token prompt-1 diagnostic smoke before long occupancy. The reported stale 102-03/64-page service and MTP-verification `unsupported_shape` core dump are recorded for diagnosis, not accepted as a valid task result. Existing token accounting/history is preserved; no prior result is claimed.
