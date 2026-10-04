@@ -104,17 +104,6 @@ size_t llama_kv_attention_packed_allocation_bytes(
 // completed, so graph rebuilds do not create an unbounded duplicate cache.
 class llama_kv_attention_packed_cache {
 public:
-    // TEMPORARY phase-102 memory investigation telemetry. Remove the snapshot
-    // API and associated gauges after 102-06/102-07 record the measured peak,
-    // unless a follow-up explicitly keeps this as supported observability.
-    struct allocation_snapshot {
-        uint64_t live_bytes = 0; // all currently allocated owners, including draining
-        uint64_t draining_bytes = 0;
-        uint64_t peak_bytes = 0; // allocation-site peak, not a sampled graph tensor size
-        uint64_t owners = 0;
-        uint64_t draining_owners = 0;
-    };
-
     struct slot {
         uint32_t logical_page = UINT32_MAX;
         uint32_t source_physical_slot = UINT32_MAX;
@@ -205,9 +194,6 @@ public:
     void clear() noexcept;
     size_t size() const noexcept { return entries_.size(); }
     size_t allocation_count() const noexcept { return entries_.size(); }
-    // TEMPORARY phase-102 measurement hook; only called from /slots scrapes.
-    allocation_snapshot allocations() const noexcept;
-
     uint64_t content_version(
             const entry * cached,
             uint32_t page_index) const noexcept;
@@ -247,7 +233,6 @@ private:
     std::vector<entry *> graph_build_entries_;
     bool graph_build_active_ = false;
     uint64_t next_owner_generation_ = 1;
-    uint64_t peak_allocated_bytes_ = 0;
 };
 
 enum class llama_kv_attention_packed_page_action : uint8_t {
@@ -485,13 +470,6 @@ struct llama_kv_attention_execution_metrics {
     // graph allocation and incremental copy work visible beside the normal H
     // ledger instead of presenting only a kernel-time counter.
     uint64_t packed_storage_bytes = 0;
-    // TEMPORARY phase-102 measurements. Remove after the 256K evidence and
-    // final sizing review, unless an explicit follow-up retains the telemetry.
-    uint64_t packed_live_allocated_bytes = 0;
-    uint64_t packed_peak_allocated_bytes = 0;
-    uint64_t packed_draining_allocated_bytes = 0;
-    uint64_t packed_live_owners = 0;
-    uint64_t packed_draining_owners = 0;
     uint64_t packed_history_copy_bytes = 0;
     uint64_t packed_current_append_rows = 0;
     uint64_t packed_current_append_bytes = 0;

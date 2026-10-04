@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "task": "102-07",
+  "attempt": 1,
+  "status": "pass",
+  "source_commit": "3090bfc62f6ba575938a7f6e610cdc0f8b6bcfdb",
+  "source_identity": {
+    "dirty_source_fingerprint": "2288df86d2c841efb29d42c04b7a51309a1a6509bbd0844f010749e6ba053e17",
+    "fingerprint_method": "SHA-256 over ordered changed production/test source paths and each file content SHA-256"
+  },
+  "candidate": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+    "sha256": "800207d86a25a1a12a3e3f4a96fee0a71b8baf6578826f5d9d4e623e34bc960f",
+    "build_identity": {
+      "source_commit": "3090bfc62f6ba575938a7f6e610cdc0f8b6bcfdb",
+      "dirty_source_fingerprint": "2288df86d2c841efb29d42c04b7a51309a1a6509bbd0844f010749e6ba053e17",
+      "server_impl_sha256": "5b1a07e8f3877f84d2663b7abe0ac202959fd2ec7e835db22a4ab66f10cc4d67",
+      "command": [
+        "cmake",
+        "--build",
+        "build-102-06",
+        "--target",
+        "llama-server",
+        "--parallel",
+        "16"
+      ],
+      "log": {
+        "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/build-cuda-server.log",
+        "sha256": "0db6da7ada1f7969cb944c5af96c98404e7388d4f9b8b296764c91f560bb2ff6"
+      }
+    },
+    "loaded_process": {
+      "pid": 2928914,
+      "start_time_ticks": "21733148",
+      "loaded_executable_sha256": "498cd3c8961e2964415bb712b1b87fe15d6cc78d2110ca5deb3a61852781057c",
+      "loaded_executable_path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server (deleted)",
+      "argv": [
+        "llama-server",
+        "-m",
+        "/srv/ai/models/text/current.gguf",
+        "--alias",
+        "qwen38-fast-turbo4-mtp",
+        "-ngl",
+        "999",
+        "--fit",
+        "off",
+        "-fa",
+        "on",
+        "-c",
+        "262144",
+        "-np",
+        "1",
+        "-ctk",
+        "turbo4",
+        "-ctv",
+        "turbo4",
+        "-b",
+        "1024",
+        "-ub",
+        "256",
+        "--no-context-shift",
+        "--kv-pager",
+        "selective",
+        "--kv-page-size",
+        "256",
+        "--kv-hot-pages",
+        "200",
+        "--device",
+        "CUDA0",
+        "--spec-draft-kv-device",
+        "gpu",
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        "2",
+        "--spec-draft-type-k",
+        "turbo4",
+        "--spec-draft-type-v",
+        "turbo4"
+      ]
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "runtime": {
+    "port": 8080,
+    "service_restarted": false
+  },
+  "checks": {
+    "final_goal_summary_and_successors": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--review",
+        ".wiretail/execution/evidence/V10_FORWARD_FINAL_REVIEW.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+          "sha256": "cdb0c5eb8c7716d81447d75161bf4afaa68858daeb140c08fbf4d56c0c64af84"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/forward/FORWARD_FINAL_SUMMARY.md",
+          "sha256": "e8910521692f527b85592d6cf4b6468eb589fb221bf1ffb54163518cb66f09a9"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_FORWARD_FINAL_REVIEW.json",
+          "sha256": "b1390008fd2fb7f75087d8f5aafad861717a5e6f27a3fe351d6c0ebf563a4eae"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_101-10.json",
+          "sha256": "fe449ff02d7e8216b8cbd70bcde75c99a5a20df9098460347aaf32ab8d8794a7"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_101-11.json",
+          "sha256": "7cdc8866870bcfd0dd77f49a3ced463bc061345724da74583f0e94de21aa7d76"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_101-12n.json",
+          "sha256": "3350f09850b6badf4b85c95c1770a0dde48e3e26efcffc150dd60ac623663ffd"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_102-05.json",
+          "sha256": "2abb852fe358295dfa094d1dfce0ad73e4b2d6949b0ffcb668ed3886e128b905"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_102-06.json",
+          "sha256": "46b11ce015e1d279b243b8ae98ad00e0f241b29c84c1cd6bc2d696fe828e92cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/build-focused-test.log",
+          "sha256": "5fd6cf004f77eb9ee4fac292cd5e88ebf3dae8e2cfd4671a76d48fb4e3218350"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/test-kv-attention-execution.log",
+          "sha256": "ee17a6f189c35c10afec357c6d1b7f9a3a03cf1391bce1af4bd01b66b575fa0b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/build-cuda-server.log",
+          "sha256": "0db6da7ada1f7969cb944c5af96c98404e7388d4f9b8b296764c91f560bb2ff6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/validator-1.log",
+          "sha256": "e26deec7779e5d4cbec34d5284bb77f550e00c88216c283c497314bb92f9ed24"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/validator-2.log",
+          "sha256": "22b59ed5abbc38c07582a5ba29b73fefb72f400c8f7a38a3df5068b661fa7ccb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/state-validation-final.log",
+          "sha256": "22b59ed5abbc38c07582a5ba29b73fefb72f400c8f7a38a3df5068b661fa7ccb"
+        }
+      ],
+      "result": {
+        "goal_met": false,
+        "next_task_ids": [
+          "103-01",
+          "103-02",
+          "103-03",
+          "103-04",
+          "103-05"
+        ],
+        "focused_test_exit_code": 0,
+        "cuda_server_build_exit_code": 0
+      }
+    },
+    "focused_packed_owner_lifetime_regression": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build/bin/test-kv-attention-execution"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/test-kv-attention-execution.log",
+          "sha256": "ee17a6f189c35c10afec357c6d1b7f9a3a03cf1391bce1af4bd01b66b575fa0b"
+        }
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "build",
+        "--target",
+        "test-kv-attention-execution",
+        "--parallel",
+        "16"
+      ],
+      "build_log": {
+        "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/build-focused-test.log",
+        "sha256": "5fd6cf004f77eb9ee4fac292cd5e88ebf3dae8e2cfd4671a76d48fb4e3218350"
+      }
+    },
+    "state_validation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/wiretail/task_state.py",
+        "validate"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/validator-2.log",
+          "sha256": "22b59ed5abbc38c07582a5ba29b73fefb72f400c8f7a38a3df5068b661fa7ccb"
+        }
+      ]
+    },
+    "build_cuda_server": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake",
+        "--build",
+        "build-102-06",
+        "--target",
+        "llama-server",
+        "--parallel",
+        "16"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-07/attempt-01/build-cuda-server.log",
+          "sha256": "0db6da7ada1f7969cb944c5af96c98404e7388d4f9b8b296764c91f560bb2ff6"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [
+    "Exact C=262144; final semantic old-file retrieval; final 256K route comparison; final generation rollback count; scale-wide decode/PCIe relation; feature-off comparison. Ordered phase-103 owners are scheduled."
+  ]
+}

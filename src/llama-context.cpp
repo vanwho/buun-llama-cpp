@@ -1102,8 +1102,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
         const llama_context * native_mtp_context,
         uint64_t request_generation,
         uint64_t slot_generation,
-        uint64_t config_generation,
-        bool measure_allocations) const noexcept {
+        uint64_t config_generation) const noexcept {
     llama_kv_pager_metrics_snapshot result;
     result.enabled = kv_pager.enabled();
     result.mode = kv_pager.mode;
@@ -1153,68 +1152,13 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();
     result.execution = kv_attention_execution.metrics();
-    // TEMPORARY phase-102 sizing instrumentation. This opt-in branch is only
-    // requested by the server metrics scrape; remove its fields/callback use
-    // after 102-07 has recorded both scale runs unless explicitly retained.
-    if (measure_allocations) {
-        const auto packed_allocations = kv_attention_packed_cache.allocations();
-        result.execution.packed_live_allocated_bytes = packed_allocations.live_bytes;
-        result.execution.packed_peak_allocated_bytes = packed_allocations.peak_bytes;
-        result.execution.packed_draining_allocated_bytes = packed_allocations.draining_bytes;
-        result.execution.packed_live_owners = packed_allocations.owners;
-        result.execution.packed_draining_owners = packed_allocations.draining_owners;
-
-        // Diagnostic reads run at the scrape boundary, never at a decode/token
-        // boundary. The VBR callback with zero requested bytes reads existing
-        // physical scratch and does not allocate, fence, or change a CUDA graph.
-        const auto measure_buffers = [&](const llama_context & context,
-                                         uint64_t & compute, uint64_t & dequant,
-                                         bool & dequant_measured) {
-            if (measured_device == nullptr) return;
-            const auto add_bytes = [](uint64_t & total, uint64_t bytes) {
-                total = bytes > UINT64_MAX - total ? UINT64_MAX : total + bytes;
-            };
-            for (const auto & [buft, breakdown] : context.memory_breakdown()) {
-                if (!ggml_backend_buft_is_host(buft) &&
-                        ggml_backend_buft_get_device(buft) == measured_device) {
-                    add_bytes(compute, uint64_t(breakdown.compute));
-                }
-            }
-            const auto reg = ggml_backend_dev_backend_reg(measured_device);
-            const auto get = reg == nullptr ? nullptr :
-                (ggml_backend_vbr_iface_fn_t) ggml_backend_reg_get_proc_address(
-                        reg, GGML_VBR_BACKEND_IFACE_PROC);
-            const auto * iface = get == nullptr ? nullptr : get();
-            if (iface == nullptr || iface->kv_dequant_scratch_memory == nullptr) return;
-            for (const auto & backend : context.backend_ptrs) {
-                if (ggml_backend_get_device(backend) != measured_device) continue;
-                size_t current = 0;
-                size_t projected = 0;
-                iface->kv_dequant_scratch_memory(backend, 0, 0, &current, &projected);
-                add_bytes(dequant, uint64_t(current));
-                dequant_measured = true;
-            }
-        };
-        try {
-            if (measured_device != nullptr) {
-                size_t free = 0;
-                size_t total = 0;
-                ggml_backend_dev_memory(measured_device, &free, &total);
-                result.device_total_bytes = total;
-                result.device_free_bytes = std::min(free, total);
-                result.device_used_bytes = total - result.device_free_bytes;
-            }
-            measure_buffers(*this, result.target_compute_allocated_bytes,
-                    result.target_dequant_allocated_bytes, result.target_dequant_measured);
-            if (native_mtp_context != nullptr) {
-                measure_buffers(*native_mtp_context, result.mtp_compute_allocated_bytes,
-                        result.mtp_dequant_allocated_bytes, result.mtp_dequant_measured);
-            }
-        } catch (...) {
-            // A missing optional scrape must not interrupt a running context fill.
-            result.target_dequant_measured = false;
-            result.mtp_dequant_measured = false;
-        }
+    if (measured_device != nullptr) {
+        size_t free = 0;
+        size_t total = 0;
+        ggml_backend_dev_memory(measured_device, &free, &total);
+        result.device_total_bytes = total;
+        result.device_free_bytes = std::min(free, total);
+        result.device_used_bytes = total - result.device_free_bytes;
     }
     if (kv_pager_owner != nullptr && kv_pager.enabled()) {
         try {
