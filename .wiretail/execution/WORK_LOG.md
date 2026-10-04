@@ -2066,4 +2066,4 @@ receives `PROJECT_ROOT` from the shared runner.
 
 ## 2026-10-04T03:02:52+00:00 — 102-05 — todo
 
-- Summary: A second start inherited `.wiretail/build/current-run.json` at attempt 3, which caused Wiretail to advance to attempt 4 and load earlier attempt context. Reset the task and handoff to `todo`, archived only that active-run pointer so old raw logs remain auditable but cannot be resumed, and removed predecessor measurements/handoffs and broad history from 102-05 startup context. `attempt-01` for the 128K result root is empty. The next invocation must be a fresh attempt 1 from the plan branch.
+- Summary: A second start inherited `.wiretail/build/current-run.json` at attempt 3, which caused Wiretail to advance to attempt 4 and load earlier attempt context. Reset the task and handoff to `todo`, archived only that active-run pointer so old raw logs remain auditable but cannot be resumed, and removed predecessor measurements/handoffs and broad history from 102-05 startup context. The dedicated 128K result root does not exist yet; the task now creates a clean `attempt-01` there. The next invocation must be a fresh attempt 1 from the plan branch.
