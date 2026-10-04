@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "task": "103-01",
-  "attempt": 1,
-  "status": "not_met",
-  "source_commit": "013afc63de817b1f54ae1c43b9c04616fb0e7560",
+  "attempt": 2,
+  "status": "pass",
+  "source_commit": "af2c9b6239a307227e45de572344e52cf82ef9d7",
   "source_identity": {
-    "dirty_source_fingerprint": "d5a3a4f5408bbd6b93c0a129ea3148510a12b4dd1d5530f5a8d905d476338c50",
-    "fingerprint_method": "SHA-256 over ordered changed production/test source paths and each file content SHA-256",
+    "dirty_source_fingerprint": "40fe3e90cdfb6b29e79106412c4eb602445ff1c64f6e5a23805c72e5bae61d63",
+    "fingerprint_method": "SHA-256 over ordered paths, NUL separators, and binary SHA-256 digests of file contents",
     "paths": [
       "src/llama-kv-attention-execution.cpp",
       "tests/test-kv-attention-execution.cpp",
@@ -15,12 +15,12 @@
   },
   "candidate": {
     "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
-    "sha256": "43b25d94ca69bde1a74ba89d2681e4d7b8982796d4006aeef4871dfde6b92424",
+    "sha256": "d6730286375f281f6efac78e0d7261071cc0bbc8f46240340b47d0b5c05e509d",
     "build_identity": {
-      "source_commit": "013afc63de817b1f54ae1c43b9c04616fb0e7560",
-      "dirty_source_fingerprint": "d5a3a4f5408bbd6b93c0a129ea3148510a12b4dd1d5530f5a8d905d476338c50",
-      "server_impl_sha256": "c64e1e8de12ea551aefade73d2a2b83cab39964e46269d72a5e68b96c592522e",
-      "llama_sha256": "e2eec421df25faa3bc5ee80b13f2e4d84c45678f2ba6b0a825c56ba2f063fb8f",
+      "source_commit": "af2c9b6239a307227e45de572344e52cf82ef9d7",
+      "dirty_source_fingerprint": "40fe3e90cdfb6b29e79106412c4eb602445ff1c64f6e5a23805c72e5bae61d63",
+      "server_impl_sha256": "64ac68f7648cd05ce6285d72509b2c17315a5d2044642f1a1b341449f2123d8d",
+      "llama_sha256": "ef5780be9fc2910f6f9b1903529bb0d6c3888e5cc2843e43672d2c9df6a1e21e",
       "command": [
         "cmake",
         "--build",
@@ -33,74 +33,15 @@
         "16"
       ],
       "log": {
-        "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/build-unsplit.log",
-        "sha256": "f3c0965ebefed4843acd6efc1ca15a9d8371faee5337b3be66a58128df08a173"
+        "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/build-final.log",
+        "sha256": "d475c62ac669e07db1a7bcd89d02f8413ef7b31eb160fc825b2e99483e399b99"
       }
     },
     "loaded_process": {
-      "pid": 3928373,
-      "start_time_ticks": "22820056",
-      "loaded_executable_sha256": "43b25d94ca69bde1a74ba89d2681e4d7b8982796d4006aeef4871dfde6b92424",
-      "loaded_executable_path": "/proc/3928373/exe",
-      "argv": [
-        "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
-        "-m",
-        "/srv/ai/models/text/current.gguf",
-        "--alias",
-        "qwen38-fast-turbo4-mtp",
-        "-ngl",
-        "999",
-        "--fit",
-        "off",
-        "-fa",
-        "on",
-        "-c",
-        "131072",
-        "-np",
-        "1",
-        "-ctk",
-        "turbo4",
-        "-ctv",
-        "turbo4",
-        "-b",
-        "1024",
-        "-ub",
-        "256",
-        "--poll",
-        "0",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8080",
-        "--api-key-file",
-        "/srv/ai/config/llama/api-keys",
-        "--metrics",
-        "--reasoning-preserve",
-        "--no-context-shift",
-        "--kv-pager",
-        "selective",
-        "--kv-page-size",
-        "256",
-        "--kv-hot-pages",
-        "200",
-        "--device",
-        "CUDA0",
-        "--ctx-checkpoints",
-        "0",
-        "--cache-ram",
-        "0",
-        "--no-cache-idle-slots",
-        "--spec-draft-kv-device",
-        "gpu",
-        "--spec-type",
-        "draft-mtp",
-        "--spec-draft-n-max",
-        "2",
-        "--spec-draft-type-k",
-        "turbo4",
-        "--spec-draft-type-v",
-        "turbo4"
-      ]
+      "pid": 4086944,
+      "start_time_ticks": "23062872",
+      "loaded_executable_sha256": "d6730286375f281f6efac78e0d7261071cc0bbc8f46240340b47d0b5c05e509d",
+      "loaded_executable_path": "/proc/4086944/exe"
     }
   },
   "model": {
@@ -112,7 +53,7 @@
     "service_restarted": true,
     "service_active": true,
     "health": "ok",
-    "context": 131072,
+    "context": 262144,
     "batch": 1024,
     "ubatch": 256,
     "target_kv": "turbo4/turbo4",
@@ -120,72 +61,83 @@
     "mtp": "native",
     "mtp_n_max": 2,
     "kv_pager": "selective",
+    "hot_pages": 200,
+    "host_cache_mib": 12288,
+    "context_checkpoints": 8,
     "route": "auto",
     "temperature": 0,
-    "thinking": false
+    "thinking": false,
+    "candidate_loaded": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server"
   },
   "checks": {
     "occupied_context_mtp_correctness_and_acceptance": {
-      "status": "not_met",
+      "status": "pass",
       "command": [
         "python3",
-        "/srv/ai/paged-kv/results/forward/103-01/attempt-01/check-occupied-context-proof.py"
+        "/srv/ai/paged-kv/results/forward/103-01/attempt-02/check-occupied-context-proof.py"
       ],
-      "exit_code": 1,
+      "exit_code": 0,
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/check-occupied-context-proof.py",
-          "sha256": "7872393e5d7927941cafd92de86c73d08c2757df00d4ae087c4abbcdc9300c75"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/check-occupied-context-proof.py",
+          "sha256": "519c0a787fc1c849cf14bd8e786f6657e8ed1bfb75a54b0939acc66c29879a61"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/occupied-context-proof.log",
-          "sha256": "42b054f19c8dea6a908e251bbd89fae4e5cebe305a5e2d1444622d7b9f769163"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/occupied-context-proof.log",
+          "sha256": "f32ed8bbafba69f7d424d345a7704503bb81f4c7144372b4f6caf716015f7fae"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/120k-prefix-state-trace.json",
-          "sha256": "30df219215a82b482d8fab07e535aabcf234a9be0c1aff17a0f36baea12d0ed2"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/120k-host-prefix.json",
+          "sha256": "f5fa532ce71f244b358fc2e72226b6115f89eb7fd587bab7c5094b9b32c40c49"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/120k-first-reject-unsplit-final.json",
-          "sha256": "874237039579c14645f6d93ecd8d442177ebda6aefef45eb6840f449ba172732"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/120k-host-cache/record.json",
+          "sha256": "79659c1ed388b8b4ce46f489bebbcce95b8ace60886fb438714a475df1e68b73"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/120k-unsplit-final-response.sse",
-          "sha256": "a4fce7860bc9584b5cffe2048d1025bc983e329a9fb0a17445264755e59095f6"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/120k-host-cache/response.sse",
+          "sha256": "ecb0edb466d01232039575d142ff4e3bf22344e02aeaafbc5050ac32306a7e55"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/250k-prefix-state-trace.json",
-          "sha256": "4ed50fa2a1a17e73e5813f7872665df3ef2026331d7f4938178c123cc2e6e067"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/250k-host-prefix.json",
+          "sha256": "4f53873fcc7129fd75da42990f0110bc3237ca14e5f5d0a60e27bfa5a3332802"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/250k-first-reject.json",
-          "sha256": "ae97a2399b9d6c62ba53ca9aa5af8ba2045868e152436d4432be0816b8583d27"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/250k-host-reject.json",
+          "sha256": "f2416783658ce363056310e96378b45657451a98a481b30bcf44c8f2801c6bb3"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/250k-native-response.sse",
-          "sha256": "f50df9449f9aced3be23a83374f9c29b985f6973b45cd9840b4c6e82d1f73048"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/250k-host-cache-final/record.json",
+          "sha256": "59d9ec85df4a1ec959cd892cd7adb5cfe1c1544dc64a4105d1747bc02f375a95"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/250k-host-cache-final/response.sse",
+          "sha256": "745cc31ba1d0bf6524e477b93d83a7d596f585ddf82d8a149871459cbb185801"
         }
       ],
       "result": {
         "120k": {
           "prompt_tokens": 120233,
-          "drafted_tokens": 398,
-          "accepted_tokens": 0,
-          "prefix_finite_logits": 0,
-          "prefix_vocab_size": 248320,
-          "first_reject_position": 120233,
-          "first_reject_target_finite": false
+          "target_position": 120232,
+          "target_finite_logits": 248320,
+          "target_vocab_size": 248320,
+          "accepted_tokens": 2,
+          "proposed_tokens": 2,
+          "request_status": "pass"
         },
         "250k": {
           "prompt_tokens": 249921,
-          "drafted_tokens": 398,
-          "accepted_tokens": 0,
-          "prefix_finite_logits": 0,
-          "prefix_vocab_size": 248320,
-          "first_reject_position": 249921,
-          "first_reject_target_finite": false
+          "target_position": 249920,
+          "target_finite_logits": 248320,
+          "target_vocab_size": 248320,
+          "first_reject_position": 249922,
+          "first_reject_finite": true,
+          "accepted_tokens": 86,
+          "proposed_tokens": 138,
+          "request_status": "runtime_fault",
+          "post_frontier_error": "SSE error [500]: decode() failed: KV pager batch write reservation failed: no_victim sequence=0 positions=250110..250112 rows=3 frozen_history_pages=0 phase=4"
         },
-        "assessment": "Required target logits are non-finite at both occupied frontiers; native MTP acceptance is 0/398 on both rows."
+        "assessment": "Both occupied target score vectors and the 250K target rejection vector are finite; native MTP accepted proposals at both frontiers. The 250K request continued 190 output tokens then hit pager no_victim at 250110, after the scored/verified frontier."
       }
     },
     "kv_attention_execution_route_regression": {
@@ -196,8 +148,8 @@
       "exit_code": 0,
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/test-kv-final.log",
-          "sha256": "5ee1fa219fc1512190437dc4c1a03da93c7b14df3a022f746dd89b743ec68e7d"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/route-test.log",
+          "sha256": "a3ef35acac724e23dd9452a7da4c8fb8e877e794830940b7081b462ccae3f4e2"
         }
       ],
       "result": {
@@ -219,16 +171,16 @@
         "--H",
         "4096",
         "--output",
-        "/srv/ai/paged-kv/results/forward/103-01/attempt-01/replay-mtp-final.json"
+        "/srv/ai/paged-kv/results/forward/103-01/attempt-02/replay-mtp.json"
       ],
       "exit_code": 0,
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/replay-mtp-final.log",
-          "sha256": "56546cb55ebdc606dacfab9f6afbc26eb03d1bf176c18164d0798ea5eb76833c"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/replay-mtp.log",
+          "sha256": "b56e8525ea63b0b716b42800655a032b274c297c23184d19a4c53db1bf10d2c2"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/replay-mtp-final.json",
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/replay-mtp.json",
           "sha256": "555a6b774921982f666db0723a367ee402ac35175b4a631875ed38a89a0b9e83"
         }
       ],
@@ -255,18 +207,19 @@
       "exit_code": 0,
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-01/build-unsplit.log",
-          "sha256": "f3c0965ebefed4843acd6efc1ca15a9d8371faee5337b3be66a58128df08a173"
+          "path": "/srv/ai/paged-kv/results/forward/103-01/attempt-02/build-final.log",
+          "sha256": "d475c62ac669e07db1a7bcd89d02f8413ef7b31eb160fc825b2e99483e399b99"
         }
       ],
       "result": {
-        "server_sha256": "43b25d94ca69bde1a74ba89d2681e4d7b8982796d4006aeef4871dfde6b92424"
+        "server_sha256": "d6730286375f281f6efac78e0d7261071cc0bbc8f46240340b47d0b5c05e509d"
       }
     }
   },
   "deferred_verification": [
     "Pager-off dense run could not allocate its 125.24 MiB graph with 45.2 MiB free.",
     "Selected-reference route returned selected KV attention rows are not available before prompt completion.",
-    "Forced selected-direct route aborted before processing prompt rows because a graph tensor had no assigned backend."
+    "Forced selected-direct route aborted before processing prompt rows because a graph tensor had no assigned backend.",
+    "The 249921-token request completed target scoring and MTP verification at the occupied frontier, then stopped at position 250110 with KV pager no_victim. Longer post-frontier generation/speed was not measured."
   ]
 }

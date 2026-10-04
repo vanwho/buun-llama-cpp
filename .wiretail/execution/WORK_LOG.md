@@ -2089,3 +2089,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-07`
 - Commit at update: `3090bfc62`
 - Summary: .wiretail/execution/handoffs/102-07.md
+
+## 2026-10-04T17:29:00+00:00 — 103-01 — done
+
+- Branch: `codex/task-103-01`
+- Commit at update: `af2c9b623`
+- Summary: Repaired incomplete-history attention routing; full-vocabulary occupied 120K/249921 MTP frontier proofs and route/replay regressions pass. The later 250K no_victim is recorded as deferred post-frontier runtime verification.
