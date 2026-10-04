@@ -1,0 +1,32 @@
+{
+  "goal_met": false,
+  "summary": ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+  "decision": "primary architecture remains unaccepted: occupied-context MTP acceptance is zero, final semantic retrieval failed, exact-full C is unproven, and final route/feature-off goals lack measured evidence",
+  "selected_prefill_gate": {
+    "status": "pass",
+    "prompts": {
+      "prompt_1": {
+        "selected_median_tps": 1518.751132604505,
+        "cpu_ram_median_tps": 672.068584639893,
+        "distance_to_preferred_tps": -768.7511326045051
+      },
+      "prompt_2": {
+        "selected_median_tps": 1530.6923926225986,
+        "cpu_ram_median_tps": 675.2124612167453,
+        "distance_to_preferred_tps": -780.6923926225986
+      },
+      "prompt_3": {
+        "selected_median_tps": 1517.4725172555773,
+        "cpu_ram_median_tps": 671.7331646569384,
+        "distance_to_preferred_tps": -767.4725172555773
+      }
+    }
+  },
+  "next_task_ids": [
+    "103-01",
+    "103-02",
+    "103-03",
+    "103-04",
+    "103-05"
+  ]
+}

@@ -1,0 +1,467 @@
+{
+  "schema_version": 1,
+  "task": "102-07",
+  "result": "primary_architecture_not_accepted",
+  "goal_met": false,
+  "geometry": {
+    "context_rows": [
+      {
+        "L": 131072,
+        "C": 120000,
+        "H": 51200,
+        "R": 50944,
+        "G": 256,
+        "A": 0,
+        "B": 1024,
+        "U": 256,
+        "status": "occupied_frontier_complete",
+        "R_G_note": "R=H-G under the 256-token generation-tail invariant; 200-page H retained. A is additional packed-owner allocation, measured high-water 0."
+      },
+      {
+        "L": 262144,
+        "C": 250572,
+        "H": 51200,
+        "R": 50944,
+        "G": 256,
+        "A": 0,
+        "B": 1024,
+        "U": 256,
+        "status": "near_full_functional_frontier",
+        "reserved_gap_to_L": 1572,
+        "R_G_note": "R=H-G under the 256-token generation-tail invariant; replay snapshot had 50,952 target-valid rows, 200/200 pages resident. A is additional packed-owner allocation, measured high-water 0."
+      }
+    ],
+    "exact_full_C": {
+      "L": 262144,
+      "C": 262144,
+      "status": "unproven",
+      "reason": "No supported commit-only ingestion API used; distinct from measured C=250572."
+    },
+    "page_tokens": 256
+  },
+  "canonical_8k_selected_vs_controls": {
+    "geometry": {
+      "L": 8192,
+      "C": 0,
+      "H": 4096,
+      "R": "not separately measured",
+      "G": "not separately measured",
+      "A": "not separately measured",
+      "B": 1024,
+      "U": 256
+    },
+    "selected": {
+      "prompt_1": {
+        "fresh_prefill_tps": 1518.751132604505,
+        "decode_tps": 54.95023835870938,
+        "mtp_acceptance_percent": 39.69230769230769,
+        "fresh_tokens": [
+          4115,
+          4115,
+          4115
+        ]
+      },
+      "prompt_2": {
+        "fresh_prefill_tps": 1530.6923926225986,
+        "decode_tps": 59.23772890445744,
+        "mtp_acceptance_percent": 49.36708860759494,
+        "fresh_tokens": [
+          4112,
+          4112,
+          4112
+        ]
+      },
+      "prompt_3": {
+        "fresh_prefill_tps": 1517.4725172555773,
+        "decode_tps": 68.59493504626978,
+        "mtp_acceptance_percent": 65.26315789473684,
+        "fresh_tokens": [
+          4113,
+          4113,
+          4113
+        ]
+      }
+    },
+    "cpu_main_kv_gpu_mtp": {
+      "prompt_1": {
+        "fresh_prefill_tps": 672.068584639893,
+        "decode_tps": 24.93937303193529,
+        "mtp_acceptance_percent": 80.37037037
+      },
+      "prompt_2": {
+        "fresh_prefill_tps": 675.2124612167453,
+        "decode_tps": 18.464358039602622,
+        "mtp_acceptance_percent": 50.0
+      },
+      "prompt_3": {
+        "fresh_prefill_tps": 671.7331646569384,
+        "decode_tps": 21.652535628596176,
+        "mtp_acceptance_percent": 65.03496503
+      }
+    },
+    "dense_gpu_kv_gpu_mtp": {
+      "prompt_1": {
+        "fresh_prefill_tps": 1633.7034409407272,
+        "decode_tps": 84.1293535549437,
+        "mtp_acceptance_percent": 78.19548872
+      },
+      "prompt_2": {
+        "fresh_prefill_tps": 1630.4352135941501,
+        "decode_tps": 62.61172873259821,
+        "mtp_acceptance_percent": 51.61290323
+      },
+      "prompt_3": {
+        "fresh_prefill_tps": 1632.0178652984114,
+        "decode_tps": 71.15477965736567,
+        "mtp_acceptance_percent": 63.32179931
+      }
+    },
+    "selected_to_cpu_prefill_ratio": {
+      "prompt_1": 2.259815690415407,
+      "prompt_2": 2.2669788852300843,
+      "prompt_3": 2.2590406386002506
+    },
+    "selected_to_cpu_decode_ratio": {
+      "prompt_1": 2.2033528384352192,
+      "prompt_2": 3.208220333325616,
+      "prompt_3": 3.1679862452542276
+    },
+    "source_scope": "101-12l canonical 4,112\u20134,115 fresh-token selected rows; dense GPU comparison only at 8K/4K.",
+    "codec_comparators": {
+      "selected": "target GPU Turbo4 K/V, native GPU Turbo4 MTP",
+      "cpu_main_kv_gpu_mtp": "target CPU-resident Turbo4 K/V, native GPU Turbo4 MTP",
+      "dense_gpu_kv_gpu_mtp": "target GPU-resident Turbo4 K/V, native GPU Turbo4 MTP",
+      "source": "exact 101-12 run-config target placement and server -ctk/-ctv arguments; same Qwen model and B/U"
+    }
+  },
+  "post_load_128k_canonical": {
+    "geometry": {
+      "L": 131072,
+      "C": 120000,
+      "H": 51200,
+      "B": 1024,
+      "U": 256
+    },
+    "warmups": 3,
+    "measured_trials_per_prompt": 3,
+    "rows": [
+      {
+        "prompt": "prompt_1",
+        "samples": [
+          {
+            "index": 1,
+            "prompt_tokens": 119639,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 40.859687831984964,
+            "decode_tps": 34.13909585299825,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          },
+          {
+            "index": 2,
+            "prompt_tokens": 119639,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 39.15580093190806,
+            "decode_tps": 34.12868567352191,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          },
+          {
+            "index": 3,
+            "prompt_tokens": 119639,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 29.978041084905303,
+            "decode_tps": 34.14212227432057,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          }
+        ],
+        "median_prefill_tps": 39.15580093190806,
+        "median_decode_tps": 34.13909585299825,
+        "mtp_acceptance_percent": 0.0
+      },
+      {
+        "prompt": "prompt_2",
+        "samples": [
+          {
+            "index": 5,
+            "prompt_tokens": 119636,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 43.86109192188339,
+            "decode_tps": 34.16345681439379,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          },
+          {
+            "index": 6,
+            "prompt_tokens": 119636,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 39.830719442369926,
+            "decode_tps": 34.210954347582096,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          },
+          {
+            "index": 7,
+            "prompt_tokens": 119636,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 30.577065671892797,
+            "decode_tps": 34.16582636430396,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          }
+        ],
+        "median_prefill_tps": 39.830719442369926,
+        "median_decode_tps": 34.16582636430396,
+        "mtp_acceptance_percent": 0.0
+      },
+      {
+        "prompt": "prompt_3",
+        "samples": [
+          {
+            "index": 9,
+            "prompt_tokens": 119637,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 43.97875825976053,
+            "decode_tps": 34.110584463064775,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          },
+          {
+            "index": 10,
+            "prompt_tokens": 119637,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 40.400367643345554,
+            "decode_tps": 34.16725702948497,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          },
+          {
+            "index": 11,
+            "prompt_tokens": 119637,
+            "completion_tokens": 400,
+            "fresh_prompt_tokens": 4,
+            "prefill_tps": 39.65264284864586,
+            "decode_tps": 34.05671561302387,
+            "mtp_accepted": 0,
+            "mtp_drafted": 398
+          }
+        ],
+        "median_prefill_tps": 40.400367643345554,
+        "median_decode_tps": 34.110584463064775,
+        "mtp_acceptance_percent": 0.0
+      }
+    ],
+    "note": "Occupied prefix reused; about 42 newly processed prompt tokens per row. Not comparable to fresh-prefill probes."
+  },
+  "post_load_256k": {
+    "geometry": {
+      "L": 262144,
+      "C": 250572,
+      "H": 51200,
+      "B": 1024,
+      "U": 256
+    },
+    "canonical_speed_matrix": "not_run",
+    "recall": {
+      "rendered_prompt_tokens": 249921,
+      "completion_tokens": 400,
+      "mtp_drafted": 398,
+      "mtp_accepted": 0,
+      "mtp_acceptance_percent": 0.0,
+      "semantic_result": "slash filler; requested revision/hooks not recovered"
+    }
+  },
+  "retrieval_replay_and_ring": {
+    "prior_natural_cold_promotion": "101-18 passed: page 5 selected, 34603008 useful H2D bytes, mapping published, target/draft consumed; candidate differs from 102 candidate.",
+    "final_256k_replay": {
+      "target_and_draft_restore": "observed",
+      "resident_pages_before_after": [
+        200,
+        200
+      ],
+      "frozen_history_generation_before_after": [
+        0,
+        0
+      ],
+      "historical_H2D_useful_bytes_delta": 0,
+      "slot_generation_before_after": [
+        36,
+        37
+      ],
+      "semantic_recall": "miss"
+    },
+    "selector_replay_promotion_view_costs": "not measured comparably; canonical TTFT and selected-route CUDA event timing unavailable.",
+    "generation_ring": "earlier executable ownership exists; final live run exposes no rollback counter, so no final numeric assertion.",
+    "historical_decode_pcie": "zero useful H2D on final replay observation only."
+  },
+  "memory_256k": {
+    "target_gpu_pool_high_water_bytes": 865075200,
+    "target_gpu_compute_high_water_bytes": 244929152,
+    "full_L_gpu_mtp_bytes": 276955136,
+    "full_L_gpu_mtp_rows": 262144,
+    "mtp_compute_high_water_bytes": 169877632,
+    "target_dequant_high_water_bytes": 0,
+    "mtp_dequant_high_water_bytes": 0,
+    "graph_scratch_high_water_bytes": 54067200,
+    "packed_live_high_water_bytes": 0,
+    "packed_draining_high_water_bytes": 0,
+    "host_pageable_bytes_final": 4233660000,
+    "host_valid_bytes_final": 816617000,
+    "host_pinned_bytes_final": 0,
+    "minimum_sampled_device_free_mib": 502,
+    "headroom_reserved_not_observed_bytes": 201326592,
+    "catalogue_reserved_not_observed_bytes": 100876288,
+    "graph_reserved_not_observed_bytes": 198435072,
+    "external_reserved_not_observed_bytes": 771728128,
+    "note": "Reservations are not observed allocation; do not add overlapping device categories."
+  },
+  "route_and_quality": {
+    "production_route": "not attributed by the final 128K/256K receipts; no matched final route comparison or route timing. Earlier attempts contain setup diagnostics but are not promoted as final-route evidence.",
+    "output_quality": "256K recall returned 400 slash filler tokens (semantic miss); 128K occupied rows completed but MTP acceptance was zero; independent quality scoring unavailable.",
+    "comparator_codecs": "Selected, CPU-main-KV and dense GPU controls used Turbo4 target K/V and GPU Turbo4 MTP; target placement differed as named. The 128K/256K receipts do not add a matched route timing comparison.",
+    "quality_categories": {
+      "completion": "128K occupied canonical rows completed; 256K recall reached the 400-token output cap.",
+      "semantic": "256K old-file request failed to retrieve the requested content and returned slash filler.",
+      "mtp": "0% acceptance at all measured occupied 128K rows and 256K recall.",
+      "independent_answer_score": "not measured."
+    }
+  },
+  "goals": [
+    {
+      "id": 1,
+      "verdict": "met_with_frontier_gap",
+      "evidence": "L-sized target allocation and host backing observed; exact-full C separately unproven."
+    },
+    {
+      "id": 2,
+      "verdict": "met",
+      "evidence": "L=128K/256K with unchanged H=51200."
+    },
+    {
+      "id": 3,
+      "verdict": "partial",
+      "evidence": "prior natural cold promotion passed; final 256K semantic recall failed."
+    },
+    {
+      "id": 4,
+      "verdict": "met_at_boundary",
+      "evidence": "101-10 parity owner and paired final restore; replay cost unmeasured."
+    },
+    {
+      "id": 5,
+      "verdict": "met_at_boundary",
+      "evidence": "frozen generation unchanged on replay and 101-11 tests."
+    },
+    {
+      "id": 6,
+      "verdict": "partial",
+      "evidence": "zero historical H2D observed for final replay interval only."
+    },
+    {
+      "id": 7,
+      "verdict": "partial",
+      "evidence": "ring tests exist; no final numeric rollback observation."
+    },
+    {
+      "id": 8,
+      "verdict": "not_reassessed",
+      "evidence": "no new GDN exactness proof in capacity receipts."
+    },
+    {
+      "id": 9,
+      "verdict": "not_met",
+      "evidence": "full-L GPU Turbo4 MTP allocated; occupied 128K and 256K acceptance was 0%."
+    },
+    {
+      "id": 10,
+      "verdict": "met",
+      "evidence": "host pageable/valid data measured; final replay required zero historical H2D."
+    },
+    {
+      "id": 11,
+      "verdict": "not_measured_at_256k",
+      "evidence": "no matched 256K route timing or CUDA event profile."
+    },
+    {
+      "id": 12,
+      "verdict": "met_at_8k",
+      "evidence": "selected fresh prefill >750 and beats CPU prefill for each prompt; no large-context fresh-input curve."
+    },
+    {
+      "id": 13,
+      "verdict": "partial",
+      "evidence": "selected decode beats CPU at 8K and replay historical H2D is zero; scale-wide PCIe relation unmeasured."
+    },
+    {
+      "id": 14,
+      "verdict": "not_met",
+      "evidence": "near-full C, semantic recall miss, no 256K speed matrix; memory frontier measured."
+    },
+    {
+      "id": 15,
+      "verdict": "not_reassessed",
+      "evidence": "feature-off comparison absent from capacity receipts."
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": ".wiretail/execution/evidence/V10_101-12n.json",
+      "sha256": "3350f09850b6badf4b85c95c1770a0dde48e3e26efcffc150dd60ac623663ffd"
+    },
+    {
+      "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+      "sha256": "5fcc231c9865581ff696d405dcfb10be64e47750978314a798e650da80481ff6"
+    },
+    {
+      "path": ".wiretail/execution/evidence/V10_102-05.json",
+      "sha256": "2abb852fe358295dfa094d1dfce0ad73e4b2d6949b0ffcb668ed3886e128b905"
+    },
+    {
+      "path": ".wiretail/execution/evidence/V10_102-06.json",
+      "sha256": "46b11ce015e1d279b243b8ae98ad00e0f241b29c84c1cd6bc2d696fe828e92cf"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/memory-summary.json",
+      "sha256": "2f931a321a76f8836c768288c83ce2b20ba62f10138393088153df887e7472ec"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/task-proof-summary.json",
+      "sha256": "fb83c6e16f023adf93034709ac25f72d88eb14462dc1dda2c641262880f8d479"
+    },
+    {
+      "path": ".wiretail/execution/evidence/V10_101-10.json",
+      "sha256": "fe449ff02d7e8216b8cbd70bcde75c99a5a20df9098460347aaf32ab8d8794a7"
+    },
+    {
+      "path": ".wiretail/execution/evidence/V10_101-11.json",
+      "sha256": "7cdc8866870bcfd0dd77f49a3ced463bc061345724da74583f0e94de21aa7d76"
+    }
+  ],
+  "curve_findings": "not collected: architecture is not accepted; defer until core repair and review.",
+  "memory_128k": {
+    "target_gpu_pool_high_water_bytes": 865075200,
+    "target_gpu_compute_high_water_bytes": 193974912,
+    "full_L_gpu_mtp_bytes": 138543104,
+    "mtp_rows": 131072,
+    "mtp_compute_high_water_bytes": 102768768,
+    "target_dequant_high_water_bytes": 0,
+    "mtp_dequant_high_water_bytes": 536870912,
+    "packed_live_high_water_bytes": 0,
+    "packed_peak_allocated_bytes": 0,
+    "packed_draining_high_water_bytes": 0,
+    "minimum_sampled_device_free_mib": 232,
+    "host_valid_and_pinned_bytes": "not measured in the named summary (unknown, not zero)",
+    "graph_scratch_and_reserved_headroom": "not separately recorded in the named summary (unknown, not zero)",
+    "samples": 110,
+    "note": "Device sampled ranges and allocation-event metrics overlap; do not sum them."
+  }
+}
