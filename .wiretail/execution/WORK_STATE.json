@@ -17,7 +17,7 @@
   "status": "ready",
   "current_phase": "103",
   "current_task": "103-03",
-  "last_updated_utc": "2026-10-04T23:58:20+00:00",
+  "last_updated_utc": "2026-10-04T23:58:21+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -33750,7 +33750,7 @@
       "depends_on": [
         "103-01"
       ],
-      "commit": "457e0c90510d08f5c01b60f1bb042c0ec83936cb",
+      "commit": "2099f560c85f863a16b3ee77e50d83e628ac44a5",
       "context_files": [
         ".wiretail/execution/engineering-notes/selector-readback-lifecycle-103.md",
         "src/llama-kv-prefetch.h",
