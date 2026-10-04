@@ -8,16 +8,16 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "102-05 remains in_progress; next run is retry 1 using attempt-02, preserving attempt-01. Explicit-H source now omits prospective packed/F16 and nominal compute charges; clean-build build-102-05 with parallel 16 before fresh managed reload. Keep L131072/C120000/H51200/B1024/U256 and full-L GPU Turbo4 MTP. Measure actual startup/load/replay/generation allocations with forward/sample-pager-memory.py; persist samples/summary outside Git and update the engineering note. Missing optional telemetry never gates loading; actual OOM needs a specific allocation-owner remedy, not repeated evidence-only refusals. Then 102-06 L262144/C250000 with H51200 and the same measurement method; 102-07 goal review. Load only the current packet/cluster, listed code and compact current handoff; no full transcripts or history. Use resumable <=16K fresh-token chunks without context shifting.",
+  "context_policy": "Current selector/lifecycle validation is 103-02a; unfinished 103-02 is superseded, not passed. Load only its packet, fresh cluster, engineering-notes/selector-readback-lifecycle-103.md and named symbol regions. Source fixes are implemented but uncompiled/unverified by the outer investigation. First deterministic scaled readback and owner-lifecycle coverage, then one small natural-query row and one just-over-50K-hot transport row. No unchanged 249K diagnostic refill or full transcript loading. Preserve Turbo4 target/draft, GPU native full-L MTP, B1024/U256, no context shift and one Qwen process. Request-scoped replay/freeze must not be asserted from cleared idle-slot counters. 103-03 owns separate full capacity; 103-04/05 own refreshed performance/semantic findings and any necessary successor repair.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "103",
-  "current_task": "103-02",
-  "last_updated_utc": "2026-10-04T19:36:15+00:00",
+  "current_task": "103-02a",
+  "last_updated_utc": "2026-10-04T21:21:00+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -33729,12 +33729,12 @@
       }
     },
     {
-      "id": "103-02",
+      "id": "103-02a",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
-      "title": "Repair final-context semantic retrieval and ring correctness",
-      "packet": ".wiretail/execution/tasks/103-02.md",
-      "status": "in_progress",
+      "cluster": "forward103-selector-validation",
+      "title": "Validate scaled selector transport and stable pager lifecycle",
+      "packet": ".wiretail/execution/tasks/103-02a.md",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -33744,8 +33744,49 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
       "required_proofs": [
-        "semantic_retrieval_and_generation_ring_correctness"
+        "selector_transport_and_owner_regressions",
+        "bounded_live_selector_transport"
       ],
+      "depends_on": [
+        "103-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/engineering-notes/selector-readback-lifecycle-103.md",
+        "src/llama-kv-prefetch.h",
+        "src/llama-kv-prefetch.cpp",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-context.cpp",
+        "tools/server/bench/run-pager-promotion.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "103-02a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_103-02a.json"
+      ]
+    },
+    {
+      "id": "103-02",
+      "phase": "103",
+      "cluster": "forward103-selector-validation",
+      "title": "Repair final-context semantic retrieval and ring correctness",
+      "packet": ".wiretail/execution/tasks/103-02.md",
+      "status": "deferred",
+      "superseded_by": "103-02a",
+      "deferred_reason": "Outer code investigation implemented concrete readback/lifecycle fixes. Preserve historical attempts without claiming semantic success; fresh bounded validation is 103-02a.",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [],
       "depends_on": [
         "103-01"
       ],
@@ -33756,14 +33797,6 @@
         "src/llama-kv-cache.cpp",
         "tests/test-kv-pager-model.cpp",
         "tools/server/bench/run-pager-promotion.py"
-      ],
-      "completion_check": [
-        "python3",
-        ".wiretail/execution/v10/validate.py",
-        "--task",
-        "103-02",
-        "--receipt",
-        ".wiretail/execution/evidence/V10_103-02.json"
       ],
       "token_usage": {
         "schema_version": 2,
@@ -33841,7 +33874,7 @@
     {
       "id": "103-03",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
+      "cluster": "forward103-post-selector",
       "title": "Prove exact full-context committed capacity separately",
       "packet": ".wiretail/execution/tasks/103-03.md",
       "status": "todo",
@@ -33857,7 +33890,7 @@
         "exact_full_context_committed_capacity"
       ],
       "depends_on": [
-        "103-02"
+        "103-02a"
       ],
       "commit": null,
       "context_files": [
@@ -33877,7 +33910,7 @@
     {
       "id": "103-04",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
+      "cluster": "forward103-post-selector",
       "title": "Rerun compact canonical benchmark and refresh final summary",
       "packet": ".wiretail/execution/tasks/103-04.md",
       "status": "todo",
@@ -33913,7 +33946,7 @@
     {
       "id": "103-05",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
+      "cluster": "forward103-post-selector",
       "title": "Assess repaired goals and create ordered successors if needed",
       "packet": ".wiretail/execution/tasks/103-05.md",
       "status": "todo",

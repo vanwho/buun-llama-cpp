@@ -6,7 +6,12 @@ Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
-Continue the first unfinished task in WORK_STATE. Phase 102 now proceeds
+Continue the first unfinished task in WORK_STATE. Current next work is
+103-02a: compile and validate source-fixed selector readback sizing, stable
+pager ownership and query-boundary completion. 103-02 is superseded, not
+passed. Use its new packet and compact selector-readback-lifecycle-103 note;
+do not repeat the old 249K diagnostic fill. Then 103-03/04/05 own capacity,
+benchmarks and goal review. Historical phase 102 proceeded
 through the new 128K/H=51,200 fresh load (102-05), the 256K/H=51,200 load
 (102-06), then the bounded goal review (102-07). Both higher-context tasks
 require the filled H=51,200 (200-page) hot window. The 128K and 256K tasks use
