@@ -2071,3 +2071,9 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-10-04T10:29:44+00:00 — 102-05 — in_progress — admission measurement correction
 
 - Summary: Disabled prospective packed/F16 and nominal compute charges only for explicit H; retained actual target geometry, full-L draft KV, safety headroom, allocator failures and automatic-H estimates. Added real packed live/draining/peak and scrape-only target/draft compute/dequant/device readings without route or owner-lifetime changes. Retry 1 must clean-build changed source and measure startup, C120000 loading and canonical GPU-MTP generations at H51200 using the bounded sampler. Updated 102-06 to inherit real-memory measurement. Preserve attempt-01, task status and usage; no new live proof or speed claim. Compact assessment: `engineering-notes/pager-admission-memory-accounting.md`.
+
+## 2026-10-04T13:04:37+00:00 — 102-05 — done
+
+- Branch: `codex/task-102-05`
+- Commit at update: `09e322508`
+- Summary: Attempt 11 passed the 120,000-token 128K/50K-hot CUDA load and all 12 post-load canonical GPU Turbo4 MTP probes; evidence receipt validator passed, handoff and memory note updated, candidate remains loaded.

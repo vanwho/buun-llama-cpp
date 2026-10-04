@@ -133,3 +133,38 @@ dequant remained 536870912 bytes. The target slab stayed at 200 pages. This
 repair is insufficient for the full scheduled workload on this device; retain
 the 4289-token committed checkpoint and the exact fault evidence. Do not
 repeat the unchanged request, reduce H, or claim the frontier complete.
+
+## Attempt 11 live measurement (2026-10-04)
+
+The shared graph-staging repair completed the required fresh workload on the
+same RTX 4080 candidate at L=131072/H=51200/B=1024/U=256. The occupied slot
+reached exactly C=120000 with all 200 target pages admitted and used. All 13
+scheduled occupancy requests passed, including the H crossing, late fill, and
+final A2. The attempt-11 sampler recorded 110 samples with no sampler or
+/slots errors. Sampled free VRAM stayed at 232 MiB minimum (15715/16376 MiB
+used/total); this is a five-second sampled minimum, not a sub-millisecond
+allocation peak.
+
+At the final profile, the physical target pool was 865075200 bytes, target
+compute allocation was 193974912 bytes, target physical dequant was observed
+as zero, full-L GPU MTP storage was 138543104 bytes, MTP compute was
+102768768 bytes, and MTP dequant scratch was 536870912 bytes. Packed live and
+draining allocation gauges remained zero for all 110 samples. Do not add these
+overlapping categories to device used/free. The persistent per-layer packed
+duplicate removed by the graph staging change was not present in this measured
+sequence; the run completed without the earlier selected-attention CUDA OOM.
+
+The canonical phase completed all 12 requests from the immutable C=120000
+prefix: three 40-token warmups followed by nine 400-token measured trials
+across the three required prompts. Every request passed. GPU Turbo4 MTP was
+configured and drafted tokens were recorded, but all three prompt medians for
+accepted/drafted were 0.0%; acceptance remains a reported result, not a pass
+threshold for this task. Raw per-request, SSE, state, and sampler evidence is
+under /srv/ai/paged-kv/results/forward/102-05-128k/attempt-11/.
+
+The preflight was corrected to account for both the final 400-token response
+and the observed six-token template interaction: A2 rendered at 119601 and its
+response advanced the live frontier by 399 to exactly 120000. This preserves
+the full 11072-token post-frontier reserve required by canonical admission.
+Attempts 09 and 10 remain preserved evidence of the reserve guard rejecting
+over-target projections; they are not used as success evidence.
