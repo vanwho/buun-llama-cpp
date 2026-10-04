@@ -2067,3 +2067,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-10-04T03:02:52+00:00 — 102-05 — todo
 
 - Summary: A second start inherited `.wiretail/build/current-run.json` at attempt 3, which caused Wiretail to advance to attempt 4 and load earlier attempt context. Reset the task and handoff to `todo`, archived only that active-run pointer so old raw logs remain auditable but cannot be resumed, and removed predecessor measurements/handoffs and broad history from 102-05 startup context. The dedicated 128K result root does not exist yet; the task now creates a clean `attempt-01` there. The next invocation must be a fresh attempt 1 from the plan branch.
+
+## 2026-10-04T10:29:44+00:00 — 102-05 — in_progress — admission measurement correction
+
+- Summary: Disabled prospective packed/F16 and nominal compute charges only for explicit H; retained actual target geometry, full-L draft KV, safety headroom, allocator failures and automatic-H estimates. Added real packed live/draining/peak and scrape-only target/draft compute/dequant/device readings without route or owner-lifetime changes. Retry 1 must clean-build changed source and measure startup, C120000 loading and canonical GPU-MTP generations at H51200 using the bounded sampler. Updated 102-06 to inherit real-memory measurement. Preserve attempt-01, task status and usage; no new live proof or speed claim. Compact assessment: `engineering-notes/pager-admission-memory-accounting.md`.
