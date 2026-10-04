@@ -1,8 +1,8 @@
-# Cluster forward103-goal-review
+# Cluster forward102-goal-review
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-Tasks in this context area: `103-01`.
+Tasks in this context area: `102-07`.
 
 Purpose: Assess final measured goals and create real follow-up work if needed.
 

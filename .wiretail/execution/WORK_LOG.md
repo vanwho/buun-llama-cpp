@@ -2033,3 +2033,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-04`
 - Commit at update: `2c288ac5d`
 - Summary: Passed live 128K occupied-frontier proof at C=128281 with L=131072/H=16384; receipt and handoff validated; candidate remains loaded.
+
+## 2026-10-04 — plan resequence: 128K/256K with fixed 50K hot KV
+
+- Reset the fresh 128K/H=51,200 measurement as task 102-05; shifted the prior 256K task to 102-06 and final review to 102-07. Archived the prior 102-05 receipt/handoff so they cannot be mistaken for new-run evidence.
+- Both higher-context packets now require a filled 200-page (51,200-token) GPU hot window and exact, clean-start server argv. A genuine capacity failure is reported as not admitted; it cannot silently fall back to 16K or another smaller H.
+- Kept B=1024/U=256, Turbo4 target/draft KV, GPU full-L MTP and exact per-task logical context. Task 102-05 builds a fresh candidate; task 102-06 reuses it only if source identity matches, otherwise rebuilds in an isolated directory.
+- The only required test change remains the focused occupancy-driver regression; no live server was restarted in this planning update.

@@ -2,10 +2,14 @@
 
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
 [PREFILL101](forward/PREFILL101.md) and [TESTING](forward/TESTING.md).
-Continue the task recorded by WORK_STATE. After in-flight101-12g,
-source-directed repairs101-13–17 precede101-18's measurement and101-12h's
-review. Scale remains in102 and final review in103, after a measured passing
-speed release. Existing task work and live candidate ownership are preserved.
+Continue the first unfinished task in WORK_STATE. Phase 102 now proceeds
+through the new 128K/H=51,200 fresh load (102-05), the 256K/H=51,200 load
+(102-06), then the bounded goal review (102-07). Both higher-context tasks
+require the filled H=51,200 (200-page) hot window. The 128K and 256K tasks use
+the exact effective argv recorded in their packets; any different configuration
+requires stopping the current Qwen process and verifying a fresh matching
+candidate before sending requests. Existing task work and the active service
+owner are preserved.
 Unstarted93-12/93-13 are removed from the runnable graph;
 their old packets are archived for provenance. Forward tasks supersede the
 old accepted-token historical refresh and universal attention-route preference.

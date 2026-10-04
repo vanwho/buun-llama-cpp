@@ -41,10 +41,17 @@ Retain a successful candidate loaded for the next task.
   Do not rerun it as a prerequisite. Final integrated replay/cancellation is
   owned by101-10; natural promotion by101-11, after GPU execution repairs.
   Missing100-04a receipt is not a gate on these implementation tasks.
-- Keep fresh input speed probes <=16K tokens. In phase 102, use L/H=16K/8K,
-  32K/16K, 128K/<=60K, then 256K/<=60K. The 60K value is only the upper
-  bound for the two high-context test hotsets, not a production default;
-  product code derives H/G from model/backend/memory and remains tunable.
+- Keep fresh input speed probes <=16K tokens. Phase 102's ordered geometries
+  are L/H=16K/8K, 32K/16K, the completed 102-04 row at L=131,072/C=128,281
+  with effective H=16,384 (the requested 59,904 cap admitted only 64 pages),
+  the fresh 102-05 repeat at L=131,072/C=120,000 with a filled H=51,200 hot
+  window (200 pages), then L=262,144/C=250,000 with the same filled H=51,200
+  window (200 pages) in 102-06. Both future higher-context tests require the
+  full configured hot window; no 16K or smaller-H substitute is accepted.
+  These are explicit test geometries, not production defaults. If clean-start
+  admission fails, diagnose configuration, process identity and memory
+  accounting first; if real capacity still cannot admit 200 pages, report
+  not-admitted and do not continue with a smaller H.
 - Reserve full-L draft, weights, GDN, catalogue, transfer slabs, graph/scratch,
   peak verify/replay usage and measured safety headroom before H. If OOM, stop
   only the owned restart loop, ensure one model is loaded, reduce H/R or packed
@@ -248,10 +255,12 @@ truncation or compaction. Allocation and occupied C are different proofs; do
 not claim C=262144 from allocation or a partial frontier. At 128K and 256K,
 target C=120,000 and C=250,000 respectively; reserve 11,072 and 12,144 tokens
 for measured final query/output/replay/MTP requirements. Start selected mode
-with H<=60,000 tokens (page aligned). If startup, request,
-OOM or scratch admission fails, lower only H in page-aligned steps and retry;
-do not change L, B/U, batch, ubatch, model, MTP, codec, or other server
-settings to make the test pass. The final 20K/40K/60K/100K/175K/256K speed
+with H=51,200 tokens (200 pages) for the new 102-05/102-06 higher-context
+rows. If startup, request,
+OOM or scratch admission fails, diagnose clean-start identity/configuration and
+memory accounting while keeping H=51,200 fixed; never lower H to make the test
+pass. Do not change L, B/U, batch, ubatch, model, MTP, codec, or other server
+settings. The final 20K/40K/60K/100K/175K/256K speed
 curve remains a later findings-only experiment, after the architecture works.
 
 The 20K/40K/60K/100K/175K/256K speed curve is a final reporting experiment

@@ -43,11 +43,14 @@ of at least 2K at 32K and at least 8K at 128K/256K; increase it when measured
 query/replay/verify needs require. Verify context shifting/truncation is off.
 The saved C is the actual committed frontier, never the requested token target.
 
-Hot geometry: 32K uses H=16K. 128K starts H=59,904 tokens, the largest
-256-token-page-aligned value <=60,000; maximum H is 60,000. If a selected run OOMs or runs out of scratch,
-reduce only H in 256-token increments. Keep L, B/U, batch, ubatch, threads,
-model, codecs, full-L draft and every other server setting unchanged. Recompute
-derived G/R, relabel the measured H, and retry only the affected selected row.
+Hot geometry: 32K uses H=16K. The completed 102-04 128K run admitted only
+H=16,384 from its then-requested 59,904 cap; this is historical evidence, not
+the target for the new higher-context runs. Tasks 102-05 and 102-06 must both
+fill/use H=51,200 (200 pages). Do not lower H to recover OOM or scratch.
+Preserve L, B/U, batch, ubatch, threads, model, codecs and full-L draft; first
+verify a clean single-process start, effective options and memory accounting.
+If genuine capacity still prevents admission of all 200 pages, record
+not-admitted rather than running a smaller hot window.
 Never shrink L or change batch geometry to make a capacity result appear to
 pass. If full-L draft allocation fails independently of H, preserve that
 distinct admission failure and continue with non-destructive diagnostics; do

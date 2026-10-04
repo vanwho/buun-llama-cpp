@@ -1,0 +1,262 @@
+{
+  "candidate_identity": {
+    "batch": "1024",
+    "binary": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server",
+    "binary_sha256": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004",
+    "command": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 58 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "context": "262144",
+    "exe": "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server",
+    "host_budget": null,
+    "hot_pages": "58",
+    "loaded_dso_sha256": {
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "4b2aafacd48005baec260a033025930c0bf87f9a7a3e9207ac7cf931e63e80f3",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "a3af1a0a2da887f1a4ddf830d5a192650d9f3734ff8f29c32e8341cd4f5df9a8",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "756d2e002b1cb5ace6211e00fbb82fd4d2ba79bdece0b8181ec48529f2e59546",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "440ac1ebdb4142974ce0e1fa6cfb638ae3ae5746ae7b0adf0520b18d1b8e2966",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004"
+    },
+    "loaded_dsos": [
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server"
+    ],
+    "loaded_file_build_ids": {
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "31728d855c56bdbb63fe8ed6c9f2c42a190cd87c",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "403aa3cdea398f1eb16da60568941fb363c5b1c4",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "165dcaae0979c35e71e5bdf97ea53a98d4161844",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "728e6cf2dcee1f720e38291a5dc1962b32dfcc90",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "1bd9523f9a7e30806cd5c4a8c468fd22efc597b2",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "94c1728f49a8e9135d777c2247b8dc1da2d7b7a6",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "a5f5eab70971c6fd74c7c7b49d38af2a007e1d4d",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "f2fe501c87619ee26fd40b00bcc96dbe84b42c1e",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "941fb6085f193d4832b0306ac18a5b05ac56b09b"
+    },
+    "loaded_file_hashes": {
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0": "4b2aafacd48005baec260a033025930c0bf87f9a7a3e9207ac7cf931e63e80f3",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0": "a3af1a0a2da887f1a4ddf830d5a192650d9f3734ff8f29c32e8341cd4f5df9a8",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so": "756d2e002b1cb5ace6211e00fbb82fd4d2ba79bdece0b8181ec48529f2e59546",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0": "440ac1ebdb4142974ce0e1fa6cfb638ae3ae5746ae7b0adf0520b18d1b8e2966",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server": "d227d931752485bd1770863c29851065b209b9a516bffa303625648272e90004"
+    },
+    "main_pid": 717670,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "mtp_placement": "gpu",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "no_kv_offload": false,
+    "page_size_tokens": "256",
+    "pager_mode": "selective",
+    "pid": 717670,
+    "pin_recent": null,
+    "proc_maps": [
+      "/dev/nvidia-uvm",
+      "/dev/nvidia0",
+      "/dev/nvidiactl",
+      "/dev/zero",
+      "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-base.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cpu.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml-cuda.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libggml.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-common.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama-server-impl.so",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libllama.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/libmtmd.so.0",
+      "/srv/ai/paged-kv/results/forward/102-03/attempt-01/candidate-resident-routing-refresh/llama-server",
+      "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+      "/usr/lib/x86_64-linux-gnu/libc.so.6",
+      "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+      "/usr/lib/x86_64-linux-gnu/libcublas.so.12.4.5.8",
+      "/usr/lib/x86_64-linux-gnu/libcublasLt.so.12.4.5.8",
+      "/usr/lib/x86_64-linux-gnu/libcuda.so.595.91.07",
+      "/usr/lib/x86_64-linux-gnu/libcudart.so.12.4.127",
+      "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+      "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+      "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
+      "/usr/lib/x86_64-linux-gnu/libm.so.6",
+      "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+      "/usr/lib/x86_64-linux-gnu/librt.so.1",
+      "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+      "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.35",
+      "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+      "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7"
+    ],
+    "process_start_time_ticks": "6593969",
+    "profile": null,
+    "safety_headroom": null,
+    "spec_draft_n_max": "2",
+    "spec_type": "draft-mtp",
+    "target_kv_placement": "gpu",
+    "ubatch": "256",
+    "vram_budget": null
+  },
+  "checks": {
+    "256k_allocation_and_committed_occupancy": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/repo-content-preflight.json",
+          "sha256": "bbc0612fb671e3e3896990543a49caba18661b7a17c1de85743a56ab4b7dc7dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/campaign-h14848.log",
+          "sha256": "3b86397a67ac029f502ae39349ba04548dd6b69ed51b3ed2f8ae77930e0807e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/occupied-frontier.json",
+          "sha256": "6566f56886fcce82db528bb768ba82b8d756629e8362db29dfec8c682dcc0280"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/validation-occupancy-h14848.json",
+          "sha256": "cb43d1c058d566a33bad1e85874fa098a337afcd477a87198825c3d5fc4ec33f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/request-journal.jsonl",
+          "sha256": "a3f5ca38889a0741abb6c79ad54209bc8163d1f9e9d5b7cd25627207b087e9f1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/raw-000001.sse",
+          "sha256": "8a0ad4730540277bc458f45a09dadddc20b3421978d050daff7177ccdc5c4095"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "250000",
+        "--context-tokens",
+        "262144",
+        "--hot-tokens",
+        "14848",
+        "--page-tokens",
+        "256",
+        "--batch-tokens",
+        "1024",
+        "--ubatch-tokens",
+        "256",
+        "--max-fresh-tokens",
+        "16000",
+        "--max-tokens",
+        "400",
+        "--repo-content",
+        "--wall-budget",
+        "7200",
+        "--prefill-timeout",
+        "1800",
+        "--total-timeout",
+        "3600",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848"
+      ],
+      "exit_code": 1,
+      "status": "fail",
+      "summary": "Live campaign stopped at B after the selected-attention CUDA allocation failed; only 4,289 tokens committed, so neither named 256K proof passed."
+    },
+    "256k_promotion_replay_ring_mtp_and_memory": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/repo-content-preflight.json",
+          "sha256": "bbc0612fb671e3e3896990543a49caba18661b7a17c1de85743a56ab4b7dc7dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/campaign-h14848.log",
+          "sha256": "3b86397a67ac029f502ae39349ba04548dd6b69ed51b3ed2f8ae77930e0807e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/occupied-frontier.json",
+          "sha256": "6566f56886fcce82db528bb768ba82b8d756629e8362db29dfec8c682dcc0280"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/request-journal.jsonl",
+          "sha256": "a3f5ca38889a0741abb6c79ad54209bc8163d1f9e9d5b7cd25627207b087e9f1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/raw-000000.sse",
+          "sha256": "4678188f343e47d6a2d3390938fe466d8e2ae714ad507ee1c883a9a9ce7a0038"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848/raw-000001.sse",
+          "sha256": "8a0ad4730540277bc458f45a09dadddc20b3421978d050daff7177ccdc5c4095"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "250000",
+        "--context-tokens",
+        "262144",
+        "--hot-tokens",
+        "14848",
+        "--page-tokens",
+        "256",
+        "--batch-tokens",
+        "1024",
+        "--ubatch-tokens",
+        "256",
+        "--max-fresh-tokens",
+        "16000",
+        "--max-tokens",
+        "400",
+        "--repo-content",
+        "--wall-budget",
+        "7200",
+        "--prefill-timeout",
+        "1800",
+        "--total-timeout",
+        "3600",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-05/attempt-01/occupancy-h14848"
+      ],
+      "exit_code": 1,
+      "status": "fail",
+      "summary": "Live campaign stopped at B after the selected-attention CUDA allocation failed; only 4,289 tokens committed, so neither named 256K proof passed."
+    }
+  },
+  "effective_geometry": {
+    "batch_tokens": 1024,
+    "generation_write_pages": 2,
+    "hot_capacity_tokens": 14848,
+    "logical_context_tokens": 262144,
+    "max_fresh_tokens": 14081,
+    "max_query_pages": 56,
+    "page_tokens": 256,
+    "requested_max_fresh_tokens": 16000,
+    "ubatch_tokens": 256
+  },
+  "outcome": "incomplete",
+  "schema_version": 1,
+  "source_commit": "f6d7aa17a9ad47ba232a2cb4a127a0c680f3671a",
+  "source_dirty": true,
+  "task": "102-05"
+}

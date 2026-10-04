@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current next sequence after 101-12n: 102-01 driver-range regression only; 102-02 8K/4K repo-content A-B-A baseline; 102-03 32K/16K; 102-04 128K; 102-05 256K. Read only task/cluster/fixture and compact immediate handoff. Never load raw JSONL or WORK_LOG. Large-context requests use deterministic tracked repo text, <=16K fresh tokens per request, candidate-bound resumable state, and measured per-test reserve to prevent context shifting.",
+  "context_policy": "Current phase-102 sequence: 102-01 occupancy-driver regression; 102-02 8K/4K baseline; 102-03 32K/16K; 102-04 completed C=128,281 at L=131,072 with effective H=16,384 after admission from requested cap 59,904; 102-05 fresh L=131,072/C=120,000 with a filled mandatory H=51,200 hot window; 102-06 L=262,144/C=250,000 with the same filled mandatory H=51,200 hot window; 102-07 goal review. Read only the current task/cluster/fixture and compact immediate handoff. Never load raw JSONL, archived old receipts or WORK_LOG. Large-context requests use deterministic tracked repo text, <=16K fresh tokens per request, candidate-bound resumable state, and measured reserve to prevent context shifting.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -17,7 +17,7 @@
   "status": "ready",
   "current_phase": "102",
   "current_task": "102-05",
-  "last_updated_utc": "2026-10-02T18:50:31+00:00",
+  "last_updated_utc": "2026-10-04T01:40:10+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01\u201312, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Former101 capacity is102; final review is103.",
+    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01–12, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Phase102 contains the ordered capacity runs and its final goal review at 102-07.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -57,7 +57,7 @@
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
     "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
-    "scale_policy": "Ordered: 102-01 occupancy-driver-limit regression only; 102-02 repo-content L=8192/H=4096 baseline (GPU target-KV, host target-KV and selected); 102-03 L=32768/H=16384; 102-04 L=131072/C=120000/H<=60000; 102-05 L=262144/C=250000/H<=60000. CPU target-KV comparison is limited to 8K; higher-context GPU-target control runs only when admitted, plus selected. Full-L GPU Turbo4 MTP remains required. Fill from deterministic tracked Buun files in resumable <=16K fresh-token chunks and measure the output/query/replay/MTP reserve before requests. At 128K/256K OOM or scratch exhaustion lowers H only; never change L, B/U, batching or other server settings. Record any safe-reserve shortfall honestly without triggering compaction.",
+    "scale_policy": "Ordered: 102-01 occupancy-driver-limit regression only; 102-02 repo-content L=8192/H=4096 baseline (GPU target-KV, host target-KV and selected); 102-03 L=32768/H=16384; 102-04 completed L=131072/C=128281 with effective H=16384 after the 59904-token requested cap admitted only 64 pages; 102-05 fresh-build L=131072/C=120000 with a filled mandatory H=51200 hot window and per-chunk prefill/VRAM/post-load canonical MTP; 102-06 L=262144/C=250000 with the same filled mandatory H=51200 hot window; 102-07 final goal review. For both future higher-context rows, 200 pages/51200 hot tokens is fixed and cannot be silently reduced; diagnose clean-start identity/configuration/accounting and report not-admitted if genuine capacity cannot admit it. CPU target-KV comparison is limited to 8K; higher-context GPU-target control runs only when admitted, plus selected. Full-L GPU Turbo4 MTP remains required. Fill from deterministic tracked Buun files in resumable <=16K fresh-token chunks and measure output/query/replay/MTP reserve before requests. Keep L, H, B/U and other settings fixed; record any safe-reserve shortfall honestly without triggering compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
     "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication",
@@ -33272,8 +33272,8 @@
     {
       "id": "102-05",
       "phase": "102",
-      "cluster": "forward102-full-256k",
-      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "cluster": "forward102-128k-repeat",
+      "title": "Measure a fresh 128K load with 50K hot KV and GPU Turbo4 MTP",
       "packet": ".wiretail/execution/tasks/102-05.md",
       "status": "todo",
       "blocker": null,
@@ -33283,24 +33283,27 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "repo-context-scale-20261002",
+      "plan_amendment": "repo-context-scale-20261004-50k-hot",
       "required_proofs": [
-        "256k_allocation_and_committed_occupancy",
-        "256k_promotion_replay_ring_mtp_and_memory"
+        "128k_50k_hot_load_prefill_vram_and_gpu_mtp",
+        "canonical_mtp_after_occupied_128k_load"
       ],
       "depends_on": [
         "102-04"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward102-full-256k.md",
+        ".wiretail/execution/clusters/forward102-128k-repeat.md",
         ".wiretail/execution/tasks/102-05.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/tasks/102-04.md",
         ".wiretail/execution/handoffs/102-04.md",
         "tools/server/bench/run-occupancy-frontier.py",
-        "tools/server/bench/validate-occupied-frontier.py",
-        "tools/server/bench/run-pager-promotion.py"
+        "tools/server/bench/test_occupancy_frontier.py",
+        "tools/server/bench/repo_context.py",
+        "tools/server/bench/fixtures/repo-context-v1/README.md",
+        "tools/server/bench/fixtures/repo-context-v1/manifest.json"
       ],
       "completion_check": [
         "python3",
@@ -33309,14 +33312,35 @@
         "102-05",
         "--receipt",
         ".wiretail/execution/evidence/V10_102-05.json"
-      ]
+      ],
+      "token_usage": {
+        "totals": {
+          "usage_events": 0,
+          "total_tokens": null,
+          "input_tokens": null,
+          "cached_input_tokens": null,
+          "cache_write_input_tokens": null,
+          "input_tokens_minus_cached_tokens": null,
+          "output_tokens": null,
+          "thinking_tokens": null,
+          "total_tokens_source": "unavailable",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        },
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": []
+      }
     },
     {
-      "id": "103-01",
-      "phase": "103",
-      "cluster": "forward103-goal-review",
-      "title": "Assess final measured goals and create real follow-up work if needed",
-      "packet": ".wiretail/execution/tasks/103-01.md",
+      "id": "102-06",
+      "phase": "102",
+      "cluster": "forward102-full-256k",
+      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "packet": ".wiretail/execution/tasks/102-06.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
@@ -33325,28 +33349,70 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "repo-context-scale-20261002",
+      "plan_amendment": "repo-context-scale-20261004-50k-hot",
       "required_proofs": [
-        "final_goal_summary_and_successors"
+        "256k_allocation_and_committed_occupancy",
+        "256k_promotion_replay_ring_mtp_and_memory"
       ],
       "depends_on": [
         "102-05"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward103-goal-review.md",
-        ".wiretail/execution/tasks/103-01.md",
+        ".wiretail/execution/clusters/forward102-full-256k.md",
+        ".wiretail/execution/tasks/102-06.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/102-05.md"
+        ".wiretail/execution/handoffs/102-05.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py",
+        "tools/server/bench/run-pager-promotion.py"
       ],
       "completion_check": [
         "python3",
         ".wiretail/execution/v10/validate.py",
         "--task",
-        "103-01",
+        "102-06",
         "--receipt",
-        ".wiretail/execution/evidence/V10_103-01.json"
+        ".wiretail/execution/evidence/V10_102-06.json"
+      ]
+    },
+    {
+      "id": "102-07",
+      "phase": "102",
+      "cluster": "forward102-goal-review",
+      "title": "Assess final measured goals and create real follow-up work if needed",
+      "packet": ".wiretail/execution/tasks/102-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repo-context-scale-20261004-50k-hot",
+      "required_proofs": [
+        "final_goal_summary_and_successors"
+      ],
+      "depends_on": [
+        "102-06"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-goal-review.md",
+        ".wiretail/execution/tasks/102-07.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/102-06.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "102-07",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_102-07.json"
       ]
     }
   ],
