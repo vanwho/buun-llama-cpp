@@ -977,13 +977,21 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
     // contains the complete causal history. A bounded view with evicted prefix
     // pages can still pass the dense storage-contiguity check, but the dense
     // Flash Attention graph produces non-finite logits for the multirow MTP
-    // verification shape. The packed consumer applies the same frozen page
-    // view and causal positions without assuming that the selected window
-    // starts at position zero.
+    // verification shape. Use the direct page consumer for an incomplete
+    // view: it checks each row's causal position before loading K/V, while the
+    // mature packed Flash Attention path may read masked, unwritten suffix
+    // rows and propagate their non-finite values.
     if (phase == llama_kv_attention_execution_phase::mtp_verify &&
-            packed_capable && !metadata.query_positions().empty()) {
-        if (!complete_causal_history()) {
-            return llama_kv_attention_execution_route::selected_packed;
+            !metadata.query_positions().empty()) {
+        const bool complete = complete_causal_history();
+        if (!complete) {
+            if (metadata.n_query_tokens() > 1 && direct_capable &&
+                    production_direct_shape(metadata, phase)) {
+                return llama_kv_attention_execution_route::selected_direct;
+            }
+            if (packed_capable) {
+                return llama_kv_attention_execution_route::selected_packed;
+            }
         }
     }
 
