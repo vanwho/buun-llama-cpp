@@ -1,0 +1,331 @@
+{
+  "attempt": 2,
+  "candidate": {
+    "build_identity": {
+      "current_dirty_fingerprint": "af62ffb4c85acd37312ea288c05eac92bed4b4b7a1bc329d47522e2f85b1b407",
+      "dirty_fingerprint_at_candidate_build": "7e5b9a653d8b757980f15fe2ac7129a2266bcda78206d513eccacc7dfd96f671",
+      "source_commit": "7f0cdf921987e776808713792ac09a10f0edc85a"
+    },
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/build-final-candidate.log",
+      "sha256": "ab91f07dc29f27b2ee706a1ad71efd812f661d3a30e6d9458ba6254ad11d86af"
+    },
+    "loaded_dsos": {
+      "objects": [
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libggml-base.so.0.25.3",
+          "sha256": "56f22904ca1d074d06e9fed0c0ac60ad92a8946876350947446d27b846cbc6cf"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libggml-cpu.so.0.25.3",
+          "sha256": "79aaa541d8c158150e6fc6f1929b66eb7fa3858b9d790f7c0dee36c997fdaa82"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libggml-cuda.so.0.25.3",
+          "sha256": "95d1a17c4e1b2542da4840c74d8b7c94d922f0f364cba7568c82cf30f1a8a868"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libggml.so.0.25.3",
+          "sha256": "d247e46edf6b4af1059a350e498d98857a369fa216a5084bc9e4dc8cb1489b7b"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libllama-common.so.0.5.0",
+          "sha256": "9be1a621fa5fb1802b42a5a6eb9dc1f5506f47fba3f5adf00203458786f9ea78"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libllama-server-impl.so",
+          "sha256": "b8adc69983f50426ac236091f5e08cbfc2a3f634dbb7ba5fb73252dcff763e96"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libllama.so.0.5.0",
+          "sha256": "54034d5ec49af3da4cc065d2645f27865e5d8987cb03c79a66a67af651e9084b"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libmtmd.so.0.5.0",
+          "sha256": "3eded0341c1b0109052e77e963d5c477bd78ee574d9b84f92293bc890c1ce8df"
+        },
+        {
+          "exists": true,
+          "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+          "sha256": "498cd3c8961e2964415bb712b1b87fe15d6cc78d2110ca5deb3a61852781057c"
+        }
+      ],
+      "pid": 2928914
+    },
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+    "sha256": "498cd3c8961e2964415bb712b1b87fe15d6cc78d2110ca5deb3a61852781057c"
+  },
+  "checks": {
+    "256k_allocation_and_committed_occupancy": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/occupied-frontier.json",
+          "sha256": "96c2ac6f11668d0b11f796064c549a653ebb1231796e0a3d0b4665dd9332354d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/frontier-validation.json",
+          "sha256": "31c59eb20c1418aa389f3d49b7aa5aa6671730586691bc4430cf72c9ad8f0e3c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/task-proof-summary.json",
+          "sha256": "fb83c6e16f023adf93034709ac25f72d88eb14462dc1dda2c641262880f8d479"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/memory-samples.jsonl",
+          "sha256": "380e7cff7eb8dde1bcdc1a7d017ad8e7d3d21ba62bd451472840ae918b01ef22"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/runtime-identity-final.txt",
+          "sha256": "f79640e233b8b01cee9a80786762161bfb1bde52ba242d880c747f57c16c51d8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/frontier-replay-accounting-correction.json",
+          "sha256": "7d7027774e677434bda7fb559e3a45b0aedc1027fbe1e7144032102ee7ce3701"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/build-final-candidate.log",
+          "sha256": "ab91f07dc29f27b2ee706a1ad71efd812f661d3a30e6d9458ba6254ad11d86af"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "250000",
+        "--context-tokens",
+        "262144",
+        "--hot-tokens",
+        "51200",
+        "--page-tokens",
+        "256",
+        "--batch-tokens",
+        "1024",
+        "--ubatch-tokens",
+        "256",
+        "--max-tokens",
+        "400",
+        "--repo-content",
+        "--post-load-canonical",
+        "--wall-budget",
+        "21600",
+        "--prefill-timeout",
+        "900",
+        "--total-timeout",
+        "1800"
+      ],
+      "exit_code": 0,
+      "result": {
+        "batch": 1024,
+        "committed_tokens": 250572,
+        "context_tokens": 262144,
+        "hot_pages": 200,
+        "hot_tokens": 51200,
+        "page_tokens": 256,
+        "post_load_probes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "slot_id": 0,
+        "status": "pass",
+        "target_tokens": 250000,
+        "ubatch": 256
+      },
+      "status": "pass"
+    },
+    "256k_promotion_replay_ring_mtp_and_memory": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/old-repo-recall-cleaned-preflight.json",
+          "sha256": "61217cf9738aa3e47c7c3b62c10c302a9501c95adc686b2f3403bd30795a645c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/old-repo-recall-cleaned-request.json",
+          "sha256": "8e4cb70cfcb25f85f080f001ad9a16c00dec5f8564ec6c03abb8a7dbe7345245"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/old-repo-recall-cleaned.sse",
+          "sha256": "2b66385421a3a801fc5ea8b1c84091ccd59cc2bf3745e88e41993e21d298a9f1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/old-repo-recall-cleaned-record.json",
+          "sha256": "6560742317f738f20f9cc22bf8c6040c16a813ad5f42af1332d56f69ec3b14f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/old-repo-recall-cleaned-identity.json",
+          "sha256": "ebd1058746074c9a93992290f326f8da2d3428ba146e0b5cf313f7a545c02eb8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/task-proof-summary.json",
+          "sha256": "fb83c6e16f023adf93034709ac25f72d88eb14462dc1dda2c641262880f8d479"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/occupied-frontier.json",
+          "sha256": "96c2ac6f11668d0b11f796064c549a653ebb1231796e0a3d0b4665dd9332354d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/memory-samples.jsonl",
+          "sha256": "380e7cff7eb8dde1bcdc1a7d017ad8e7d3d21ba62bd451472840ae918b01ef22"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/frontier-replay-accounting-correction.json",
+          "sha256": "7d7027774e677434bda7fb559e3a45b0aedc1027fbe1e7144032102ee7ce3701"
+        }
+      ],
+      "command": [
+        "python3",
+        "-"
+      ],
+      "exit_code": 0,
+      "result": {
+        "allocation": {
+          "catalogue_reserved_high_water_bytes_not_observed": 100876288,
+          "external_reserved_high_water_bytes_not_observed": 771728128,
+          "full_l_gpu_mtp_bytes": 276955136,
+          "full_l_gpu_mtp_rows": 262144,
+          "graph_reserved_high_water_bytes_not_observed": 198435072,
+          "headroom_reserved_bytes_not_observed": 201326592,
+          "host_pageable_bytes_final": 4233660000,
+          "host_pinned_bytes_final": 0,
+          "host_valid_bytes_final": 816617000,
+          "minimum_sampled_device_free_mib": 502.0,
+          "mtp_backend": "gpu",
+          "mtp_compute_high_water_bytes": 169877632,
+          "mtp_dequant_high_water_bytes": 0,
+          "packed_draining_high_water_bytes": 0,
+          "packed_live_high_water_bytes": 0,
+          "physical_pool_capacity_bytes": 865075200,
+          "sampler_samples": 195,
+          "scratch_high_water_bytes": 54067200,
+          "target_dequant_high_water_bytes": 0,
+          "target_gpu_allocated_high_water_bytes": 865075200,
+          "target_gpu_compute_high_water_bytes": 244929152
+        },
+        "limitations": [
+          "Ring rollback counter is not exposed in current /slots telemetry; no counter value is inferred.",
+          "Frozen history generation was 0 before and after the measured replay; it remained unchanged."
+        ],
+        "old_repo_recall": {
+          "completion_tokens": 400,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 398,
+            "mode": "native",
+            "status": "measured"
+          },
+          "prompt_file": ".pre-commit-config.yaml",
+          "rendered_prompt_tokens": 249921,
+          "request_cached_tokens": 0,
+          "request_prompt_tokens": 249921,
+          "request_sha256": "9ec5e315241ce1cf5531df59e2129cc2926f684ee5423259f6841c8854a7f97d",
+          "response_content_chars": 400,
+          "response_prefix": "////////////////////////////////////////////////////////////////////////////////////////////////////",
+          "semantic_note": "The 400-token response remains slash filler and does not reproduce the requested revision/hooks.",
+          "semantic_status": "not_retrieved",
+          "status": "pass"
+        },
+        "replay": {
+          "accepted_tokens": 0,
+          "cached_tokens": 0,
+          "candidate_pid": 2928914,
+          "draft_tokens": 398,
+          "frozen_history_generation_after": 0,
+          "frozen_history_generation_before": 0,
+          "h2d_useful_bytes_after": 0,
+          "h2d_useful_bytes_before": 0,
+          "host_valid_rows_after": 51152,
+          "host_valid_rows_before": 48136,
+          "process_start_time_ticks": "21733148",
+          "prompt_tokens": 249921,
+          "reset_mode": "paired-restore",
+          "resident_pages_after": 200,
+          "resident_pages_before": 200,
+          "restore_shape": "target_and_draft",
+          "slot_generation_after": 37,
+          "slot_generation_before": 36,
+          "target_valid_rows_after": 51152,
+          "target_valid_rows_before": 50952
+        }
+      },
+      "status": "pass"
+    }
+  },
+  "deferred_verification": [
+    "Exact C=262144 commit-only ingest remains unproven; task packet says this is not required absent a supported commit-only API.",
+    "Dense full-GPU KV control was not admitted by read-only capacity sampling; no second process or dense allocation was launched.",
+    "Semantic old-file retrieval was not recovered (400-token response was slash filler); request execution/MTP counters are recorded separately.",
+    "Ring rollback-specific counter is not exposed by current /slots telemetry; no numerical ring rollback assertion is claimed."
+  ],
+  "model": {
+    "resolved_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "runtime": {
+    "admitted_hot_tokens": 51200,
+    "admitted_pages": 200,
+    "argv_lines": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-page-size 256 --kv-hot-pages 200 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4"
+    ],
+    "batch_tokens": 1024,
+    "dense_gpu_control": "not_admitted_capacity",
+    "exact_full_context_commit": "unproven",
+    "logical_context_tokens": 262144,
+    "memory_summary_path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/task-proof-summary.json",
+    "minimum_device_free_mib": 502,
+    "mtp_kv": {
+      "bytes": 276955136,
+      "draft_n_max": 2,
+      "placement": "gpu",
+      "rows": 262144,
+      "type_k": "turbo4",
+      "type_v": "turbo4"
+    },
+    "occupied_tokens": 250321,
+    "page_tokens": 256,
+    "process_start_time_ticks": "21733148",
+    "requested_hot_tokens": 51200,
+    "sample_count": 195,
+    "target_kv": {
+      "allocated_high_water_bytes": 865075200,
+      "placement": "gpu",
+      "type_k": "turbo4",
+      "type_v": "turbo4"
+    },
+    "tested_pid": 2928914,
+    "ubatch_tokens": 256
+  },
+  "schema_version": 1,
+  "source_commit": "7f0cdf921987e776808713792ac09a10f0edc85a",
+  "source_identity": {
+    "commit": "7f0cdf921987e776808713792ac09a10f0edc85a",
+    "dirty_fingerprint": "7e5b9a653d8b757980f15fe2ac7129a2266bcda78206d513eccacc7dfd96f671"
+  },
+  "status": "pass",
+  "task": "102-06"
+}
