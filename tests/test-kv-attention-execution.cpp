@@ -267,8 +267,7 @@ static void test_routes_epochs_and_fences() {
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
 
     // A complete resident view under paging uses the selected dense graph so
-    // its physical page map and valid native prefix are explicit. The
-    // incomplete view above remains selected-packed.
+    // its physical page map and valid native prefix are explicit.
     llama_kv_attention_execution all_resident(
             llama_kv_attention_execution_mode::selective);
     // A complete resident page may have valid suffix rows past this query.
@@ -286,7 +285,7 @@ static void test_routes_epochs_and_fences() {
     const auto dense = execution.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 5, 9, false, scratch,
             {}, true, false);
-    assert(dense.route == llama_kv_attention_execution_route::selected_dense);
+    assert(dense.route == llama_kv_attention_execution_route::refusal);
     execution.complete_one_graph();
 
     execution.set_route_override("packed");
@@ -300,13 +299,13 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // Automatic noncontiguous Turbo4 selection uses the retained packed view.
+    // Automatic incomplete Turbo4 selection uses native-position attention.
     llama_kv_attention_execution automatic_packed(
             llama_kv_attention_execution_mode::selective);
     const auto packed_default = automatic_packed.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
             {}, false, true);
-    assert(packed_default.route == llama_kv_attention_execution_route::selected_packed);
+    assert(packed_default.route == llama_kv_attention_execution_route::selected_direct);
     assert(automatic_packed.metrics().selected_page_ids.size() == 2 &&
            automatic_packed.metrics().selected_page_ids[0] == 0 &&
            automatic_packed.metrics().selected_page_ids[1] == 2);
@@ -327,12 +326,12 @@ static void test_routes_epochs_and_fences() {
     assert(automatic_packed.metrics().pack_epochs == 0);
     automatic_packed.complete_one_graph();
 
-    // Small prefill verification shares the measured packed route.
+    // Small prefill over an incomplete history uses native-position attention.
     const auto packed_prefill = metadata(snapshot(), 2, 1);
     const auto packed_policy = automatic_packed.prepare(packed_prefill,
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
             {}, false, true);
-    assert(packed_policy.route == llama_kv_attention_execution_route::selected_packed);
+    assert(packed_policy.route == llama_kv_attention_execution_route::selected_direct);
     assert(automatic_packed.metrics().pack_bytes == 0);
     assert(automatic_packed.metrics().pack_epochs == 0);
     automatic_packed.complete_one_graph();
@@ -841,7 +840,7 @@ static void test_view_sized_scratch_contract() {
     native_mtp_execution.set_native_mtp_enabled(true);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, true, false, true) ==
-           llama_kv_attention_execution_route::selected_packed);
+           llama_kv_attention_execution_route::selected_direct);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
            llama_kv_attention_execution_route::selected_packed);
@@ -853,20 +852,23 @@ static void test_view_sized_scratch_contract() {
            llama_kv_attention_execution_route::selected_packed);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, true, false, true) ==
-           llama_kv_attention_execution_route::selected_packed);
+           llama_kv_attention_execution_route::selected_direct);
     for (const auto phase : { llama_kv_attention_execution_phase::prefill,
                               llama_kv_attention_execution_phase::decode,
                               llama_kv_attention_execution_phase::mtp_verify }) {
         assert(execution.planned_route(selected, phase, true, false, true) ==
-               (phase == llama_kv_attention_execution_phase::mtp_verify
-                    ? llama_kv_attention_execution_route::selected_direct
-                    : llama_kv_attention_execution_route::selected_packed));
+               (phase == llama_kv_attention_execution_phase::decode
+                    ? llama_kv_attention_execution_route::selected_packed
+                    : llama_kv_attention_execution_route::selected_direct));
         assert(execution.planned_route(selected, phase, true, false, false) ==
                llama_kv_attention_execution_route::selected_direct);
     }
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, true, false) ==
-           llama_kv_attention_execution_route::selected_dense);
+           llama_kv_attention_execution_route::refusal);
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::prefill, true, true, true) ==
+           llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, false, true) ==
            llama_kv_attention_execution_route::selected_packed);
@@ -915,7 +917,7 @@ static void test_view_sized_scratch_contract() {
            llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(batched_small,
             llama_kv_attention_execution_phase::prefill, true, true, true) ==
-           llama_kv_attention_execution_route::selected_dense);
+           llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(batched_large_q,
             llama_kv_attention_execution_phase::prefill, true, true, true) ==
            llama_kv_attention_execution_route::selected_direct);

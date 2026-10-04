@@ -969,30 +969,27 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
         return true;
     };
-    if (dense_capable && complete_causal_history()) {
+    const bool complete_history = complete_causal_history();
+    if (dense_capable && complete_history) {
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    // A selected dense view is valid for MTP verification only while it
-    // contains the complete causal history. A bounded view with evicted prefix
-    // pages can still pass the dense storage-contiguity check, but the dense
-    // Flash Attention graph produces non-finite logits for the multirow MTP
-    // verification shape. Use the direct page consumer for an incomplete
-    // view: it checks each row's causal position before loading K/V, while the
-    // mature packed Flash Attention path may read masked, unwritten suffix
-    // rows and propagate their non-finite values.
-    if (phase == llama_kv_attention_execution_phase::mtp_verify &&
-            !metadata.query_positions().empty()) {
-        const bool complete = complete_causal_history();
-        if (!complete) {
-            if (metadata.n_query_tokens() > 1 && direct_capable &&
-                    production_direct_shape(metadata, phase)) {
-                return llama_kv_attention_execution_route::selected_direct;
-            }
-            if (packed_capable) {
-                return llama_kv_attention_execution_route::selected_packed;
-            }
+    // Dense FA uses logical row offsets for causality. A bounded view with an
+    // evicted prefix cannot use it, even when its physical rows are contiguous.
+    if (!complete_history) {
+        const bool direct_query = phase == llama_kv_attention_execution_phase::prefill ||
+            (phase == llama_kv_attention_execution_phase::mtp_verify &&
+             metadata.n_query_tokens() > 1);
+        if (direct_query && direct_capable && production_direct_shape(metadata, phase)) {
+            return llama_kv_attention_execution_route::selected_direct;
         }
+        if (packed_capable) {
+            return llama_kv_attention_execution_route::selected_packed;
+        }
+        if (!direct_query && direct_capable && production_direct_shape(metadata, phase)) {
+            return llama_kv_attention_execution_route::selected_direct;
+        }
+        return llama_kv_attention_execution_route::refusal;
     }
 
     // Batched Turbo4 measurements found two coarse prefill regions: the
