@@ -265,6 +265,26 @@ bool make_ranges(const llama_kv_routing_page_input & input,
         if (input.range_min.size() != values || input.range_max.size() != values) return false;
         range_min = input.range_min;
         range_max = input.range_max;
+        // Live page-summary providers use (+inf, -inf) as the accumulator
+        // identity for subblocks with no rows. Preserve those sentinels for
+        // invalid/partially populated data, but canonicalize wholly trailing
+        // empty blocks to neutral zero ranges just like the row-based path.
+        for (uint32_t block = 0; block < subblocks; ++block) {
+            if (uint64_t(block) * config.subblock_tokens < row_count) continue;
+            bool empty = true;
+            for (uint32_t d = 0; d < config.vector_dim; ++d) {
+                const size_t index = size_t(block) * config.vector_dim + d;
+                empty = empty && range_min[index] == std::numeric_limits<float>::infinity() &&
+                    range_max[index] == -std::numeric_limits<float>::infinity();
+            }
+            if (empty) {
+                for (uint32_t d = 0; d < config.vector_dim; ++d) {
+                    const size_t index = size_t(block) * config.vector_dim + d;
+                    range_min[index] = 0.0f;
+                    range_max[index] = 0.0f;
+                }
+            }
+        }
         source_rows = row_count;
     } else {
         uint64_t expected = 0;
@@ -606,6 +626,22 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
         const auto indexed = index_inventory(inventory);
         std::set<decltype(logical_key(llama_kv_page_id{}))> updated_keys;
         for (size_t i = 0; i < inputs.size(); ++i) {
+            const auto log_invalid_page = [&](const char * reason,
+                                              const llama_kv_page_record * record = nullptr) {
+                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") == nullptr) return;
+                std::fprintf(stderr, "kv-pager-progress stage=summary-invalid-page reason=%s logical=%u generation=%u"
+                        " seq=%d seq_generation=%" PRIu64 " positions=[%" PRId64 ",%" PRId64 ") rows=%zu ranges=[%zu,%zu] vectors=%zu record_state=%u record_generation=%" PRIu64 " record_positions=[%" PRId64 ",%" PRId64 ")\n",
+                        reason, inputs[i].id.logical_page, inputs[i].id.page_generation,
+                        inputs[i].id.sequence_id, inputs[i].id.sequence_generation,
+                        int64_t(inputs[i].id.position_begin),
+                        int64_t(inputs[i].id.position_end),
+                        inputs[i].rotated_k_rows.size(), inputs[i].range_min.size(),
+                        inputs[i].range_max.size(), inputs[i].mean_k_values.size(),
+                        record != nullptr ? unsigned(record->state) : UINT32_MAX,
+                        record != nullptr ? record->id.page_generation : uint64_t(0),
+                        record != nullptr ? int64_t(record->id.position_begin) : int64_t(-1),
+                        record != nullptr ? int64_t(record->id.position_end) : int64_t(-1));
+            };
             if (!updated_keys.insert(logical_key(inputs[i].id)).second) {
                 status = llama_kv_routing_summary_status::duplicate_page;
                 return {};
@@ -616,8 +652,11 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
                 return {};
             }
             const auto * record = entry->second;
-            const bool tail = record->state == llama_kv_page_state::filling_gpu;
+            // A committed partial tail stays a tail after host sealing or
+            // eviction; state is not a reliable proxy for page identity.
+            const bool tail = llama_kv_page_id_is_tail(record->id);
             if (!valid_state(record->state) || !llama_kv_page_id_valid(record->id, tail)) {
+                log_invalid_page("record_identity_or_state", record);
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
@@ -633,6 +672,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
                 : make_vectors(inputs[i], row_count, config, data.vectors,
                     data.radius, data.source_rows);
             if (!made) {
+                log_invalid_page("payload_shape_or_values", record);
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
@@ -641,6 +681,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
                 if (inputs[i].mean_k_values.size() != config.vector_dim ||
                         std::any_of(inputs[i].mean_k_values.begin(), inputs[i].mean_k_values.end(),
                                 [](float value) { return !std::isfinite(value); })) {
+                    log_invalid_page("mean_key_shape_or_values", record);
                     status = llama_kv_routing_summary_status::invalid_page;
                     return {};
                 }
@@ -651,6 +692,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             summary.data = make_payload(std::move(data), digest_floats);
             if (!summary.data || !add(payload_floats_hashed, digest_floats,
                     payload_floats_hashed)) {
+                if (!summary.data) log_invalid_page("payload_allocation_or_nonfinite", record);
                 status = summary.data ? llama_kv_routing_summary_status::overflow
                                       : llama_kv_routing_summary_status::invalid_page;
                 return {};

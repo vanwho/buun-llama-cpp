@@ -589,9 +589,12 @@ void test_server_batch_direct_assembly_contract() {
 void test_server_query_replay_transition() {
     uint32_t commits = 0;
     uint32_t restores = 0;
+    uint32_t fences = 0;
+    uint32_t transition_order = 0;
     const auto unchanged = server_query_replay_transition(
         true, 0,
         [&](bool & changed, uint64_t & generation) {
+            CHECK(transition_order++ == 1);
             ++commits;
             changed = false;
             generation = 41;
@@ -600,11 +603,17 @@ void test_server_query_replay_transition() {
         [&]() {
             ++restores;
             return true;
+        },
+        [&]() {
+            ++fences;
+            CHECK(transition_order++ == 0);
+            return true;
         });
     CHECK(unchanged.committed);
     CHECK(unchanged.status == server_query_replay_transition_status::unchanged);
     CHECK(unchanged.history_generation == 41);
     CHECK(commits == 1 && restores == 0);
+    CHECK(fences == 1 && transition_order == 2);
 
     const auto replay = server_query_replay_transition(
         true, 0,

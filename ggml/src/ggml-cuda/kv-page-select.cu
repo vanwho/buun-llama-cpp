@@ -38,11 +38,13 @@ __global__ void query_accumulate_rows(const float * q, size_t q_nb0, size_t q_nb
         const int head = linear / d;
         const int coord = linear % d;
         float value = 0.0f;
+        int64_t added = 0;
         for (int row = 0; row < rows; ++row) {
             const int64_t pos = *(const int64_t *)((const char *) positions + row * pos_nb0);
             if (pos < query_start || pos >= query_end) continue;
             const char * q_row = (const char *) q + head * q_nb1 + row * q_nb2;
             value += *(const float *)(q_row + coord * q_nb0);
+            added++;
         }
         char * sum_row = (char *) sum + head * sum_nb1;
         *(float *)(sum_row + coord * sum_nb0) += value;

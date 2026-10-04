@@ -271,6 +271,34 @@ int main() {
     assert(batched.contains(0) && batched.contains(1) && batched.contains(2));
     assert(batched.accounting().build_count == incremental.accounting().build_count + 2);
 
+    // A sealed partial tail remains a valid summary source after its state
+    // changes from filling_gpu to gpu_host_clean.
+    llama_kv_residency_table sealed_tail_table(2);
+    auto sealed_tail_tx = sealed_tail_table.begin();
+    auto sealed_tail = make_page(0, 1, 56);
+    sealed_tail.state = llama_kv_page_state::gpu_host_clean;
+    assert(sealed_tail_table.replace(sealed_tail_tx, sealed_tail) ==
+            llama_kv_residency_status::ok);
+    assert(sealed_tail_table.publish(sealed_tail_tx) == llama_kv_residency_status::ok);
+    const auto sealed_tail_snapshot = sealed_tail_table.snapshot();
+    auto sealed_tail_config = config;
+    sealed_tail_config.form = llama_kv_routing_summary_form::minmax_ranges;
+    sealed_tail_config.subblock_tokens = 64;
+    auto sealed_tail_input = sparse_input(sealed_tail_snapshot.pages()[0], 9.0f);
+    sealed_tail_input.range_min.assign(4 * sealed_tail_config.vector_dim,
+            std::numeric_limits<float>::infinity());
+    sealed_tail_input.range_max.assign(4 * sealed_tail_config.vector_dim,
+            -std::numeric_limits<float>::infinity());
+    for (uint32_t d = 0; d < sealed_tail_config.vector_dim; ++d) {
+        sealed_tail_input.range_min[d] = -1.0f;
+        sealed_tail_input.range_max[d] = 1.0f;
+    }
+    const auto sealed_tail_summary = llama_kv_routing_summary_store{}.update_pages(
+            sealed_tail_snapshot, sealed_tail_snapshot.pages(),
+            {sealed_tail_input}, sealed_tail_config, status, true);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(sealed_tail_summary.contains(0));
+
     const auto invalidated = batched.invalidate_pages(
             incremental_table.snapshot(), { page_zero.id, page_two.id }, status);
     assert(status == llama_kv_routing_summary_status::ok);

@@ -40,7 +40,8 @@ server_query_replay_transition_result server_query_replay_transition(
     bool checkpoint_prepared,
     uint32_t replay_count,
     const std::function<bool(bool &, uint64_t &)> & commit,
-    const std::function<bool()> & restore);
+    const std::function<bool()> & restore,
+    const std::function<bool()> & before_commit = {});
 
 // Opt-in model-backed fixture seam. The callbacks execute real decode and
 // pager commit operations; this function owns the production checkpoint and

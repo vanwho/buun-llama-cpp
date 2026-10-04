@@ -2099,6 +2099,27 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
                 return nullptr;
             }
         }
+        // A selector returns R resident IDs plus up to five cold IDs for
+        // every attention layer. The old fixed 128-record mailbox could not
+        // hold even one layer at H=200 pages, silently disabling promotion.
+        // These are small host metadata slots, not another GPU K/V pool.
+        const uint64_t resident_ids = std::min<uint64_t>(
+                output->snapshot_.logical_page_count,
+                std::min<uint64_t>(output->snapshot_.physical_page_count,
+                    output->snapshot_.admission.attention_pages != 0
+                        ? output->snapshot_.admission.attention_pages
+                        : output->snapshot_.physical_page_count));
+        const uint64_t ids_per_layer = resident_ids +
+                std::min<uint64_t>(LLAMA_KV_QUERY_COLD_SELECTOR_PAGES,
+                    output->snapshot_.logical_page_count);
+        const uint64_t selector_layers = std::max<uint64_t>(1, geometry.attention_layers);
+        if (ids_per_layer == 0 || ids_per_layer > UINT32_MAX / selector_layers ||
+                ids_per_layer * selector_layers > SIZE_MAX / sizeof(llama_kv_prefetch_candidate) ||
+                !output->prefetch_candidate_mailbox_.configure(
+                    {2, uint32_t(ids_per_layer * selector_layers)})) {
+            status = llama_kv_pager_status::allocation;
+            return nullptr;
+        }
         // Selector readback uses the same bounded ownership rule as the
         // residency rings: two fixed slots, allocated from the device's host
         // buffer type, and never reused while their completion event is live.

@@ -17,6 +17,18 @@ product code. Use `--clean-first` only when the task requires a clean candidate;
 it is not a general speed setting. If an active packet still specifies another
 job count, correct its command to `--parallel 16` before building.
 
+## Current phase-103 override
+
+103-02a replaces the exhausted 103-02 campaign and starts a fresh bounded
+cluster. Its packet and engineering-notes/selector-readback-lifecycle-103.md
+are the current selector/owner validation directions. Do not load 103-02's
+transcripts, 249K requests, obsolete missing-fence hypothesis, or old task
+status directions below as startup context. The fixes are source-only until
+103-02a compiles/tests them. Validate scaled compact IDs and stable pager
+ownership first; test the final-user query at small geometry before one
+just-over-H 200-page row. Never assert replay/freeze from idle-slot fields
+cleared by release(). 103-03/04/05 remain capacity/benchmark/review successors.
+
 For phase94 onward, forward/OVERVIEW.md and forward/TESTING.md supersede
 REPAIR85's accepted-token retrieval cadence and route preference. Do not load
 the full researched SOURCE_FORWARD_PLAN, retired93-12/93-13, old summaries or

@@ -1553,7 +1553,12 @@ void llama_context::plan_kv_pager() {
 }
 
 void llama_context::init_kv_pager() {
-    if (!kv_pager.enabled()) {
+    // sched_reserve() also runs after sampler/graph changes during a live
+    // request. Its scratch reservation is not a new pager lifecycle: replacing
+    // the owner here loses the host catalogue, provisional turn and immutable
+    // history while memory still contains the old KV rows. Admission/binding
+    // is once per context; a different L/H configuration needs a fresh context.
+    if (!kv_pager.enabled() || kv_pager_owner != nullptr) {
         return;
     }
     ggml_backend_t backend = find_gpu_backend();
@@ -2486,7 +2491,18 @@ void llama_context::sched_reserve() {
 }
 
 void llama_context::synchronize() {
+    const bool pager_trace = std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr;
     if (!sched) {
+        if (pager_trace) {
+            std::fprintf(stderr, "kv-pager-progress stage=graph-sync-skip-direct context=%p memory=%p pager=%p reason=no-scheduler\n",
+                    static_cast<void *>(this), static_cast<void *>(memory.get()),
+                    static_cast<void *>(kv_pager_owner.get()));
+        }
+        if (pager_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-skip context=%p reason=no-scheduler memory=%p pager=%p\n",
+                    static_cast<void *>(this), static_cast<void *>(memory.get()),
+                    static_cast<void *>(kv_pager_owner.get()));
+        }
         return;
     }
 
@@ -2495,10 +2511,11 @@ void llama_context::synchronize() {
     if (kv_attention_wait) {
         kv_attention_execution.record_wait();
     }
-    const bool pager_progress = std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr &&
-        kv_pager_owner != nullptr;
+    const bool pager_progress = pager_trace;
     if (pager_progress) {
-        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-begin graphs=%zu route=%u\n",
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-begin context=%p memory=%p pager=%p graphs=%zu route=%u\n",
+                static_cast<void *>(this), static_cast<void *>(memory.get()),
+                static_cast<void *>(kv_pager_owner.get()),
                 kv_attention_execution.in_flight_graphs(),
                 uint32_t(kv_attention_execution.route()));
     }
@@ -2519,10 +2536,23 @@ void llama_context::synchronize() {
     // host/page-table publication. A failed terminal commit is an explicit
     // failed boundary: dependent cold state must not be published.
     const bool target_frontier_committed = !memory || memory->vbr_commit_submitted();
+    if (pager_trace) {
+        std::fprintf(stderr, "kv-pager-progress stage=graph-sync-frontier-direct context=%p memory=%p pager=%p committed=%d graphs=%zu\n",
+                static_cast<void *>(this), static_cast<void *>(memory.get()),
+                static_cast<void *>(kv_pager_owner.get()),
+                target_frontier_committed ? 1 : 0,
+                kv_attention_execution.in_flight_graphs());
+    }
+    if (pager_progress) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-frontier context=%p memory=%p committed=%d\n",
+                static_cast<void *>(this), static_cast<void *>(memory.get()),
+                target_frontier_committed ? 1 : 0);
+    }
 
     // K/V graph writes are asynchronous on GPU backends. Host publication
     // therefore belongs after the scheduler fence and target commit.
     if (memory && target_frontier_committed) {
+        if (pager_trace) std::fprintf(stderr, "kv-pager-progress stage=host-seal-begin-direct\n");
         if (pager_progress) {
             LLAMA_LOG_INFO("kv-pager-progress stage=host-seal-begin\n");
         }
@@ -2587,10 +2617,12 @@ void llama_context::synchronize() {
     // input: a page selected by the routing index is not thereby observed
     // attention mass.
     if (memory && target_frontier_committed) {
+        if (pager_trace) std::fprintf(stderr, "kv-pager-progress stage=policy-begin-direct\n");
         if (pager_progress) {
             LLAMA_LOG_INFO("kv-pager-progress stage=policy-begin\n");
         }
         memory->apply_kv_pager_policy();
+        if (pager_trace) std::fprintf(stderr, "kv-pager-progress stage=policy-complete-direct\n");
         if (pager_progress) {
             LLAMA_LOG_INFO("kv-pager-progress stage=policy-complete\n");
         }

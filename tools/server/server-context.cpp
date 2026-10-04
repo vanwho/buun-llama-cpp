@@ -1449,9 +1449,10 @@ server_query_replay_transition_result server_query_replay_transition(
         bool checkpoint_prepared,
         uint32_t replay_count,
         const std::function<bool(bool &, uint64_t &)> & commit,
-        const std::function<bool()> & restore) {
+        const std::function<bool()> & restore,
+        const std::function<bool()> & before_commit) {
     server_query_replay_transition_result result;
-    if (!commit || !restore) {
+    if (!commit || !restore || (before_commit && !before_commit())) {
         return result;
     }
 
@@ -21968,6 +21969,22 @@ private:
                                     ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
                                     slot.slot_session_generation,
                                     slot.slot_session_generation, &restore_failure);
+                            },
+                            [&]() {
+                                // The final-user selector result is owned by its graph until
+                                // this scheduler fence. Apply pager policy while the turn is
+                                // still provisional, before commit freezes history.
+                                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                                    SRV_INF("kv-pager-progress stage=server-query-sync-begin slot=%d context=%p query_end=%" PRId64 "\n",
+                                            slot.id, static_cast<void *>(ctx_tgt),
+                                            query_end);
+                                }
+                                llama_synchronize(ctx_tgt);
+                                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                                    SRV_INF("kv-pager-progress stage=server-query-sync-complete slot=%d\n",
+                                            slot.id);
+                                }
+                                return true;
                             });
                         slot.pager_query_committed = transition.committed;
                         if (!transition.committed) {
@@ -24364,9 +24381,42 @@ private:
 
         bool has_output = false;
         bool has_prompt_tokens = false;
+        bool has_final_user_query_token = false;
         for (int i = off; i < off + batch_view.n_tokens; ++i) {
             has_output |= batch.batch.logits[i] != 0;
             has_prompt_tokens |= batch.prompt_tokens[i] != 0;
+            if (!batch.prompt_tokens[i] || batch.batch.seq_id == nullptr ||
+                    batch.batch.n_seq_id == nullptr || batch.batch.n_seq_id[i] == 0 ||
+                    batch.batch.seq_id[i] == nullptr) {
+                continue;
+            }
+            const llama_seq_id sequence_id = batch.batch.seq_id[i][0];
+            for (const auto & slot : slots) {
+                const int64_t query_end = slot.task != nullptr
+                    ? slot.task->params.final_user_token_end : -1;
+                if (slot.id == sequence_id && query_end > 0 &&
+                        batch.batch.pos[i] == query_end - 1) {
+                    has_final_user_query_token = true;
+                    break;
+                }
+            }
+        }
+
+        const bool final_user_boundary_nearby = std::any_of(
+                slots.begin(), slots.end(), [&](const server_slot & slot) {
+            const int64_t query_end = slot.task != nullptr
+                ? slot.task->params.final_user_token_end : -1;
+            if (query_end <= 0 || slot.id < 0) return false;
+            for (int i = off; i < off + batch_view.n_tokens; ++i) {
+                if (batch.prompt_tokens[i] && batch.batch.pos[i] >= query_end - 2 &&
+                        batch.batch.pos[i] <= query_end) return true;
+            }
+            return false;
+        });
+        if (final_user_boundary_nearby &&
+                std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+            SRV_INF("kv-pager-progress stage=final-user-decode-fence matched=%d tokens=%d\n",
+                    has_final_user_query_token ? 1 : 0, batch_view.n_tokens);
         }
 
         // Keep target verification and the dependent speculative update inside
@@ -24434,10 +24484,23 @@ private:
                 throw;
             }
             ctx_tgt->set_kv_attention_mtp_verification(false);
-            if (ret == 0 && has_output) {
+            if (ret == 0 && (has_output || has_final_user_query_token)) {
                 const int64_t synchronize_start_us =
                     server_hotpath_profile_enabled(params_base.kv_pager.mode) ? ggml_time_us() : 0;
+                // The final-user selector graph must reach its scheduler fence while
+                // the pager turn is provisional. The next slot-loop iteration commits
+                // selected history and may replay only the changed query.
+                if (final_user_boundary_nearby &&
+                        std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                    SRV_INF("kv-pager-progress stage=server-decode-sync-begin tokens=%d final_user=%d\n",
+                            batch_view.n_tokens, has_final_user_query_token ? 1 : 0);
+                }
                 llama_synchronize(ctx_tgt);
+                if (final_user_boundary_nearby &&
+                        std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                    SRV_INF("kv-pager-progress stage=server-decode-sync-complete tokens=%d final_user=%d\n",
+                            batch_view.n_tokens, has_final_user_query_token ? 1 : 0);
+                }
                 if (synchronize_start_us != 0) {
                     explicit_compute_wait_us =
                         ggml_time_us() - synchronize_start_us;

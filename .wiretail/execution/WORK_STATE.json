@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "102-05 remains in_progress; next run is retry 1 using attempt-02, preserving attempt-01. Explicit-H source now omits prospective packed/F16 and nominal compute charges; clean-build build-102-05 with parallel 16 before fresh managed reload. Keep L131072/C120000/H51200/B1024/U256 and full-L GPU Turbo4 MTP. Measure actual startup/load/replay/generation allocations with forward/sample-pager-memory.py; persist samples/summary outside Git and update the engineering note. Missing optional telemetry never gates loading; actual OOM needs a specific allocation-owner remedy, not repeated evidence-only refusals. Then 102-06 L262144/C250000 with H51200 and the same measurement method; 102-07 goal review. Load only the current packet/cluster, listed code and compact current handoff; no full transcripts or history. Use resumable <=16K fresh-token chunks without context shifting.",
+  "context_policy": "Current selector/lifecycle validation is 103-02a; unfinished 103-02 is superseded, not passed. Load only its packet, fresh cluster, engineering-notes/selector-readback-lifecycle-103.md and named symbol regions. Source fixes are implemented but uncompiled/unverified by the outer investigation. First deterministic scaled readback and owner-lifecycle coverage, then one small natural-query row and one just-over-50K-hot transport row. No unchanged 249K diagnostic refill or full transcript loading. Preserve Turbo4 target/draft, GPU native full-L MTP, B1024/U256, no context shift and one Qwen process. Request-scoped replay/freeze must not be asserted from cleared idle-slot counters. 103-03 owns separate full capacity; 103-04/05 own refreshed performance/semantic findings and any necessary successor repair.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "103",
-  "current_task": "103-02",
-  "last_updated_utc": "2026-10-04T17:29:45+00:00",
+  "current_task": "103-02a",
+  "last_updated_utc": "2026-10-04T21:21:00+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -33729,11 +33729,11 @@
       }
     },
     {
-      "id": "103-02",
+      "id": "103-02a",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
-      "title": "Repair final-context semantic retrieval and ring correctness",
-      "packet": ".wiretail/execution/tasks/103-02.md",
+      "cluster": "forward103-selector-validation",
+      "title": "Validate scaled selector transport and stable pager lifecycle",
+      "packet": ".wiretail/execution/tasks/103-02a.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
@@ -33744,8 +33744,49 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
       "required_proofs": [
-        "semantic_retrieval_and_generation_ring_correctness"
+        "selector_transport_and_owner_regressions",
+        "bounded_live_selector_transport"
       ],
+      "depends_on": [
+        "103-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/engineering-notes/selector-readback-lifecycle-103.md",
+        "src/llama-kv-prefetch.h",
+        "src/llama-kv-prefetch.cpp",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-context.cpp",
+        "tools/server/bench/run-pager-promotion.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "103-02a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_103-02a.json"
+      ]
+    },
+    {
+      "id": "103-02",
+      "phase": "103",
+      "cluster": "forward103-selector-validation",
+      "title": "Repair final-context semantic retrieval and ring correctness",
+      "packet": ".wiretail/execution/tasks/103-02.md",
+      "status": "deferred",
+      "superseded_by": "103-02a",
+      "deferred_reason": "Outer code investigation implemented concrete readback/lifecycle fixes. Preserve historical attempts without claiming semantic success; fresh bounded validation is 103-02a.",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [],
       "depends_on": [
         "103-01"
       ],
@@ -33757,19 +33798,83 @@
         "tests/test-kv-pager-model.cpp",
         "tools/server/bench/run-pager-promotion.py"
       ],
-      "completion_check": [
-        "python3",
-        ".wiretail/execution/v10/validate.py",
-        "--task",
-        "103-02",
-        "--receipt",
-        ".wiretail/execution/evidence/V10_103-02.json"
-      ]
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/103-02-attempt-1-20261004T173010582974286-20261004T173010585677304-ODDHGF.jsonl:347",
+            "total_tokens": 48889318,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 48687967,
+            "cached_input_tokens": 47720192,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 967775,
+            "output_tokens": 201351,
+            "thinking_tokens": 110760
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/103-02-attempt-2-20261004T184011705298208-20261004T184011707815057-KNxqDX.jsonl:289",
+            "total_tokens": 17294560,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 17228302,
+            "cached_input_tokens": 16880640,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 347662,
+            "output_tokens": 66258,
+            "thinking_tokens": 36317
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-6.1-sol",
+            "reasoning": "high",
+            "source": ".wiretail/build/103-02-assessment-before-attempt-3-20261004T193247567217779-20261004T193247569845397-i5HY08.jsonl:40",
+            "total_tokens": 517318,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 511932,
+            "cached_input_tokens": 445568,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 66364,
+            "output_tokens": 5386,
+            "thinking_tokens": 665
+          }
+        ],
+        "totals": {
+          "usage_events": 3,
+          "total_tokens": 66701196,
+          "input_tokens": 66428201,
+          "cached_input_tokens": 65046400,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 1381801,
+          "output_tokens": 272995,
+          "thinking_tokens": 147742,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 3,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "103-03",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
+      "cluster": "forward103-post-selector",
       "title": "Prove exact full-context committed capacity separately",
       "packet": ".wiretail/execution/tasks/103-03.md",
       "status": "todo",
@@ -33785,7 +33890,7 @@
         "exact_full_context_committed_capacity"
       ],
       "depends_on": [
-        "103-02"
+        "103-02a"
       ],
       "commit": null,
       "context_files": [
@@ -33805,7 +33910,7 @@
     {
       "id": "103-04",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
+      "cluster": "forward103-post-selector",
       "title": "Rerun compact canonical benchmark and refresh final summary",
       "packet": ".wiretail/execution/tasks/103-04.md",
       "status": "todo",
@@ -33841,7 +33946,7 @@
     {
       "id": "103-05",
       "phase": "103",
-      "cluster": "forward103-goal-remediation",
+      "cluster": "forward103-post-selector",
       "title": "Assess repaired goals and create ordered successors if needed",
       "packet": ".wiretail/execution/tasks/103-05.md",
       "status": "todo",
@@ -35724,16 +35829,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 2,
-        "total_tokens": 84398073,
-        "input_tokens": 84103615,
-        "cached_input_tokens": 82625792,
+        "usage_events": 5,
+        "total_tokens": 151099269,
+        "input_tokens": 150531816,
+        "cached_input_tokens": 147672192,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 1477823,
-        "output_tokens": 294458,
-        "thinking_tokens": 156413,
+        "input_tokens_minus_cached_tokens": 2859624,
+        "output_tokens": 567453,
+        "thinking_tokens": 304155,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 2,
+        "total_tokens_derived_events": 5,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -35748,17 +35853,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 504,
-      "total_tokens": 12119522931,
-      "input_tokens": 12076768513,
-      "cached_input_tokens": 11799419008,
+      "usage_events": 507,
+      "total_tokens": 12186224127,
+      "input_tokens": 12143196714,
+      "cached_input_tokens": 11864465408,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 150,
-      "input_tokens_minus_cached_tokens": 277349505,
-      "output_tokens": 42754418,
-      "thinking_tokens": 19677388,
+      "cache_write_input_tokens_known_events": 153,
+      "input_tokens_minus_cached_tokens": 278731306,
+      "output_tokens": 43027413,
+      "thinking_tokens": 19825130,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 504,
+      "total_tokens_derived_events": 507,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
