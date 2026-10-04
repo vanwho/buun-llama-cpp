@@ -25,3 +25,7 @@ work belongs only to phases101/102. Bad measured speed creates a concrete
 source repair/retest before scaling; missing/setup-invalid rows do not pass.
 New candidate semantics are validated by the task's executable named proofs.
 Handoffs contain current result/symbols/raw pointers, never an appended diary.
+After the 128K/256K memory measurements are summarized, task 102-07 removes
+the source fields/JSON keys marked `TEMPORARY phase-102`. Preserve the explicit-H
+admission policy correction. Keep extra telemetry only through a specific,
+documented follow-up decision that identifies an ongoing runtime need.

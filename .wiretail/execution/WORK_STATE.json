@@ -33461,7 +33461,11 @@
         ".wiretail/execution/tasks/102-07.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/102-06.md"
+        ".wiretail/execution/handoffs/102-06.md",
+        ".wiretail/execution/engineering-notes/pager-admission-memory-accounting.md",
+        "src/llama-context.h",
+        "src/llama-kv-attention-execution.h",
+        "tools/server/server-context.cpp"
       ],
       "completion_check": [
         "python3",
