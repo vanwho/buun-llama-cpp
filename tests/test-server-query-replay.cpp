@@ -243,9 +243,11 @@ bool same_history(const std::vector<llama_kv_pager_selected_history> & a,
     return true;
 }
 
-bool run_mtp_cycle(llama_context * target, common_speculative * spec,
+bool run_mtp_cycle(llama_context * target, llama_context * draft,
+        common_speculative * spec,
         llama_pos next_pos, llama_tokens & prompt, uint32_t & proposals,
-        uint32_t & accepted) {
+        uint32_t & accepted, llama_pos & target_frontier,
+        llama_pos & draft_frontier) {
     const uint32_t n_vocab = uint32_t(llama_vocab_n_tokens(
             llama_model_get_vocab(&target->get_model())));
     llama_token sampled = LLAMA_TOKEN_NULL;
@@ -323,7 +325,13 @@ bool run_mtp_cycle(llama_context * target, common_speculative * spec,
             llama_pos(frontier.accepted_token_count), -1) &&
         common_speculative_rollback_dft(spec, 0,
             llama_pos(frontier.accepted_token_count), uint16_t(accepted));
-    if (rollback) common_speculative_accept(spec, 0, uint16_t(accepted));
+    if (rollback) {
+        common_speculative_accept(spec, 0, uint16_t(accepted));
+        llama_synchronize(target);
+        llama_synchronize(draft);
+        target_frontier = llama_memory_seq_pos_max(llama_get_memory(target), 0);
+        draft_frontier = llama_memory_seq_pos_max(llama_get_memory(draft), 0);
+    }
     llama_batch_free(verify);
     return rollback;
 }
@@ -521,8 +529,10 @@ bool run(const options & opts) {
 
     uint32_t mtp_proposals = 0, mtp_accepted = 0;
     const llama_pos mtp_begin = llama_memory_seq_pos_max(llama_get_memory(target), 0) + 1;
+    llama_pos mtp_target_frontier = -1, mtp_draft_frontier = -1;
     const bool mtp_cycle = unchanged.captured && unchanged.provisional_decode_succeeded &&
-        run_mtp_cycle(target, spec.get(), mtp_begin, prefix, mtp_proposals, mtp_accepted);
+        run_mtp_cycle(target, draft, spec.get(), mtp_begin, prefix,
+            mtp_proposals, mtp_accepted, mtp_target_frontier, mtp_draft_frontier);
 
     auto replay_kv_canonical = replay.encoded_kv;
     auto control_kv_canonical = control.encoded_kv;
@@ -554,8 +564,12 @@ bool run(const options & opts) {
         unchanged.captured && unchanged.provisional_decode_succeeded &&
         unchanged.status == server_query_replay_transition_status::unchanged &&
         !unchanged_replay_called &&
+        replay.target_frontier == query_begin + 2 &&
+        replay.draft_frontier == query_begin + 2 &&
         replay.target_frontier == control.target_frontier &&
         replay.draft_frontier == control.draft_frontier &&
+        mtp_target_frontier == mtp_begin + llama_pos(mtp_accepted) &&
+        mtp_draft_frontier == mtp_begin + llama_pos(mtp_accepted) &&
         replay.recurrent == control.recurrent &&
         replay.draft_recurrent == control.draft_recurrent && replay.carry == control.carry &&
         target_kv_equal && draft_kv_equal &&
@@ -601,6 +615,10 @@ bool run(const options & opts) {
         << ",\"mtp_next_cycle\":" << (mtp_cycle ? "true" : "false")
         << ",\"mtp_proposals\":" << mtp_proposals
         << ",\"mtp_accepted\":" << mtp_accepted
+        << ",\"mtp_committed_frontier\":"
+        << mtp_begin + llama_pos(mtp_accepted)
+        << ",\"mtp_target_frontier\":" << mtp_target_frontier
+        << ",\"mtp_draft_frontier\":" << mtp_draft_frontier
         << ",\"cancel_after_provisional_recovered\":"
         << (cancel1.recovery_decode_succeeded ? "true" : "false")
         << ",\"cancel_after_publication_recovered\":"

@@ -320,6 +320,41 @@
     "tested_pid": 2928914,
     "ubatch_tokens": 256
   },
+  "occupied_context_prefill_curve": {
+    "interpretation": "Incremental repository-content occupancy-fill requests in one slot; C is rendered prompt length and rate is server timings.prompt_per_second. Not the canonical three-prompt benchmark or a paired A/B comparison.",
+    "excluded_short_tail_requests": [
+      {"stage": "A2", "context_tokens": 250173, "fresh_prompt_tokens": 140, "prompt_tokens_per_second": 136.3362}
+    ],
+    "journal": {
+      "path": "/srv/ai/paged-kv/results/forward/102-06/attempt-02/frontier/request-journal.jsonl",
+      "sha256": "92e92b6c43891f1a43994e02b0e267aace68706e5e5e1aaf58a35f2e01659ae7"
+    },
+    "candidate_server_sha256": "498cd3c8961e2964415bb712b1b87fe15d6cc78d2110ca5deb3a61852781057c",
+    "points": [
+      {"context_tokens":3890,"fresh_prompt_tokens":3890,"prompt_tokens_per_second":1131.4922},
+      {"context_tokens":16181,"fresh_prompt_tokens":11892,"prompt_tokens_per_second":1064.6917},
+      {"context_tokens":28281,"fresh_prompt_tokens":12104,"prompt_tokens_per_second":941.4538},
+      {"context_tokens":40189,"fresh_prompt_tokens":11912,"prompt_tokens_per_second":834.6930},
+      {"context_tokens":52082,"fresh_prompt_tokens":11897,"prompt_tokens_per_second":751.0852},
+      {"context_tokens":63949,"fresh_prompt_tokens":11871,"prompt_tokens_per_second":727.2914},
+      {"context_tokens":75842,"fresh_prompt_tokens":11897,"prompt_tokens_per_second":714.2147},
+      {"context_tokens":87588,"fresh_prompt_tokens":11750,"prompt_tokens_per_second":702.9530},
+      {"context_tokens":99493,"fresh_prompt_tokens":11909,"prompt_tokens_per_second":695.6110},
+      {"context_tokens":111400,"fresh_prompt_tokens":11911,"prompt_tokens_per_second":684.4187},
+      {"context_tokens":123297,"fresh_prompt_tokens":11901,"prompt_tokens_per_second":677.8705},
+      {"context_tokens":135200,"fresh_prompt_tokens":11907,"prompt_tokens_per_second":668.7187},
+      {"context_tokens":147104,"fresh_prompt_tokens":11908,"prompt_tokens_per_second":661.3751},
+      {"context_tokens":159000,"fresh_prompt_tokens":11900,"prompt_tokens_per_second":652.8291},
+      {"context_tokens":170896,"fresh_prompt_tokens":11900,"prompt_tokens_per_second":646.1689},
+      {"context_tokens":182801,"fresh_prompt_tokens":11909,"prompt_tokens_per_second":638.7179},
+      {"context_tokens":194691,"fresh_prompt_tokens":11894,"prompt_tokens_per_second":631.3129},
+      {"context_tokens":206589,"fresh_prompt_tokens":11902,"prompt_tokens_per_second":625.5899},
+      {"context_tokens":218499,"fresh_prompt_tokens":11914,"prompt_tokens_per_second":617.9750},
+      {"context_tokens":230399,"fresh_prompt_tokens":11904,"prompt_tokens_per_second":610.7969},
+      {"context_tokens":242287,"fresh_prompt_tokens":11892,"prompt_tokens_per_second":603.9328},
+      {"context_tokens":250037,"fresh_prompt_tokens":7754,"prompt_tokens_per_second":585.3573}
+    ]
+  },
   "schema_version": 1,
   "source_commit": "7f0cdf921987e776808713792ac09a10f0edc85a",
   "source_identity": {
