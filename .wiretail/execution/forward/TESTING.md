@@ -8,6 +8,16 @@ capacity only after the accepted release or its explicitly scheduled successor.
 
 ## Setup once, verify cheaply, keep loaded
 
+### Build parallelism
+
+Use `cmake --build <dir> --target <targets> --parallel 16` for all project
+builds. On this host, every CPU and CUDA build uses exactly 16 jobs (the Ryzen 9
+7950X3D has 16 physical cores/32 logical CPUs). Do not change the job count
+because a build seems slow; diagnose the bottleneck. If 16-way compilation has
+a verified resource failure, record it and ask the operator before using a
+different count. `--clean-first` is for tasks that need a clean candidate, not
+a routine build-speed option.
+
 Use the existing incremental `build-cuda` tree and build only named affected
 targets. Record source base SHA + dirty-diff hash, build flags, binary and loaded
 DSO hashes, model SHA, endpoint owner PID/start time, effective argv, L/H/G/A,
@@ -53,8 +63,8 @@ Retain a successful candidate loaded for the next task.
   not-admitted and do not continue with a smaller H.
   For 102-05, build `llama-server` cleanly from the current plan-branch HEAD
   into `build-102-05` before touching the managed service (`cmake --fresh`,
-  then `--clean-first`). The exact 128K and 256K argv are in tasks 102-05 and
-  102-06. Both must explicitly pass `--no-context-shift` and verify it in the
+  then `--clean-first --parallel 16`). The exact 128K and 256K argv are in
+  tasks 102-05 and 102-06. Both must explicitly pass `--no-context-shift` and verify it in the
   live process argv; the default-off behavior is not a substitute for recording
   the effective setting. Run the single bounded prompt-1 startup smoke before
   the long 128K fill; it diagnoses early candidate/MTP runtime faults only and

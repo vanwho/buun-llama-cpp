@@ -4,6 +4,19 @@ This compact policy is injected into each Wiretail task and recovery-assessment
 prompt. It supplements the current task packet; it does not replace its scope or
 acceptance criteria.
 
+## Build parallelism
+
+For every build in this project, use CMake's `--parallel N` rather than
+defaulting to `-j2`. On this 16-core/32-thread Ryzen 9 7950X3D host, every
+project build—CPU or CUDA, clean or incremental—must use exactly
+`--parallel 16`. Do not silently reduce or increase the job count for a slow
+build; diagnose the actual bottleneck first. If parallel-16 compilation has a
+verified resource failure, record it and ask the operator before using a
+different count. This is local execution guidance, not a value for portable
+product code. Use `--clean-first` only when the task requires a clean candidate;
+it is not a general speed setting. If an active packet still specifies another
+job count, correct its command to `--parallel 16` before building.
+
 For phase94 onward, forward/OVERVIEW.md and forward/TESTING.md supersede
 REPAIR85's accepted-token retrieval cadence and route preference. Do not load
 the full researched SOURCE_FORWARD_PLAN, retired93-12/93-13, old summaries or

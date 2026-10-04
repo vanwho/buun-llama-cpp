@@ -10,9 +10,10 @@ occupied context grows, VRAM headroom, and canonical MTP results. This is a
 procedural live benchmark on one freshly built candidate, not a source repair.
 
 Start from task 102-05's exact first step: force a clean configure/build into
-`build-102-05` (`cmake --fresh`, then `cmake --build ... --clean-first`). Do
-this before service actions. Do not reuse a previously loaded server or older
-build. Verify candidate hash and source HEAD before managed reload. Follow the
+`build-102-05` (`cmake --fresh`, then
+`cmake --build ... --clean-first --parallel 16`). Do this before service
+actions. Do not reuse a previously loaded server or older build. Verify
+candidate hash and source HEAD before managed reload. Follow the
 packet's exact effective argv, including explicit `--no-context-shift`; verify
 the flag and all geometry from the live process argv. Any change to candidate,
 model, L/H, B/U, codec, pager, or MTP configuration requires a clean stop,

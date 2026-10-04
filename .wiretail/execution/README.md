@@ -2,6 +2,10 @@
 
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
 [PREFILL101](forward/PREFILL101.md) and [TESTING](forward/TESTING.md).
+Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
+Do not change the job count without operator direction; diagnose slowness or
+resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
+[TESTING](forward/TESTING.md).
 Continue the first unfinished task in WORK_STATE. Phase 102 now proceeds
 through the new 128K/H=51,200 fresh load (102-05), the 256K/H=51,200 load
 (102-06), then the bounded goal review (102-07). Both higher-context tasks
