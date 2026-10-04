@@ -1518,6 +1518,18 @@ static void test_generation_ring_victim_and_history_pins() {
     }
     assert(retained_history && evicted_oldest_generation && retained_newer_generation &&
             retained_mutable_tail && pages.size() == 3);
+    const auto final_records = pager->exact_page_records(0);
+    const auto frozen_history_record = std::find_if(final_records.begin(), final_records.end(),
+            [&](const auto & page) { return page.id == history.id; });
+    const auto spilled_generation_record = std::find_if(final_records.begin(), final_records.end(),
+            [](const auto & page) { return page.id.logical_page == 1; });
+    assert(frozen_history_record != final_records.end() &&
+            frozen_history_record->content_version == history.content_version);
+    assert(spilled_generation_record != final_records.end() &&
+            spilled_generation_record->physical_slot == UINT32_MAX &&
+            spilled_generation_record->host_valid &&
+            spilled_generation_record->id.position_begin == 256 &&
+            spilled_generation_record->id.position_end == 512);
     const auto generation_state = pager->turn_state(0);
     assert(std::none_of(generation_state.completed_generation_pages.begin(),
             generation_state.completed_generation_pages.end(),
@@ -1657,7 +1669,7 @@ static void test_generation_ring_victim_and_history_pins() {
     std::cout << "generation_ring_victim_and_history_pins=pass accepted_tokens="
               << accepted_tokens << " G=" << pager->snapshot().generation_pages
               << " H=" << pager->snapshot().physical_page_count
-              << " oldest_generation_evicted=1 history_retained=1 mutable_tail_retained=1"
+              << " oldest_generation_spilled=1 history_content_unchanged=1 mutable_tail_retained=1"
                  " rejected_seal_excluded=1\n";
 }
 

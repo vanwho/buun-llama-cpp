@@ -1604,6 +1604,9 @@ private:
     llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
     uint64_t pager_query_generation_ = 0;
+    // Distinct per opened user turn. Slot-session turn IDs can repeat across
+    // HTTP requests, but the persistent query accumulator must reset each time.
+    uint64_t pager_query_accumulator_generation_ = 0;
     uint64_t pager_query_accepted_tokens_ = 0;
     uint64_t pager_query_refresh_watermark_ = 0;
     uint64_t pager_query_refresh_turn_id_ = 0;

@@ -2471,6 +2471,7 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     GGML_ASSERT(pager_pending_writes_.empty());
     pager_ = pager;
     pager_query_generation_ = 0;
+    pager_query_accumulator_generation_ = 0;
     pager_query_accepted_tokens_ = 0;
     pager_query_refresh_watermark_ = 0;
     pager_query_refresh_turn_id_ = 0;
@@ -2867,6 +2868,11 @@ void llama_kv_cache::begin_kv_pager_turn(
             llama_kv_pager_turn_phase::query_provisional, query_start, query_end,
             frontier->id, state.frozen_history_generation);
     if (status == llama_kv_pager_turn_status::ok) {
+        // A slot session can serve multiple HTTP requests. Its pager turn ID
+        // identifies ownership, not a unique query accumulator lifetime.
+        pager_query_accumulator_generation_ =
+            pager_query_accumulator_generation_ == UINT64_MAX
+            ? 1 : pager_query_accumulator_generation_ + 1;
         // Force this query's selector graph to be rebuilt. A reused graph
         // would otherwise retain the prior turn's accumulated Q/catalogue
         // inputs and leave the new user span invisible to routing.
@@ -18862,8 +18868,10 @@ bool llama_kv_cache_context::set_kv_query_accumulate_inputs(
     if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
             turn.query_start < 0 || turn.query_end <= turn.query_start) return false;
     int64_t controls[3] = { 0, turn.query_start, turn.query_end };
-    static_assert(sizeof(controls[0]) == sizeof(turn.turn_id), "turn id width mismatch");
-    std::memcpy(&controls[0], &turn.turn_id, sizeof(turn.turn_id));
+    static_assert(sizeof(controls[0]) == sizeof(kv->pager_query_accumulator_generation_),
+            "query accumulator generation width mismatch");
+    std::memcpy(&controls[0], &kv->pager_query_accumulator_generation_,
+            sizeof(kv->pager_query_accumulator_generation_));
     ggml_backend_tensor_set(accumulator->src[1], positions.data(), 0,
             positions.size() * sizeof(positions[0]));
     ggml_backend_tensor_set(accumulator->src[4], controls, 0, sizeof(controls));

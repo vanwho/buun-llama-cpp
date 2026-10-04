@@ -149,7 +149,7 @@ static void test_live_selector_mailbox(const std::vector<int32_t> & output) {
     assert(pending.ready_slots() == 0 && pending.pending_slots() == 0);
 }
 
-static void test_user_span_accumulator(ggml_backend_t backend) {
+static void test_final_user_query_capture(ggml_backend_t backend) {
     ggml_init_params init = { 1024 * 1024, nullptr, true };
     ggml_context * ctx = ggml_init(init);
     assert(ctx != nullptr);
@@ -169,25 +169,31 @@ static void test_user_span_accumulator(ggml_backend_t backend) {
     auto second = make_step(2);
     auto final = make_step(1);
     auto other_layer = make_step(1);
+    auto same_slot_next_request = make_step(1);
     auto next_turn = make_step(2);
     ggml_tensor * a1 = ggml_kv_query_accumulate(ctx, first.q, first.p, sum_a, count_a, first.c);
     ggml_tensor * a2 = ggml_kv_query_accumulate(ctx, second.q, second.p, sum_a, count_a, second.c);
     ggml_tensor * a3 = ggml_kv_query_accumulate(ctx, final.q, final.p, sum_a, count_a, final.c);
     ggml_tensor * b3 = ggml_kv_query_accumulate(ctx, other_layer.q, other_layer.p, sum_b, count_b, other_layer.c);
+    ggml_tensor * a_request2 = ggml_kv_query_accumulate(ctx, same_slot_next_request.q,
+            same_slot_next_request.p, sum_a, count_a, same_slot_next_request.c);
     ggml_tensor * a4 = ggml_kv_query_accumulate(ctx, next_turn.q, next_turn.p, sum_a, count_a, next_turn.c);
     ggml_set_output(a3);
     ggml_set_output(b3);
+    ggml_set_output(a_request2);
     ggml_set_output(a4);
     ggml_cgraph * graph1 = ggml_new_graph_custom(ctx, 16, false);
     ggml_cgraph * graph2 = ggml_new_graph_custom(ctx, 16, false);
     ggml_cgraph * graph3 = ggml_new_graph_custom(ctx, 16, false);
     ggml_cgraph * graph4 = ggml_new_graph_custom(ctx, 16, false);
     ggml_cgraph * graph5 = ggml_new_graph_custom(ctx, 16, false);
+    ggml_cgraph * graph6 = ggml_new_graph_custom(ctx, 16, false);
     ggml_build_forward_expand(graph1, a1);
     ggml_build_forward_expand(graph2, a2);
     ggml_build_forward_expand(graph3, a3);
     ggml_build_forward_expand(graph4, b3);
     ggml_build_forward_expand(graph5, a4);
+    ggml_build_forward_expand(graph6, a_request2);
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     assert(buffer != nullptr);
     const auto fill = [&](const decltype(first) & s, int64_t turn, int64_t start,
@@ -212,11 +218,12 @@ static void test_user_span_accumulator(ggml_backend_t backend) {
     ggml_backend_tensor_set(sum_b, zeros, 0, ggml_nbytes(sum_b));
     ggml_backend_tensor_set(count_a, sentinel, 0, sizeof(sentinel));
     ggml_backend_tensor_set(count_b, sentinel, 0, sizeof(sentinel));
-    fill(first, 1, 10, 13, { 9, 10 }, -103.0f);   // exclude old prefix; include -3
-    fill(second, 1, 10, 13, { 11, 13 }, 9.0f);    // include 9; exclude trailer
-    fill(final, 1, 10, 13, { 12 }, -3.0f);        // include -3 in a partial final ubatch
+    fill(first, 1, 10, 13, { 9, 10 }, -99.0f); // preceding filler is outside the query span
+    fill(second, 1, 10, 13, { 11, 13 }, 3.0f); // query row spans ubatches; trailer is excluded
+    fill(final, 1, 10, 13, { 12 }, 5.0f);       // last query row is in a partial final ubatch
     fill(other_layer, 1, 10, 13, { 12 }, 20.0f);
-    fill(next_turn, 2, 30, 31, { 30, 31 }, 9.0f); // stale turn resets old sum
+    fill(same_slot_next_request, 2, 30, 31, { 30 }, 7.0f); // new query generation resets same slot turn
+    fill(next_turn, 3, 40, 41, { 40, 41 }, 9.0f); // a distinct pager turn also resets
     assert(ggml_backend_graph_compute(backend, graph1) == GGML_STATUS_SUCCESS);
     assert(ggml_backend_graph_compute(backend, graph2) == GGML_STATUS_SUCCESS);
     assert(ggml_backend_graph_compute(backend, graph3) == GGML_STATUS_SUCCESS);
@@ -226,7 +233,7 @@ static void test_user_span_accumulator(ggml_backend_t backend) {
     for (int64_t head = 0; head < heads; ++head) {
         for (int64_t coord = 0; coord < d; ++coord) {
             max_abs_error = std::max(max_abs_error,
-                    std::abs(mean[size_t(coord + d * head)] - (1.0f + head)));
+                    std::abs(mean[size_t(coord + d * head)] - (3.0f + head)));
             assert(max_abs_error < 1e-6f);
         }
     }
@@ -239,6 +246,15 @@ static void test_user_span_accumulator(ggml_backend_t backend) {
             assert(max_abs_error < 1e-6f);
         }
     }
+    assert(ggml_backend_graph_compute(backend, graph6) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(a_request2, mean.data(), 0, ggml_nbytes(a_request2));
+    for (int64_t head = 0; head < heads; ++head) {
+        for (int64_t coord = 0; coord < d; ++coord) {
+            max_abs_error = std::max(max_abs_error,
+                    std::abs(mean[size_t(coord + d * head)] - (7.0f + head)));
+            assert(max_abs_error < 1e-6f);
+        }
+    }
     assert(ggml_backend_graph_compute(backend, graph5) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(a4, mean.data(), 0, ggml_nbytes(a4));
     for (int64_t head = 0; head < heads; ++head) {
@@ -248,7 +264,7 @@ static void test_user_span_accumulator(ggml_backend_t backend) {
             assert(max_abs_error < 1e-6f);
         }
     }
-    std::fprintf(stderr, "user-span accumulator FP32 oracle max_abs_error=%.9g tolerance=1e-6\n",
+    std::fprintf(stderr, "final-user-query capture FP32 oracle max_abs_error=%.9g tolerance=1e-6\n",
             max_abs_error);
     ggml_backend_buffer_free(buffer);
     ggml_free(ctx);
@@ -264,7 +280,7 @@ int main() {
     if (backend == nullptr) backend = ggml_backend_cpu_init();
     assert(backend != nullptr);
     std::fprintf(stderr, "kv page selector test backend=%s\n", ggml_backend_name(backend));
-    test_user_span_accumulator(backend);
+    test_final_user_query_capture(backend);
 
     constexpr int64_t d = 128;
     constexpr int64_t n_q_heads = 4;

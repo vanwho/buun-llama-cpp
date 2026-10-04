@@ -754,8 +754,8 @@ extern "C" {
         // resident membership, and the query/snapshot metadata respectively.
         GGML_OP_KV_PAGE_SELECT,
 
-        // Accumulate transformed query rows whose positions fall within a
-        // turn's user span, updating persistent sum/count sidebands.
+        // Accumulate transformed query rows within the turn's user span,
+        // updating persistent sum/count sidebands.
         GGML_OP_KV_QUERY_ACCUMULATE,
 
         // Incrementally update a min/max catalogue from packed Turbo4 K.
