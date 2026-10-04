@@ -1,16 +1,16 @@
 {
-  "attempt": 1,
+  "attempt": 2,
   "candidate": {
     "build_receipt": {
       "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/build-receipt.json",
-      "sha256": "86b12d737c0b110d1f497c2a61c04ad4188c15264c49fc3b5ecb8027dc23f74e"
+      "sha256": "0534bc306cd245f5692f7de7a279422129eec0419c682fea190df695f2876487"
     },
     "loaded_dsos": {
       "objects": [
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libggml-base.so.0.25.3",
-          "sha256": "5e940f819ba192608dcf26f77e8988a3f88ccb43cd85f86c103530433329f680"
+          "sha256": "565ec014edb8a7aea8b74e9d6db9530e33bcedcc4bcbedc764808b1e8b379e4a"
         },
         {
           "exists": true,
@@ -30,17 +30,17 @@
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libllama-common.so.0.5.0",
-          "sha256": "4777ff859b7d24f3bd17f2ec424bfe1535a17ed6d37f1ab67820b6c089172fc5"
+          "sha256": "cf1b6c070de721a0e3d43822e6a9dbdbf9a0c9645b244eea8fa816383938b517"
         },
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libllama-server-impl.so",
-          "sha256": "afda9e2a84b503bd286499352ae86277136fc6e706aff43b73048d1f031121b7"
+          "sha256": "5eef2a9ed9a1d49c199ed90cae4e1e690db2df3b409a8e50dcdbd8e488bfb148"
         },
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/libllama.so.0.5.0",
-          "sha256": "c44cb946ab09383bdbf34ae92c5ca1f1dffeb0da20179c749bf1168a581ac114"
+          "sha256": "da29a7f015276958e91d0838608f9cb739c7701b271fdd9600a0f11b406e362c"
         },
         {
           "exists": true,
@@ -50,136 +50,57 @@
         {
           "exists": true,
           "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/llama-server",
-          "sha256": "1a3c4706a765fee194c13a7e278970a78ff7f914ba86002da447325b4d1bf5aa"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
-          "sha256": "bda779ea9e9ad234f60315477d7cfd0bdde861cd8ddd9df8cdaf62f18c4cec14"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
-          "sha256": "85e64f97e348786a8fb4d9f3d52fec289e2fb86bba20f0731dfe61990525e0f7"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
-          "sha256": "5385f0436ac2e284ba8c5fb1488874057c29c04be72dea32add832694f381e28"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcublas.so.12.4.5.8",
-          "sha256": "4cc45526449a95d3985389785e985b7832460ea3db178bc9e9963be2111fbee8"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcublasLt.so.12.4.5.8",
-          "sha256": "44a813aa2da08830f9083f81d0eb73f1ae4052a4d9b0b0de480a8f6cd9eb3078"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcuda.so.595.91.07",
-          "sha256": "4839b5da17cd8f58a8e9c57e97c9b61f3c41be7934479f48afc983416b2492c3"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libcudart.so.12.4.127",
-          "sha256": "8774224f5b11a73b15d074a3fcce7327322c5c4cfdfd924d6a826779eec968fe"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
-          "sha256": "59d725ca30596a9863f4fa2552a7125f834842abc86b40890231c129358965d2"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
-          "sha256": "9d339ecb409578d6a5d587e6c537a8f9589b8a13fefba30d167433a4b5758bee"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
-          "sha256": "645478cbe100d1465b9d45f7047bca3965358f4d399937e544f55ac7a924d5a3"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libm.so.6",
-          "sha256": "1c488db6f4fe8cecb72456bc018de000b7a9b539c2994864b0416b5e8371b3d8"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
-          "sha256": "1327fc40710691dbd94e88b6cf4efce27fefe8fbb93f7d1164a75b4dccaea696"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/librt.so.1",
-          "sha256": "9f3cc59207bcaaac74aaf7aca961f4816f0f4d945e4bd1c3cb98ec516becf161"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libssl.so.3",
-          "sha256": "63b47f444efa588e291e9b650a5ba2ab02f856356f2d50f13a2e477db9119e09"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.35",
-          "sha256": "5bb0d21308f123b6ad46c6f35b42cedfcb8d6d439a53aa3dae04d880aaffdde3"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
-          "sha256": "47b61967895b30e8c0c6818dd633ffeb87711cf637c688f981896f0dd84ce23b"
-        },
-        {
-          "exists": true,
-          "path": "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7",
-          "sha256": "060eeb79531d435306665fd78329d8a9dd579f95876c5960bb67937825362a80"
+          "sha256": "eae4fd299bb3f34622907323104089a9996d10555f4e56f460deb6a919d353d8"
         }
       ],
-      "pid": 2227738
+      "pid": 2567654
     },
     "path": "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/llama-server",
-    "sha256": "1a3c4706a765fee194c13a7e278970a78ff7f914ba86002da447325b4d1bf5aa"
+    "sha256": "eae4fd299bb3f34622907323104089a9996d10555f4e56f460deb6a919d353d8"
   },
   "checks": {
     "128k_50k_hot_load_prefill_vram_and_gpu_mtp": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy-preflight.log",
-          "sha256": "18805c79b39c9878973ae40d1502fe75831ff738b1708b1cee249a93734502c1"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/occupancy-preflight-repair-01.log",
+          "sha256": "56cff567bdf1c4b97c5cc509886c39c3468f38f8ee63b15edd47d32168b69f41"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/server-metrics-after-smoke.prom",
-          "sha256": "29c5e516beec7fd699345208e1bde560e27a8f126b793902a5dedc711ea33b6b"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/occupancy-execution-repair-01.log",
+          "sha256": "cd694836bfd27ff2e6d28bf48fbfebe15906cd7be4cb2f1cad6348c43dec8bf7"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/service-current-argv.txt",
-          "sha256": "d0a0a5473c5998cde60be9b56bc2677c017e912fb8134bed68939f50340d541f"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy/request-journal.jsonl",
+          "sha256": "4171b7001b4e54dca355557ce371404e9c24ab58bbb364995cfd4a26af49fde8"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/service-start-journal.log",
-          "sha256": "6132a2368fd9cf4ccbab128816582e045a8ae3bb50e68daefd8690ee14dcaa99"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy/raw-000000.sse",
+          "sha256": "bd6098787c35a8148583db54abd40627d8cbc9dd97d0e16dbec46faf85e25603"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/gpu-memory-after-model-load.csv",
-          "sha256": "cac2039bc5adff592a912b898c7eb5ec710bc2d210a1ca148ca2e6dfd46b678e"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy/raw-000001.sse",
+          "sha256": "557e7acd4a87063fb25afa90b28fc8a59cff9b5f0ecd0ee91d96253e5301c1a4"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/gpu-memory-after-smoke.csv",
-          "sha256": "3e01172084abfef76226adadd71cb638309fa6757003c1de8e371422ea18e98d"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy/incremental-state.json",
+          "sha256": "4af01818597f5ec4d8df15bc7dfcfee5c94976c480316fac4c1f450bfbe98772"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke.log",
-          "sha256": "f1dbecc6aea96e82dabf87cb5b69ef8bbd9e6c412b56894d5f1dcc8509f3e71e"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/memory-samples.jsonl",
+          "sha256": "e475c113ea9f667d8326678fa82572ccf1b648450a638917be129b778baa9d5e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/memory-summary.json",
+          "sha256": "2369819fa504922cb689185186412d50a740c84176429ee8a578d8cc7572445a"
         }
       ],
       "command": [
         "python3",
         "tools/server/bench/run-occupancy-frontier.py",
         "--output",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy",
         "--api-key-file",
         "/srv/ai/config/llama/api-keys",
         "--target-tokens",
@@ -201,7 +122,7 @@
         "--max-tokens",
         "400",
         "--repo-content",
-        "--preflight-only",
+        "--post-load-canonical",
         "--wall-budget",
         "7200",
         "--prefill-timeout",
@@ -210,25 +131,28 @@
         "1200"
       ],
       "exit_code": 1,
-      "reason": "Fresh server argv requested 200 pages, but runtime page_capacity was 66 (16896 tokens), so the mandatory 51200-token hot window was not admitted. Preflight failed before creating a schedule or sending an occupancy request.",
-      "status": "not_admitted"
+      "reason": "Target H=200 and full-L GPU MTP loaded; first chunk committed to C=4289, but the next scheduled prefill hit CUDA OOM allocating 21357056 bytes in selected-packed attention. Full 120K frontier was not reached.",
+      "status": "runtime_fault"
     },
     "bounded_startup_smoke": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke.log",
-          "sha256": "f1dbecc6aea96e82dabf87cb5b69ef8bbd9e6c412b56894d5f1dcc8509f3e71e"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/mtp-startup-smoke-repair-01.log",
+          "sha256": "333e87634c9d582b7dad2e4f313cf82cc3a421574d66c82f1d5639d9064a57c5"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke/campaign.json",
-          "sha256": "723895685c057e0a388c22d12a69182c93ac0c498d04d5aa0c4c163c5aed6f35"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/mtp-startup-smoke-repair-01/raw-q0-measured-1.sse",
+          "sha256": "a56e65c253e159a130f342f9af63497eede7c932838c34ce01aebec76e63dd7e"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke/raw-q0-measured-1.sse",
-          "sha256": "3c59ffa5092109207158de42fc6a67abbc0290d79ea4027bc2b99008169be6d0"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/startup-journal-repair.log",
+          "sha256": "8ac9e04671f70701f4c87e2ca9681d0e22b4dc60b7aac7aef654e05508716e75"
         }
       ],
       "command": [
+        "env",
+        "PAGER_BUNDLE_ROOT=/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin",
+        "PAGER_BUILD_RECEIPT=/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/build-receipt.json",
         "python3",
         "tools/server/bench/run-final-curve.py",
         "--suite",
@@ -240,7 +164,7 @@
         "--question-index",
         "0",
         "--output",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/mtp-startup-smoke",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/mtp-startup-smoke-repair-01",
         "--endpoint",
         "http://127.0.0.1:8080/v1/chat/completions",
         "--api-key-file",
@@ -292,27 +216,25 @@
     "canonical_mtp_after_occupied_128k_load": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy-preflight.log",
-          "sha256": "18805c79b39c9878973ae40d1502fe75831ff738b1708b1cee249a93734502c1"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy/request-journal.jsonl",
+          "sha256": "4171b7001b4e54dca355557ce371404e9c24ab58bbb364995cfd4a26af49fde8"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/server-metrics-after-smoke.prom",
-          "sha256": "29c5e516beec7fd699345208e1bde560e27a8f126b793902a5dedc711ea33b6b"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy/raw-000001.sse",
+          "sha256": "557e7acd4a87063fb25afa90b28fc8a59cff9b5f0ecd0ee91d96253e5301c1a4"
         },
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/service-current-argv.txt",
-          "sha256": "d0a0a5473c5998cde60be9b56bc2677c017e912fb8134bed68939f50340d541f"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/occupancy-execution-repair-01.log",
+          "sha256": "cd694836bfd27ff2e6d28bf48fbfebe15906cd7be4cb2f1cad6348c43dec8bf7"
         }
       ],
-      "command": [],
-      "exit_code": null,
-      "planned_command": [
+      "command": [
         "python3",
         "tools/server/bench/run-occupancy-frontier.py",
         "--output",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy",
         "--resume-state",
-        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/occupancy",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy",
         "--api-key-file",
         "/srv/ai/config/llama/api-keys",
         "--target-tokens",
@@ -342,14 +264,51 @@
         "--total-timeout",
         "1200"
       ],
-      "reason": "Not run because the mandatory 200-page admission check failed; no 120000-token occupied history exists.",
+      "exit_code": 1,
+      "planned_command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/repair-01/occupancy",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--target-tokens",
+        "120000",
+        "--context-tokens",
+        "131072",
+        "--hot-tokens",
+        "51200",
+        "--page-tokens",
+        "256",
+        "--batch-tokens",
+        "1024",
+        "--ubatch-tokens",
+        "256",
+        "--slot-id",
+        "0",
+        "--max-fresh-tokens",
+        "16000",
+        "--max-tokens",
+        "400",
+        "--repo-content",
+        "--post-load-canonical",
+        "--wall-budget",
+        "7200",
+        "--prefill-timeout",
+        "900",
+        "--total-timeout",
+        "1200"
+      ],
+      "reason": "Occupancy command exited on stage-B selected-packed CUDA OOM before the post-load canonical phase.",
       "status": "not_run"
     },
     "test_post_load_canonical_reuses_immutable_prefix_and_mtp_deltas": {
       "artifacts": [
         {
-          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-01/test-post-load-canonical.log",
-          "sha256": "d0bbd3fb4fcf80c9cbf5ce59bf4ce44bb927e9e40a6269d0b33dc8c4a94c4755"
+          "path": "/srv/ai/paged-kv/results/forward/102-05-128k/attempt-02/focused-regression.log",
+          "sha256": "2299339565fdc7c4fedeb54e99b181ba53b821f77194926422cc7df3301ba0ee"
         }
       ],
       "command": [
@@ -362,16 +321,17 @@
     }
   },
   "deferred_verification": [
-    "120000-token occupied fill with the admitted 51200-token hot window",
-    "all nine post-load canonical measured MTP generations plus three warmups"
+    "C=120000 occupancy fill and per-chunk measurements",
+    "three canonical prompts with nine measured generations plus warmups",
+    "post-load canonical MTP counters and acceptance summary"
   ],
   "model": {
     "resolved_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
     "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
   },
   "runtime": {
-    "admitted_hot_tokens": 16896,
-    "admitted_pages": 66,
+    "admitted_hot_tokens": 51200,
+    "admitted_pages": 200,
     "argv_lines": [
       "/srv/repos/vanwho/buun-llama-cpp/build-102-05/bin/llama-server",
       "-m",
@@ -432,32 +392,48 @@
       "turbo4"
     ],
     "batch_tokens": 1024,
-    "logical_context_tokens": 131072,
-    "metrics": {
-      "context_tokens": "131072",
-      "mtp_bytes": "1.38543e+08",
-      "mtp_rows": "131072",
-      "page_capacity": "66",
-      "page_tokens": "256",
-      "physical_pool_capacity_bytes": "2.85475e+08",
-      "target_bytes": "2.85475e+08",
-      "vram_budget_bytes": "1.67202e+10"
+    "device_total_bytes": 16720199680,
+    "first_chunk": {
+      "decode_tokens_per_second": 62.560807,
+      "elapsed_seconds": 9.674029344,
+      "end_tokens": 4289,
+      "fresh_tokens": 3890,
+      "mtp_accepted": 220,
+      "mtp_denominator": 344,
+      "output_tokens": 400,
+      "prefill_tokens_per_second": 1185.967655,
+      "start_tokens": 0
     },
+    "logical_context_tokens": 131072,
+    "minimum_device_free_bytes": 5505024,
+    "minimum_gpu_free_mib_sampled": 6,
+    "mtp_compute_bytes": 102768768,
+    "mtp_dequant_max_bytes": 536870912,
+    "mtp_dequant_measured": true,
     "mtp_kv": "gpu/turbo4",
     "mtp_reserved_bytes": 138543104,
     "mtp_rows": 131072,
-    "occupancy_requests_sent": 0,
-    "occupied_tokens": 0,
+    "occupancy_requests_sent": 2,
+    "occupied_tokens": 4289,
+    "packed_live_peak_bytes_across_candidates": 432541696,
+    "packed_owners_peak_across_candidates": 30,
     "page_tokens": 256,
-    "preflight_exit_code": 1,
+    "preflight_exit_code": 0,
     "requested_hot_tokens": 51200,
     "requested_pages": 200,
+    "stage_b_live_packed_after_bytes": 8651780,
+    "stage_b_live_packed_before_bytes": 69214200,
+    "stage_b_packed_peak_bytes": 368213000,
+    "target_allocated_bytes": 865075200,
+    "target_compute_max_bytes": 131326208,
+    "target_dequant_bytes": 0,
+    "target_dequant_measured": true,
     "target_kv": "turbo4",
-    "tested_pid": 2227738,
+    "tested_pid": 2567654,
     "ubatch_tokens": 256
   },
   "schema_version": 1,
-  "source_commit": "92ee3c57a7b5c212ae832b61a643fc1e4ec26d04",
-  "status": "not_admitted",
+  "source_commit": "32a69537ba3da81925969073df6547383b63efbb",
+  "status": "incomplete",
   "task": "102-05"
 }

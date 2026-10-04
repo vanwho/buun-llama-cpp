@@ -84,3 +84,52 @@ fits. This implementation enables finding out rather than blocking on an
 unconditional worst-case formula. Actual measurements must update this note
 and future automatic-sizing decisions; do not claim a 3x steady-state cost
 or promise that all workspace buffers are unnecessary.
+
+## Attempt 02 live measurement (2026-10-04)
+
+The explicit-H correction admitted the requested target geometry on the RTX
+4080: L=131072, page capacity 200, target pool 865075200 bytes (825 MiB),
+with full-L GPU Turbo4 MTP (131072 rows, 138543104 bytes). After model load,
+CUDA free was 946 MiB. The required 80-token smoke selected packed attention
+and failed while lazily building the packed graph: CUDA could not allocate
+54067712 bytes (51.56 MiB), and the API returned
+`decode() failed: packed selected attention allocation failed`.
+
+The 72-row sampler summary reports minimum sampled free VRAM 20 MiB. During
+the failing request, actual MTP dequant scratch reached 536870912 bytes;
+packed cache reached 8 live owners / 432541696 bytes (allocation-event peak
+was the same); target and MTP compute were observed separately at 65155968
+and 102768768 bytes. Packed live owners rolled back to zero after the graph
+failure. Target physical dequant measured zero; MTP physical dequant was
+measured, not reserved. These telemetry values overlap with device used/free
+and must not be added as independent totals. No competing CUDA process was
+present; the old managed service had been stopped and CUDA usage returned to
+29 MiB before candidate load.
+
+Attempt-02's zero-request occupancy preflight still passes with the exact
+120000-token schedule and `requests_sent=0`, but no generation or occupancy
+request succeeded. This proves target-slab admission, not workload capacity.
+The measured failure identifies packed owners as the repair point: production
+callers had requested an admitted-H-sized owner for every layer although the
+selected metadata exposed only a compact subset. Production graph sizing now
+uses the helper's page-aligned selected-view extent. As selection grows, the
+existing graph row-capacity check rebuilds the graph; the existing draining
+owner graph lease protects replacements. The target pager still admits all
+200 pages, and route choice, full-L GPU MTP, and L/H/B/U are unchanged. No
+automatic-H formula is proposed from the failed graph.
+
+The repair passed the 80-token smoke and the exact 120000-token zero-request
+preflight. The first occupancy request committed 3890 fresh rendered tokens
+(C=0 to 4289) at 1185.97 prefill tokens/s, with a 400-token completion. The
+next 16200-fresh-token scheduled request (prompt preflight 20279) failed in
+stage B while the selected extent grew: CUDA could not allocate 21357056
+bytes (20.37 MiB), returning `packed selected attention allocation failed`.
+The request journal records 78 attention trace pages; immediately before and
+after the fault the packed allocation-event high-water was 368213000 bytes,
+while the observed live owners rolled back from 16 (69214200 bytes) to 2
+(8651780 bytes). The sampler's total minimum device free was 5505024 bytes
+(5.25 MiB); the earlier H-sized failure remains separately recorded. MTP
+dequant remained 536870912 bytes. The target slab stayed at 200 pages. This
+repair is insufficient for the full scheduled workload on this device; retain
+the 4289-token committed checkpoint and the exact fault evidence. Do not
+repeat the unchanged request, reduce H, or claim the frontier complete.
