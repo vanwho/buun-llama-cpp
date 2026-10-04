@@ -16,6 +16,7 @@ from typing import Any, Mapping
 MAX_CONTEXT_TOKENS = 262144
 MAX_OUTPUT_TOKENS = 400
 MIN_SAFETY_GAP_TOKENS = 2048
+PLANNER_FRESH_TOKEN_HEADROOM = 4096
 CANONICAL_POST_LOAD_PROMPTS = (
     "write a python function that merges two sorted lists into one sorted list, with docstring.",
     "explain the difference between mmap and read for loading large files, one paragraph.",
@@ -113,10 +114,17 @@ def fit_user(renderer: ServerPromptRenderer, prefix: list[dict[str, str]],
 
 def _answer_envelope(renderer: ServerPromptRenderer,
                      prefix: list[dict[str, str]]) -> str:
-    # Fill a planner-only assistant message to the exact output budget under
-    # this server's chat template. The live conversation stores actual output.
+    # The live occupancy answers are commonly repetitive 400-character
+    # outputs whose rendered history cost is much smaller than 400 tokens.
+    # Use the measured response shape for frontier planning; generation and
+    # context reserves still use MAX_OUTPUT_TOKENS independently.
     before = render_tokens(renderer, prefix)
-    lo, hi = 0, MAX_OUTPUT_TOKENS * 2
+    content = "/" * MAX_OUTPUT_TOKENS
+    if render_tokens(renderer, prefix + [{"role": "assistant", "content": content}]) - before <= MAX_OUTPUT_TOKENS:
+        return content
+    # Keep the helper bounded for templates where the representative string
+    # expands unusually; the generation ceiling remains the hard fallback.
+    lo, hi = 0, MAX_OUTPUT_TOKENS
     while lo < hi:
         mid = (lo + hi + 1) // 2
         tokens = render_tokens(renderer, prefix + [
@@ -169,16 +177,20 @@ def _remaining_chunks(chunks: list[Any], selected: list[Any]) -> list[Any]:
             raise RuntimeError("repo selection is not a prefix of the frozen inventory")
         source = remaining[0]
         if (piece.sha256 != source.sha256 or piece.byte_length != source.byte_length or
-                piece.start_line != source.start_line):
+                piece.start_byte != source.start_byte):
             raise RuntimeError("repo selection changed source identity or line order")
-        if piece.end_line == source.end_line:
+        if piece.end_byte == source.end_byte:
             remaining.pop(0)
         else:
-            lines = source.text.splitlines(keepends=True)
-            consumed = piece.end_line - source.start_line + 1
+            source_bytes = source.text.encode("utf-8")
+            source_start = source.start_byte or 0
+            consumed = (piece.end_byte or source_start) - source_start
+            remainder_text = source_bytes[consumed:].decode("utf-8")
+            consumed_lines = len(source_bytes[:consumed].decode("utf-8").splitlines())
             remaining[0] = repo_context.CorpusChunk(
-                source.path, source.sha256, source.byte_length, piece.end_line + 1,
-                source.end_line, "".join(lines[consumed:]))
+                source.path, source.sha256, source.byte_length,
+                source.start_line + consumed_lines, source.end_line, remainder_text,
+                source_start + consumed, source.end_byte)
     return remaining
 
 
@@ -209,7 +221,13 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
     max_query_pages = hot_pages - generation_write_pages
     page_safe_fresh_tokens = ((max_query_pages - 1) * page_tokens + 1
                               if max_query_pages > 0 else 0)
-    effective_fresh_tokens = min(max_fresh_tokens, page_safe_fresh_tokens)
+    # Live assistant text can render shorter than the planner's synthetic
+    # MAX_OUTPUT_TOKENS envelope. Reserve that accumulated difference so later
+    # turns remain under the runner's hard per-request fresh-token limit.
+    if max_fresh_tokens <= PLANNER_FRESH_TOKEN_HEADROOM:
+        raise RuntimeError("fresh-token limit leaves no room for planner headroom")
+    effective_fresh_tokens = min(
+        max_fresh_tokens - PLANNER_FRESH_TOKEN_HEADROOM, page_safe_fresh_tokens)
     if effective_fresh_tokens <= 0:
         raise RuntimeError("hot-page geometry leaves no room for a query and generation write")
     simulated = [a1, {"role": "assistant", "content": _answer_envelope(renderer, [a1])}]
@@ -227,6 +245,12 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
     reserve_record: dict[str, int] | None = None
     requested_frontier = max(hot_tokens + 2048,
                              min(target_tokens, context_tokens))
+    # The final A2 request's generated output is part of the occupied
+    # frontier. A 400-token completion advances the live slot by 399 tokens
+    # in this server's accounting, so plan its prompt below the requested
+    # occupied target by that measured delta.
+    planner_frontier = max(hot_tokens + 2048,
+                           requested_frontier - (MAX_OUTPUT_TOKENS - 1) - 6)
     # The first turn adds benchmark B documentation and the next deterministic
     # repository ranges. Continuations append further non-overlapping ranges.
     for _ in range(len(chunks) + 1):
@@ -235,11 +259,17 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
             "role": "assistant", "content": _answer_envelope(renderer, projected)}]
         reserve_record = _future_a2_reserve(
             renderer, projected_prefix, a2, mtp_reserve, context_tokens)
-        frontier_target = min(requested_frontier,
+        # The requested frontier is the rendered prompt for the final A2
+        # request.  The pre-A2 conversation must stop before that by the full
+        # rendered A2 query cost, including template overhead.
+        frontier_target = min(planner_frontier - reserve_record["query_tokens"],
                               reserve_record["C_target_tokens"])
         current_frontier = render_tokens(renderer, simulated)
-        remaining_frontier_tokens = (frontier_target - current_frontier -
-                                     MAX_OUTPUT_TOKENS)
+        # The rendered assistant envelope in `simulated` already accounts for
+        # the observed history shape. Keep the *request* max-output and context
+        # reserve enforced by append_chunks_to_frontier, while allowing the
+        # occupied frontier itself to reach its requested A2 target.
+        remaining_frontier_tokens = frontier_target - current_frontier
         if remaining_frontier_tokens <= 0:
             if current_frontier > hot_tokens + 2048:
                 break
@@ -255,6 +285,7 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
             raise RuntimeError("preflight selected more than the per-request fresh-token limit")
         schedule.append({"stage": stage, "user": content,
                          "rendered_prompt_tokens": prompt_tokens,
+                         "planned_fresh_tokens": prompt_tokens - current_frontier,
                          "fresh_token_limit": effective_fresh_tokens,
                          "hot_page_budget": {"page_tokens": page_tokens,
                              "hot_pages": hot_pages,
@@ -269,10 +300,11 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         total_selected.extend(selected)
         remaining = _remaining_chunks(remaining, selected)
         projected_frontier = render_tokens(renderer, simulated)
+        projected_a2 = render_tokens(renderer, simulated + [a2_turn])
         # The measured reserve is a ceiling, not a fill target. Stop at the
         # requested committed corpus frontier when it is lower, leaving the
         # unused L-C gap available to the final query and output.
-        if projected_frontier >= frontier_target - 256:
+        if projected_a2 >= planner_frontier:
             break
         if projected_frontier > hot_tokens + 2048 and not remaining:
             break
@@ -319,6 +351,7 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
                      "page_tokens": page_tokens, "batch_tokens": 1024,
                      "ubatch_tokens": 256, "max_fresh_tokens": effective_fresh_tokens,
                      "requested_max_fresh_tokens": max_fresh_tokens,
+                     "planner_fresh_token_headroom": PLANNER_FRESH_TOKEN_HEADROOM,
                      "generation_write_pages": generation_write_pages,
                      "max_query_pages": max_query_pages},
         "inventory": inventory_rows,
@@ -327,7 +360,12 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         "reserve": schedule[-2]["reserve"],
         "requested_occupied_target_tokens": target_tokens,
         "pre_A2_frontier_target_tokens": min(
-            requested_frontier, schedule[-2]["reserve"]["C_target_tokens"]),
+            requested_frontier - schedule[-2]["reserve"]["query_tokens"],
+            schedule[-2]["reserve"]["C_target_tokens"]),
+        "requested_A2_prompt_frontier_tokens": requested_frontier,
+        "planner_A2_prompt_frontier_tokens": planner_frontier,
+        "planned_final_occupied_frontier_tokens": (
+            a2_tokens + MAX_OUTPUT_TOKENS - 1),
         "requests_sent": 0,
         "projected_A2_prompt_tokens": a2_tokens,
     }

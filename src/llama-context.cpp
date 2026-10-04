@@ -3648,20 +3648,16 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         }
         const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
                 metadata, pager.snapshot().geometry.page_tokens);
-        const uint64_t attention_layers = pager.snapshot().geometry.attention_layers;
-        if (packed_row_capacity == 0 || attention_layers == 0 || k_row > UINT64_MAX - v_row ||
-                packed_row_capacity > UINT64_MAX / (k_row + v_row) ||
-                packed_row_capacity * (k_row + v_row) >
-                    UINT64_MAX / attention_layers) {
+        if (packed_row_capacity == 0 || k_row > UINT64_MAX - v_row ||
+                packed_row_capacity > UINT64_MAX / (k_row + v_row)) {
             scratch.packed_bytes = UINT64_MAX;
         } else {
-            // The graph creates one compact K/V destination per attention
-            // layer. Charge the complete cross-layer allocation before graph
-            // construction; charging only one layer lets the first request
-            // discover the remaining owners inside find_or_create().
-            scratch.packed_bytes = packed_row_capacity * (k_row + v_row) *
-                attention_layers;
-        }
+            // Packed rows are graph-managed staging. Transformer layers
+            // consume them in order, so graph allocation reuses this maximum
+            // live K/V extent across layers instead of retaining one owner
+            // per layer.
+                scratch.packed_bytes = packed_row_capacity * (k_row + v_row);
+            }
     }
     const auto planned = kv_attention_execution.planned_route(metadata, phase,
             direct_capable, dense_capable, packed_capable);

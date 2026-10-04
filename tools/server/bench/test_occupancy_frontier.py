@@ -529,10 +529,13 @@ class OccupancyFrontierTests(unittest.TestCase):
         self.assertEqual(chunks[0].path, plan["selected_ranges"][0]["path"])
         self.assertNotIn("BEGIN FILE:", schedule[-1]["user"])
         self.assertEqual(16000, plan["geometry"]["requested_max_fresh_tokens"])
-        self.assertEqual(15617, plan["geometry"]["max_fresh_tokens"])
+        self.assertEqual(11904, plan["geometry"]["max_fresh_tokens"])
+        self.assertEqual(4096, plan["geometry"]["planner_fresh_token_headroom"])
         self.assertEqual(2, plan["geometry"]["generation_write_pages"])
         self.assertEqual(62, plan["geometry"]["max_query_pages"])
-        self.assertTrue(all(item.get("fresh_token_limit", 0) <= 15617
+        self.assertTrue(all(item.get("fresh_token_limit", 0) <= 11904
+                            for item in schedule[1:-1]))
+        self.assertTrue(all(item.get("planned_fresh_tokens", 0) <= 11904
                             for item in schedule[1:-1]))
         self.assertTrue(all(item["rendered_prompt_tokens"] <= 32768
                             for item in schedule))
@@ -543,6 +546,12 @@ class OccupancyFrontierTests(unittest.TestCase):
         self.assertEqual(30720, plan["requested_occupied_target_tokens"])
         self.assertLessEqual(plan["pre_A2_frontier_target_tokens"], 30720)
         self.assertGreater(plan["pre_A2_frontier_target_tokens"], 16384 + 2048)
+        self.assertEqual(30720, plan["requested_A2_prompt_frontier_tokens"])
+        self.assertEqual(30315, plan["planner_A2_prompt_frontier_tokens"])
+        self.assertLessEqual(schedule[-1]["rendered_prompt_tokens"], 30315)
+        self.assertLessEqual(
+            plan["pre_A2_frontier_target_tokens"] + schedule[-2]["reserve"]["query_tokens"],
+            30720)
 
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):
