@@ -17,7 +17,7 @@
   "status": "ready",
   "current_phase": "102",
   "current_task": "102-05",
-  "last_updated_utc": "2026-10-04T01:40:10+00:00",
+  "last_updated_utc": "2026-10-04T01:51:25+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01–12, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Phase102 contains the ordered capacity runs and its final goal review at 102-07.",
+    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01\u201312, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Phase102 contains the ordered capacity runs and its final goal review at 102-07.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -33267,6 +33267,12 @@
           "total_tokens_source": "derived_input_plus_output",
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
+      },
+      "invalid_completion": {
+        "previous_commit": "9b2eab837a06bb94c982991c7c53288510a22b46",
+        "check_exit_code": 1,
+        "reason": "Transient plan-wide validation failure: upcoming 102-05 cluster omitted scope_revision. Added the marker; the unchanged 102-04 receipt then passed and its done state was restored without rerunning the benchmark.",
+        "reopened_utc": "2026-10-04T01:48:58+00:00"
       }
     },
     {

@@ -2040,3 +2040,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Both higher-context packets now require a filled 200-page (51,200-token) GPU hot window and exact, clean-start server argv. A genuine capacity failure is reported as not admitted; it cannot silently fall back to 16K or another smaller H.
 - Kept B=1024/U=256, Turbo4 target/draft KV, GPU full-L MTP and exact per-task logical context. Task 102-05 builds a fresh candidate; task 102-06 reuses it only if source identity matches, otherwise rebuilds in an isolated directory.
 - The only required test change remains the focused occupancy-driver regression; no live server was restarted in this planning update.
+
+## 2026-10-04T01:48:58+00:00 — 102-04 — todo
+
+- Branch: `plan/attention-aware-kv-paging`
+- Commit at update: `b4c2141ef`
+- Summary: Transiently reopened because plan-wide validation found the upcoming 102-05 cluster lacked the current scope_revision marker. After adding it, the unchanged 102-04 receipt passed and its done state was restored without rerunning the benchmark.
+
+## 2026-10-04T01:51:21+00:00 — 102-04 — in_progress
+
+- Branch: `plan/attention-aware-kv-paging`
+- Commit at update: `b4c2141ef`
+- Summary: Task started
+
+## 2026-10-04T01:51:25+00:00 — 102-04 — done
+
+- Branch: `plan/attention-aware-kv-paging`
+- Commit at update: `b4c2141ef`
+- Summary: Restored the verified 102-04 completion after correcting the missing current-revision marker in the new 102-05 cluster; receipt validation passes.

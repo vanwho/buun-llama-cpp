@@ -1,5 +1,7 @@
 # Cluster forward102-128k-repeat
 
+Revision: `hotpath-v10-20260914`. Amendment: `repo-context-scale-20261004-50k-hot`.
+
 Tasks in this context area: `102-05`.
 
 Purpose: repeat a fresh L=131072 selected-GPU Turbo4 load with the full H=51200
