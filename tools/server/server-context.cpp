@@ -4796,7 +4796,7 @@ public:
             }
             const auto pager = ctx_tgt->get_kv_pager_metrics(
                     native_mtp, telemetry_request_generation,
-                    slot_generation, telemetry_config_generation, true);
+                    slot_generation, telemetry_config_generation);
             if (pager.enabled) {
                 json page_inventory = json::array();
                 for (size_t page_index = 0;
@@ -4976,15 +4976,6 @@ public:
                     {"recurrent_state_bytes", pager.recurrent_state_bytes},
                     {"mtp_compute_bytes", pager.mtp_compute_bytes},
                     {"graph_bytes", pager.graph_bytes},
-                    // TEMPORARY phase-102 sizing telemetry. Remove these JSON
-                    // keys with the context metrics after the 256K review unless
-                    // an explicit follow-up keeps the measurements supported.
-                    {"target_compute_allocated_bytes", pager.target_compute_allocated_bytes},
-                    {"mtp_compute_allocated_bytes", pager.mtp_compute_allocated_bytes},
-                    {"target_dequant_allocated_bytes", pager.target_dequant_allocated_bytes},
-                    {"mtp_dequant_allocated_bytes", pager.mtp_dequant_allocated_bytes},
-                    {"target_dequant_measured", pager.target_dequant_measured},
-                    {"mtp_dequant_measured", pager.mtp_dequant_measured},
                     {"device_total_bytes", pager.device_total_bytes},
                     {"device_used_bytes", pager.device_used_bytes},
                     {"device_free_bytes", pager.device_free_bytes},
@@ -5101,11 +5092,6 @@ public:
                     {"table_epoch_changes", pager.execution.table_epoch_changes},
                     {"table_upload_bytes", pager.execution.table_upload_bytes},
                     {"packed_storage_bytes", pager.execution.packed_storage_bytes},
-                    {"packed_live_allocated_bytes", pager.execution.packed_live_allocated_bytes},
-                    {"packed_peak_allocated_bytes", pager.execution.packed_peak_allocated_bytes},
-                    {"packed_draining_allocated_bytes", pager.execution.packed_draining_allocated_bytes},
-                    {"packed_live_owners", pager.execution.packed_live_owners},
-                    {"packed_draining_owners", pager.execution.packed_draining_owners},
                     {"packed_history_copy_bytes", pager.execution.packed_history_copy_bytes},
                     {"packed_current_append_rows", pager.execution.packed_current_append_rows},
                     {"packed_current_append_bytes", pager.execution.packed_current_append_bytes},
