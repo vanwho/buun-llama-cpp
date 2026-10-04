@@ -25,7 +25,7 @@ SERVER_CONTEXT_TOKENS = 8192
 GPU_HOT_TOKENS = 4096
 PAGE_SIZE_TOKENS = 256
 GENERATION_CONTEXT_RESERVE_TOKENS = 128
-GENERATION_COMPLETION_LIMIT_TOKENS = 256
+GENERATION_COMPLETION_LIMIT_TOKENS = 400
 PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS = 1024
 
 SOURCE_QUESTION = (
@@ -44,7 +44,7 @@ def response_budget(prompt_tokens: int, context_tokens: int = SERVER_CONTEXT_TOK
         raise ValueError("context_tokens must be a positive integer")
     available = context_tokens - prompt_tokens - GENERATION_CONTEXT_RESERVE_TOKENS
     if available <= GENERATION_COMPLETION_LIMIT_TOKENS:
-        raise ValueError("rendered prompt leaves less than 256 tokens for completion and context reserve")
+        raise ValueError("rendered prompt leaves less than 400 tokens for completion and context reserve")
     return min(available, GENERATION_COMPLETION_LIMIT_TOKENS)
 
 SUPPORTED_CATEGORIES = {"python_sorted_merge", "mmap_vs_read", "bash_directory_watch"}
@@ -372,7 +372,7 @@ def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str = DEFAUL
         "request_count": len(steps),
         "selected_python_fixture_ids": list(python_fixture_ids),
         "selected_bash_fixture_ids": list(bash_fixture_ids),
-        "sequence_policy": "same-slot cumulative messages; actual prior replies; 256-token free-form output budget",
+        "sequence_policy": "same-slot cumulative messages; actual prior replies; 400-token free-form output budget",
         "steps": [_step_json(step) for step in steps],
     }
 

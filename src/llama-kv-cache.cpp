@@ -2359,28 +2359,43 @@ bool llama_kv_cache::pager_selector_complete(
     const auto * ids = static_cast<const int32_t *>(raw);
     const uint32_t raw_count = *count;
     // Expansion writes candidate records into the same mailbox allocation.
-    // Preserve all compact IDs first; a fixed stack array used to reject
-    // admitted hot pools larger than 123 resident + five cold IDs.
-    std::vector<int32_t> copied_ids;
+    // The shared decoder snapshots the whole compact slot before writing any
+    // record, so later layer IDs cannot be overwritten by earlier expansion.
+    std::vector<llama_kv_prefetch_selector_segment> segments;
     try {
-        copied_ids.assign(ids, ids + raw_count);
+        segments.reserve(submission.segments.size());
+        for (const auto & segment : submission.segments) {
+            const auto & output = segment.output;
+            segments.push_back({
+                segment.raw_offset, segment.count,
+                output.resident_offset, output.resident_count,
+                output.cold_offset, output.cold_count,
+                output.sequence_id, output.layer,
+                output.session_generation, output.sequence_generation,
+                output.query_generation, output.table_epoch, output.query_position,
+                output.rollback_generation, cache->pager_->snapshot().geometry.page_bytes,
+                &output.pages,
+            });
+        }
     } catch (...) {
+        if (trace_current) {
+            trace.mailbox_dropped = true;
+            trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
+        }
         return false;
     }
-
     uint32_t written = 0;
-    const auto & snapshot = cache->pager_->snapshot();
-    for (const auto & segment : submission.segments) {
-        const auto & output = segment.output;
-        if (segment.count == 0 || segment.raw_offset > raw_count ||
-                segment.count > raw_count - segment.raw_offset ||
-                segment.output.resident_offset > output.pages.size() ||
-                segment.output.cold_offset > output.pages.size() ||
-                segment.output.resident_count > output.pages.size() - output.resident_offset ||
-                segment.output.cold_count > output.pages.size() - output.cold_offset ||
-                segment.count != segment.output.resident_count + segment.output.cold_count) {
-            return false;
+    std::vector<int32_t> copied_ids;
+    if (!llama_kv_prefetch_expand_selector_ids(ids, raw_count, segments,
+            cache->pager_->prefetch_candidate_mailbox().candidates_per_slot(),
+            copied_ids, records, written)) {
+        if (trace_current) {
+            trace.mailbox_dropped = true;
+            trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
         }
+        return false;
+    }
+    for (const auto & segment : submission.segments) {
         if (trace_current) {
             for (uint32_t rank = segment.output.resident_count;
                     rank < segment.count && trace.raw_cold_count < trace.raw_cold_indices.size();
@@ -2398,48 +2413,6 @@ bool llama_kv_cache::pager_selector_complete(
                             segment.output.pages[size_t(index)].identity.logical_page);
                 }
             }
-        }
-        for (uint32_t rank = 0; rank < segment.count; ++rank) {
-            llama_kv_prefetch_candidate candidate;
-            const int32_t index = copied_ids[segment.raw_offset + rank];
-            const bool cold = rank >= output.resident_count;
-            const size_t region_begin = cold ? output.cold_offset : output.resident_offset;
-            const size_t region_rank = cold ? rank - output.resident_count : rank;
-            if (index < 0 || size_t(index) >= output.pages.size() ||
-                    region_begin > output.pages.size() ||
-                    region_rank >= (cold ? output.cold_count : output.resident_count)) {
-                continue;
-            }
-            const auto & page = output.pages[size_t(index)];
-            if (page.identity.sequence_id != output.sequence_id ||
-                    page.identity.session_generation != output.session_generation ||
-                    page.identity.sequence_generation == 0 ||
-                    page.identity.page_generation == 0 ||
-                    page.content_version == 0 ||
-                    page.summary_version != page.content_version) {
-                continue;
-            }
-            candidate.identity = page.identity;
-            candidate.attention_layer = output.layer;
-            candidate.selector_rank = uint32_t(region_rank);
-            candidate.generation = output.query_generation;
-            candidate.table_epoch = output.table_epoch;
-            candidate.query_position = output.query_position;
-            candidate.speculation_generation = output.sequence_generation;
-            candidate.rollback_generation = output.rollback_generation;
-            candidate.cold = cold;
-            candidate.score = 1.0f / (1.0f + float(region_rank));
-            candidate.requested_bytes = snapshot.geometry.page_bytes;
-            candidate.content_version = page.content_version;
-            candidate.summary_version = page.summary_version;
-            if (std::find_if(records, records + written,
-                    [&](const auto & old) {
-                return old.identity == candidate.identity &&
-                    old.attention_layer == candidate.attention_layer;
-            }) != records + written) {
-                continue;
-            }
-            records[written++] = candidate;
         }
     }
     if (written == 0) {
@@ -2862,11 +2835,22 @@ void llama_kv_cache::begin_kv_pager_turn(
     const auto inventory = pager_->exact_page_records(sequence_id);
     if (inventory.empty()) return;
     auto & committed_history = pager_committed_history_[sequence_id];
+    // Keep only frozen selections whose exact identity and content version
+    // are still resident. A host-backed cold page is only a candidate until
+    // a later query transaction republishes it into the attention view. A
+    // slot can outlive an earlier selected page while its logical page is
+    // rewritten; carrying that old identity would make the first graph use a
+    // page that no longer exists in the resident snapshot.
     committed_history.erase(std::remove_if(committed_history.begin(),
             committed_history.end(), [&](const auto & selected) {
         return !llama_kv_pager_page_is_before_query(
             selected.identity.position_begin,
-            pager_->snapshot().geometry.page_tokens, query_start);
+            pager_->snapshot().geometry.page_tokens, query_start) ||
+            std::none_of(inventory.begin(), inventory.end(), [&](const auto & page) {
+                return page.id == selected.identity &&
+                    page.content_version == selected.content_version &&
+                    page.physical_slot != UINT32_MAX;
+            });
     }), committed_history.end());
     const auto frontier = std::max_element(inventory.begin(), inventory.end(),
             [](const auto & a, const auto & b) {
@@ -2969,6 +2953,17 @@ bool llama_kv_cache::commit_kv_pager_query(
     std::vector<llama_kv_pager_selected_history> selected;
     const auto found = pager_committed_history_.find(sequence_id);
     if (found != pager_committed_history_.end()) selected = found->second;
+    // Recheck at the freeze boundary as query replay may cross a later pager
+    // publication than the one observed when this turn started.
+    const auto resident = pager_->residency(sequence_id);
+    selected.erase(std::remove_if(selected.begin(), selected.end(), [&](const auto & page) {
+        return std::none_of(resident.pages().begin(), resident.pages().end(),
+                [&](const auto & current) {
+            return current.id == page.identity &&
+                current.content_version == page.content_version &&
+                current.physical_slot != UINT32_MAX;
+        });
+    }), selected.end());
     const auto initial = pager_turn_initial_history_.find(sequence_id);
     const std::vector<llama_kv_pager_selected_history> empty;
     const auto & before = initial == pager_turn_initial_history_.end()

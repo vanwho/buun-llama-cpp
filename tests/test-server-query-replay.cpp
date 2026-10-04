@@ -27,6 +27,7 @@ struct options {
     uint32_t ubatch = 256;
     uint32_t context = 8192;
     uint32_t hot_tokens = 4096;
+    bool owner_only = false;
 };
 
 bool number(const char * raw, uint32_t & value) {
@@ -46,6 +47,7 @@ bool parse_options(int argc, char ** argv, options & out) {
         else if (arg == "--U" && i + 1 < argc && number(argv[++i], out.ubatch)) {}
         else if (arg == "--L" && i + 1 < argc && number(argv[++i], out.context)) {}
         else if (arg == "--H" && i + 1 < argc && number(argv[++i], out.hot_tokens)) {}
+        else if (arg == "--owner-only") out.owner_only = true;
         else if (arg == "--output" && i + 1 < argc) out.output = argv[++i];
         else return false;
     }
@@ -394,12 +396,55 @@ bool run(const options & opts) {
     const llama_pos query_begin = llama_pos(prefix_count);
     llama_tokens prefix(prefix_count, llama_token(1));
     common_speculative_begin(spec.get(), 0, prefix);
+    llama_context * draft = draft_init->context();
+    const uint64_t owner_turn_id = 1009;
+    target->begin_kv_pager_turn(0, owner_turn_id, 0, query_begin);
+    const auto pager_owner_before_reserve = target->get_kv_pager_owner_for_test();
+    const auto catalogue_before_reserve = target->get_kv_pager_metrics(draft);
+    const auto catalogue_matches = [](const auto & a, const auto & b) {
+        if (a.page_inventory.size() != b.page_inventory.size()) return false;
+        for (size_t i = 0; i < a.page_inventory.size(); ++i) {
+            const auto & x = a.page_inventory[i];
+            const auto & y = b.page_inventory[i];
+            if (x.id != y.id || x.content_version != y.content_version ||
+                    x.physical_slot != y.physical_slot || x.valid_length != y.valid_length) {
+                return false;
+            }
+        }
+        return true;
+    };
+    bool reservation_owner_survived = pager_owner_before_reserve != nullptr &&
+        target->get_kv_pager_turn_phase_for_test(0) == 1;
+    for (int reserve = 0; reserve < 2 && reservation_owner_survived; ++reserve) {
+        target->request_graph_reserve_for_test();
+        const auto catalogue_after_reserve = target->get_kv_pager_metrics(draft);
+        reservation_owner_survived = target->get_kv_pager_owner_for_test() == pager_owner_before_reserve &&
+            target->get_kv_pager_turn_phase_for_test(0) == 1 &&
+            catalogue_matches(catalogue_before_reserve, catalogue_after_reserve);
+    }
     if (!decode_prefix(target, spec.get(), prefix_count)) {
         std::fprintf(stderr, "prefix decode failed\n");
         return false;
     }
-
-    llama_context * draft = draft_init->context();
+    const auto catalogue_after_prefix = target->get_kv_pager_metrics(draft);
+    reservation_owner_survived = reservation_owner_survived &&
+        target->get_kv_pager_owner_for_test() == pager_owner_before_reserve &&
+        target->get_kv_pager_turn_phase_for_test(0) == 1 &&
+        !catalogue_after_prefix.page_inventory.empty();
+    target->end_kv_pager_turn(0, owner_turn_id);
+    if (opts.owner_only) {
+        std::ostream * report = &std::cout;
+        std::ofstream out;
+        if (!opts.output.empty()) {
+            out.open(opts.output);
+            report = &out;
+        }
+        *report << "{\"proof\":\"stable_pager_owner_repeated_graph_reserve\","
+                << "\"passed\":" << (reservation_owner_survived ? "true" : "false")
+                << ",\"reserve_count\":2,\"catalogue_pages_after_prefix\":"
+                << catalogue_after_prefix.page_inventory.size() << "}\n";
+        return reservation_owner_survived;
+    }
     const uint64_t turn_id = 1010;
     target->begin_kv_pager_turn(0, turn_id, query_begin, query_begin + 1);
     std::vector<llama_kv_pager_selected_history> final_history;
@@ -479,8 +524,8 @@ bool run(const options & opts) {
             [&](bool & changed, uint64_t & generation) {
                 std::vector<llama_kv_pager_selected_history> before;
                 if (!target->get_kv_pager_history_for_test(0, before)) return false;
-                const auto metrics = target->get_kv_pager_metrics(draft);
-                for (const auto & page : metrics.page_inventory) {
+                const auto live_residency = target->get_kv_pager_owner_for_test()->residency(0);
+                for (const auto & page : live_residency.pages()) {
                     if (page.id.sequence_id != 0 || page.id.position_end >= cancel2_begin ||
                             page.physical_slot == UINT32_MAX || page.valid_length == 0 ||
                             page.content_version == 0) continue;
@@ -550,7 +595,7 @@ bool run(const options & opts) {
         (draft_kv_canonicalized &&
          replay_draft_kv_canonical == control_draft_kv_canonical);
 
-    const bool parity = fixture.captured && fixture.provisional_decode_succeeded &&
+    const bool parity = reservation_owner_survived && fixture.captured && fixture.provisional_decode_succeeded &&
         fixture.status == server_query_replay_transition_status::replay &&
         fixture.history_changed && fixture.restored && fixture.replay_decode_succeeded &&
         fixture.control_restored && fixture.control_decode_succeeded && selection_installed &&
@@ -600,6 +645,8 @@ bool run(const options & opts) {
     std::ostream & report = opts.output.empty() ? std::cout : (out.open(opts.output), out);
     report << "{\"proof\":\"integrated_server_query_replay_one_pass_parity\","
         << "\"passed\":" << (parity ? "true" : "false")
+        << ",\"reservation_owner_survived\":"
+        << (reservation_owner_survived ? "true" : "false")
         << ",\"captured\":" << (fixture.captured ? "true" : "false")
         << ",\"selection_installed\":" << (selection_installed ? "true" : "false")
         << ",\"history_changed\":" << (fixture.history_changed ? "true" : "false")
@@ -671,7 +718,7 @@ int main(int argc, char ** argv) {
     options opts;
     if (!parse_options(argc, argv, opts)) {
         std::fprintf(stderr,
-                "usage: %s --model MODEL.gguf [--B 1024] [--U 256] [--L 8192] [--H 4096] [--output FILE]\n",
+                "usage: %s --model MODEL.gguf [--B 1024] [--U 256] [--L 8192] [--H 4096] [--owner-only] [--output FILE]\n",
                 argv[0]);
         return 2;
     }

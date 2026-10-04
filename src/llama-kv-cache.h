@@ -1635,11 +1635,7 @@ private:
         std::map<uint32_t, std::vector<llama_kv_page_id>>>
         pager_attention_selection_by_layer_;
     struct pager_routing_output {
-        struct page_descriptor {
-            llama_kv_page_id identity;
-            uint64_t content_version = 0;
-            uint64_t summary_version = 0;
-        };
+        using page_descriptor = llama_kv_prefetch_page_descriptor;
 
         ggml_tensor * tensor = nullptr;
         uint32_t layer = UINT32_MAX;

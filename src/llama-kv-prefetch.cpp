@@ -41,6 +41,66 @@ bool same_candidate(const llama_kv_prefetch_candidate & lhs,
 
 } // namespace
 
+bool llama_kv_prefetch_expand_selector_ids(
+        const int32_t * raw_ids, uint32_t raw_count,
+        const std::vector<llama_kv_prefetch_selector_segment> & segments,
+        uint32_t mailbox_capacity,
+        std::vector<int32_t> & copied_ids,
+        llama_kv_prefetch_candidate * records,
+        uint32_t & written) noexcept {
+    if (raw_ids == nullptr || records == nullptr || raw_count == 0 ||
+            raw_count > mailbox_capacity || written > mailbox_capacity) return false;
+    try {
+        copied_ids.assign(raw_ids, raw_ids + raw_count);
+    } catch (...) {
+        return false;
+    }
+    for (const auto & segment : segments) {
+        if (segment.pages == nullptr || segment.count == 0 ||
+                segment.raw_offset > raw_count || segment.count > raw_count - segment.raw_offset ||
+                segment.count != segment.resident_count + segment.cold_count ||
+                segment.resident_offset > segment.pages->size() ||
+                segment.cold_offset > segment.pages->size() ||
+                segment.resident_count > segment.pages->size() - segment.resident_offset ||
+                segment.cold_count > segment.pages->size() - segment.cold_offset) return false;
+        for (uint32_t rank = 0; rank < segment.count; ++rank) {
+            const int32_t raw_index = copied_ids[segment.raw_offset + rank];
+            const bool cold = rank >= segment.resident_count;
+            const size_t region_rank = cold ? rank - segment.resident_count : rank;
+            const size_t region_count = cold ? segment.cold_count : segment.resident_count;
+            if (raw_index < 0 || size_t(raw_index) >= segment.pages->size() ||
+                    region_rank >= region_count) continue;
+            const auto & page = (*segment.pages)[size_t(raw_index)];
+            if (page.identity.sequence_id != segment.sequence_id ||
+                    page.identity.session_generation != segment.session_generation ||
+                    page.identity.sequence_generation == 0 ||
+                    page.identity.page_generation == 0 || page.content_version == 0 ||
+                    page.summary_version != page.content_version) continue;
+            llama_kv_prefetch_candidate candidate;
+            candidate.identity = page.identity;
+            candidate.attention_layer = segment.attention_layer;
+            candidate.selector_rank = uint32_t(region_rank);
+            candidate.generation = segment.query_generation;
+            candidate.table_epoch = segment.table_epoch;
+            candidate.query_position = segment.query_position;
+            candidate.speculation_generation = segment.sequence_generation;
+            candidate.rollback_generation = segment.rollback_generation;
+            candidate.cold = cold;
+            candidate.score = 1.0f / (1.0f + float(region_rank));
+            candidate.requested_bytes = segment.requested_bytes;
+            candidate.content_version = page.content_version;
+            candidate.summary_version = page.summary_version;
+            if (std::find_if(records, records + written, [&](const auto & old) {
+                    return old.identity == candidate.identity &&
+                        old.attention_layer == candidate.attention_layer;
+                }) != records + written) continue;
+            if (written >= mailbox_capacity) return false;
+            records[written++] = candidate;
+        }
+    }
+    return true;
+}
+
 const char * llama_kv_prefetch_mailbox_status_name(
         llama_kv_prefetch_mailbox_status status) noexcept {
     switch (status) {
