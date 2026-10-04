@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "task": "103-02a",
+  "source_commit": "457e0c90510d08f5c01b60f1bb042c0ec83936cb",
+  "checks": {
+    "selector_transport_and_owner_regressions": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/test-server-query-replay",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--B",
+        "1024",
+        "--U",
+        "256",
+        "--L",
+        "8192",
+        "--H",
+        "4096",
+        "--owner-only",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/query-replay-owner-proof-final.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/build-final-verified.log",
+          "sha256": "bcd8f5079c2cbd8a21726a0c7b2d457a894538120f808ed18ed5335933b3522e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/ctest-final-verified.log",
+          "sha256": "aa37634b0dd177bf4ec1ce1276716a8b479920b20857ee494dc98af07494d0db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/prefetch-selector-expansion.log",
+          "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/pager-model-final-verified.log",
+          "sha256": "d9005c8b37e1f33e2af656fe51c6e79681d75287a746fe719c2c43d26f901cbb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/query-replay-owner-proof-final.log",
+          "sha256": "8b103c06239a18a07f8c69fca9777b487e2d0886fb87ac856089355aeb840882"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/query-replay-owner-proof-final.json",
+          "sha256": "6b61d3bc2237cf668d16fafcbf160c67f59c23b97dec2e2acd0cc7a68ef2dea6"
+        }
+      ],
+      "findings": {
+        "build_targets": "passed with --parallel 16",
+        "ctest": "5/5 passed",
+        "production_selector_expansion": "aliased 3280 compact IDs across 16 segments passed",
+        "stable_owner": {
+          "proof": "stable_pager_owner_repeated_graph_reserve",
+          "passed": true,
+          "reserve_count": 2,
+          "catalogue_pages_after_prefix": 2
+        }
+      }
+    },
+    "bounded_live_selector_transport": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/assert_bounded_live.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/assert_bounded_live.py",
+          "sha256": "bf249c0727da127bbbcd137674f319268e2b475fccc61e2eefc722a8bc5ffec3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/assert_bounded_live.log",
+          "sha256": "bf314f8e5352113699a1bc5ffed78867964fa6754f8800a5fed22e4fa8e0fcb9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/bounded-live-runtime-assertions.json",
+          "sha256": "9a7f7c186dea7132ea5419210a1678ddf922a4dd3cfdffa3778682498bc04f68"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/bounded-transport-final/occupied-frontier.json",
+          "sha256": "ac608748968dff97687d9bb705ba28020557f61b0b426f9659b23c318f26cab2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/small-natural-400/cases/PY_MERGE_03/request-03/selector-trace-poll-snapshots.json",
+          "sha256": "ae6c1eda06a97c63ae99d70e0044eeb00790b0dd42d119c887f06142fc09438d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-02a/attempt-01/final-managed-service-identity.json",
+          "sha256": "9fa55042425610fdd7d2387f2db3585f181ebf6b8710210ea5b331feda1667a5"
+        }
+      ],
+      "findings": {
+        "proof": "bounded_live_selector_transport",
+        "small_geometry": {
+          "context_tokens": 8192,
+          "hot_capacity_tokens": 4096,
+          "trace": {
+            "query_generation": 514,
+            "turn_query_start": 5538,
+            "turn_query_end": 5592,
+            "async_readback_submitted": true,
+            "async_readback_completed": true,
+            "raw_selector_output_valid": true,
+            "raw_cold_logical_pages": [
+              6,
+              16
+            ],
+            "target_logical_page": 5,
+            "target_eligible": true,
+            "target_candidate_nominated": false,
+            "outcome": "eligible_ranked_out",
+            "policy_admitted": false,
+            "h2d_queued_bytes": 0,
+            "h2d_completed_bytes": 8650752,
+            "mapping_published": false,
+            "target_graph_used": false
+          }
+        },
+        "h200_geometry": {
+          "context_tokens": 131072,
+          "hot_capacity_pages": 200,
+          "hot_capacity_tokens": 51200,
+          "requested_target_tokens": 54000,
+          "committed_tokens": 54390,
+          "request_completed": true,
+          "campaign_status": "pass",
+          "traces": [
+            {
+              "request_index": 4,
+              "query_generation": 1786,
+              "turn_query_start": 39997,
+              "turn_query_end": 51870,
+              "async_readback_submitted": true,
+              "async_readback_completed": true,
+              "raw_selector_output_valid": true,
+              "raw_cold_logical_pages": [
+                0,
+                1
+              ],
+              "target_logical_page": 0,
+              "target_eligible": true,
+              "target_candidate_nominated": true,
+              "policy_admitted": true,
+              "outcome": "mandatory_capacity",
+              "h2d_queued_bytes": 4325376,
+              "h2d_completed_bytes": 0,
+              "mapping_published": false,
+              "target_graph_used": false,
+              "transaction_status": 6,
+              "transaction_failed_phase": 1
+            },
+            {
+              "request_index": 5,
+              "query_generation": 2243,
+              "turn_query_start": 51890,
+              "turn_query_end": 53843,
+              "async_readback_submitted": true,
+              "async_readback_completed": true,
+              "raw_selector_output_valid": true,
+              "raw_cold_logical_pages": [
+                109,
+                64
+              ],
+              "target_logical_page": 0,
+              "target_eligible": true,
+              "target_candidate_nominated": true,
+              "policy_admitted": true,
+              "outcome": "mandatory_capacity",
+              "h2d_queued_bytes": 4325376,
+              "h2d_completed_bytes": 0,
+              "mapping_published": false,
+              "target_graph_used": false,
+              "transaction_status": 6,
+              "transaction_failed_phase": 1
+            },
+            {
+              "request_index": 6,
+              "query_generation": 2654,
+              "turn_query_start": 53863,
+              "turn_query_end": 53979,
+              "async_readback_submitted": true,
+              "async_readback_completed": true,
+              "raw_selector_output_valid": true,
+              "raw_cold_logical_pages": [
+                110,
+                -1
+              ],
+              "target_logical_page": 0,
+              "target_eligible": true,
+              "target_candidate_nominated": false,
+              "policy_admitted": false,
+              "outcome": "eligible_ranked_out",
+              "h2d_queued_bytes": 0,
+              "h2d_completed_bytes": 0,
+              "mapping_published": false,
+              "target_graph_used": false,
+              "transaction_status": 7,
+              "transaction_failed_phase": 4
+            }
+          ]
+        }
+      },
+      "limitations": [
+        "At 8K, eligible target page 5 ranked out; no target nomination/admission/publication/use.",
+        "At H=200, current-query readback completed with valid raw output on final-user rows. Earlier target nominations/admissions queued H2D but did not publish; latest target page 0 ranked out. No target graph use preceded publication.",
+        "HTTP request completion and transport correctness do not establish answer recall or promotion success."
+      ]
+    }
+  },
+  "diagnostics": {
+    "full_replay_all_modes": "The non-owner-only test-server-query-replay diagnostic failed its synthetic cancel2 publication assertion after exact current-resident filtering. It is not represented as passing; the task owner regression is the independent --owner-only assertion with two real graph reserves.",
+    "semantic_recall": "Not established; target page ranked out at small geometry and final H200 request.",
+    "successor": "103-02b adds bounded selector scoring/remapping validation before 103-03."
+  }
+}
