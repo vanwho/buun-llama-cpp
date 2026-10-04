@@ -8003,7 +8003,36 @@ bool llama_kv_cache::vbr_scratch_reserve(
             }
         }
     }
-    for (auto & p : vbr_pools_) {
+    bool native_turbo4_decode = std::getenv("GGML_TURBO_DECODE_NATIVE") != nullptr &&
+        (request.head_dim_k == 0 || (request.head_dim_k >= 64 && request.head_dim_k <= 512)) &&
+        (request.head_dim_v == 0 || (request.head_dim_v >= 64 && request.head_dim_v <= 512));
+    if (native_turbo4_decode) {
+        // CUDA's Turbo4 native VEC route reads encoded K/V directly. The generic attention
+        // contract still describes the F16 materialization used by the default route, so avoid
+        // reserving that view when every cache layer is eligible for native Turbo4 decode.
+        // Keep the exception out of Turbo8, mixed, coupled and unsupported-width caches.
+        for (const auto & layer : layers) {
+            if (layer.k == nullptr || layer.v == nullptr ||
+                layer.k->type != GGML_TYPE_TURBO4_0 ||
+                layer.v->type != GGML_TYPE_TURBO4_0 ||
+                layer.k->data == layer.v->data) {
+                native_turbo4_decode = false;
+                break;
+            }
+        }
+    }
+    if (std::getenv("GGML_TURBO_DECODE_NATIVE") != nullptr && !native_turbo4_decode) {
+        const ggml_tensor * first_k = layers.empty() ? nullptr : layers.front().k;
+        const ggml_tensor * first_v = layers.empty() ? nullptr : layers.front().v;
+        LLAMA_LOG_DEBUG("%s: native Turbo4 scratch bypass unavailable role=%s head_dim=%u/%u "
+                "layers=%zu pools=%zu first_types=%d/%d row_bytes=%zu/%zu\n", __func__,
+                llama_kv_attention_scratch_context_role_name(request.context_role),
+                request.head_dim_k, request.head_dim_v, layers.size(), vbr_pools_.size(),
+                first_k ? int(first_k->type) : -1, first_v ? int(first_v->type) : -1,
+                request.materialized_k_bytes_per_row, request.materialized_v_bytes_per_row);
+    }
+    if (!native_turbo4_decode) {
+        for (auto & p : vbr_pools_) {
         if (p.be == nullptr || p.device < 0) {
             continue;
         }
@@ -8103,6 +8132,7 @@ bool llama_kv_cache::vbr_scratch_reserve(
         }
         p.scratch_k_reserved = std::max(p.scratch_k_reserved, k_bytes);
         p.scratch_v_reserved = std::max(p.scratch_v_reserved, v_bytes);
+        }
     }
 
     // A native MTP drafter can use a static Turbo4 KV cache: it has the same CUDA fattn scratch
@@ -8110,7 +8140,7 @@ bool llama_kv_cache::vbr_scratch_reserve(
     // controller-free cache skip the boundary reserve and discover the 512 MiB view only inside
     // graph execution.  Resolve its existing compute backend from the cache tensor's buft and
     // reserve the exact submitted view widths supplied by the attention contract.
-    if (vbr_pools_.empty() && vbr_shared_scratch_bindings_.empty() &&
+    if (!native_turbo4_decode && vbr_pools_.empty() && vbr_shared_scratch_bindings_.empty() &&
         (request.materialized_k_bytes_per_row != 0 || request.materialized_v_bytes_per_row != 0)) {
         size_t k_row = request.materialized_k_bytes_per_row;
         size_t v_row = request.materialized_v_bytes_per_row;
@@ -8181,7 +8211,7 @@ bool llama_kv_cache::vbr_scratch_reserve(
     // Multiple iSWA children call this serially on the same backend; the grow-only backend
     // scratch therefore lands at the per-side maximum rather than the sum.
     const uint64_t owner_epoch = vbr_tier_epoch();
-    for (auto & b : vbr_shared_scratch_bindings_) {
+    if (!native_turbo4_decode) for (auto & b : vbr_shared_scratch_bindings_) {
         GGML_ASSERT(b.be != nullptr && b.compute_backend != nullptr && b.device >= 0);
         if (b.rows_epoch != owner_epoch) {
             b.k_row = 0;

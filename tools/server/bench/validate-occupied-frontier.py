@@ -151,12 +151,33 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
         before = row.get("occupied_before_tokens")
         after = row.get("occupied_after_tokens")
         fresh = row.get("fresh_tokens")
+        cached_tokens = row.get("cached_tokens")
         record = committed_records.get(index)
         prompt_tokens = record.get("response_prompt_tokens") if isinstance(record, dict) else None
         completion_tokens = record.get("response_completion_tokens") if isinstance(record, dict) else None
+        cached_record = record.get("cached_rows") if isinstance(record, dict) else None
+        usage = record.get("usage") if isinstance(record, dict) else None
+        prompt_details = usage.get("prompt_tokens_details") if isinstance(usage, dict) else None
+        usage_cached_tokens = (prompt_details.get("cached_tokens")
+                               if isinstance(prompt_details, dict) else None)
+        has_cached_count = (isinstance(usage_cached_tokens, int) and
+                            not isinstance(usage_cached_tokens, bool) and
+                            usage_cached_tokens >= 0)
+        if (is_positive_int(prompt_tokens) and is_positive_int(fresh) and
+                isinstance(before, int) and not isinstance(before, bool)):
+            if prompt_tokens >= before:
+                fresh_matches_accounting = fresh == prompt_tokens - before
+            else:
+                fresh_matches_accounting = (has_cached_count and
+                    fresh == prompt_tokens - usage_cached_tokens and
+                    cached_tokens == usage_cached_tokens and
+                    cached_record == usage_cached_tokens)
+        else:
+            fresh_matches_accounting = False
         if (before != previous or not is_positive_int(after) or after <= before or
                 not is_positive_int(fresh) or not is_positive_int(prompt_tokens) or
-                not is_positive_int(completion_tokens) or fresh != prompt_tokens - before or
+                not is_positive_int(completion_tokens) or
+                not fresh_matches_accounting or
                 row.get("frontier_delta_tokens") != after - before or
                 abs((prompt_tokens + completion_tokens) - after) > 1):
             errors.append(f"request {index}: committed frontier is not monotonic or delta is wrong")

@@ -2077,3 +2077,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-102-05`
 - Commit at update: `09e322508`
 - Summary: Attempt 11 passed the 120,000-token 128K/50K-hot CUDA load and all 12 post-load canonical GPU Turbo4 MTP probes; evidence receipt validator passed, handoff and memory note updated, candidate remains loaded.
+
+## 2026-10-04T14:15:07+00:00 — 102-06 — done
+
+- Branch: `codex/task-102-06`
+- Commit at update: `7f0cdf921`
+- Summary: Validated L=262144, H=51200/200 pages, C=250572, full-L GPU Turbo4 MTP and 195 memory samples. Frontier validator and focused replay accounting tests passed. Old-file recall ran at 249921 prompt tokens with 400 output tokens but returned filler; exact C=262144 and dense GPU control remain unproven/not admitted and are documented.

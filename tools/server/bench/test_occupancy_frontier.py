@@ -131,6 +131,11 @@ def identity(binary_digest: str = "a" * 64) -> dict[str, object]:
 
 
 class OccupancyFrontierTests(unittest.TestCase):
+    def test_a2_replay_fresh_tokens_use_uncached_prompt_tail(self) -> None:
+        usage = {"prompt_tokens_details": {"cached_tokens": 250033}}
+        self.assertEqual(140, occupancy._fresh_prompt_tokens(250173, 250436, usage))
+        self.assertEqual(11892, occupancy._fresh_prompt_tokens(16181, 4289, {}))
+
     def test_post_load_canonical_reuses_immutable_prefix_and_mtp_deltas(self) -> None:
         class ProbeRuntime:
             def __init__(self) -> None:
