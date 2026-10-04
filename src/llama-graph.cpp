@@ -1378,12 +1378,11 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
                 return false;
             }
             const uint32_t page_tokens = pager->snapshot().geometry.page_tokens;
-            // The owner capacity is fixed from admitted physical H when the
-            // graph is built. A content refresh stays reusable while the
-            // active compact extent remains inside that same bucket.
+            // Keep the owner at the selected-view bucket. It may grow as the
+            // selected compact extent grows, but must not reserve every H row
+            // in every layer for a sparse selection.
             if (llama_kv_attention_packed_row_capacity(metadata, page_tokens,
-                    pager->snapshot().physical_rows) !=
-                    packed_row_capacity) {
+                    0) != packed_row_capacity) {
                 record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::row_capacity);
                 return false;
             }
@@ -4566,12 +4565,12 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (page_tokens == 0) {
                 throw std::runtime_error("packed selected attention has invalid page geometry");
             }
-            // Use the admitted physical window as the stable owner bucket.
-            // The pager's A admission already charges the bounded duplicate
-            // owner and its draining replacement; logical context L is never
-            // used as a packed allocation extent.
+            // Allocate only the selected compact extent. A stable H-sized
+            // owner per layer duplicates the entire hot window even when a
+            // sparse query selects only a few pages; growth is handled by the
+            // existing graph rebuild and draining-owner lease.
             const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
-                    *selected_metadata, page_tokens, pager_snapshot.physical_rows);
+                    *selected_metadata, page_tokens);
             if (packed_row_capacity == 0 ||
                     packed_row_capacity > pager_snapshot.physical_rows) {
                 throw std::runtime_error("packed selected attention row capacity overflows");
