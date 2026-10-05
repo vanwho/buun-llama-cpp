@@ -9,11 +9,21 @@ opaque Turbo4 host backing, full-L GPU Turbo4 MTP, and a small additional
 memory footprint. This is an experimental deviation, not a change to the
 accepted main-branch attention, storage, or MTP implementation.
 
-Order: finish the already active 103-03 capacity task; execute 104-01 through
-104-08; then 103-04 and 103-05 consume the experiment decision. The unregistered
-103-02b packet is retired in favor of this phase. Do not resurrect that packet
-or insert a backward dependency into the running 103-03 task. Its current
-capacity work does not establish retrieval quality.
+Order: 103-03 is deferred with C=254393 measured, not exact-full accepted.
+Execute 104-01 through 104-08 next; then 103-04 and 103-05 consume the
+experiment decision. 104-01 depends on completed 103-02a, not completion of
+103-03. The unregistered 103-02b packet is retired in favor of this phase.
+Do not resume the exact-fill campaign or add a backward capacity gate.
+Read 103-03's compact disposition only if capacity is relevant; its raw
+campaign/checkpoints are not ranking-task startup context.
+
+103-03's request at rendered prompt 259020 failed attention-ubatch planning
+after 22 committed requests. The error is not proof of CUDA OOM or a ranking
+cause. Exact-capacity fitting/ignore-EOS/resume-rebind changes are retained
+only in archive commit 7c162ca08 on codex/task-103-03, excluded from the plan
+and experiment base. Do not cherry-pick those changes into this experiment.
+Use the unchanged ordinary occupancy helper with the explicit reserves in
+104-06/07. Better ranking is not asserted to fix that allocation/planning edge.
 
 Wiretail continues in the main project and integrates coordinator metadata
 normally. 104-01 creates a separate worktree at

@@ -8,16 +8,16 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "103-02a transport/owner work is complete; its compact handoff records ranking misses and separate unpublished transfers, not semantic success. Preserve the active 103-03 capacity run. Next execute isolated ranking experiment104-01..08 before103-04/05 main benchmark/review. Use forward/RANKING104.md current task sections and one compact predecessor handoff; source symbols are pointers, not whole-file startup reads. Experiment product code lives on experiment/attention-aware-ranking-v1 in a separate worktree from the then-current plan branch; scoped experimental Git milestones are authorized, main Git remains Wiretail-owned. No nested runner, no experiment state ledger, no automatic experiment merge/default flip. Keep legacy/default main attention, GPU full-L Turbo4 MTP, B1024/U256, one Qwen, no context shift. Query-boundary GPU probes and bounded key-only rerank must not add historical work during generation. Completed accuracy/speed misses produce decisions, not repeat loops.",
+  "context_policy": "103-02a transport/owner work is complete; compact findings record ranking misses and unpublished transfers, not semantic success. 103-03 is deferred with C254393 committed and exact C=L unproven after attention planning failure; do not resume, require its receipt or import archived exact-fill helpers. Next execute104-01..08 isolated ranking experiment before103-04/05 main benchmark/review. Use forward/RANKING104.md current sections and one compact predecessor handoff; source symbols are pointers, not whole-file reads. Experiment code lives on experiment/attention-aware-ranking-v1 in a separate worktree from the then-current plan branch, not the archived103-03 branch. Scoped experiment Git milestones are authorized, main Git remains Wiretail-owned. No nested runner, experiment state ledger or automatic merge/default flip. Keep main legacy/default attention, GPU full-L Turbo4 MTP, B1024/U256, one Qwen, no context shift. Query-boundary GPU probes and bounded key-only rerank add no historical generation work. Completed accuracy/speed misses produce decisions, not repeat loops.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "103",
-  "current_task": "103-03",
-  "last_updated_utc": "2026-10-04T23:58:21+00:00",
+  "current_phase": "104",
+  "current_task": "104-01",
+  "last_updated_utc": "2026-10-05T01:16:30+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -33915,10 +33915,10 @@
       "id": "103-03",
       "phase": "103",
       "cluster": "forward103-post-selector",
-      "title": "Prove exact full-context committed capacity separately",
+      "title": "Deferred exact-terminal-capacity investigation; partial C254393 retained",
       "packet": ".wiretail/execution/tasks/103-03.md",
-      "status": "todo",
-      "blocker": null,
+      "status": "deferred",
+      "blocker": "Operator-approved deferral: C254393 committed at L262144/H51200; next request failed attention-ubatch planning. Exact C=L is unproven and not a gate on isolated ranking104. Preserve incomplete helpers only in archive commit 7c162ca08 on codex/task-103-03; next task104-01 depends on completed103-02a.",
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
@@ -33966,7 +33966,7 @@
         "experiment_branch_mode_and_budget_contract"
       ],
       "depends_on": [
-        "103-03"
+        "103-02a"
       ],
       "commit": null,
       "context_files": [

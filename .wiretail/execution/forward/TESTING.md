@@ -1,10 +1,12 @@
 # Minimal testing and honest performance measurement
 
 Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
-Current next implementation procedure is PREFILL101 and tasks101-13–18 plus101-12h after
-the101-12g measurement. Completed phase100/101 packets are provenance, not startup
-context.101-18 owns the next canonical measurement,101-12h its review;102 owns
-capacity only after the accepted release or its explicitly scheduled successor.
+Current next implementation is the isolated phase104 experiment in RANKING104.
+Completed phase100/101/102 packets are provenance, not startup instructions.
+103-03's exact-fill campaign is deferred; its partial frontier is evidence,
+not a gate on the ranking experiment. 104-06 uses small paired recall and
+104-07 one safely reserved H-crossing row. Do not repeat full-L fills or use
+ignore-EOS to manufacture exactly C=L during ranking/performance iteration.
 
 ## Setup once, verify cheaply, keep loaded
 

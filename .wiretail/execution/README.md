@@ -6,9 +6,11 @@ Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
-Continue the first unfinished task in WORK_STATE. Preserve the active103-03
-capacity run.103-02a transport/owner proof is complete, with ranking/semantic
-misses recorded. Next phase104 is the isolated ranking experiment defined in
+Continue the first unfinished task in WORK_STATE: 104-01. 103-03 is deferred
+with C=254393 committed, exact C=L unproven, and its experimental capacity
+helpers archived on codex/task-103-03 rather than merged to plan. Do not resume
+that campaign or make it a gate on ranking work.103-02a transport/owner proof
+is complete, with ranking/semantic misses recorded. Phase104 is defined in
 [RANKING104](forward/RANKING104.md), before103-04/05 main benchmark/review.
 104-01 creates experiment/attention-aware-ranking-v1 from the then-current
 plan branch in /srv/repos/vanwho/buun-llama-cpp-ranking-v1;104-02–05 implement

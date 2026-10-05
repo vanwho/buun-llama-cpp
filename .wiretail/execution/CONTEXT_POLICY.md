@@ -20,8 +20,11 @@ job count, correct its command to `--parallel 16` before building.
 ## Current phase-103/104 override
 
 103-02a completed transport/owner checks; its compact handoff records ranking
-misses and separate queued-but-unpublished transfers. Preserve the active
-103-03 capacity task. Next104-01–08 run an isolated ranking experiment; then
+misses and separate queued-but-unpublished transfers. 103-03 is deferred:
+C=254393 was committed, but exact C=L is unproven after an attention-ubatch
+planning failure. Do not resume its campaign, inherit its exact-fill helper
+archive, or claim that ranking changes solve that capacity boundary.
+Next104-01–08 run an isolated ranking experiment; then
 103-04/05 consume its verdict for main benchmark/review. RANKING104.md and
 the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
 directions only inside this experiment. Never load old transcripts, full

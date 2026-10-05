@@ -17,7 +17,10 @@ overridden by this explicit scheduling amendment.
 ## Architecture decisions
 
 The isolated phase104 amendment is [RANKING104](RANKING104.md). It follows
-the already active103-03 capacity task and precedes103-04/05 benchmark/review.
+the deferred103-03 capacity investigation and precedes103-04/05 benchmark/review.
+104-01 is next and depends on completed103-02a, not exact C=L. Preserve
+103-03's measured C=254393 separately from its failed final request; do not
+import its unfinished exact-capacity harness into the experimental base.
 Experimental source is developed in a separate worktree/branch from the local
 plan branch; main default routing remains unchanged until an explicit later
 adoption decision/task. For104 only, independent query probes plus GPU
@@ -78,7 +81,7 @@ card, service paths or these counts in portable production logic.
 | 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
 | 102 | 102-01–07 | driver-limit regression; 16K/8K baseline; 32K/16K baseline; 102-05 is a fresh independent L=131,072/C=120,000 run with filled H=51,200 and a newly built candidate; 102-06 is L=262,144/C=250,000 with the same H; final goal review |
-| 103 | 103-01/02a complete;103-02 deferred;103-03 active | retain transport/owner fixes and separate full-capacity findings |
+| 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
 | 104 | 104-01–08 | isolated query-probe/scored-shortlist/key-only-rerank branch, small CUDA/recall checks, paired canonical speed/memory and decision |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
 
