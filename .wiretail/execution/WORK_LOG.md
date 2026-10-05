@@ -2156,3 +2156,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Preserved experiment interfaces/oracles in426e34562; no experiment code merged into main and no old unit evidence relabeled production proof.
 - Added104-04a/b/c/d for real CUDA coarse route, corrected/parallel math and GPU MASS, cache-owned staging/error events, and final-user exact-candidate pipeline. Revised104-05 is todo after them, with publication/replay/freeze and a correctly invoked model-required fixture.104-06/08 consume only final working candidate findings.
 - Next task104-04a is todo/ready in a fresh cluster. Existing usage events and historical blocker/artifacts are retained. Metadata/state validation and diff checks passed; no production build/model tests run by the planning session.
+
+## 2026-10-05T13:41:30+00:00 — 104-04a — done
+
+- Branch: `codex/task-104-04a`
+- Commit at update: `098ee97ab`
+- Summary: Implemented and CUDA-verified PAGE_RANK shortlist and mixed-format routing; required build and fixtures passed, V10 receipt validated.
