@@ -2,10 +2,10 @@
 
 Revision: `hotpath-v10-20260914`.
 
-Tasks 103-03, 103-04, 103-05 consume the tested candidate and compact 103-02a
-transport findings, not the superseded 103-02 diagnostic diary. Keep Turbo4
-target/draft, GPU full-L MTP, B1024/U256, no context shift, one Qwen process.
-103-03 owns capacity separately; 103-04 gathers canonical speed/MTP/semantic
-findings and a compact summary; 103-05 evaluates the actual results and creates
-specific repairs for any remaining goal miss. Read only each packet's bounded
-context. Never promote a transport test into a semantic quality claim.
+Task103-03 is deferred. C254393 was committed; exact C=L was not proven.
+Its incomplete helper changes are preserved only on codex/task-103-03.
+Do not resume it, require its receipt or merge its branch into the experiment.
+Phase104 next develops/tests a distinct ranking branch from plan;
+103-04/05 consume its verdict in forward103-after-ranking-review.
+Retired103-02b is not a prerequisite. Preserve partial capacity facts without
+turning them into semantic success or exact-full acceptance.

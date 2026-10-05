@@ -17,37 +17,38 @@ product code. Use `--clean-first` only when the task requires a clean candidate;
 it is not a general speed setting. If an active packet still specifies another
 job count, correct its command to `--parallel 16` before building.
 
-## Current phase-103 override
+## Current phase-103/104 override
 
-103-02a replaces the exhausted 103-02 campaign and starts a fresh bounded
-cluster. Its packet and engineering-notes/selector-readback-lifecycle-103.md
-are the current selector/owner validation directions. Do not load 103-02's
-transcripts, 249K requests, obsolete missing-fence hypothesis, or old task
-status directions below as startup context. The fixes are source-only until
-103-02a compiles/tests them. Validate scaled compact IDs and stable pager
-ownership first; test the final-user query at small geometry before one
-just-over-H 200-page row. Never assert replay/freeze from idle-slot fields
-cleared by release(). 103-03/04/05 remain capacity/benchmark/review successors.
+103-02a completed transport/owner checks; its compact handoff records ranking
+misses and separate queued-but-unpublished transfers. 103-03 is deferred:
+C=254393 was committed, but exact C=L is unproven after an attention-ubatch
+planning failure. Do not resume its campaign, inherit its exact-fill helper
+archive, or claim that ranking changes solve that capacity boundary.
+Next104-01–08 run an isolated ranking experiment; then
+103-04/05 consume its verdict for main benchmark/review. RANKING104.md and
+the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
+directions only inside this experiment. Never load old transcripts, full
+request bodies, retired103-02 or unregistered103-02b as active context.
 
-For phase94 onward, forward/OVERVIEW.md and forward/TESTING.md supersede
-REPAIR85's accepted-token retrieval cadence and route preference. Do not load
-the full researched SOURCE_FORWARD_PLAN, retired93-12/93-13, old summaries or
-all predecessor gates. 93-11n is explicitly deferred by the user, not passed.
-Resume at the first unfinished task named by WORK_STATE.json, not a historical
-hardcoded task ID. Current repair is forward/REPAIR100.md:100-02 is deferred,
-not passed;100-02a–f repair admission/ring, reduce measured costs, verify MTP/
-natural promotion and collect staged speeds.100-03 assesses THESE results;
-100-04 owns final replay/cancellation/promotion verification before scale.
-Use forward/POLICY_ADMISSION_BASELINE.md for the only needed legacy finding.
-Never revive the old campaign or load its transcripts.
+The experiment uses /srv/repos/vanwho/buun-llama-cpp-ranking-v1 and branch
+experiment/attention-aware-ranking-v1 created from the then-current local
+plan branch. Explicit experiment Git milestone commits are task-authorized;
+the main project's branch/commits remain owned by Wiretail. Do not switch
+the active main worktree, run nested Wiretail, modify the experiment's copied
+state ledger, merge it into plan or change main default routing implicitly.
+Keep GPU Turbo4 full-L MTP, B1024/U256 and frozen history during generation.
+Experiment misses and speed losses become recorded decisions, not endless
+retries. Only the current packet/design slice and immediate compact handoff
+are startup context; source paths identify symbol regions to inspect.
 
-For100-02a onward, do not load the retired100-02 packet/request ceiling or
-old receipts to reconstruct a diary. Load only REPAIR100's compact facts and
-the current packet/cluster/explicit predecessor handoff. Source entries in a
-context list are pointers: use rg and the packet's SYMBOL regions, never read
-all of server-context.cpp, llama-context.cpp or llama-kv-cache.cpp at startup.
-Verify required receipts before a completion transition. Metadata correction
-must preserve prior source commits and all task token-usage events.
+Forward OVERVIEW/TESTING remain the main architecture contract. Old93/100
+repair plans, SOURCE_FORWARD_PLAN, retired packets, acceptance diaries and
+whole predecessor gate sets are historical references, not startup context.
+Resume the first unfinished task in WORK_STATE rather than a historical task
+number. Source entries are symbol pointers: use rg and selected regions,
+never ingest all of server-context.cpp, llama-context.cpp or llama-kv-cache.cpp.
+Verify the current packet's receipt before completion; metadata correction
+preserves prior implementation commits and every usage event.
 
 ## Token accounting: what the numbers mean
 

@@ -16,6 +16,18 @@ overridden by this explicit scheduling amendment.
 
 ## Architecture decisions
 
+The isolated phase104 amendment is [RANKING104](RANKING104.md). It follows
+the deferred103-03 capacity investigation and precedes103-04/05 benchmark/review.
+104-01 is next and depends on completed103-02a, not exact C=L. Preserve
+103-03's measured C=254393 separately from its failed final request; do not
+import its unfinished exact-capacity harness into the experimental base.
+Experimental source is developed in a separate worktree/branch from the local
+plan branch; main default routing remains unchanged until an explicit later
+adoption decision/task. For104 only, independent query probes plus GPU
+metadata shortlist/key-only rerank replace the legacy averaged-span Mean-K
+ranking. Storage, prefill/FA routes and full-L GPU Turbo4 MTP are preserved.
+Completed poor experimental results are verdicts, not repeat gates.
+
 Reuse `llama_kv_pager`, residency/transactions, host store, routing catalogue,
 GPU selector, Turbo4 attention and native MTP. No second KVMem pager/library.
 The target is Qwen3.8-27B UD-IQ4_XS, with 16 full-attention layers and 48
@@ -69,10 +81,14 @@ card, service paths or these counts in portable production logic.
 | 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
 | 102 | 102-01–07 | driver-limit regression; 16K/8K baseline; 32K/16K baseline; 102-05 is a fresh independent L=131,072/C=120,000 run with filled H=51,200 and a newly built candidate; 102-06 is L=262,144/C=250,000 with the same H; final goal review |
+| 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
+| 104 | 104-01–08 | isolated query-probe/scored-shortlist/key-only-rerank branch, small CUDA/recall checks, paired canonical speed/memory and decision |
+| 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
-specified in `OPTIONAL_ADVANCEMENTS.md`. Schedule them as phases 104/105 (or
-next unused phases) only after the primary architecture is proven and the
+specified in `OPTIONAL_ADVANCEMENTS.md`. Phase104 is now reserved for the
+ranking experiment; schedule optional advances in the next unused phases
+only after the primary architecture is proven and the
 measured savings justify them. They do not delay primary success.
 
 ## Evidence and release rules
