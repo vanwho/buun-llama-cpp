@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "task": "104-01",
+  "source_commit": "b68e46ac2e6b852906c5f4b008caaab2c5658820",
+  "source_commit_kind": "isolated_experiment",
+  "checks": {
+    "experiment_branch_mode_and_budget_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "ctest",
+        "--test-dir",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "-R",
+        "^(test-arg-parser|test-kv-routing-summary)$",
+        "--output-on-failure"
+      ],
+      "base_sha": "90669ba7e71675d8fe3f8c1198605e0b981f036b",
+      "experiment_branch": "experiment/attention-aware-ranking-v1",
+      "experiment_head": "b68e46ac2e6b852906c5f4b008caaab2c5658820",
+      "test_summary": "test-arg-parser and test-kv-routing-summary passed (2/2)",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-01/attempt-02/git-provenance.txt",
+          "sha256": "8233b68b39cbf1e8d9c7c797c2f6ff9dece53da12ea6ef90780a4c6ad28e432b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-01/attempt-02/configure.log",
+          "sha256": "9ca83754a53de14ecb4db601c705e7530368491e1da441557ed8f73c98e1a53b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-01/attempt-02/build-final.log",
+          "sha256": "e13e9afc17e74610face2da4642b77720a8b240f8538f7c0c7bc31db1a08dc63"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-01/attempt-02/ctest-final.log",
+          "sha256": "9b27b72624e5e2f1c1c3b562da15adc443701f665791a7800b071d1d57192454"
+        }
+      ]
+    }
+  }
+}
