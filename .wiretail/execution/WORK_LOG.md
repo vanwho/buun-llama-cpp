@@ -2168,3 +2168,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04b`
 - Commit at update: `e6a515fa6`
 - Summary: Corrected rerank geometry/identity and implemented exact-pool CUDA page masses; required RTX 4080 CUDA fixture and selector regression passed with hashed evidence.
+
+## 2026-10-05T14:36:41+00:00 — 104-04c — done
+
+- Branch: `codex/task-104-04c`
+- Commit at update: `08036c37e`
+- Summary: Implemented cache-owned ranking staging and typed event lifecycle; CPU owner/ring tests and CUDA owner-to-RERANK/MASS fixture passed.

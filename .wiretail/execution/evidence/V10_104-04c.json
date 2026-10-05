@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "task": "104-04c",
+  "source_commit": "426e34562deea4d732a4326bb50d4003de0d351a",
+  "experiment_source": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "branch": "experiment/attention-aware-ranking-v1",
+    "head": "426e34562deea4d732a4326bb50d4003de0d351a",
+    "dirty_diff_sha256": "185ae3b51b004ed334d7df1beae4f43ce2b5c35b90e05023cd836cd4ea09cc12",
+    "dirty_diff_scope": "git diff --binary (tracked working-tree changes)"
+  },
+  "owner_allocation_ledger_cuda0": {
+    "device": "NVIDIA GeForce RTX 4080, CUDA0",
+    "slot_bytes": 135168,
+    "device_slots": 2,
+    "device_requested_bytes": 270848,
+    "device_realized_bytes": 270848,
+    "pinned_host_slots": 2,
+    "pinned_host_requested_bytes": 270336,
+    "pinned_host_realized_bytes": 270336,
+    "pageable_staging_bytes": 0,
+    "pinned_alignment_bytes": 32
+  },
+  "checks": {
+    "production_owner_staging_and_terminal_event_lifecycle": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-cuda-kv-page-summary"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "test-kv-router-job",
+        "test-kv-prefetch",
+        "test-cuda-kv-page-summary"
+      ],
+      "coverage": [
+        "production owner class allocates pinned host and encoded Turbo4 device slots",
+        "CUDA owner staged key slot is consumed by the RERANK and MASS graph",
+        "two-slot backpressure, delayed completion, failed terminal reader and typed ticket identity",
+        "source holder lifetime, stale source rejection, partial enqueue cleanup and repeated cancel/detach",
+        "real realized-allocation ledger and actual tensor readback"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04c/attempt-01/build-final.log",
+          "sha256": "a7513b4a2a9dcdecb23b8c3493d3e4ba0d3f094784df7c2a7785966456e9714a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04c/attempt-01/test-kv-router-job.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04c/attempt-01/test-kv-prefetch.log",
+          "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04c/attempt-01/test-cuda-kv-page-summary.log",
+          "sha256": "54ed7b274ca6155ca1f31aa7940ff25be5044dd04b8dbdda5ce7c1bf64ae868a"
+        }
+      ]
+    }
+  }
+}
