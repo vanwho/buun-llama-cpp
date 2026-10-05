@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "task": "104-04g",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "source_dirty_diff_sha256": "ebf51a9bb02fc9127352df3ffbb03045930292623dedeb7e098da3fc6737c53e",
+  "checks": {
+    "production_executor_call_and_common_history_policy": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+        "--cpu-only"
+      ],
+      "additional_commands": [
+        [
+          "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-policy"
+        ]
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "llama-server",
+        "test-kv-router-job",
+        "test-kv-policy"
+      ],
+      "coverage": [
+        "Production cache commit uses the injectable once-per-turn executor adapter; CPU seam proves one executor start across repeated provisional commits and zero starts outside provisional phase.",
+        "Empty resident/cold page plan returns a terminal-ready empty exact batch and repeated call reuses the terminal result.",
+        "Common exact-mass resident/cold competition: weak cold loses, strong cold replaces weakest eligible resident, deterministic tie order, and legacy candidates remain outside probe-rerank ranking.",
+        "Cross-layer mean uses the participating-layer denominator and support counts positive layer evidence.",
+        "Cold budget limits admission and refills the target with the next feasible resident; protected pinned capacity is excluded from historical slots.",
+        "Cache stores cold admitted identity/content/summary versions with a policy transaction ID for 104-05 and withholds cold pages from current mapping/frozen history."
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04g/attempt-01/build-final.log",
+          "sha256": "0eb4208498c526d79d808876e3034c9bff2edb5b8d16a3fe90575835352979b5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04g/attempt-01/router-cpu-final.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04g/attempt-01/policy-final.log",
+          "sha256": "3a98c7c4952b7819266ac3fbcfe93616a1b02993d8411819acf0571ff5da8fc8"
+        }
+      ]
+    }
+  }
+}
