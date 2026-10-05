@@ -558,6 +558,33 @@ class OccupancyFrontierTests(unittest.TestCase):
             plan["pre_A2_frontier_target_tokens"] + schedule[-2]["reserve"]["query_tokens"],
             30720)
 
+    def test_exact_full_context_plan_and_accounting_require_C_equal_L(self) -> None:
+        renderer = FakeRenderer()
+        source = occupancy.repo_context.SourceFile(
+            "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
+        with patch.object(occupancy.repo_context, "tracked_inventory", return_value=[source]), \
+                patch.object(occupancy.repo_context, "git_identity",
+                             return_value={"commit": "candidate-source",
+                                           "dirty_fingerprint": "b" * 64}):
+            schedule, plan = occupancy.build_repo_schedule(
+                renderer, identity(), 32768, 16384, 16000, 32768,
+                exact_full_context=True)
+        self.assertTrue(plan["exact_full_context"])
+        self.assertEqual(32368, plan["planner_A2_prompt_frontier_tokens"])
+        self.assertEqual(32368, schedule[-1]["rendered_prompt_tokens"])
+        self.assertEqual(400, schedule[-1]["reserve"]["total_tokens"])
+        self.assertTrue(schedule[-1]["ignore_eos"])
+        self.assertGreater(plan["planned_A2_fresh_tokens"], 0)
+        self.assertLessEqual(plan["planned_A2_fresh_tokens"], 16000)
+        self.assertEqual(plan["planned_A2_fresh_tokens"],
+                         schedule[-1]["planned_fresh_tokens"])
+        self.assertEqual(32768, plan["planned_final_occupied_frontier_tokens"])
+        self.assertEqual(32768, occupancy._repo_completion_threshold(
+            32768, 16384, schedule, exact_full_context=True))
+        self.assertTrue(occupancy.exact_full_context_commit(32768, 12000, 32368, 400, 32768))
+        self.assertFalse(occupancy.exact_full_context_commit(32768, 12000, 32368, 399, 32767))
+        self.assertFalse(occupancy.exact_full_context_commit(32768, 12000, 32368, 400, 32767))
+
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):
             with self.subTest(context_tokens=context_tokens):

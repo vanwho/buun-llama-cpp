@@ -112,6 +112,50 @@ def fit_user(renderer: ServerPromptRenderer, prefix: list[dict[str, str]],
     return messages, render_tokens(renderer, messages)
 
 
+def fit_user_exact(renderer: ServerPromptRenderer, prefix: list[dict[str, str]],
+                   target: int, fact: str) -> tuple[list[dict[str, str]], int]:
+    """Fit a final user turn to an exact rendered prompt frontier."""
+    messages, tokens = fit_user(renderer, prefix, target, fact)
+    if tokens == target:
+        return messages, tokens
+    content = messages[-1]["content"]
+    gap = target - tokens
+    for fragment in ("x", ".", "!", "?", " x", " q", " z", " 7", " .", " -", " !", " a", " the"):
+        lo, hi = 1, max(2, gap * 2)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            candidate = prefix + [{"role": "user", "content": content + fragment * mid}]
+            if render_tokens(renderer, candidate) < target:
+                lo = mid + 1
+            else:
+                hi = mid
+        candidate = prefix + [{"role": "user", "content": content + fragment * lo}]
+        exact_tokens = render_tokens(renderer, candidate)
+        if exact_tokens == target:
+            return candidate, exact_tokens
+    raise ValueError(f"cannot render exact prompt frontier: got {tokens}, wanted {target}")
+
+
+def prepare_exact_a2(renderer: ServerPromptRenderer,
+                     prefix: list[dict[str, str]], context_tokens: int,
+                     max_tokens: int, max_fresh_tokens: int,
+                     fact: str) -> tuple[list[dict[str, str]], int, int]:
+    """Fit the final A2 against the actual live prefix and the exact L-C reserve."""
+    target = context_tokens - max_tokens
+    messages, rendered = fit_user_exact(renderer, prefix, target, fact)
+    fresh = rendered - (render_tokens(renderer, prefix) if prefix else 0)
+    if fresh <= 0 or fresh > max_fresh_tokens:
+        raise ValueError(f"runtime exact A2 fresh prompt is outside request bound: {fresh}")
+    return messages, rendered, fresh
+
+
+def exact_full_context_commit(target: int, before: int, prompt_tokens: int,
+                              completion_tokens: int, observed_after: int) -> bool:
+    """Require exact live occupancy and matching usage accounting for the final commit."""
+    return (observed_after == target and observed_after > before and
+            abs(prompt_tokens + completion_tokens - observed_after) <= 1)
+
+
 def _answer_envelope(renderer: ServerPromptRenderer,
                      prefix: list[dict[str, str]]) -> str:
     # The live occupancy answers are commonly repetitive 400-character
@@ -159,13 +203,16 @@ def _scheduled_generation_budget(stage: str, max_tokens: int) -> int:
 
 
 def _repo_completion_threshold(target_tokens: int, hot_tokens: int,
-                               schedule: list[dict[str, Any]]) -> int:
+                               schedule: list[dict[str, Any]],
+                               exact_full_context: bool = False) -> int:
     """Stop at the frozen safe frontier, while retaining the required H+2048 crossing."""
     if not schedule or not isinstance(schedule[-1].get("reserve"), Mapping):
         raise ValueError("repo-content schedule has no final reserve")
     safe_target = _as_int(schedule[-1]["reserve"].get("C_target_tokens"))
     if safe_target is None:
         raise ValueError("repo-content schedule has no reserve-derived frontier")
+    if exact_full_context:
+        return target_tokens
     return max(hot_tokens + 2048, min(target_tokens, safe_target))
 
 
@@ -197,7 +244,8 @@ def _remaining_chunks(chunks: list[Any], selected: list[Any]) -> list[Any]:
 def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, Any],
                         context_tokens: int, hot_tokens: int,
                         max_fresh_tokens: int,
-                        target_tokens: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                        target_tokens: int,
+                        exact_full_context: bool = False) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Freeze a safe A/B/A repository-content sequence before generation."""
     manifest = repo_context.load_manifest()
     prompts = repo_context.load_prompts()
@@ -250,7 +298,8 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
     # in this server's accounting, so plan its prompt below the requested
     # occupied target by that measured delta.
     planner_frontier = max(hot_tokens + 2048,
-                           requested_frontier - (MAX_OUTPUT_TOKENS - 1) - 6)
+                           requested_frontier - (MAX_OUTPUT_TOKENS if exact_full_context
+                                                 else MAX_OUTPUT_TOKENS - 1 + 6))
     # The first turn adds benchmark B documentation and the next deterministic
     # repository ranges. Continuations append further non-overlapping ranges.
     for _ in range(len(chunks) + 1):
@@ -316,8 +365,20 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         raise RuntimeError("zero-generation preflight could not append repository text")
     if reserve_record is None:
         raise RuntimeError("zero-generation preflight did not measure an A2 reserve")
-    a2_tokens = render_tokens(renderer, simulated + [a2_turn])
-    final_reserve = (MAX_OUTPUT_TOKENS + 256 + mtp_reserve +
+    if exact_full_context:
+        a2_messages, a2_tokens = fit_user_exact(
+            renderer, simulated, planner_frontier, a2)
+        a2 = a2_messages[-1]["content"]
+        a2_fresh_tokens = a2_tokens - render_tokens(renderer, simulated)
+        if a2_fresh_tokens <= 0 or a2_fresh_tokens > max_fresh_tokens:
+            raise RuntimeError(
+                f"exact A2 fresh prompt is outside the request bound: "
+                f"{a2_fresh_tokens}>{max_fresh_tokens}")
+    else:
+        a2_tokens = render_tokens(renderer, simulated + [a2_turn])
+        a2_fresh_tokens = None
+    final_reserve = (MAX_OUTPUT_TOKENS if exact_full_context else
+                     MAX_OUTPUT_TOKENS + 256 + mtp_reserve +
                      MIN_SAFETY_GAP_TOKENS + 256)
     if a2_tokens + final_reserve > context_tokens:
         raise RuntimeError(f"planned A2 request exceeds L after output/replay/safety reserve: "
@@ -325,6 +386,7 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
     if render_tokens(renderer, simulated) <= hot_tokens + 2048:
         raise RuntimeError("repository-content preflight cannot reach H+2048")
     schedule.append({"stage": "A2", "user": a2,
+                     "exact_fill_fact": a2_turn["content"],
                      "rendered_prompt_tokens": a2_tokens,
                      "reserve": {"query_tokens": 0, "output_tokens": MAX_OUTPUT_TOKENS,
                                  "page_alignment_tokens": 256,
@@ -334,6 +396,9 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
                                  "total_tokens": final_reserve,
                                  "context_tokens": context_tokens,
                                  "C_target_tokens": context_tokens - final_reserve},
+                     "ignore_eos": exact_full_context,
+                     "planned_fresh_tokens": a2_fresh_tokens,
+                     "fresh_token_limit": max_fresh_tokens if exact_full_context else None,
                      "selected_ranges": []})
     source_id = repo_context.git_identity()
     inventory_rows = [{"path": item.path, "sha256": item.sha256,
@@ -365,9 +430,12 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         "requested_A2_prompt_frontier_tokens": requested_frontier,
         "planner_A2_prompt_frontier_tokens": planner_frontier,
         "planned_final_occupied_frontier_tokens": (
+            a2_tokens + MAX_OUTPUT_TOKENS if exact_full_context else
             a2_tokens + MAX_OUTPUT_TOKENS - 1),
+        "exact_full_context": exact_full_context,
         "requests_sent": 0,
         "projected_A2_prompt_tokens": a2_tokens,
+        "planned_A2_fresh_tokens": a2_fresh_tokens,
     }
     return schedule, plan
 
@@ -728,12 +796,14 @@ def validate_resume_state(state: Mapping[str, Any], identity: Mapping[str, Any],
 
 
 def validate_requested_geometry(context_tokens: int, hot_tokens: int, page_tokens: int,
-                                target_tokens: int, max_tokens: int) -> None:
+                                target_tokens: int, max_tokens: int,
+                                allow_exact_full_context: bool = False) -> None:
     if hot_tokens >= context_tokens or context_tokens > MAX_CONTEXT_TOKENS:
         raise SystemExit(f"fixture requires 0 < H < L <= {MAX_CONTEXT_TOKENS}")
     if hot_tokens % page_tokens or context_tokens % page_tokens:
         raise SystemExit("logical and hot capacities must be page aligned")
-    if target_tokens > context_tokens - max_tokens:
+    if target_tokens > context_tokens - max_tokens and not (
+            allow_exact_full_context and target_tokens == context_tokens):
         raise SystemExit("target frontier must leave room for generation")
 
 
@@ -889,6 +959,8 @@ def main() -> int:
     parser.add_argument("--max-tokens", type=int, default=16)
     parser.add_argument("--repo-content", action="store_true",
                         help="run the frozen repo-content A/B/A sequence for phase 102")
+    parser.add_argument("--exact-full-context", action="store_true",
+                        help="finish with an ignore-EOS commit at exactly L; requires repo content")
     parser.add_argument("--post-load-canonical", action="store_true",
                         help="run the resumable three-prompt MTP branches after occupancy")
     parser.add_argument("--preflight-only", action="store_true",
@@ -904,13 +976,18 @@ def main() -> int:
 
     if args.repo_content and args.max_tokens != MAX_OUTPUT_TOKENS:
         raise SystemExit(f"repo-content sequence requires --max-tokens {MAX_OUTPUT_TOKENS}")
+    if args.exact_full_context and (not args.repo_content or
+                                    args.target_tokens != args.context_tokens or
+                                    args.max_tokens != MAX_OUTPUT_TOKENS):
+        raise SystemExit("--exact-full-context requires repo content, target=L, and max-tokens=400")
 
     if min(args.target_tokens, args.context_tokens, args.hot_tokens, args.page_tokens,
            args.batch_tokens, args.ubatch_tokens, args.turn_delta, args.initial_tokens,
            args.max_fresh_tokens, args.max_tokens) <= 0:
         raise SystemExit("token and geometry values must be positive")
     validate_requested_geometry(args.context_tokens, args.hot_tokens, args.page_tokens,
-                                args.target_tokens, args.max_tokens)
+                                args.target_tokens, args.max_tokens,
+                                allow_exact_full_context=args.exact_full_context)
     if args.turn_delta > args.max_fresh_tokens:
         args.turn_delta = args.max_fresh_tokens
     if args.max_requests is not None and args.max_requests <= 0:
@@ -927,6 +1004,7 @@ def main() -> int:
         "slot_id": args.slot_id,
         "target_tokens": args.target_tokens,
         "completion_threshold_tokens": max(args.target_tokens - args.page_tokens, args.hot_tokens + 1),
+        "exact_full_context": args.exact_full_context,
     }
     output = args.output.resolve()
     driver = load_driver()
@@ -948,7 +1026,8 @@ def main() -> int:
         saved_schedule = state.get("schedule")
         if args.repo_content and isinstance(saved_schedule, list):
             geometry["completion_threshold_tokens"] = _repo_completion_threshold(
-                args.target_tokens, args.hot_tokens, saved_schedule)
+                args.target_tokens, args.hot_tokens, saved_schedule,
+                exact_full_context=args.exact_full_context)
         live = driver.snapshot(endpoint, key)
         effective = validate_effective_geometry(identity, live, geometry)
         live_slot = selected_slot(live, args.slot_id)
@@ -983,7 +1062,20 @@ def main() -> int:
             source_now = repo_context.git_identity()
             plan = state.get("repo_preflight")
             if not isinstance(plan, Mapping) or plan.get("source_identity") != source_now:
-                raise ResumeStateError("repo source/candidate identity changed since zero-generation preflight")
+                previous = plan.get("source_identity") if isinstance(plan, Mapping) else None
+                if (not args.exact_full_context or not isinstance(previous, Mapping) or
+                        previous.get("commit") != source_now.get("commit")):
+                    raise ResumeStateError("repo source/candidate identity changed since zero-generation preflight")
+                # The exact-capacity runner was refined after a partial live
+                # campaign. Keep the frozen schedule and selected-range hashes,
+                # but explicitly rebind its source fingerprint to this runner.
+                plan["source_identity_rebind"] = {
+                    "from": previous, "to": source_now,
+                    "reason": "exact-capacity live-prefix reserve handling update",
+                    "schedule_and_selected_ranges_preserved": True}
+                plan["source_identity"] = source_now
+                state["repo_preflight"] = plan
+                _write_checkpoint(output, state)
         messages = list(state.get("messages", []))
         records = list(state.get("records", []))
         history = list(state.get("history", []))
@@ -1034,9 +1126,11 @@ def main() -> int:
         if args.repo_content:
             schedule, repo_preflight = build_repo_schedule(
                 renderer, identity, args.context_tokens, args.hot_tokens,
-                args.max_fresh_tokens, args.target_tokens)
+                args.max_fresh_tokens, args.target_tokens,
+                exact_full_context=args.exact_full_context)
             geometry["completion_threshold_tokens"] = _repo_completion_threshold(
-                args.target_tokens, args.hot_tokens, schedule)
+                args.target_tokens, args.hot_tokens, schedule,
+                exact_full_context=args.exact_full_context)
             if args.adopt_a1_from is not None:
                 old = _read_checkpoint(args.adopt_a1_from.resolve())
                 old_plan = old.get("repo_preflight")
@@ -1111,9 +1205,22 @@ def main() -> int:
             scheduled_reserve = scheduled.get("reserve", {})
             generation_budget = _scheduled_generation_budget(
                 str(scheduled.get("stage", "")), args.max_tokens)
+            if args.exact_full_context and scheduled.get("stage") == "A2":
+                a2_fact = str(scheduled.get("exact_fill_fact") or
+                              repo_context.load_prompts()["A2"])
+                request_messages, rendered_tokens, _fresh_tokens = prepare_exact_a2(
+                    renderer, messages, args.context_tokens, args.max_tokens,
+                    args.max_fresh_tokens, a2_fact)
+                scheduled = dict(scheduled)
+                scheduled["user"] = request_messages[-1]["content"]
+                scheduled["ignore_eos"] = True
+                scheduled["runtime_exact_prompt_tokens"] = rendered_tokens
+                request_messages = messages + [{"role": "user", "content": scheduled["user"]}]
+            runtime_reserve = (0 if args.exact_full_context and
+                               scheduled.get("stage") != "A2" else
+                               int(scheduled_reserve.get("total_tokens", MIN_SAFETY_GAP_TOKENS)))
             repo_context.enforce_reserve(
-                rendered_tokens, generation_budget,
-                int(scheduled_reserve.get("total_tokens", MIN_SAFETY_GAP_TOKENS)),
+                rendered_tokens, generation_budget, runtime_reserve,
                 args.context_tokens)
             request_entry_tokens = render_tokens(renderer, messages) if messages else 0
             if rendered_tokens - request_entry_tokens > args.max_fresh_tokens:
@@ -1138,6 +1245,7 @@ def main() -> int:
             "max_tokens": args.max_tokens, "temperature": 0, "seed": 42,
             "stream": True, "stream_options": {"include_usage": True},
             "chat_template_kwargs": {"enable_thinking": False},
+            "ignore_eos": turn.get("ignore_eos", False),
             "n_ctx": args.context_tokens,
         }
         atomic_json(request_path, request_payload)
@@ -1153,6 +1261,7 @@ def main() -> int:
             mode="selective", prefill_policy="runtime", startup_timeout=180,
             progress_idle_timeout=args.prefill_timeout, decode_idle_timeout=120,
             total_timeout=args.total_timeout,
+            ignore_eos=bool(turn.get("ignore_eos", False)),
         )
         post = driver.snapshot(endpoint, key)
         slot_after = selected_slot(post, args.slot_id)
@@ -1178,6 +1287,7 @@ def main() -> int:
             "identity_fingerprint": fingerprint,
             "candidate_identity": identity,
             "stage": turn.get("stage", "occupancy"),
+            "ignore_eos": turn.get("ignore_eos", False),
             "reserve": turn.get("reserve"),
             "selected_ranges": turn.get("selected_ranges", []),
         })
@@ -1283,9 +1393,21 @@ def main() -> int:
                          current_tokens >= geometry["completion_threshold_tokens"] and
                          (current_tokens > required_frontier if args.repo_content else
                           current_tokens > args.hot_tokens))
+    if args.exact_full_context:
+        final_record = records[-1] if records else {}
+        request_completed = (request_completed and current_tokens == args.target_tokens and
+                             final_record.get("stage") == "A2" and
+                             final_record.get("ignore_eos") is True and
+                             exact_full_context_commit(
+                                 args.target_tokens, final_record.get("frontier_before_tokens", 0),
+                                 final_record.get("response_prompt_tokens", 0),
+                                 final_record.get("response_completion_tokens", 0), current_tokens))
     all_commits_within_limit = all(item.get("within_fresh_limit") is True for item in history)
     measurement_valid = bool(history) and all_commits_within_limit and current_tokens > args.hot_tokens
     metrics = final.get("metrics") if isinstance(final.get("metrics"), dict) else {}
+    memory_headroom_key = next((key for key in (
+        "memory_headroom_bytes", "vram_headroom_bytes", "vram_free_bytes",
+        "cuda_free_bytes") if _as_int(metrics.get(key)) is not None), None)
     report = {
         "schema_version": 2,
         "campaign": "occupied-frontier-v1",
@@ -1298,6 +1420,7 @@ def main() -> int:
         "slot": {"slot_id": final_slot["slot_id"], "generation": final_slot["generation"]},
         "request_completed": request_completed,
         "measurement_valid": measurement_valid,
+        "exact_full_context_requested": args.exact_full_context,
         "frontier": {
             "requested_target_tokens": args.target_tokens,
             "completion_threshold_tokens": geometry["completion_threshold_tokens"],
@@ -1310,6 +1433,14 @@ def main() -> int:
         "records": records,
         "post_load_probes": state.get("post_load_probes"),
         "allocation_ledger": _allocation_ledger(final),
+        "capacity_accounting": {
+            "target_allocation_bytes": _as_int(metrics.get("target_allocated_bytes")),
+            "committed_frontier_tokens": current_tokens,
+            "reserved_context_gap_tokens": args.context_tokens - current_tokens,
+            "memory_headroom_bytes": (_as_int(metrics.get(memory_headroom_key))
+                                      if memory_headroom_key else None),
+            "memory_headroom_source": memory_headroom_key or "unavailable",
+        },
         "final_snapshot": final,
         "artifacts": {
             "checkpoint": {"path": str((output / "incremental-state.json").resolve()),

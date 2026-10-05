@@ -124,6 +124,35 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
     min_frontier = geometry.get("hot_capacity_tokens", 0) + 8 * geometry.get("page_size_tokens", 0)
     if committed is not None and committed < min_frontier:
         errors.append("committed frontier did not exceed H by eight pages")
+    exact_requested = frontier.get("exact_full_context_requested") is True or \
+        geometry.get("exact_full_context") is True
+    if exact_requested:
+        if target != context or threshold != context or committed != context:
+            errors.append("exact-full-context proof requires target, threshold, and committed frontier equal L")
+        exact_records = frontier.get("records")
+        exact_records = exact_records if isinstance(exact_records, list) else []
+        final_record = next((item for item in reversed(exact_records)
+                             if isinstance(item, dict) and item.get("committed") is True), {})
+        if final_record.get("stage") != "A2" or final_record.get("ignore_eos") is not True:
+            errors.append("exact-full-context proof requires an ignore-EOS final A2 commit")
+        accounting = frontier.get("capacity_accounting")
+        if not isinstance(accounting, dict):
+            errors.append("exact-full-context capacity accounting is missing")
+        else:
+            if accounting.get("committed_frontier_tokens") != committed:
+                errors.append("capacity accounting committed frontier differs from live occupancy")
+            if accounting.get("reserved_context_gap_tokens") != context - committed:
+                errors.append("capacity accounting reserved gap differs from L minus C")
+            if accounting.get("target_allocation_bytes") != frontier.get(
+                    "allocation_ledger", {}).get("target_allocated_bytes"):
+                errors.append("capacity accounting target allocation differs from runtime ledger")
+            headroom = accounting.get("memory_headroom_bytes")
+            source = accounting.get("memory_headroom_source")
+            if headroom is not None and (not isinstance(headroom, int) or isinstance(headroom, bool)
+                                         or headroom < 0 or not isinstance(source, str) or not source):
+                errors.append("capacity accounting memory headroom is malformed")
+            if headroom is None and source != "unavailable":
+                errors.append("unknown memory headroom must be labeled unavailable")
     if frontier.get("request_completed") is not True or frontier.get("status") != "pass":
         errors.append("requested occupancy frontier is incomplete")
     if frontier.get("measurement_valid") is not True:
@@ -242,7 +271,8 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "status": "pass" if not errors else "fail",
-        "required_proof": ("128k_occupancy_memory_and_turn_boundary"
+        "required_proof": ("exact_full_context_committed_capacity" if exact_requested else
+                           "128k_occupancy_memory_and_turn_boundary"
                            if context == 131072 else "32k_16k_committed_history_and_speed_occupancy"),
         "geometry": geometry,
         "candidate_identity": {
@@ -259,6 +289,7 @@ def validate_report(frontier: Mapping[str, Any]) -> dict[str, Any]:
                      committed > geometry.get("hot_capacity_tokens", 0),
                      "successful_appends": len(history)},
         "allocation_ledger": ledger,
+        "capacity_accounting": frontier.get("capacity_accounting") if exact_requested else None,
         "errors": errors,
     }
 
