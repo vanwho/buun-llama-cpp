@@ -2652,6 +2652,28 @@ private:
     ggml_tensor * accumulator_ = nullptr;
 };
 
+class llm_graph_input_kv_query_probes final : public llm_graph_input_i {
+public:
+    llm_graph_input_kv_query_probes(
+            const llama_memory_context_i * mctx, ggml_tensor * probes) :
+        mctx_(mctx), probes_(probes) {}
+
+    void set_input(const llama_ubatch * ubatch) override {
+        if (mctx_ != nullptr && ubatch != nullptr) {
+            mctx_->set_kv_query_probe_inputs(probes_, *ubatch);
+        }
+    }
+
+    bool can_reuse(const llm_graph_params & params) override {
+        mctx_ = params.mctx;
+        return false;
+    }
+
+private:
+    const llama_memory_context_i * mctx_ = nullptr;
+    ggml_tensor * probes_ = nullptr;
+};
+
 } // namespace
 
 void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
@@ -2695,8 +2717,15 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             mctx->note_kv_page_select_gate(llama_kv_pager_selector_gate::callback_matched,
                     cur, il, ubatch, query_row);
         }
+        ggml_tensor * probe_capture = nullptr;
         ggml_tensor * selected = mctx->build_kv_page_select(
-                ctx0, cur, il, ubatch, query_row);
+                ctx0, cur, il, ubatch, query_row, &probe_capture);
+        if (probe_capture != nullptr) {
+            res->add_input(std::make_unique<llm_graph_input_kv_query_probes>(
+                    mctx, probe_capture));
+            ggml_set_output(probe_capture);
+            ggml_build_forward_expand(gf, probe_capture);
+        }
         if (selected != nullptr) {
             ggml_tensor * accumulator = selected->op == GGML_OP_KV_QUERY_ACCUMULATE
                 ? selected

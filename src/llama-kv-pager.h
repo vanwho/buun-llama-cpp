@@ -447,6 +447,7 @@ enum class llama_kv_pager_selector_trace_outcome : uint8_t {
     policy_target_omission,
     query_commit_selection_truncated,
     query_commit_capacity_refusal,
+    budget_limited,
     slot_admission,
     transfer_plan_rejected,
     async_transfer_failed,
@@ -530,6 +531,7 @@ struct llama_kv_pager_selector_trace {
     uint32_t cold_bundle_budget = 0;
     float target_cold_bundle_score = 0.0f;
     bool target_candidate_in_cold_budget = false;
+    bool target_cold_budget_limited = false;
     bool target_candidate_scan_complete = false;
     bool policy_decision_evaluated = false;
     bool query_commit_enabled = false;
@@ -667,6 +669,7 @@ public:
     llama_kv_pager & operator=(const llama_kv_pager &) = delete;
 
     const llama_kv_pager_snapshot & snapshot() const noexcept { return snapshot_; }
+    llama_kv_router_mode router_mode() const noexcept { return router_mode_; }
     llama_kv_residency_snapshot residency() const noexcept { return residency_.snapshot(); }
     llama_kv_residency_snapshot residency(int32_t sequence_id) const noexcept {
         return residency_.snapshot().for_sequence(sequence_id);
@@ -1047,6 +1050,7 @@ private:
     uint32_t resources_host_stream_index_ = UINT32_MAX;
     uint32_t test_force_logical_page_ = UINT32_MAX;
     llama_kv_routing_summary_config routing_summary_config_;
+    llama_kv_router_mode router_mode_ = llama_kv_router_mode::legacy;
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;

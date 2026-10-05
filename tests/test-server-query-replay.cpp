@@ -479,6 +479,13 @@ bool run(const options & opts) {
                 if (!target->commit_kv_pager_query(0, turn_id, &changed, &generation)) {
                     return false;
                 }
+                bool repeated_changed = true;
+                uint64_t repeated_generation = 0;
+                if (!target->commit_kv_pager_query(0, turn_id,
+                        &repeated_changed, &repeated_generation) ||
+                        repeated_changed || repeated_generation != generation) {
+                    return false;
+                }
                 return target->get_kv_pager_history_for_test(0, committed_history) &&
                     same_history(final_history, committed_history);
             },

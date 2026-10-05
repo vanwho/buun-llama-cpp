@@ -9,13 +9,13 @@ extern "C" {
 // Fork wire namespace: upstream 7 has different op/type IDs. The high bit
 // prevents either peer from treating the other's tensors as compatible.
 #define RPC_PROTO_MAJOR_VERSION    (0x80 | 7)
-#define RPC_PROTO_MINOR_VERSION    0
+#define RPC_PROTO_MINOR_VERSION    2
 // HELLO checks major/minor only. An enum/layout change must bump a checked
 // version, not merely this informational patch field.
 #define RPC_PROTO_PATCH_VERSION    0
 
 #ifdef  __cplusplus
-static_assert(GGML_OP_COUNT == 107, "GGML_OP_COUNT has changed - update RPC_PROTO_PATCH_VERSION");
+static_assert(GGML_OP_COUNT == 109, "GGML_OP_COUNT has changed - update RPC_PROTO_PATCH_VERSION");
 static_assert(GGML_TYPE_COUNT == 92, "GGML_TYPE_COUNT changed - review fork RPC wire version");
 #endif
 

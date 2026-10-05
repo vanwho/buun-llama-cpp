@@ -360,6 +360,7 @@ static void test_live_policy_cancellation_boundaries() {
 
     auto boundary = live_boundary(table.snapshot(), live_promotion());
     const auto original = table.snapshot();
+    llama_kv_live_policy_result completed_then_unpublished;
     auto cancel = [&](llama_kv_residency_transaction_phase phase) {
         live_cancel_phase cancellation;
         cancellation.cancel_at = phase;
@@ -382,6 +383,17 @@ static void test_live_policy_cancellation_boundaries() {
         assert(result.status == expected_status);
         assert(!result.published && !result.transaction.published &&
             result.transaction.rollback_complete);
+        if (phase == llama_kv_residency_transaction_phase::recheck) {
+            // The upload was queued and its completion event retired, but a
+            // later identity check prevented table publication. This is the
+            // queued-without-publication boundary observed on H200: completion
+            // must not be mistaken for residency becoming visible.
+            assert(result.transaction.h2d_counters.queued > 0);
+            assert(result.transaction.h2d_counters.event_completions > 0);
+            assert(result.transaction.h2d_counters.copied_useful_bytes > 0);
+            assert(!result.published && !result.transaction.published);
+            completed_then_unpublished = result;
+        }
         const auto current = table.snapshot();
         assert(current.epoch() == original.epoch() &&
             current.pages().size() == original.pages().size());
@@ -399,6 +411,9 @@ static void test_live_policy_cancellation_boundaries() {
     const size_t completed_h2d_copies = cancel(
         llama_kv_residency_transaction_phase::recheck);
     assert(completed_h2d_copies == 1);
+    assert(completed_then_unpublished.transaction.h2d_counters.queued > 0 &&
+        completed_then_unpublished.transaction.h2d_counters.event_completions > 0 &&
+        !completed_then_unpublished.published);
 
     auto hooks = live_transaction_hooks();
     const auto retry = llama_kv_live_policy_apply(

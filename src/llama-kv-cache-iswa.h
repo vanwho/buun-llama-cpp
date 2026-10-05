@@ -312,7 +312,10 @@ public:
     uint32_t get_max_graph_seqs() const override;
     ggml_tensor * build_kv_page_select(
             ggml_context * ctx, ggml_tensor * q, int layer,
-            const llama_ubatch & ubatch, uint32_t query_row) const override;
+            const llama_ubatch & ubatch, uint32_t query_row,
+            ggml_tensor ** probe_capture = nullptr) const override;
+    bool set_kv_query_probe_inputs(
+            ggml_tensor * probes, const llama_ubatch & ubatch) const override;
     bool set_kv_page_select_inputs(
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,

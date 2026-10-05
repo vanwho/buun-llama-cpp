@@ -632,9 +632,10 @@ uint32_t llama_memory_hybrid_context::get_max_graph_seqs() const {
 
 ggml_tensor * llama_memory_hybrid_context::build_kv_page_select(
         ggml_context * ctx, ggml_tensor * q, int layer,
-        const llama_ubatch & ubatch, uint32_t query_row) const {
+        const llama_ubatch & ubatch, uint32_t query_row,
+        ggml_tensor ** probe_capture) const {
     return get_attn() != nullptr ? get_attn()->build_kv_page_select(
-            ctx, q, layer, ubatch, query_row) : nullptr;
+            ctx, q, layer, ubatch, query_row, probe_capture) : nullptr;
 }
 
 bool llama_memory_hybrid_context::set_kv_page_select_inputs(
@@ -649,6 +650,11 @@ bool llama_memory_hybrid_context::set_kv_query_accumulate_inputs(
         ggml_tensor * accumulator, const llama_ubatch & ubatch) const {
     return get_attn() != nullptr && get_attn()->set_kv_query_accumulate_inputs(
             accumulator, ubatch);
+}
+
+bool llama_memory_hybrid_context::set_kv_query_probe_inputs(
+        ggml_tensor * probes, const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->set_kv_query_probe_inputs(probes, ubatch);
 }
 
 bool llama_memory_hybrid_context::can_reuse_kv_page_select(

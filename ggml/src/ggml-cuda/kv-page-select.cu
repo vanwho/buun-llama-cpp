@@ -72,6 +72,70 @@ __global__ void query_accumulate_mean(const float * sum, size_t sum_nb0, size_t 
     *(float *)o = n > 0 ? *(const float *)s / float(n) : 0.0f;
 }
 
+__global__ void query_probes_capture(
+        const float * q, size_t q_nb0, size_t q_nb1, size_t q_nb2,
+        const int64_t * positions, size_t pos_nb0,
+        float * probes, size_t probes_nb0, size_t probes_nb1, size_t probes_nb2,
+        int64_t * validity, const int64_t * control,
+        float * out, size_t out_nb0, size_t out_nb1, size_t out_nb2,
+        int d, int heads, int rows) {
+    const int64_t generation = control[0];
+    const int64_t query_start = control[1];
+    const int64_t query_end = control[2];
+    if (threadIdx.x == 0 && validity[0] != generation) {
+        validity[0] = generation;
+        validity[1] = query_end - 1;
+        validity[2] = query_end - 2;
+        validity[3] = query_end - 4;
+        validity[4] = query_end - 8;
+        for (int slot = 0; slot < 4; ++slot) validity[5 + slot] = 0;
+    }
+    __syncthreads();
+    const int64_t total = int64_t(d) * heads * 4;
+    for (int64_t i = threadIdx.x; i < total; i += blockDim.x) {
+        const int slot = i / (int64_t(d) * heads);
+        const int head = (i / d) % heads;
+        const int coord = i % d;
+        const int64_t target = query_end - (int64_t(1) << slot);
+        if (target >= query_start) {
+            int matched_row = -1;
+            for (int row = 0; row < rows; ++row) {
+                const int64_t pos = *(const int64_t *)((const char *) positions + row * pos_nb0);
+                if (pos == target && pos >= query_start && pos < query_end) matched_row = row;
+            }
+            if (matched_row >= 0) {
+                const char * src = (const char *) q + head * q_nb1 + matched_row * q_nb2 + coord * q_nb0;
+                char * dst = (char *) probes + slot * probes_nb2 + head * probes_nb1 + coord * probes_nb0;
+                *(float *) dst = *(const float *) src;
+            }
+        }
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        for (int slot = 0; slot < 4; ++slot) {
+            const int64_t target = query_end - (int64_t(1) << slot);
+            if (target < query_start) continue;
+            for (int row = 0; row < rows; ++row) {
+                const int64_t pos = *(const int64_t *)((const char *) positions + row * pos_nb0);
+                if (pos == target && pos >= query_start && pos < query_end) {
+                    validity[1 + slot] = target;
+                    validity[5 + slot] = 1;
+                    break;
+                }
+            }
+        }
+    }
+    __syncthreads();
+    for (int64_t i = threadIdx.x; i < total; i += blockDim.x) {
+        const int slot = i / (int64_t(d) * heads);
+        const int head = (i / d) % heads;
+        const int coord = i % d;
+        const char * src = (const char *) probes + slot * probes_nb2 + head * probes_nb1 + coord * probes_nb0;
+        char * dst = (char *) out + slot * out_nb2 + head * out_nb1 + coord * out_nb0;
+        *(float *) dst = *(const float *) src;
+    }
+}
+
 __device__ bool page_select_eligible(
         const int64_t * metadata, size_t metadata_nb0, size_t metadata_nb1,
         const int32_t * membership, size_t membership_nb0,
@@ -425,6 +489,22 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
     }
 }
 
+// Defensive output initialization for accidental internal dispatch. The
+// CUDA supports_op gate rejects this node until its score kernel is available;
+// the CPU implementation remains the executable oracle in this phase.
+__global__ static void page_rank_clear(ggml_kv_page_rank_record * output, int count) {
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < count) output[i] = {-1, 0, 0.0f, 0.0f};
+}
+
+void ggml_cuda_op_kv_page_rank(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const int count = ggml_get_op_params_i32(dst, 0) + ggml_get_op_params_i32(dst, 1);
+    if (count <= 0) return;
+    page_rank_clear<<<(count + 255) / 256, 256, 0, ctx.stream()>>>(
+        (ggml_kv_page_rank_record *) dst->data, count);
+    CUDA_CHECK(cudaGetLastError());
+}
+
 void ggml_cuda_op_kv_query_accumulate(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const ggml_tensor * q = dst->src[0];
     const ggml_tensor * positions = dst->src[1];
@@ -448,5 +528,21 @@ void ggml_cuda_op_kv_query_accumulate(ggml_backend_cuda_context & ctx, ggml_tens
     query_accumulate_mean<<<blocks, threads, 0, stream>>>(
             (const float *) sum->data, sum->nb[0], sum->nb[1], (const int64_t *) count->data,
             (float *) dst->data, dst->nb[0], dst->nb[1], q->ne[0], q->ne[1]);
+    CUDA_CHECK(cudaGetLastError());
+}
+
+void ggml_cuda_op_kv_query_probes(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * positions = dst->src[1];
+    ggml_tensor * probes = dst->src[2];
+    ggml_tensor * validity = dst->src[3];
+    const ggml_tensor * control = dst->src[4];
+    query_probes_capture<<<1, 256, 0, ctx.stream()>>>(
+            (const float *) q->data, q->nb[0], q->nb[1], q->nb[2],
+            (const int64_t *) positions->data, positions->nb[0],
+            (float *) probes->data, probes->nb[0], probes->nb[1], probes->nb[2],
+            (int64_t *) validity->data, (const int64_t *) control->data,
+            (float *) dst->data, dst->nb[0], dst->nb[1], dst->nb[2],
+            int(q->ne[0]), int(q->ne[1]), int(q->ne[2]));
     CUDA_CHECK(cudaGetLastError());
 }

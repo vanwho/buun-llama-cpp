@@ -54,6 +54,7 @@ const char * llama_kv_pager_selector_trace_outcome_name(
         case llama_kv_pager_selector_trace_outcome::policy_target_omission: return "policy_target_omission";
         case llama_kv_pager_selector_trace_outcome::query_commit_selection_truncated: return "query_commit_selection_truncated";
         case llama_kv_pager_selector_trace_outcome::query_commit_capacity_refusal: return "query_commit_capacity_refusal";
+        case llama_kv_pager_selector_trace_outcome::budget_limited: return "budget_limited";
         case llama_kv_pager_selector_trace_outcome::slot_admission: return "slot_admission";
         case llama_kv_pager_selector_trace_outcome::transfer_plan_rejected: return "transfer_plan_rejected";
         case llama_kv_pager_selector_trace_outcome::async_transfer_failed: return "async_transfer_failed";
@@ -1931,6 +1932,7 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
     auto output = std::unique_ptr<llama_kv_pager>(new (std::nothrow) llama_kv_pager);
     if (!output) { status = llama_kv_pager_status::allocation; return nullptr; }
     output->backend_ = std::move(backend);
+    output->router_mode_ = config.router;
     try {
         if (!llama_kv_pager_plan(config, geometry, resources, output->snapshot_, status)) return nullptr;
         output->routing_summary_config_ = resources.routing_summary;
@@ -2099,19 +2101,24 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
                 return nullptr;
             }
         }
-        // A selector returns R resident IDs plus up to five cold IDs for
-        // every attention layer. The old fixed 128-record mailbox could not
-        // hold even one layer at H=200 pages, silently disabling promotion.
-        // These are small host metadata slots, not another GPU K/V pool.
+        // Keep the legacy selector's five-ID result unchanged while sizing
+        // the owner slot for the wider rank shortlist R+K as well. The old
+        // fixed 128-record mailbox could not hold one layer at H=200 pages.
+        // These are host metadata slots, not another GPU K/V pool.
         const uint64_t resident_ids = std::min<uint64_t>(
                 output->snapshot_.logical_page_count,
                 std::min<uint64_t>(output->snapshot_.physical_page_count,
                     output->snapshot_.admission.attention_pages != 0
                         ? output->snapshot_.admission.attention_pages
                         : output->snapshot_.physical_page_count));
-        const uint64_t ids_per_layer = resident_ids +
+        const uint64_t legacy_ids_per_layer = resident_ids +
                 std::min<uint64_t>(LLAMA_KV_QUERY_COLD_SELECTOR_PAGES,
                     output->snapshot_.logical_page_count);
+        const uint64_t cold_pages = output->snapshot_.logical_page_count > resident_ids
+                ? output->snapshot_.logical_page_count - resident_ids : 0;
+        const uint64_t rank_ids_per_layer = resident_ids +
+                llama_kv_query_cold_rank_width(uint32_t(std::min<uint64_t>(cold_pages, UINT32_MAX)));
+        const uint64_t ids_per_layer = std::max(legacy_ids_per_layer, rank_ids_per_layer);
         const uint64_t selector_layers = std::max<uint64_t>(1, geometry.attention_layers);
         if (ids_per_layer == 0 || ids_per_layer > UINT32_MAX / selector_layers ||
                 ids_per_layer * selector_layers > SIZE_MAX / sizeof(llama_kv_prefetch_candidate) ||

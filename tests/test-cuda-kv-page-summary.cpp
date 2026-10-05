@@ -187,6 +187,119 @@ std::vector<ggml_fp16_t> run_summary(ggml_backend_t backend, const fixture & f) 
     return expected;
 }
 
+std::vector<float> run_rerank(ggml_backend_t backend, const fixture & f) {
+    constexpr int64_t query_heads = 4, probes_count = 4;
+    constexpr int64_t identity_values[2] = {7, 9};
+    ggml_init_params params = { 64 * 1024 * 1024, nullptr, true };
+    ggml_context * ctx = ggml_init(params);
+    assert(ctx != nullptr);
+    ggml_tensor * probes = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, kDim, query_heads, probes_count);
+    ggml_tensor * resident_keys = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, kDim * kHeads, kRows, kStreams);
+    ggml_tensor * staged_keys = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, kDim * kHeads, kRows, kStreams);
+    ggml_tensor * descriptors = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 10, kPages);
+    ggml_tensor * identity = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 2);
+    ggml_tensor * validity = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 9);
+    ggml_tensor * state = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 2, kPages, query_heads, probes_count);
+    ggml_tensor * result = ggml_kv_page_rerank(ctx, probes, resident_keys, staged_keys, descriptors, identity,
+            validity, state, 0.25f, 0.0f);
+    ggml_set_output(result);
+    ggml_cgraph * graph = ggml_new_graph_custom(ctx, 32, false);
+    ggml_build_forward_expand(graph, result);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    if (buffer == nullptr) { ggml_free(ctx); return {}; }
+
+    std::vector<float> q(size_t(kDim * query_heads * probes_count));
+    for (int64_t p = 0; p < probes_count; ++p) for (int64_t h = 0; h < query_heads; ++h)
+        for (int64_t d = 0; d < kDim; ++d)
+            q[size_t(d + kDim * (h + query_heads * p))] =
+                std::sin(float(11 + 3 * p + 5 * h + d) * 0.017f);
+    std::vector<int64_t> desc(size_t(10 * kPages), 0);
+    for (int64_t page = 0; page < kPages; ++page) {
+        const int64_t * old = f.metadata.data() + 8 * page;
+        int64_t * d = desc.data() + 10 * page;
+        d[0] = page; d[1] = old[4]; d[2] = old[1]; d[3] = old[5]; d[4] = kPageSize;
+        d[5] = identity_values[0]; d[6] = identity_values[1]; d[7] = 1; d[8] = page * kPageSize;
+        d[9] = page == 1 ? 1 : 0;
+    }
+    // Logical page zero is deliberately mapped to a different physical slot.
+    desc[1] = 2;
+    // Deliberately stale the last descriptor; it must produce empty mass.
+    desc[10 * 3 + 6] = 8;
+    int64_t probe_state[9] = { identity_values[0], 300, 299, 298, 296, 1, 1, 1, 1 };
+    std::vector<float> initial(size_t(2 * kPages * query_heads * probes_count), 0.0f);
+    for (size_t i = 0; i < initial.size(); i += 2) initial[i] = -INFINITY;
+    ggml_backend_tensor_set(probes, q.data(), 0, q.size() * sizeof(float));
+    ggml_backend_tensor_set(resident_keys, f.k.data(), 0, f.k.size());
+    ggml_backend_tensor_set(staged_keys, f.k.data(), 0, f.k.size());
+    ggml_backend_tensor_set(descriptors, desc.data(), 0, desc.size() * sizeof(int64_t));
+    ggml_backend_tensor_set(identity, identity_values, 0, sizeof(identity_values));
+    ggml_backend_tensor_set(validity, probe_state, 0, sizeof(probe_state));
+    ggml_backend_tensor_set(state, initial.data(), 0, initial.size() * sizeof(float));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    std::vector<float> output(size_t(kPages * query_heads * probes_count));
+    ggml_backend_tensor_get(result, output.data(), 0, output.size() * sizeof(float));
+    assert(output.size() == size_t(result->ne[0] * result->ne[1] * result->ne[2]));
+    for (int64_t h = 0; h < query_heads; ++h) for (int64_t p = 0; p < probes_count; ++p) {
+        assert(std::isfinite(output[size_t(h * kPages + kPages * query_heads * p)]));
+        assert(output[size_t(3 + kPages * h + kPages * query_heads * p)] == -INFINITY);
+    }
+
+    // Independent represented-key scalar reference: decode each encoded row,
+    // apply GQA mapping and causal masking, then reduce token logits by LSE.
+    std::vector<float> decoded(size_t(kDim * kHeads));
+    for (int64_t page = 0; page < kPages; ++page) {
+        const int64_t * d = desc.data() + 10 * page;
+        if (d[7] == 0 || d[5] != identity_values[0] || d[6] != identity_values[1]) continue;
+        for (int64_t head = 0; head < query_heads; ++head) for (int64_t p = 0; p < probes_count; ++p) {
+            const size_t out_index = size_t(page + kPages * (head + query_heads * p));
+            double maximum = -INFINITY, sum = 0.0;
+            if (probe_state[5 + p] != 0) for (int64_t row = 0; row < d[2]; ++row) {
+                if (d[8] + row > probe_state[1 + p]) continue;
+                const size_t key_row = size_t(d[3] * kRows + d[1] * d[4] + row);
+                const size_t row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, kDim * kHeads);
+                dequantize_row_turbo4_0(reinterpret_cast<const block_turbo4_0 *>(
+                        f.k.data() + key_row * row_bytes), decoded.data(), kDim * kHeads);
+                const int64_t kv_head = head / (query_heads / kHeads);
+                double dot = 0.0;
+                for (int64_t coord = 0; coord < kDim; ++coord) {
+                    dot += double(q[size_t(coord + kDim * (head + query_heads * p))]) *
+                        decoded[size_t(kv_head * kDim + coord)];
+                }
+                const double logit = dot * 0.25;
+                if (logit > maximum) { sum = sum * std::exp(maximum - logit) + 1.0; maximum = logit; }
+                else sum += std::exp(logit - maximum);
+            }
+            const float expected = sum == 0.0 ? -INFINITY : float(maximum + std::log(sum));
+            if (std::isinf(expected)) assert(output[out_index] == expected);
+            else assert(std::fabs(output[out_index] - expected) < 1e-4f);
+        }
+    }
+
+    // The same encoded page split at a staging boundary must combine through
+    // the caller-owned (m,s) state to the exact unsplit log mass.
+    std::vector<int64_t> split_desc = desc;
+    for (int64_t page = 1; page < kPages; ++page) split_desc[size_t(10 * page + 7)] = 0;
+    split_desc[2] = 128; split_desc[4] = 128; split_desc[1] = 4;
+    std::fill(initial.begin(), initial.end(), 0.0f);
+    for (size_t i = 0; i < initial.size(); i += 2) initial[i] = -INFINITY;
+    ggml_backend_tensor_set(state, initial.data(), 0, initial.size() * sizeof(float));
+    ggml_backend_tensor_set(descriptors, split_desc.data(), 0, split_desc.size() * sizeof(int64_t));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    split_desc[1] = 5;
+    split_desc[8] += 128;
+    ggml_backend_tensor_set(descriptors, split_desc.data(), 0, split_desc.size() * sizeof(int64_t));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    std::vector<float> split_output(output.size());
+    ggml_backend_tensor_get(result, split_output.data(), 0, split_output.size() * sizeof(float));
+    for (int64_t h = 0; h < query_heads; ++h) for (int64_t p = 0; p < probes_count; ++p) {
+        const size_t index = size_t(kPages * (h + query_heads * p));
+        assert(std::fabs(split_output[index] - output[index]) < 1e-4f);
+    }
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+    return output;
+}
+
 } // namespace
 
 int main(int argc, char ** argv) {
@@ -195,9 +308,11 @@ int main(int argc, char ** argv) {
     assert(cpu != nullptr);
     const fixture f = make_fixture();
     const auto cpu_result = run_summary(cpu, f);
+    const auto cpu_rerank = run_rerank(cpu, f);
     ggml_backend_free(cpu);
     if (argc > 1 && std::string(argv[1]) == "--cpu-only") {
-        std::puts("CPU KV page summary reference, replay, cold-copy, and page-local update passed");
+        assert(!cpu_rerank.empty());
+        std::puts("CPU KV page summary and Turbo4 rerank graph passed");
         return 0;
     }
 
@@ -209,12 +324,18 @@ int main(int argc, char ** argv) {
     ggml_backend_t cuda = ggml_backend_dev_init(cuda_device, nullptr);
     assert(cuda != nullptr);
     const auto cuda_result = run_summary(cuda, f);
+    const auto cuda_rerank = run_rerank(cuda, f);
     ggml_backend_free(cuda);
     if (cuda_result.empty()) {
         std::fprintf(stderr, "CUDA0 could not allocate the summary fixture\n");
         return 77;
     }
     assert(cuda_result.size() == cpu_result.size());
+    assert(cuda_rerank.size() == cpu_rerank.size());
+    for (size_t i = 0; i < cuda_rerank.size(); ++i) {
+        if (std::isinf(cpu_rerank[i])) assert(cuda_rerank[i] == cpu_rerank[i]);
+        else assert(std::fabs(cuda_rerank[i] - cpu_rerank[i]) < 0.02f);
+    }
     for (size_t i = 0; i < cuda_result.size(); ++i) {
         assert(std::fabs(ggml_fp16_to_fp32(cuda_result[i]) -
                 ggml_fp16_to_fp32(cpu_result[i])) < 0.002f);

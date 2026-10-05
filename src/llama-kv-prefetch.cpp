@@ -1,7 +1,9 @@
 #include "llama-kv-prefetch.h"
+#include "ggml.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <new>
 #include <utility>
@@ -56,8 +58,11 @@ bool llama_kv_prefetch_expand_selector_ids(
         return false;
     }
     for (const auto & segment : segments) {
-        if (segment.pages == nullptr || segment.count == 0 ||
+        if (segment.record_format != llama_kv_prefetch_selector_segment::format::legacy_i32_ids ||
+                segment.byte_stride != sizeof(int32_t) || segment.pages == nullptr || segment.count == 0 ||
                 segment.raw_offset > raw_count || segment.count > raw_count - segment.raw_offset ||
+                segment.byte_offset != uint64_t(segment.raw_offset) * sizeof(int32_t) ||
+                segment.byte_count != uint64_t(segment.count) * sizeof(int32_t) ||
                 segment.count != segment.resident_count + segment.cold_count ||
                 segment.resident_offset > segment.pages->size() ||
                 segment.cold_offset > segment.pages->size() ||
@@ -93,6 +98,73 @@ bool llama_kv_prefetch_expand_selector_ids(
             if (std::find_if(records, records + written, [&](const auto & old) {
                     return old.identity == candidate.identity &&
                         old.attention_layer == candidate.attention_layer;
+                }) != records + written) continue;
+            if (written >= mailbox_capacity) return false;
+            records[written++] = candidate;
+        }
+    }
+    return true;
+}
+
+bool llama_kv_prefetch_expand_rank_records(
+        const ggml_kv_page_rank_record * raw_records, uint32_t raw_count,
+        uint64_t raw_bytes,
+        const std::vector<llama_kv_prefetch_selector_segment> & segments,
+        uint32_t mailbox_capacity,
+        std::vector<ggml_kv_page_rank_record> & copied_records,
+        llama_kv_prefetch_candidate * records,
+        uint32_t & written) noexcept {
+    constexpr uint64_t record_bytes = sizeof(ggml_kv_page_rank_record);
+    if (raw_records == nullptr || records == nullptr || raw_count == 0 ||
+            raw_count > mailbox_capacity || written > mailbox_capacity ||
+            raw_count > UINT64_MAX / record_bytes || raw_bytes != uint64_t(raw_count) * record_bytes) return false;
+    try {
+        copied_records.resize(raw_count);
+        std::memcpy(copied_records.data(), raw_records, size_t(raw_bytes));
+    } catch (...) { return false; }
+    for (const auto & segment : segments) {
+        if (segment.record_format != llama_kv_prefetch_selector_segment::format::packed_rank_records ||
+                segment.pages == nullptr || segment.count == 0 || segment.byte_stride != record_bytes ||
+                segment.raw_offset > raw_count || segment.count > raw_count - segment.raw_offset ||
+                segment.count != segment.resident_count + segment.cold_count ||
+                segment.byte_offset > raw_bytes || segment.byte_count != uint64_t(segment.count) * record_bytes ||
+                segment.byte_count > raw_bytes - segment.byte_offset ||
+                segment.resident_offset > segment.pages->size() || segment.cold_offset > segment.pages->size() ||
+                segment.resident_count > segment.pages->size() - segment.resident_offset ||
+                segment.cold_count > segment.pages->size() - segment.cold_offset) return false;
+        for (uint32_t rank = 0; rank < segment.count; ++rank) {
+            const auto & raw = copied_records[segment.raw_offset + rank];
+            if (raw.logical_page < 0 || raw.validity_flags != 1u ||
+                    !std::isfinite(raw.peak_probability) || !std::isfinite(raw.mean_probability) ||
+                    raw.peak_probability < 0.0f || raw.mean_probability < 0.0f ||
+                    raw.peak_probability > 1.0f || raw.mean_probability > 1.0f) continue;
+            const bool cold = rank >= segment.resident_count;
+            if (size_t(raw.logical_page) >= segment.pages->size()) continue;
+            const auto & page = (*segment.pages)[size_t(raw.logical_page)];
+            if (page.identity.logical_page != uint32_t(raw.logical_page) ||
+                    page.identity.sequence_id != segment.sequence_id ||
+                    page.identity.session_generation != segment.session_generation ||
+                    page.identity.sequence_generation == 0 || page.identity.page_generation == 0 ||
+                    page.content_version == 0 || page.summary_version != page.content_version) continue;
+            llama_kv_prefetch_candidate candidate;
+            candidate.identity = page.identity;
+            candidate.attention_layer = segment.attention_layer;
+            candidate.selector_rank = rank - (cold ? segment.resident_count : 0);
+            candidate.generation = segment.query_generation;
+            candidate.table_epoch = segment.table_epoch;
+            candidate.query_position = segment.query_position;
+            candidate.speculation_generation = segment.sequence_generation;
+            candidate.rollback_generation = segment.rollback_generation;
+            candidate.cold = cold;
+            candidate.provenance = llama_kv_prefetch_candidate::score_kind::probe_softmax;
+            candidate.peak_probability = raw.peak_probability;
+            candidate.mean_probability = raw.mean_probability;
+            candidate.score = raw.peak_probability;
+            candidate.requested_bytes = segment.requested_bytes;
+            candidate.content_version = page.content_version;
+            candidate.summary_version = page.summary_version;
+            if (std::find_if(records, records + written, [&](const auto & old) {
+                    return old.identity == candidate.identity && old.attention_layer == candidate.attention_layer;
                 }) != records + written) continue;
             if (written >= mailbox_capacity) return false;
             records[written++] = candidate;
@@ -1065,4 +1137,88 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::evict(
     }
     ++counters_.evictions;
     return llama_kv_prefetch_status::ok;
+}
+
+llama_kv_rerank_stage_ring::~llama_kv_rerank_stage_ring() {
+    cancel();
+}
+
+bool llama_kv_rerank_stage_ring::configure(
+        const std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> & host,
+        const std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> & device,
+        size_t slot_bytes, llama_kv_rerank_stage_backend backend) noexcept {
+    if (busy_slots() != 0 || slot_bytes == 0 || slot_bytes > LLAMA_KV_RERANK_STAGE_MAX_BYTES ||
+            !backend.enqueue || !backend.poll || !backend.cancel || !backend.release) return false;
+    for (uint32_t i = 0; i < LLAMA_KV_RERANK_STAGE_SLOTS; ++i) {
+        if (host[i] == nullptr || device[i] == nullptr) return false;
+    }
+    host_ = host;
+    device_ = device;
+    slot_bytes_ = slot_bytes;
+    backend_ = backend;
+    next_slot_ = 0;
+    return true;
+}
+
+llama_kv_rerank_stage_status llama_kv_rerank_stage_ring::submit(
+        const llama_kv_rerank_stage_source & source, uint64_t offset, size_t bytes,
+        uint64_t query_generation, uint64_t content_version, uint32_t & slot_index) noexcept {
+    if (slot_bytes_ == 0 || !backend_.enqueue || source.page_holder == nullptr ||
+            !source.recheck || !source.read || bytes == 0 || bytes > slot_bytes_ ||
+            query_generation == 0 || content_version == 0) {
+        return slot_bytes_ == 0 ? llama_kv_rerank_stage_status::not_configured
+                                : llama_kv_rerank_stage_status::invalid_argument;
+    }
+    uint32_t chosen = LLAMA_KV_RERANK_STAGE_SLOTS;
+    for (uint32_t step = 0; step < LLAMA_KV_RERANK_STAGE_SLOTS; ++step) {
+        const uint32_t i = (next_slot_ + step) % LLAMA_KV_RERANK_STAGE_SLOTS;
+        if (!slots_[i].busy) { chosen = i; break; }
+    }
+    if (chosen == LLAMA_KV_RERANK_STAGE_SLOTS) return llama_kv_rerank_stage_status::backpressure;
+    if (!source.recheck(source.context, content_version)) return llama_kv_rerank_stage_status::stale_source;
+    if (!source.read(source.context, offset, host_[chosen], bytes)) return llama_kv_rerank_stage_status::read_failed;
+    if (!source.recheck(source.context, content_version)) return llama_kv_rerank_stage_status::stale_source;
+    uint64_t event = 0;
+    if (!backend_.enqueue(backend_.context, chosen, host_[chosen], device_[chosen], bytes,
+            query_generation, content_version, &event) || event == 0) {
+        if (event != 0) {
+            if (backend_.cancel) backend_.cancel(backend_.context, event);
+            if (backend_.release) backend_.release(backend_.context, event);
+        }
+        return llama_kv_rerank_stage_status::enqueue_failed;
+    }
+    slots_[chosen].page_holder = source.page_holder;
+    slots_[chosen].event = event;
+    slots_[chosen].busy = true;
+    slot_index = chosen;
+    next_slot_ = (chosen + 1) % LLAMA_KV_RERANK_STAGE_SLOTS;
+    return llama_kv_rerank_stage_status::ok;
+}
+
+uint32_t llama_kv_rerank_stage_ring::poll() noexcept {
+    uint32_t retired = 0;
+    for (auto & slot : slots_) {
+        if (!slot.busy) continue;
+        const auto status = backend_.poll(backend_.context, slot.event);
+        if (status == llama_kv_prefetch_poll::pending) continue;
+        backend_.release(backend_.context, slot.event);
+        slot = {};
+        ++retired;
+    }
+    return retired;
+}
+
+uint32_t llama_kv_rerank_stage_ring::busy_slots() const noexcept {
+    uint32_t busy = 0;
+    for (const auto & slot : slots_) busy += slot.busy;
+    return busy;
+}
+
+void llama_kv_rerank_stage_ring::cancel() noexcept {
+    for (auto & slot : slots_) {
+        if (!slot.busy) continue;
+        if (backend_.cancel) backend_.cancel(backend_.context, slot.event);
+        if (backend_.release) backend_.release(backend_.context, slot.event);
+        slot = {};
+    }
 }

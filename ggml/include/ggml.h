@@ -773,9 +773,20 @@ extern "C" {
         // resident membership, and the query/snapshot metadata respectively.
         GGML_OP_KV_PAGE_SELECT,
 
+        // Independent multi-probe ranker. Output is [2,count] I64 carrying
+        // ggml_kv_page_rank_record byte records; legacy IDs are unchanged.
+        GGML_OP_KV_PAGE_RANK,
+
+        // Exact key-only log-mass over checked Turbo4 page descriptors.
+        GGML_OP_KV_PAGE_RERANK,
+
         // Accumulate transformed query rows within the turn's user span,
         // updating persistent sum/count sidebands.
         GGML_OP_KV_QUERY_ACCUMULATE,
+
+        // Retain transformed query rows at four absolute positions in the
+        // current user span, updating persistent probe/validity sidebands.
+        GGML_OP_KV_QUERY_PROBES,
 
         // Incrementally update a min/max catalogue from packed Turbo4 K.
         GGML_OP_KV_PAGE_SUMMARY,
@@ -2700,6 +2711,53 @@ extern "C" {
             int                   diagnostic_mode,
             int                   scorer_mode);
 
+    struct ggml_kv_page_rank_record {
+        int32_t logical_page;
+        uint32_t validity_flags;
+        float peak_probability;
+        float mean_probability;
+    };
+#ifdef __cplusplus
+    static_assert(sizeof(ggml_kv_page_rank_record) == 16, "KV rank record must be 16 bytes");
+#endif
+
+    // Rank compact logical pages from stored-space bounds and independent
+    // query probes. `probes` is [D,Qheads,probe_capacity], validity is the
+    // nine-word sideband emitted by ggml_kv_query_probes.
+    GGML_API struct ggml_tensor * ggml_kv_page_rank(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * bounds,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * resident_membership,
+            struct ggml_tensor  * query_metadata,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * probe_validity,
+            int                   k_resident,
+            int                   k_cold,
+            int                   page_size,
+            int                   query_row,
+            uint32_t              probe_mask,
+            float                 attention_scale);
+
+    // Score valid probe vectors against encoded Turbo4 keys. Descriptors are
+    // Mutates caller-owned [2,n_pages,Qheads,probes] running (max,sum) state.
+    // [10,n_pages]: logical id, physical slot, valid rows, stream, page size,
+    // generation, content version, eligible, first absolute row, key set (0 resident/1 staged).
+    // Identity is [generation,version];
+    // state is [2,n_pages,Qheads,probes] containing running max and sum.
+    GGML_API struct ggml_tensor * ggml_kv_page_rerank(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * resident_keys,
+            struct ggml_tensor  * staged_cold_keys,
+            struct ggml_tensor  * descriptors,
+            struct ggml_tensor  * identity,
+            struct ggml_tensor  * validity,
+            struct ggml_tensor  * state,
+            float                 attention_scale,
+            float                 logit_softcap);
+
     // Accumulate transformed query rows whose absolute positions are in
     // [query_start, query_end), resetting persistent sum/count on turn change.
     GGML_API struct ggml_tensor * ggml_kv_query_accumulate(
@@ -2708,6 +2766,15 @@ extern "C" {
             struct ggml_tensor  * positions,
             struct ggml_tensor  * sum,
             struct ggml_tensor  * count,
+            struct ggml_tensor  * control);
+
+    // Capture Q rows at query_end - {1, 2, 4, 8}; validity is generation-checked.
+    GGML_API struct ggml_tensor * ggml_kv_query_probes(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * positions,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * validity,
             struct ggml_tensor  * control);
 
     // Metadata fields are [position, valid length, sequence generation,

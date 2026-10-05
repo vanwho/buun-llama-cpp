@@ -3718,8 +3718,17 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
         case GGML_OP_KV_PAGE_SELECT:
             ggml_cuda_op_kv_page_select(ctx, dst);
             break;
+        case GGML_OP_KV_PAGE_RANK:
+            ggml_cuda_op_kv_page_rank(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_RERANK:
+            ggml_cuda_op_kv_page_rerank(ctx, dst);
+            break;
         case GGML_OP_KV_QUERY_ACCUMULATE:
             ggml_cuda_op_kv_query_accumulate(ctx, dst);
+            break;
+        case GGML_OP_KV_QUERY_PROBES:
+            ggml_cuda_op_kv_query_probes(ctx, dst);
             break;
         case GGML_OP_KV_PAGE_SUMMARY:
             ggml_cuda_op_kv_page_summary(ctx, dst);
@@ -9469,7 +9478,21 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             return op->type == GGML_TYPE_I32 && op->src[0]->type == GGML_TYPE_F32 &&
                 op->src[1]->type == GGML_TYPE_F16 && op->src[2]->type == GGML_TYPE_I64 &&
                 op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_PAGE_RANK:
+            // The ranker is not yet an inference route. Keep CUDA graph
+            // placement from invoking the legacy-ID path with packed output;
+            // the owner enables this only after the CUDA score kernel lands.
+            return false;
+        case GGML_OP_KV_PAGE_RERANK:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_TURBO4_0 && op->src[2]->type == GGML_TYPE_TURBO4_0 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64 &&
+                op->src[5]->type == GGML_TYPE_I64 && op->src[6]->type == GGML_TYPE_F32;
         case GGML_OP_KV_QUERY_ACCUMULATE:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_QUERY_PROBES:
             return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
                 op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
                 op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;

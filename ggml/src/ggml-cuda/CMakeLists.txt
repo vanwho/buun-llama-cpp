@@ -157,6 +157,7 @@ if (CUDAToolkit_FOUND)
     list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")
 
     file(GLOB   GGML_SOURCES_CUDA "*.cu")
+    list(APPEND GGML_SOURCES_CUDA "${CMAKE_CURRENT_SOURCE_DIR}/kv-page-rerank.cu")
     list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "bsa_.*\\.cu$")
     set_source_files_properties(marlin-q4-a32.cu marlin-q8-g128.cu PROPERTIES
         COMPILE_OPTIONS "--expt-relaxed-constexpr")

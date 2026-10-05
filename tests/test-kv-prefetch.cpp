@@ -53,6 +53,91 @@ struct prefetch_fake {
     }
 };
 
+struct rerank_stage_fake {
+    struct event_state { uint64_t id; bool done; };
+    std::vector<event_state> events;
+    uint64_t next_event = 1;
+    uint32_t released = 0;
+    static bool enqueue(void * opaque, uint32_t, const void * host, void * device,
+            size_t bytes, uint64_t, uint64_t, uint64_t * event) noexcept {
+        auto & self = *static_cast<rerank_stage_fake *>(opaque);
+        std::memcpy(device, host, bytes);
+        *event = self.next_event++;
+        self.events.push_back({ *event, false });
+        return true;
+    }
+    static llama_kv_prefetch_poll poll(void * opaque, uint64_t event) noexcept {
+        auto & self = *static_cast<rerank_stage_fake *>(opaque);
+        for (const auto & item : self.events) if (item.id == event)
+            return item.done ? llama_kv_prefetch_poll::completed : llama_kv_prefetch_poll::pending;
+        return llama_kv_prefetch_poll::failed;
+    }
+    static void cancel(void * opaque, uint64_t event) noexcept {
+        auto & self = *static_cast<rerank_stage_fake *>(opaque);
+        for (auto & item : self.events) if (item.id == event) item.done = true;
+    }
+    static void release(void * opaque, uint64_t) noexcept {
+        ++static_cast<rerank_stage_fake *>(opaque)->released;
+    }
+};
+
+struct rerank_stage_source_fake {
+    std::vector<uint8_t> bytes;
+    uint64_t version = 7;
+    static bool recheck(void * opaque, uint64_t version) noexcept {
+        return static_cast<rerank_stage_source_fake *>(opaque)->version == version;
+    }
+    static bool read(void * opaque, uint64_t offset, void * dst, size_t bytes) noexcept {
+        auto & self = *static_cast<rerank_stage_source_fake *>(opaque);
+        if (offset > self.bytes.size() || bytes > self.bytes.size() - size_t(offset)) return false;
+        std::memcpy(dst, self.bytes.data() + offset, bytes);
+        return true;
+    }
+};
+
+static void test_rerank_stage_ring() {
+    uint8_t host0[4] = {}, host1[4] = {}, device0[4] = {}, device1[4] = {};
+    rerank_stage_fake backend_state;
+    llama_kv_rerank_stage_backend backend { &backend_state,
+        &rerank_stage_fake::enqueue, &rerank_stage_fake::poll,
+        &rerank_stage_fake::cancel, &rerank_stage_fake::release };
+    llama_kv_rerank_stage_ring ring;
+    assert(ring.configure({ host0, host1 }, { device0, device1 }, 4, backend));
+    assert(ring.allocated_bytes() == 16);
+    auto source_data = std::make_shared<rerank_stage_source_fake>();
+    source_data->bytes = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    std::shared_ptr<const void> holder(source_data, source_data.get());
+    llama_kv_rerank_stage_source source { holder, source_data.get(),
+        &rerank_stage_source_fake::recheck, &rerank_stage_source_fake::read };
+    uint32_t slot0 = UINT32_MAX, slot1 = UINT32_MAX, slot2 = UINT32_MAX;
+    assert(ring.submit(source, 0, 4, 11, 7, slot0) == llama_kv_rerank_stage_status::ok);
+    assert(ring.submit(source, 4, 4, 11, 7, slot1) == llama_kv_rerank_stage_status::ok);
+    assert(slot0 != slot1 && ring.busy_slots() == 2 && holder.use_count() == 5);
+    assert(ring.submit(source, 0, 1, 11, 7, slot2) == llama_kv_rerank_stage_status::backpressure);
+    assert(std::memcmp(device0, source_data->bytes.data() + slot0 * 4, 4) == 0);
+    assert(std::memcmp(device1, source_data->bytes.data() + slot1 * 4, 4) == 0);
+    assert(ring.poll() == 0 && ring.busy_slots() == 2);
+    for (auto & event : backend_state.events) event.done = true;
+    assert(ring.poll() == 2 && ring.busy_slots() == 0 && backend_state.released == 2);
+    source_data->version = 8;
+    assert(ring.submit(source, 0, 4, 12, 7, slot2) == llama_kv_rerank_stage_status::stale_source);
+}
+
+static void test_rerank_bundle_order() {
+    // A sparse useful head wins by peak mass even when another page has more
+    // support and a much stronger average mass.
+    const llama_kv_prefetch_ranked_bundle_score rare_head { 0.91f, 0.08f, 1, 12 };
+    const llama_kv_prefetch_ranked_bundle_score generic_mean { 0.62f, 0.41f, 8, 4 };
+    assert(llama_kv_prefetch_ranked_bundle_better(rare_head, generic_mean));
+
+    const llama_kv_prefetch_ranked_bundle_score supported { 0.62f, 0.41f, 3, 8 };
+    const llama_kv_prefetch_ranked_bundle_score weak_support { 0.62f, 0.41f, 2, 3 };
+    assert(llama_kv_prefetch_ranked_bundle_better(supported, weak_support));
+
+    const llama_kv_prefetch_ranked_bundle_score lower_id { 0.62f, 0.41f, 3, 3 };
+    assert(llama_kv_prefetch_ranked_bundle_better(lower_id, supported));
+}
+
 static llama_kv_prefetch_intent intent(uint64_t page, uint32_t priority = 1) {
     return { page, 7, 8, 10, priority, false };
 }
@@ -199,11 +284,15 @@ static void test_scaled_candidate_mailbox() {
             page.summary_version = page.content_version;
             raw[layer * (resident_pages + cold_pages) + rank] = int32_t(rank);
         }
-        segments.push_back({
+        llama_kv_prefetch_selector_segment segment{
             layer * (resident_pages + cold_pages), resident_pages + cold_pages,
             0, resident_pages, resident_pages, cold_pages,
             0, layer, 1, 1, 17, 23, 8193, 31, 4096, &pages[layer],
-        });
+        };
+        segment.byte_offset = uint64_t(segment.raw_offset) * sizeof(int32_t);
+        segment.byte_count = uint64_t(segment.count) * sizeof(int32_t);
+        segment.byte_stride = sizeof(int32_t);
+        segments.push_back(segment);
     }
     std::memcpy(records, raw.data(), raw.size() * sizeof(raw[0]));
     std::vector<int32_t> copied;
@@ -220,6 +309,58 @@ static void test_scaled_candidate_mailbox() {
     assert(last.identity.logical_page == 1004 && last.attention_layer == layers - 1 &&
            last.cold && last.selector_rank == cold_pages - 1 &&
            last.content_version == 6004);
+
+    // Packed rank records are snapshotted before aliasing writes and retain
+    // their actual probabilities. Logical-page gaps and duplicates across
+    // source lists do not reinterpret descriptor ordinals.
+    llama_kv_prefetch_mailbox packed_mailbox({ 2, width });
+    assert(packed_mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    std::vector<ggml_kv_page_rank_record> packed(width);
+    std::vector<std::vector<llama_kv_prefetch_page_descriptor>> logical_pages(layers);
+    std::vector<llama_kv_prefetch_selector_segment> packed_segments;
+    for (uint32_t layer = 0; layer < layers; ++layer) {
+        logical_pages[layer].resize(1005);
+        for (uint32_t rank = 0; rank < resident_pages + cold_pages; ++rank) {
+            const uint32_t logical = rank < resident_pages
+                ? rank + (rank >= 31 ? 1 : 0) : 1000 + rank - resident_pages;
+            auto & page = logical_pages[layer][logical];
+            page.identity = mailbox_page(logical, layer);
+            page.content_version = 5000 + logical;
+            page.summary_version = page.content_version;
+            packed[layer * (resident_pages + cold_pages) + rank] = {
+                int32_t(logical), 1u, 0.5f / float(rank + 1), 0.25f / float(rank + 1) };
+        }
+        auto segment = segments[layer];
+        segment.pages = &logical_pages[layer];
+        segment.record_format = llama_kv_prefetch_selector_segment::format::packed_rank_records;
+        segment.byte_offset = uint64_t(segment.raw_offset) * sizeof(ggml_kv_page_rank_record);
+        segment.byte_count = uint64_t(segment.count) * sizeof(ggml_kv_page_rank_record);
+        segment.byte_stride = sizeof(ggml_kv_page_rank_record);
+        packed_segments.push_back(segment);
+    }
+    // Duplicate a logical page from the resident and cold source ranges.
+    packed[(resident_pages - 1) + 1].logical_page = packed[0].logical_page;
+    std::memcpy(records, packed.data(), packed.size() * sizeof(packed[0]));
+    std::vector<ggml_kv_page_rank_record> packed_copy;
+    uint32_t packed_written = 0;
+    assert(llama_kv_prefetch_expand_rank_records(
+        reinterpret_cast<const ggml_kv_page_rank_record *>(records), uint32_t(packed.size()),
+        uint64_t(packed.size()) * sizeof(ggml_kv_page_rank_record), packed_segments,
+        packed_mailbox.candidates_per_slot(), packed_copy, records, packed_written));
+    assert(packed_copy.size() == packed.size() &&
+           std::memcmp(packed_copy.data(), packed.data(), packed.size() * sizeof(packed[0])) == 0 &&
+           packed_written == width - 1 && packed_written > 128);
+    const auto & scored = records[1];
+    assert(scored.provenance == llama_kv_prefetch_candidate::score_kind::probe_softmax &&
+           scored.peak_probability == packed[1].peak_probability &&
+           scored.mean_probability == packed[1].mean_probability && scored.score == packed[1].peak_probability);
+    const auto & packed_last = records[packed_written - 1];
+    assert(packed_last.identity.logical_page == 1004 && packed_last.attention_layer == layers - 1 &&
+           packed_last.peak_probability == packed.back().peak_probability);
+    packed_segments[0].byte_count -= 4;
+    assert(!llama_kv_prefetch_expand_rank_records(
+        packed.data(), uint32_t(packed.size()), uint64_t(packed.size()) * sizeof(ggml_kv_page_rank_record),
+        packed_segments, packed_mailbox.candidates_per_slot(), packed_copy, records, packed_written));
 }
 
 static void test_layer_duplicate_and_refresh_budget(prefetch_fake & fake) {
@@ -364,5 +505,7 @@ int main() {
     test_candidate_mailbox();
     test_scaled_candidate_mailbox();
     test_layer_duplicate_and_refresh_budget(fake);
+    test_rerank_stage_ring();
+    test_rerank_bundle_order();
     std::cout << "kv prefetch checks passed\n";
 }

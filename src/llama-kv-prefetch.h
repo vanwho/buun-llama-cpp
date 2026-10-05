@@ -4,8 +4,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <array>
 #include <memory>
 #include <vector>
+
+struct ggml_kv_page_rank_record;
 
 // The scheduler is deliberately a small owner-side seam.  It does not know
 // about a backend stream or a residency table; those are supplied by these
@@ -64,7 +67,30 @@ struct llama_kv_prefetch_candidate {
     uint64_t query_position = 0;
     bool cold = false;
     uint64_t rollback_generation = 0;
+    enum class score_kind : uint8_t { legacy_rank = 0, probe_softmax = 1, exact_mass = 2 };
+    score_kind provenance = score_kind::legacy_rank;
+    float peak_probability = 0.0f;
+    float mean_probability = 0.0f;
 };
+
+struct llama_kv_prefetch_ranked_bundle_score {
+    float peak_probability = 0.0f;
+    float mean_probability = 0.0f;
+    uint32_t supporting_layers = 0;
+    uint32_t logical_page = UINT32_MAX;
+};
+
+inline bool llama_kv_prefetch_ranked_bundle_better(
+        const llama_kv_prefetch_ranked_bundle_score & lhs,
+        const llama_kv_prefetch_ranked_bundle_score & rhs) noexcept {
+    if (lhs.peak_probability != rhs.peak_probability)
+        return lhs.peak_probability > rhs.peak_probability;
+    if (lhs.mean_probability != rhs.mean_probability)
+        return lhs.mean_probability > rhs.mean_probability;
+    if (lhs.supporting_layers != rhs.supporting_layers)
+        return lhs.supporting_layers > rhs.supporting_layers;
+    return lhs.logical_page < rhs.logical_page;
+}
 
 struct llama_kv_prefetch_page_descriptor {
     llama_kv_page_id identity;
@@ -76,6 +102,7 @@ struct llama_kv_prefetch_page_descriptor {
 // indices into `pages`, with resident and cold ranks occupying separate
 // output regions in the mailbox allocation.
 struct llama_kv_prefetch_selector_segment {
+    enum class format : uint8_t { legacy_i32_ids = 0, packed_rank_records = 1 };
     uint32_t raw_offset = 0;
     uint32_t count = 0;
     uint32_t resident_offset = 0;
@@ -92,6 +119,10 @@ struct llama_kv_prefetch_selector_segment {
     uint64_t rollback_generation = 0;
     uint64_t requested_bytes = 0;
     const std::vector<llama_kv_prefetch_page_descriptor> * pages = nullptr;
+    format record_format = format::legacy_i32_ids;
+    uint64_t byte_offset = 0;
+    uint64_t byte_count = 0;
+    uint32_t byte_stride = sizeof(int32_t);
 };
 
 // Decode a completed selector slot into candidate records. The compact input
@@ -105,9 +136,23 @@ bool llama_kv_prefetch_expand_selector_ids(
         llama_kv_prefetch_candidate * records,
         uint32_t & written) noexcept;
 
+bool llama_kv_prefetch_expand_rank_records(
+        const ggml_kv_page_rank_record * raw_records, uint32_t raw_count,
+        uint64_t raw_bytes,
+        const std::vector<llama_kv_prefetch_selector_segment> & segments,
+        uint32_t mailbox_capacity,
+        std::vector<ggml_kv_page_rank_record> & copied_records,
+        llama_kv_prefetch_candidate * records,
+        uint32_t & written) noexcept;
+
 // Shared by graph output construction and startup mailbox sizing. Changing
 // the cold ranking width must not silently exceed readback storage.
 constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 5;
+constexpr uint32_t llama_kv_query_cold_rank_width(uint32_t cold_pages) noexcept {
+    const uint32_t quarter = cold_pages / 4u + (cold_pages % 4u != 0u);
+    const uint32_t target = quarter < 8u ? 8u : (quarter > 32u ? 32u : quarter);
+    return cold_pages < target ? cold_pages : target;
+}
 
 enum class llama_kv_prefetch_mailbox_poll : uint8_t {
     pending = 0,
@@ -256,6 +301,71 @@ enum class llama_kv_prefetch_poll : uint8_t {
     completed,
     failed,
     stale_generation,
+};
+
+// Owner-provided, fixed-memory Turbo4 key staging. Each host pointer must be
+// pinned, each device pointer is an encoded-K slot, and enqueue must queue the
+// H2D copy plus its key-reader kernel on one owner stream before recording the
+// returned event. The ring owns the canonical page/unit holder until that
+// event is terminal. poll() may report failure only when the reader can no
+// longer access either slot; cancel() must establish the same condition before
+// returning. read() should delegate to artifact_segment_chain::read for the
+// exact key-side unit, using contiguous byte ranges no larger than one slot.
+constexpr uint32_t LLAMA_KV_RERANK_STAGE_SLOTS = 2;
+constexpr size_t LLAMA_KV_RERANK_STAGE_MAX_BYTES = 4u * 1024u * 1024u;
+
+struct llama_kv_rerank_stage_source {
+    std::shared_ptr<const void> page_holder;
+    void * context = nullptr;
+    bool (*recheck)(void * context, uint64_t content_version) noexcept = nullptr;
+    bool (*read)(void * context, uint64_t offset, void * dst, size_t bytes) noexcept = nullptr;
+};
+
+struct llama_kv_rerank_stage_backend {
+    void * context = nullptr;
+    bool (*enqueue)(void * context, uint32_t slot, const void * host,
+            void * device, size_t bytes, uint64_t query_generation,
+            uint64_t content_version, uint64_t * event) noexcept = nullptr;
+    llama_kv_prefetch_poll (*poll)(void * context, uint64_t event) noexcept = nullptr;
+    void (*cancel)(void * context, uint64_t event) noexcept = nullptr;
+    void (*release)(void * context, uint64_t event) noexcept = nullptr;
+};
+
+enum class llama_kv_rerank_stage_status : uint8_t {
+    ok = 0, not_configured, invalid_argument, backpressure, stale_source,
+    read_failed, enqueue_failed, _count,
+};
+
+class llama_kv_rerank_stage_ring {
+public:
+    llama_kv_rerank_stage_ring() = default;
+    ~llama_kv_rerank_stage_ring();
+    llama_kv_rerank_stage_ring(const llama_kv_rerank_stage_ring &) = delete;
+    llama_kv_rerank_stage_ring & operator=(const llama_kv_rerank_stage_ring &) = delete;
+
+    bool configure(const std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> & host,
+            const std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> & device,
+            size_t slot_bytes, llama_kv_rerank_stage_backend backend) noexcept;
+    llama_kv_rerank_stage_status submit(const llama_kv_rerank_stage_source & source,
+            uint64_t offset, size_t bytes, uint64_t query_generation,
+            uint64_t content_version, uint32_t & slot) noexcept;
+    uint32_t poll() noexcept;
+    uint32_t busy_slots() const noexcept;
+    size_t allocated_bytes() const noexcept { return size_t(2) * slot_bytes_ * 2; }
+    void cancel() noexcept;
+
+private:
+    struct slot_state {
+        std::shared_ptr<const void> page_holder;
+        uint64_t event = 0;
+        bool busy = false;
+    };
+    std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> host_{};
+    std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> device_{};
+    std::array<slot_state, LLAMA_KV_RERANK_STAGE_SLOTS> slots_{};
+    size_t slot_bytes_ = 0;
+    uint32_t next_slot_ = 0;
+    llama_kv_rerank_stage_backend backend_{};
 };
 
 enum class llama_kv_prefetch_status : uint8_t {

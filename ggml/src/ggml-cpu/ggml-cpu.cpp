@@ -449,7 +449,28 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
             op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64;
     }
 
+    if (op->op == GGML_OP_KV_PAGE_RANK) {
+        return op->type == GGML_TYPE_I64 && op->ne[0] == 2 &&
+            op->src[0]->type == GGML_TYPE_F32 && op->src[1]->type == GGML_TYPE_F16 &&
+            op->src[2]->type == GGML_TYPE_I64 && op->src[3]->type == GGML_TYPE_I32 &&
+            op->src[4]->type == GGML_TYPE_I64 && op->src[5]->type == GGML_TYPE_F32 &&
+            op->src[6]->type == GGML_TYPE_I64;
+    }
+
+    if (op->op == GGML_OP_KV_PAGE_RERANK) {
+        return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+            op->src[1]->type == GGML_TYPE_TURBO4_0 && op->src[2]->type == GGML_TYPE_TURBO4_0 &&
+            op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64 &&
+            op->src[5]->type == GGML_TYPE_I64 && op->src[6]->type == GGML_TYPE_F32;
+    }
+
     if (op->op == GGML_OP_KV_QUERY_ACCUMULATE) {
+        return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+            op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
+            op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;
+    }
+
+    if (op->op == GGML_OP_KV_QUERY_PROBES) {
         return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
             op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
             op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;

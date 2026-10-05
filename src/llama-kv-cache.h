@@ -1705,6 +1705,8 @@ private:
         ggml_backend_buffer_t buffer = nullptr;
         ggml_tensor * sum = nullptr;
         ggml_tensor * count = nullptr;
+        ggml_tensor * probes = nullptr;
+        ggml_tensor * probe_validity = nullptr;
     };
     mutable std::vector<pager_query_accumulator_state> pager_query_accumulators_;
     struct pager_summary_cache_item {
@@ -1771,6 +1773,8 @@ private:
     }
 
   private:
+
+    void invalidate_pager_query_probes(llama_seq_id sequence_id = -1) noexcept;
 
     // Shared by decode placement and historical-window planning. An occupied
     // SWA cell is reusable only when it is masked for every current owner.
@@ -2075,13 +2079,16 @@ public:
     uint32_t get_max_graph_seqs() const override;
     ggml_tensor * build_kv_page_select(
             ggml_context * ctx, ggml_tensor * q, int layer,
-            const llama_ubatch & ubatch, uint32_t query_row) const override;
+            const llama_ubatch & ubatch, uint32_t query_row,
+            ggml_tensor ** probe_capture = nullptr) const override;
     bool set_kv_page_select_inputs(
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,
             const llama_ubatch & ubatch) const override;
     bool set_kv_query_accumulate_inputs(
             ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
+    bool set_kv_query_probe_inputs(
+            ggml_tensor * probes, const llama_ubatch & ubatch) const override;
     bool can_reuse_kv_page_select(
             const ggml_tensor * bounds, int layer,
             const llama_ubatch & ubatch) const override;
