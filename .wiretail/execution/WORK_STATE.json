@@ -34193,7 +34193,7 @@
       "depends_on": [
         "104-03"
       ],
-      "commit": "aa7e3f2248b5c11b8631f6c54bb5c1355d6e2d11",
+      "commit": "56bfd4d73599cf4c5af948a072f63d6971e9cdaa",
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-03.md"
