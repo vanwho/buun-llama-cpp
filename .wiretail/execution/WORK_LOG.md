@@ -2218,3 +2218,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04e`
 - Commit at update: `47814b51b`
 - Summary: Implemented and validated frozen cache layer plans and canonical key readers
+
+## 2026-10-05T21:28:34+00:00 — 104-04f — done
+
+- Branch: `codex/task-104-04f`
+- Commit at update: `1475111be`
+- Summary: Implemented owned CUDA rerank/MASS execution with reader event lifetime and validated actual encoded-key GPU, CPU ownership, MASS, and receipt proofs

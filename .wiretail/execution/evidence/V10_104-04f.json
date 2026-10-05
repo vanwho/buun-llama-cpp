@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "task": "104-04f",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "source_dirty_diff_sha256": "6d5ff3478005425d5d80ea39e2200193b85ac8a7df08c7218773c68094140e0c",
+  "checks": {
+    "owned_gpu_rerank_mass_execution": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+        "--cuda"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "llama-server",
+        "test-kv-router-job"
+      ],
+      "coverage": [
+        "Actual CUDA execute_query with four probes, Turbo4 encoded resident distractor and cold needle; exact MASS reverses the coarse ranking and probabilities normalize.",
+        "Three cold reader graph submissions on a two-row slot, including partial one-row final chunk; each event synchronizes before slot reuse.",
+        "Distinct route generation 31 and probe capture generation 701; repeated completion is idempotent.",
+        "Actual resident-only CUDA query emits one record and has no cold reader events.",
+        "CPU owner tests cover delayed fake reader completion, terminal reader failure, cancellation and double cancellation.",
+        "CUDA and CPU MASS references cover globally normalized valid head/probe channels and zero contribution for pages without causal rows."
+      ],
+      "execution_ledger": {
+        "resident_rerank_graphs": 1,
+        "cold_reader_graphs": 3,
+        "mass_graphs": 1,
+        "reader_events": 3,
+        "output_records": 2,
+        "resident_only_query": {
+          "resident_rerank_graphs": 1,
+          "cold_reader_graphs": 0,
+          "mass_graphs": 1,
+          "reader_events": 0,
+          "output_records": 1
+        }
+      },
+      "byte_ledger": {
+        "state_bytes": 256,
+        "mass_temp_bytes": 128,
+        "descriptors_bytes": 160,
+        "identity_bytes": 48,
+        "rerank_output_bytes": 128,
+        "records_bytes": 32,
+        "slot_bytes": 132,
+        "device_requested_bytes": 768,
+        "device_realized_bytes": 768,
+        "pinned_requested_bytes": 264,
+        "pinned_realized_bytes": 264
+      },
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04f/attempt-01/build-acceptance.log",
+          "sha256": "16553023c087173d44503abdc10a08274ffabe49077b1c6bd7d954011381e447"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04f/attempt-01/cpu-acceptance.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04f/attempt-01/cuda-acceptance.log",
+          "sha256": "da7a6a699cb29c8106e658efb03abec6b5228912b1c561258d2827cad8787a5a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04f/attempt-01/summary-acceptance.log",
+          "sha256": "82eff887f99d45ca5383c6cd68add00114faa70d2abe06520c30a5778d31d910"
+        }
+      ]
+    }
+  }
+}
