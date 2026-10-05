@@ -497,6 +497,25 @@ extern "C" {
         GGML_TYPE_COUNT   = 92,
     };
 
+    // Compact query-ranking record shared by backend kernels and host decoders.
+    // GGML_TYPE_I64 tensors of shape [2,count] carry these records via memcpy;
+    // negative logical_page means unused. Producers must emit finite
+    // probabilities for live records. Page identity remains owned by llama.
+    struct ggml_kv_page_probability_record {
+        int32_t logical_page;
+        uint32_t validity_flags;
+        float peak_probability;
+        float mean_probability;
+    };
+
+#ifdef __cplusplus
+    static_assert(sizeof(ggml_kv_page_probability_record) == 16,
+            "ggml_kv_page_probability_record must remain 16 bytes");
+#else
+    _Static_assert(sizeof(struct ggml_kv_page_probability_record) == 16,
+            "ggml_kv_page_probability_record must remain 16 bytes");
+#endif
+
     // EXL3 helpers: the type encodes the bit width and the codebook.
     // GGML_TYPE_EXL3_* = mul1 (codebook 2), EXL3M_* = mcg (1), EXL3T_* = 3inst (0)
     static inline bool ggml_type_is_exl3(enum ggml_type type) {

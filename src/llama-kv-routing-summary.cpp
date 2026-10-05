@@ -371,6 +371,82 @@ llama_kv_routing_catalogue_layout llama_kv_routing_catalogue_layout::make(
     return result;
 }
 
+namespace {
+static bool router_mul(uint64_t a, uint64_t b, uint64_t & out) noexcept {
+    if (a != 0 && b > UINT64_MAX / a) return false;
+    out = a * b;
+    return true;
+}
+
+static bool router_add(uint64_t a, uint64_t b, uint64_t & out) noexcept {
+    if (b > UINT64_MAX - a) return false;
+    out = a + b;
+    return true;
+}
+}
+
+llama_kv_router_budget llama_kv_router_make_budget(
+        const llama_kv_router_budget_config & config) noexcept {
+    llama_kv_router_budget result;
+    if (config.attention_layers == 0 || config.valid_probe_capacity == 0 ||
+        config.query_heads == 0 || config.head_dim == 0 || config.key_ne0 <= 0 ||
+        config.page_tokens == 0 || config.score_workspace_cap_bytes == 0 ||
+        config.key_slot_cap_bytes == 0 || config.key_ne0 != config.head_dim) {
+        result.status = llama_kv_router_budget_status::invalid_geometry;
+        return result;
+    }
+    const size_t row_bytes = ggml_row_size(config.key_type, config.key_ne0);
+    if (row_bytes == 0) {
+        result.status = llama_kv_router_budget_status::invalid_geometry;
+        return result;
+    }
+    result.key_row_bytes = row_bytes;
+    if (result.key_row_bytes > config.key_slot_cap_bytes) {
+        result.status = llama_kv_router_budget_status::key_row_exceeds_slot;
+        return result;
+    }
+    result.key_slot_bytes = config.key_slot_cap_bytes;
+    result.key_rows_per_chunk = uint32_t(std::min<uint64_t>(
+            config.page_tokens, config.key_slot_cap_bytes / result.key_row_bytes));
+    uint64_t probe_values = 0;
+    uint64_t slots = 0;
+    uint64_t total = 0;
+    if (result.key_rows_per_chunk == 0 ||
+        !router_mul(result.key_row_bytes, config.page_tokens, result.key_page_bytes) ||
+        !router_mul(config.attention_layers, config.valid_probe_capacity, probe_values) ||
+        !router_mul(probe_values, config.query_heads, probe_values) ||
+        !router_mul(probe_values, config.head_dim, probe_values) ||
+        !router_mul(probe_values, sizeof(float), result.ledger.probe_bytes) ||
+        !router_mul(result.key_slot_bytes, 2, slots)) {
+        result.status = llama_kv_router_budget_status::overflow;
+        return result;
+    }
+    result.ledger.score_workspace_bytes = std::min(
+            config.score_workspace_required_bytes, config.score_workspace_cap_bytes);
+    result.ledger.gpu_key_staging_bytes = slots;
+    result.ledger.pinned_key_staging_bytes = slots;
+    result.ledger.tensor_overhead_bytes = config.tensor_overhead_bytes;
+    result.ledger.allocator_alignment_bytes = config.allocator_alignment_bytes;
+    result.ledger.cuda_temporary_bytes = config.cuda_temporary_bytes;
+    result.ledger.event_bytes = config.event_bytes;
+    const uint64_t fields[] = {
+        result.ledger.probe_bytes, result.ledger.score_workspace_bytes,
+        result.ledger.gpu_key_staging_bytes, result.ledger.pinned_key_staging_bytes,
+        result.ledger.tensor_overhead_bytes, result.ledger.allocator_alignment_bytes,
+        result.ledger.cuda_temporary_bytes, result.ledger.event_bytes,
+    };
+    for (uint64_t bytes : fields) {
+        if (!router_add(total, bytes, total)) {
+            result.status = llama_kv_router_budget_status::overflow;
+            result.ledger = {};
+            return result;
+        }
+    }
+    result.ledger.total_bytes = total;
+    result.status = llama_kv_router_budget_status::ok;
+    return result;
+}
+
 bool llama_kv_routing_summary_score_ranges(
         const float * query, const float * range_min, const float * range_max,
         uint32_t subblocks, uint32_t vector_dim, float & score) noexcept {

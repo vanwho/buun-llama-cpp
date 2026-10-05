@@ -16,6 +16,11 @@ enum class llama_kv_retrieval_policy : uint8_t {
     cadence,
 };
 
+enum class llama_kv_router_mode : uint8_t {
+    legacy = 0,
+    probe_rerank,
+};
+
 struct llama_kv_pager_auto_size {
     bool automatic = true;
     uint64_t bytes = 0;
@@ -31,6 +36,7 @@ struct llama_kv_pager_auto_count {
 // allocations or backend handles.
 struct llama_kv_pager_config {
     llama_kv_pager_mode mode = llama_kv_pager_mode::off;
+    llama_kv_router_mode router = llama_kv_router_mode::legacy;
     uint32_t page_size = 256;
     llama_kv_pager_auto_count generation_tail_tokens;
     llama_kv_pager_auto_count retrieval_pages;
@@ -116,6 +122,7 @@ bool llama_kv_pager_parse_size(const std::string & raw, llama_kv_pager_auto_size
 bool llama_kv_pager_parse_count(const std::string & raw, llama_kv_pager_auto_count & out);
 bool llama_kv_pager_parse_mode(const std::string & raw, llama_kv_pager_mode & out);
 bool llama_kv_pager_parse_retrieval_policy(const std::string & raw, llama_kv_retrieval_policy & out);
+bool llama_kv_router_parse_mode(const std::string & raw, llama_kv_router_mode & out);
 
 struct llama_kv_pager_turn_geometry {
     uint32_t hot_pages = 0;

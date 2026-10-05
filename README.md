@@ -24,6 +24,14 @@ route is implemented. See
 [`tools/server/README.md`](tools/server/README.md#attention-aware-kv-paging-experimental-operator-boundary)
 and the active Wiretail route-policy task for the implementation contract.
 
+The separate `experiment/attention-aware-ranking-v1` worktree also carries an
+isolated query-boundary ranking experiment. `--kv-router` defaults to `legacy`;
+`probe-rerank` is opt-in and does not alter the mature fast Flash-Attention
+routes. Ranking runs once at the query boundary, then history remains frozen
+through decode and MTP. The experiment is not an adoption recommendation:
+task 104-08 must record an evidence-based adopt, reject, or inconclusive
+decision before any main route changes.
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## VBR — Variable Bit-Rate KV Cache
