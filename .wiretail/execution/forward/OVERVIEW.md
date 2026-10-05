@@ -85,7 +85,7 @@ card, service paths or these counts in portable production logic.
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
 | 102 | 102-01–07 | driver-limit regression; 16K/8K baseline; 32K/16K baseline; 102-05 is a fresh independent L=131,072/C=120,000 run with filled H=51,200 and a newly built candidate; 102-06 is L=262,144/C=250,000 with the same H; final goal review |
 | 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
-| 104 | 104-01–04 unit work done;104-04a/b/c/d then revised104-05–08 | real CUDA shortlist, corrected exact-pool math, production owner/lifecycle/boundary, publication/replay, then paired recall/speed/memory |
+| 104 | 104-01–04 and04a/b/c done;04d deferred;04e/f/g/h then revised104-05–08 | frozen canonical key inputs, executable GPU owner pipeline, fair resident/cold policy, actual cache-seam proof, publication/replay, then paired recall/speed/memory |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully

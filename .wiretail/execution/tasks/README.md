@@ -1,5 +1,10 @@
 # Active task contract — V10
 
+Current phase104 execution:104-04e/f/g/h ->104-05/06/07/08 ->103-04/05.
+104-04d is deferred, not an accepted production proof. Current compact ranking
+authority is `../forward/RANKING104_PIPELINE.md`; the current packet contains
+the executable API/implementation details. Earlier packets remain historical.
+
 Only unfinished tasks with the current revision and their explicit context
 lists are executable instructions. Completed packets are historical records.
 The current design is `../v10/OVERVIEW.md`, not V9 or an archived all-phase plan.

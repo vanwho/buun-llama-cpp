@@ -6,9 +6,10 @@ Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
-Continue the first unfinished task in WORK_STATE: 104-04a. The production
-recovery is104-04a/b/c/d -> revised104-05 ->104-06/08. See
-[exact implementation contracts](forward/RANKING104_IMPLEMENTATION.md).
+Continue the first unfinished task in WORK_STATE: 104-04e. CUDA/owner
+groundwork104-04a/b/c is preserved; broad104-04d is deferred, not passed.
+Recovery is104-04e/f/g/h -> revised104-05 ->104-06/08. See
+[executable pipeline contracts](forward/RANKING104_PIPELINE.md).
 Earlier104-03/04 covered partial oracles, not the working CUDA owner path;
 do not repeat old104-05 audit retries.103-03 is deferred
 with C=254393 committed, exact C=L unproven, and its experimental capacity

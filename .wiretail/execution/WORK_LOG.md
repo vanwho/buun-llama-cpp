@@ -2174,3 +2174,41 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04c`
 - Commit at update: `08036c37e`
 - Summary: Implemented cache-owned ranking staging and typed event lifecycle; CPU owner/ring tests and CUDA owner-to-RERANK/MASS fixture passed.
+
+## 2026-10-05T15:26:40+00:00 — 104-04d — blocked
+
+- Branch: `codex/task-104-04d`
+- Commit at update: `001526b36`
+- Summary: Attempt 3/3 exhausted. Local build and component fixtures pass, but the required production final-user cache adapter does not execute resident/cold PAGE_RERANK, PAGE_MASS and owner-authenticated compact readback; no truthful V10 receipt can be created. Hardware is available, and a later deliberate recovery must implement this production path before completion.
+
+## 2026-10-05T15:27:21+00:00 — 104-04d — todo
+
+- Branch: `codex/task-104-04d`
+- Commit at update: `25d4a361a`
+- Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Attempt 3/3 exhausted. Local build and component fixtures pass, but the required production final-user cache adapter does not execute resident/cold PAGE_RERANK, PAGE_MASS and owner-authenticated compact readback; no truthful V10 receipt can be created. Hardware is available, and a later deliberate recovery must implement this production path before completion.
+
+## 2026-10-05T15:37:09+00:00 — 104-04d — blocked
+
+- Branch: `codex/task-104-04d`
+- Commit at update: `bac9834ca`
+- Summary: Attempt 4 recovery exhausted the distinct CUDA/build path: lower-level CUDA PAGE_RERANK/PAGE_MASS and owner fixtures pass, but complete_router_query_job still does not execute the production cache-to-owner pipeline or produce authenticated terminal mass records. Required V10_104-04d receipt is therefore absent; see .wiretail/execution/handoffs/104-04d.md and /srv/ai/paged-kv/results/ranking104/104-04d/attempt-04/.
+
+## 2026-10-05 — phase104 — executable pipeline recovery plan
+
+- Independently inspected experiment cache, job, staging ring, CUDA rerank/MASS
+  and fixtures. Cache checked ready without submitting work; CUDA fixture
+  supplied synthetic exact records and ran separate kernels. This is absent
+  integration, not unavailable hardware. Copy-only events also did not cover
+  key readers; capture/route generation domains and common resident/cold
+  competition require explicit wiring.
+- Deferred104-04d without success claim; preserved its usage and evidence.
+  New104-04e/f/g/h implement frozen canonical key plans, actual owned GPU
+  executor, cache/policy connection and one tiny same-adapter CUDA proof.
+  Revised104-05 owns physical publication/eviction, query replay and freeze;
+ 104-06/07/08 then collect measured recall/speed/verdict before103-04/05.
+- Next task104-04e is todo in a new cluster; bounded context excludes old
+  retry transcripts and stale broad directions. All new tasks use Luna High.
+- Preserved useful experiment source in83e5cbfdaa76e57ccc7716131e0f1b2a55202e20,
+  on experiment branch only. No experimental code merged into main, no model
+  tests/builds run during this planning session. Structural state/plan checks
+  and git diff whitespace validation pass.

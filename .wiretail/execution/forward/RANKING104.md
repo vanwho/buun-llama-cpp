@@ -9,13 +9,14 @@ opaque Turbo4 host backing, full-L GPU Turbo4 MTP, and a small additional
 memory footprint. This is an experimental deviation, not a change to the
 accepted main-branch attention, storage, or MTP implementation.
 
-Current recovery amendment:104-01/04 completed interfaces/oracles, not the
-production GPU pipeline.104-05's blocker is missing implementation, not a
-negative experimental performance result. Execute104-04a/b/c/d before the
-revised104-05; then104-06/08. The exact code contracts and examples in
-[RANKING104_IMPLEMENTATION](RANKING104_IMPLEMENTATION.md) supersede earlier
-deferred-owner/CPU-only verification directions and are bounded startup context.
-Do not repeat the old blocked104-05 audit or relabel coarse scores exact.
+Current recovery amendment:104-04a/b/c preserved CUDA/math/owner groundwork;
+104-04d exhausted audits without executing cache-owned rerank. It is deferred,
+not passed. Execute104-04e/f/g/h before revised104-05; then104-06/08.
+[RANKING104_PIPELINE](RANKING104_PIPELINE.md) is the current compact authority:
+actual key inputs, GPU graph/event execution, common resident/cold competition
+and same-cache adapter proof. Do not relabel coarse scores or isolated unit
+fixtures as production exact mass. Missing planned methods are implementation
+work, not external blockers.
 
 Order: 103-03 is deferred with C=254393 measured, not exact-full accepted.
 Execute 104-01 through 104-08 next; then 103-04 and 103-05 consume the
