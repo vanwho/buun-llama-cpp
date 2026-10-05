@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "task": "104-04e",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "experiment_source": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "branch": "experiment/attention-aware-ranking-v1",
+    "head": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+    "dirty_diff_sha256": "08e21848988f5181d2d18828952985e8a8e711fa11eba4efa83dd602310f40fc",
+    "dirty_diff_scope": "git diff --binary (tracked working-tree changes)"
+  },
+  "built_artifacts": [
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/llama-server",
+      "sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libllama-server-impl.so",
+      "sha256": "c5590e564ae955ef2d4ca87b26736de672241d628d37e13573d62a359ee06e8c"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libllama.so.0",
+      "sha256": "37f8e154998345ae04193460676d38367432321b6108ebc9b6f3d80d1b92548a"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+      "sha256": "6b51954ae6eed53a19e062f6f87ca3ea89647cdcb158836a2c09708f6dec9bf2"
+    }
+  ],
+  "checks": {
+    "frozen_cache_layer_plans_and_key_readers": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+        "--cpu-only"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "llama-server",
+        "test-kv-router-job"
+      ],
+      "coverage": [
+        "production plan metadata validator accepts distinct compact/model layer IDs, two KV heads on one stream, and an empty cold set",
+        "owned key reader bounds partial-page complete rows and reads across immutable chain segments",
+        "reader recheck rejects stale content and summary versions",
+        "source holder retains the reader after the caller temporary is destroyed"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04e/attempt-01/build-completion.log",
+          "sha256": "505b2eff8852ba3968b7a2b5c5e738589dfe993592d559b9f1af0699e4e81f5b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04e/attempt-01/test-kv-router-job-cpu-completion.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        }
+      ]
+    }
+  }
+}
