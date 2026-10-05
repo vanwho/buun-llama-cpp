@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "task": "104-05",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "source_dirty_diff_sha256": "a4ee48524095e91bc460a5f8a6b3ec15b08a36ba960e9b90d96da26cd864df75",
+  "candidate_identity": {
+    "experiment_root": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "branch": "experiment/attention-aware-ranking-v1",
+    "dirty_diff_sha256": "a4ee48524095e91bc460a5f8a6b3ec15b08a36ba960e9b90d96da26cd864df75",
+    "binaries_and_dsos": {
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/llama-server": {
+        "sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+        "bytes": 17872
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job": {
+        "sha256": "2214ce0657380d9a6227e9184d9b2b7fa6a0ed86b2c7e6cc6f8d76cf5e6eaab9",
+        "bytes": 114000
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-policy": {
+        "sha256": "d390c72ec8eccf812ccf94499594d8162442ffdb3574937d2ee8505a7af582ad",
+        "bytes": 176120
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-server-query-replay": {
+        "sha256": "e092395896189348140b3387c1be603245889120dea6e6371e82f864191e1371",
+        "bytes": 4888520
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libllama.so.0": {
+        "sha256": "ae5c200a0d1a268b4f11d70b1e9f4079632b4c466308ba0857ed5e8958f523b3",
+        "bytes": 14981800
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libllama-common.so.0": {
+        "sha256": "5a68ed0750914d9dbae10384c2c34ea83b12e992a03e9f2e5d2668806a2d3e37",
+        "bytes": 7254528
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libmtmd.so.0": {
+        "sha256": "2915e32de16f799e4c0ac7daed0bb94b58eddb0957ecd65cacf6f409492fe10d",
+        "bytes": 2101504
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml.so.0": {
+        "sha256": "ad89a77ba14702dd15478a7019391142e3747bfd86c35ce2477f47744a667a74",
+        "bytes": 59656
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml-base.so.0": {
+        "sha256": "46eef5442e8274896c473620bceeeec0b228796d1599b2b6cd334a2104d86851",
+        "bytes": 1500032
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml-cpu.so.0": {
+        "sha256": "6344bf427a0bafe1b06174156b9b114519ea316568395dc544926eb1f4e7af9f",
+        "bytes": 2023376
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml-cuda.so.0": {
+        "sha256": "54df3ba9938c7255c7c2cc55b809e43e715976970de9306711c16abf7c23bcea",
+        "bytes": 380189296
+      }
+    },
+    "model": {
+      "path": "/srv/ai/models/text/current.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "bytes": 14252845984
+    }
+  },
+  "checks": {
+    "ranked_history_commit_and_frozen_mtp_state": {
+      "status": "pass",
+      "exit_code": 0,
+      "coverage": [
+        "Focused CUDA cache-owner transaction test executed two compact/model layer mappings on separate streams with resident rerank, four cold readers, reader event completions, MASS and withheld publication; command test-kv-router-job --cache-cuda exited 0.",
+        "CPU router owner and policy suites passed after the clean parallel-16 build.",
+        "Integrated CUDA model fixture used the production capture -> coarse shortlist -> owner exact rerank/readers/MASS -> authenticated query transaction -> changed-map publication -> checkpoint restore/replay -> frozen target/draft verification path.",
+        "Integrated fixture observed one owner stage-5 execution with 16 resident rerank graphs, 48 cold reader graphs and events, 16 MASS graphs, and 272 exact output records.",
+        "Published and replay maps are exact at 13 pages; replay/control target and draft frontiers both equal 4610; target and draft encoded KV are canonical-equal.",
+        "Cancellation before provisional publication and after publication recover; unchanged authenticated history map skips replay. This receipt does not claim natural semantic recall."
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "llama-server",
+        "test-kv-router-job",
+        "test-kv-policy",
+        "test-server-query-replay"
+      ],
+      "commands": [
+        {
+          "command": [
+            "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+            "--cache-cuda"
+          ],
+          "exit_code": 0,
+          "artifact": {
+            "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/router-cache-cuda.log",
+            "sha256": "cb778ff561e31ca5bb1888652ce7df0dc38526ce290348726b4226c6f9aec443"
+          }
+        },
+        {
+          "command": [
+            "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+            "--cpu-only"
+          ],
+          "exit_code": 0,
+          "artifact": {
+            "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/router-clean.log",
+            "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+          }
+        },
+        {
+          "command": [
+            "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-policy"
+          ],
+          "exit_code": 0,
+          "artifact": {
+            "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/policy-clean.log",
+            "sha256": "3a98c7c4952b7819266ac3fbcfe93616a1b02993d8411819acf0571ff5da8fc8"
+          }
+        },
+        {
+          "command": [
+            "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-server-query-replay",
+            "--model",
+            "/srv/ai/models/text/current.gguf",
+            "--router",
+            "probe-rerank",
+            "--B",
+            "1024",
+            "--U",
+            "256",
+            "--L",
+            "8192",
+            "--H",
+            "4096",
+            "--output",
+            "/srv/ai/paged-kv/results/ranking104/104-05/recovery/query-replay.json"
+          ],
+          "exit_code": 0,
+          "artifact": {
+            "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/query-replay.json",
+            "sha256": "a80114ed1d153eacb1ef5f2efaeb67c9918464374a869ae0970d4754e9e2ac89"
+          }
+        }
+      ],
+      "integrated_fixture": {
+        "proof": "integrated_server_query_replay_one_pass_parity",
+        "passed": true,
+        "router_execution_observed": true,
+        "router_owner_stage": 5,
+        "resident_rerank_graphs": 16,
+        "cold_reader_graphs": 48,
+        "reader_events": 48,
+        "mass_graphs": 16,
+        "output_records": 272,
+        "final_history_pages": 13,
+        "committed_history_pages": 13,
+        "replay_map_exact": true,
+        "control_map_exact": true,
+        "target_frontier_replay": 4610,
+        "target_frontier_control": 4610,
+        "draft_frontier_replay": 4610,
+        "draft_frontier_control": 4610,
+        "encoded_kv_canonical_equal": true,
+        "draft_encoded_kv_canonical_equal": true,
+        "cancel_after_provisional_recovered": true,
+        "cancel_after_publication_recovered": true,
+        "unchanged_map_skipped_replay": true
+      },
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/build-clean.log",
+          "sha256": "476fcc1a009e954d62ac5c462f2bea3148173629e09c37abd92f3c03cc2b1e0b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/router-clean.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/policy-clean.log",
+          "sha256": "3a98c7c4952b7819266ac3fbcfe93616a1b02993d8411819acf0571ff5da8fc8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/router-cache-cuda.log",
+          "sha256": "cb778ff561e31ca5bb1888652ce7df0dc38526ce290348726b4226c6f9aec443"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/query-replay.json",
+          "sha256": "a80114ed1d153eacb1ef5f2efaeb67c9918464374a869ae0970d4754e9e2ac89"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/query-replay-clean.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-05/recovery/query-replay-clean.stderr.log",
+          "sha256": "9afd19062bde432a1d8a6baf101b833c8e6abdce851efa4c03bc0a72fee969e1"
+        }
+      ],
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+        "--cache-cuda"
+      ]
+    }
+  }
+}
