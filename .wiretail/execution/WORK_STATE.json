@@ -33962,14 +33962,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["experiment_branch_mode_and_budget_contract"],
-      "depends_on": ["103-03"],
+      "required_proofs": [
+        "experiment_branch_mode_and_budget_contract"
+      ],
+      "depends_on": [
+        "103-03"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/103-02a.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-01", "--receipt", ".wiretail/execution/evidence/V10_104-01.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-01.json"
+      ]
     },
     {
       "id": "104-02",
@@ -33986,14 +33997,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["independent_query_probe_capture"],
-      "depends_on": ["104-01"],
+      "required_proofs": [
+        "independent_query_probe_capture"
+      ],
+      "depends_on": [
+        "104-01"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-01.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-02", "--receipt", ".wiretail/execution/evidence/V10_104-02.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-02.json"
+      ]
     },
     {
       "id": "104-03",
@@ -34010,14 +34032,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["scored_gpu_shortlist_and_record_transport"],
-      "depends_on": ["104-02"],
+      "required_proofs": [
+        "scored_gpu_shortlist_and_record_transport"
+      ],
+      "depends_on": [
+        "104-02"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-02.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-03", "--receipt", ".wiretail/execution/evidence/V10_104-03.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-03.json"
+      ]
     },
     {
       "id": "104-04",
@@ -34034,14 +34067,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["bounded_turbo4_key_rerank_arithmetic"],
-      "depends_on": ["104-03"],
+      "required_proofs": [
+        "bounded_turbo4_key_rerank_arithmetic"
+      ],
+      "depends_on": [
+        "104-03"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-03.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-04", "--receipt", ".wiretail/execution/evidence/V10_104-04.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04.json"
+      ]
     },
     {
       "id": "104-05",
@@ -34058,14 +34102,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["ranked_history_commit_and_frozen_mtp_state"],
-      "depends_on": ["104-04"],
+      "required_proofs": [
+        "ranked_history_commit_and_frozen_mtp_state"
+      ],
+      "depends_on": [
+        "104-04"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-04.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-05", "--receipt", ".wiretail/execution/evidence/V10_104-05.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-05.json"
+      ]
     },
     {
       "id": "104-06",
@@ -34082,14 +34137,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["paired_small_ranking_outcomes_and_cuda_oracle"],
-      "depends_on": ["104-05"],
+      "required_proofs": [
+        "paired_small_ranking_outcomes_and_cuda_oracle"
+      ],
+      "depends_on": [
+        "104-05"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-05.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-06", "--receipt", ".wiretail/execution/evidence/V10_104-06.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-06.json"
+      ]
     },
     {
       "id": "104-07",
@@ -34106,14 +34172,25 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["paired_ranking_speed_memory_and_scale_findings"],
-      "depends_on": ["104-06"],
+      "required_proofs": [
+        "paired_ranking_speed_memory_and_scale_findings"
+      ],
+      "depends_on": [
+        "104-06"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-06.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-07", "--receipt", ".wiretail/execution/evidence/V10_104-07.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-07",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-07.json"
+      ]
     },
     {
       "id": "104-08",
@@ -34130,15 +34207,26 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
-      "required_proofs": ["ranking_experiment_decision_and_isolated_branch"],
-      "depends_on": ["104-07"],
+      "required_proofs": [
+        "ranking_experiment_decision_and_isolated_branch"
+      ],
+      "depends_on": [
+        "104-07"
+      ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/forward/RANKING104.md",
         ".wiretail/execution/handoffs/104-07.md",
         ".wiretail/execution/handoffs/104-06.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-08", "--receipt", ".wiretail/execution/evidence/V10_104-08.json"]
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-08",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-08.json"
+      ]
     },
     {
       "id": "103-04",
