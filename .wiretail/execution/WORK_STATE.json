@@ -34268,7 +34268,7 @@
       "depends_on": [
         "104-04"
       ],
-      "commit": "098ee97ab778ead77f7d4b10f1e850cbe9d8143e",
+      "commit": "ad5cac346f7fc515a29dad5879e7df25be620988",
       "context_files": [
         ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md"
       ],
