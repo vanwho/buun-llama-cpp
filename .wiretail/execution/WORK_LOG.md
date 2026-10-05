@@ -2186,3 +2186,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04d`
 - Commit at update: `25d4a361a`
 - Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Attempt 3/3 exhausted. Local build and component fixtures pass, but the required production final-user cache adapter does not execute resident/cold PAGE_RERANK, PAGE_MASS and owner-authenticated compact readback; no truthful V10 receipt can be created. Hardware is available, and a later deliberate recovery must implement this production path before completion.
+
+## 2026-10-05T15:37:09+00:00 — 104-04d — blocked
+
+- Branch: `codex/task-104-04d`
+- Commit at update: `bac9834ca`
+- Summary: Attempt 4 recovery exhausted the distinct CUDA/build path: lower-level CUDA PAGE_RERANK/PAGE_MASS and owner fixtures pass, but complete_router_query_job still does not execute the production cache-to-owner pipeline or produce authenticated terminal mass records. Required V10_104-04d receipt is therefore absent; see .wiretail/execution/handoffs/104-04d.md and /srv/ai/paged-kv/results/ranking104/104-04d/attempt-04/.
