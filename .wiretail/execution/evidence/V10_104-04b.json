@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "task": "104-04b",
+  "source_commit": "426e34562deea4d732a4326bb50d4003de0d351a",
+  "experiment_source": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "branch": "experiment/attention-aware-ranking-v1",
+    "head": "426e34562deea4d732a4326bb50d4003de0d351a",
+    "dirty_diff_sha256": "e52ae0ae87f5f7fa6f2a2482c7b3fd2df1a86071e05081c7c494477504fb2b5a",
+    "dirty_diff_scope": "git diff --binary (tracked working-tree changes)"
+  },
+  "cuda_fixture": {
+    "device": "NVIDIA GeForce RTX 4080, CUDA0",
+    "packed_key": {
+      "dimension_per_kv_head": 128,
+      "kv_heads": 2,
+      "streams": [
+        1,
+        3
+      ]
+    },
+    "query_heads": 4,
+    "probes": 4,
+    "logical_pages": 4,
+    "rows_per_page": 256,
+    "identity": {
+      "query_generation": 7,
+      "expected_page_versions": [
+        14,
+        14,
+        22,
+        22
+      ],
+      "stale_page_excluded_individually": true
+    },
+    "coverage": [
+      "resident and staged cold pool denominator",
+      "staged physical slot remap",
+      "partial causal rows",
+      "all-future empty page",
+      "stale query generation",
+      "two staged chunks equivalent to unsplit",
+      "stale second chunk leaves persistent state unchanged"
+    ],
+    "reference": "independent double-precision Turbo4 decoded-key scalar softcap/log-sum-exp and exact-pool probability reference",
+    "tolerance": {
+      "pool_probability_absolute": 0.0002,
+      "rerank_log_mass_absolute": 0.0001,
+      "cpu_cuda_rerank_crosscheck_absolute": 0.02
+    },
+    "scratch_bytes": {
+      "persistent_state_fixture": 512,
+      "pool_probability_scratch_fixture": 256,
+      "rerank_static_shared_per_block": 4096,
+      "mass_normalize_shared_per_block": 1024,
+      "mass_emit_shared_per_block": 3072
+    },
+    "no_f16_key_materialization": true
+  },
+  "checks": {
+    "cuda_rerank_geometry_identity_and_exact_pool_mass": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-cuda-kv-page-summary"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "test-cuda-kv-page-summary",
+        "test-kv-page-select"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04b/attempt-01/build-final-09.log",
+          "sha256": "97b9086e30aec18948e3ee9ca2d630f48a0e15741e8e43b7b310f77fb8f3ff18"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04b/attempt-01/test-cuda-kv-page-summary-final-06.log",
+          "sha256": "ada38ad95002ad7127191a618ba69a3edb23688d2a643b1615055e72bfa7c64e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04b/attempt-01/test-kv-page-select-final-03.log",
+          "sha256": "66a6a5e3beb0cf67420a1eddd4db9e0f158a51a6a655268cee77d45c56b6899c"
+        }
+      ]
+    }
+  }
+}
