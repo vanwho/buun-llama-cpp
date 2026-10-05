@@ -2107,3 +2107,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-103-03`
 - Commit at update: `7c162ca08`
 - Summary: Operator-approved deferral: C254393 committed at L262144/H51200; next request failed attention-ubatch planning. Exact C=L is unproven and not a gate on isolated ranking104. Preserve incomplete helpers only in archive commit 7c162ca08 on codex/task-103-03; next task104-01 depends on completed103-02a.
+
+## 2026-10-05T01:58:53+00:00 — 104-01 — done
+
+- Branch: `codex/task-104-01`
+- Commit at update: `d9ccc007f`
+- Summary: Implemented isolated router mode, bounded budget and owned ranking interfaces; targeted build and both fixtures pass; V10 receipt validated.
