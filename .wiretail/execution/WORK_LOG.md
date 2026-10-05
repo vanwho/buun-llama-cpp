@@ -2236,3 +2236,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04h`
 - Commit at update: `41e7dc152`
 - Summary: Shared production cache adapter and two-stream CUDA final-user rerank/authenticated MASS proof passed; receipt and handoff validated.
+
+## 2026-10-05T23:43:49+00:00 — 104-05 — done
+
+- Branch: `codex/task-104-05`
+- Commit at update: `ef1f60e30`
+- Summary: Implemented and verified authenticated exact ranking publication, one-pass replay/frozen MTP parity, cancellation and unchanged-map handling; clean build, CPU/CUDA owner transaction tests and required CUDA model fixture pass. Receipt and completion validator verified.
