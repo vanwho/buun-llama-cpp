@@ -1101,6 +1101,10 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_calculate_split_st
                 // Descriptor, identity, and running LSE state are one snapshot.
                 split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
             } break;
+            case GGML_OP_KV_PAGE_MASS: {
+                // Candidate state and generation sidebands form one normalization pool.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
             case GGML_OP_KV_QUERY_ACCUMULATE: {
                 // The running accumulator is shared mutable state. Keep its
                 // input shards together on one backend and preserve ordering.

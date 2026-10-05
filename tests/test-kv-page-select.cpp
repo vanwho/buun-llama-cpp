@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cinttypes>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -442,6 +443,108 @@ static void test_query_score_rank_cpu() {
     ggml_free(ctx);
 }
 
+static std::vector<ggml_kv_page_rank_record> run_large_page_rank(
+        ggml_backend_t backend, int64_t heads) {
+    constexpr int64_t dim = 8, probes_n = 4, pages = 1024;
+    constexpr int64_t resident_width = 16, cold_width = 32;
+    ggml_init_params init = { 64 * 1024 * 1024, nullptr, true };
+    ggml_context * ctx = ggml_init(init);
+    assert(ctx && backend);
+    auto * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, dim, heads, 1);
+    auto * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, dim, 3, heads, pages);
+    auto * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 9, pages);
+    auto * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, pages);
+    auto * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+    auto * probes = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, dim, heads, probes_n);
+    auto * validity = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 9);
+    auto * ranked = ggml_kv_page_rank(ctx, q, bounds, metadata, membership, query,
+            probes, validity, resident_width, cold_width, 4, -1, 0xf, 1.0f);
+    assert(ranked && ranked->ne[1] == resident_width + cold_width);
+    ggml_set_output(ranked);
+    auto * graph = ggml_new_graph_custom(ctx, 16, false);
+    ggml_build_forward_expand(graph, ranked);
+    auto * buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer);
+
+    std::vector<float> q_data(size_t(dim * heads), 0.0f);
+    std::vector<float> probe_data(size_t(dim * heads * probes_n), 0.0f);
+    for (int64_t probe = 0; probe < probes_n; ++probe) {
+        const float direction = probe % 2 == 0 ? 1.0f : -1.0f;
+        for (int64_t head = 0; head < heads; ++head) {
+            probe_data[size_t(dim * (head + heads * probe))] = direction;
+        }
+    }
+    std::vector<ggml_fp16_t> bound_data(size_t(dim * 3 * heads * pages));
+    for (int64_t page = 0; page < pages; ++page) {
+        for (int64_t head = 0; head < heads; ++head) {
+            for (int64_t d = 0; d < dim; ++d) {
+                const float low = page == 23 && d == 0 ? -20.0f :
+                    page == 25 && d == 0 ? -50.0f : -0.25f;
+                const float high = page == 22 && d == 0 ? 20.0f :
+                    page == 24 && d == 0 ? 50.0f : 0.25f;
+                const float mean = page == 20 && d == 0 ? 10.0f :
+                    page == 21 && d == 0 ? -10.0f : 0.0f;
+                const size_t index = size_t(d + dim * (3 * (head + heads * page)));
+                bound_data[index] = ggml_fp32_to_fp16(low);
+                bound_data[index + dim] = ggml_fp32_to_fp16(high);
+                bound_data[index + 2 * dim] = ggml_fp32_to_fp16(mean);
+            }
+        }
+    }
+    std::vector<int64_t> page_data(size_t(9 * pages), 0);
+    std::vector<int32_t> resident(size_t(pages), 0);
+    for (int64_t page = 0; page < pages; ++page) {
+        page_data[size_t(page * 9 + 0)] = page * 4;
+        page_data[size_t(page * 9 + 1)] = 4;
+        page_data[size_t(page * 9 + 2)] = page == 24 ? 2 : 1;
+        page_data[size_t(page * 9 + 3)] = page + 1;
+        page_data[size_t(page * 9 + 6)] = 1;
+        if (page == 25) page_data[size_t(page * 9 + 1)] = 0;
+        resident[size_t(page)] = page < resident_width ? 1 : 0;
+    }
+    const int64_t query_position = pages * 4 + 4;
+    const int64_t query_data[4] = {query_position, 1, pages + 10, 1};
+    const int64_t validity_data[9] = {7, query_position - 1, query_position - 2,
+        query_position - 4, query_position - 8, 1, 1, 1, 1};
+    ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+    ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+    ggml_backend_tensor_set(metadata, page_data.data(), 0, ggml_nbytes(metadata));
+    ggml_backend_tensor_set(membership, resident.data(), 0, ggml_nbytes(membership));
+    ggml_backend_tensor_set(query, query_data, 0, sizeof(query_data));
+    ggml_backend_tensor_set(probes, probe_data.data(), 0, ggml_nbytes(probes));
+    ggml_backend_tensor_set(validity, validity_data, 0, sizeof(validity_data));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    std::vector<ggml_kv_page_rank_record> result(size_t(resident_width + cold_width));
+    ggml_backend_tensor_get(ranked, result.data(), 0, ggml_nbytes(ranked));
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+    return result;
+}
+
+static void test_large_page_rank_cuda(ggml_backend_t cuda_backend) {
+    constexpr size_t resident_width = 16;
+    assert(std::strncmp(ggml_backend_name(cuda_backend), "CUDA", 4) == 0);
+    ggml_backend_t cpu = ggml_backend_cpu_init();
+    assert(cpu);
+    for (const int64_t heads : {16, 200}) {
+        const auto expected = run_large_page_rank(cpu, heads);
+        const auto actual = run_large_page_rank(cuda_backend, heads);
+        for (size_t i = 0; i < expected.size(); ++i) {
+            assert(actual[i].logical_page == expected[i].logical_page);
+            assert(actual[i].validity_flags == expected[i].validity_flags);
+            assert(std::fabs(actual[i].peak_probability - expected[i].peak_probability) < 0.02f);
+            assert(std::fabs(actual[i].mean_probability - expected[i].mean_probability) < 0.02f);
+        }
+        for (int32_t id : {22, 23}) {
+            assert(std::any_of(actual.begin() + resident_width, actual.end(), [id](const auto & record) {
+                return record.logical_page == id && record.peak_probability > 0.99f;
+            }));
+        }
+        std::fprintf(stderr, "CUDA PAGE_RANK executed heads=%" PRId64 " pages=1024 cold_winners=22,23\n", heads);
+    }
+    ggml_backend_free(cpu);
+}
+
 int main() {
     ggml_backend_load_all();
     ggml_backend_t backend = nullptr;
@@ -456,6 +559,9 @@ int main() {
     assert(backend != nullptr);
     std::fprintf(stderr, "kv page selector test backend=%s\n", ggml_backend_name(backend));
     test_query_score_rank_cpu();
+    if (std::strncmp(ggml_backend_name(backend), "CUDA", 4) == 0) {
+        test_large_page_rank_cuda(backend);
+    }
     test_independent_query_probes(backend);
     test_final_user_query_capture(backend);
 

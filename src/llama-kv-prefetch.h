@@ -145,6 +145,14 @@ bool llama_kv_prefetch_expand_rank_records(
         llama_kv_prefetch_candidate * records,
         uint32_t & written) noexcept;
 
+bool llama_kv_prefetch_expand_selector_segments(
+        const void * raw_bytes, uint32_t raw_count, uint64_t byte_count,
+        const std::vector<llama_kv_prefetch_selector_segment> & segments,
+        uint32_t mailbox_capacity,
+        std::vector<int32_t> & copied_ids,
+        llama_kv_prefetch_candidate * records,
+        uint32_t & written) noexcept;
+
 // Shared by graph output construction and startup mailbox sizing. Changing
 // the cold ranking width must not silently exceed readback storage.
 constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 5;
@@ -321,6 +329,18 @@ struct llama_kv_rerank_stage_source {
     bool (*read)(void * context, uint64_t offset, void * dst, size_t bytes) noexcept = nullptr;
 };
 
+// Immutable identity passed through staging and the terminal reader event.
+// row_offset/rows describe complete encoded-key rows within the source unit.
+struct llama_kv_rerank_chunk_task {
+    uint32_t candidate_index = UINT32_MAX;
+    uint32_t compact_layer_index = UINT32_MAX;
+    uint64_t row_offset = 0;
+    uint32_t rows = 0;
+    uint32_t row_bytes = 0;
+    uint64_t query_generation = 0;
+    uint64_t content_version = 0;
+};
+
 struct llama_kv_rerank_stage_backend {
     void * context = nullptr;
     bool (*enqueue)(void * context, uint32_t slot, const void * host,
@@ -329,6 +349,20 @@ struct llama_kv_rerank_stage_backend {
     llama_kv_prefetch_poll (*poll)(void * context, uint64_t event) noexcept = nullptr;
     void (*cancel)(void * context, uint64_t event) noexcept = nullptr;
     void (*release)(void * context, uint64_t event) noexcept = nullptr;
+    bool (*enqueue_task)(void * context, uint32_t slot, const void * host,
+            void * device, size_t bytes, const llama_kv_rerank_chunk_task & task,
+            uint64_t * event) noexcept = nullptr;
+};
+
+enum class llama_kv_rerank_stage_terminal : uint8_t {
+    succeeded = 0, failed, cancelled,
+};
+
+struct llama_kv_rerank_stage_ticket {
+    uint64_t ticket = 0;
+    uint32_t slot = UINT32_MAX;
+    llama_kv_rerank_chunk_task task;
+    llama_kv_rerank_stage_terminal terminal = llama_kv_rerank_stage_terminal::failed;
 };
 
 enum class llama_kv_rerank_stage_status : uint8_t {
@@ -349,7 +383,12 @@ public:
     llama_kv_rerank_stage_status submit(const llama_kv_rerank_stage_source & source,
             uint64_t offset, size_t bytes, uint64_t query_generation,
             uint64_t content_version, uint32_t & slot) noexcept;
+    llama_kv_rerank_stage_status submit(const llama_kv_rerank_stage_source & source,
+            uint64_t offset, size_t bytes, const llama_kv_rerank_chunk_task & task,
+            uint32_t & slot, uint64_t * ticket = nullptr) noexcept;
     uint32_t poll() noexcept;
+    uint32_t poll_completed(llama_kv_rerank_stage_ticket * output,
+            uint32_t capacity) noexcept;
     uint32_t busy_slots() const noexcept;
     size_t allocated_bytes() const noexcept { return size_t(2) * slot_bytes_ * 2; }
     void cancel() noexcept;
@@ -358,13 +397,18 @@ private:
     struct slot_state {
         std::shared_ptr<const void> page_holder;
         uint64_t event = 0;
+        uint64_t ticket = 0;
+        llama_kv_rerank_chunk_task task;
         bool busy = false;
     };
     std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> host_{};
     std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> device_{};
     std::array<slot_state, LLAMA_KV_RERANK_STAGE_SLOTS> slots_{};
+    std::array<llama_kv_rerank_stage_ticket, LLAMA_KV_RERANK_STAGE_SLOTS> cancelled_{};
+    uint32_t cancelled_count_ = 0;
     size_t slot_bytes_ = 0;
     uint32_t next_slot_ = 0;
+    uint64_t next_ticket_ = 1;
     llama_kv_rerank_stage_backend backend_{};
 };
 

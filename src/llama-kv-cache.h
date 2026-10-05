@@ -33,6 +33,7 @@
 struct llama_cparams;
 struct llama_hparams;
 struct llama_model;
+class llama_kv_router_job;
 struct llama_context;
 class vbr_unit_build;
 class vbr_pinned_chunk_ring;
@@ -1601,6 +1602,7 @@ private:
     // Rows reserved before graph construction. Completion is deliberately
     // separate from apply_ubatch: graph construction/allocation may still fail.
     llama_kv_pager * pager_ = nullptr;
+    std::unique_ptr<llama_kv_router_job> pager_router_job_;
     llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
     uint64_t pager_query_generation_ = 0;
@@ -1663,18 +1665,36 @@ private:
         uint32_t readback_slot = UINT32_MAX;
     };
     mutable std::vector<pager_routing_output> pager_routing_outputs_;
+    struct pager_coarse_shortlist {
+        uint64_t query_generation = 0;
+        uint64_t table_epoch = 0;
+        uint32_t layer = UINT32_MAX;
+        uint64_t turn_id = 0;
+        int32_t sequence_id = -1;
+        uint64_t session_generation = 0;
+        uint64_t rollback_generation = 0;
+        std::shared_ptr<const std::vector<llama_kv_prefetch_candidate>> records;
+    };
+    std::vector<pager_coarse_shortlist> pager_coarse_shortlists_;
+    std::vector<llama_kv_prefetch_candidate> pager_exact_rerank_candidates_;
     struct pager_selector_submission {
         struct segment {
             pager_routing_output output;
             uint32_t raw_offset = 0;
             uint32_t count = 0;
+            uint64_t raw_byte_offset = 0;
         };
         bool active = false;
         bool complete = false;
         uint64_t generation = 0;
+        uint64_t raw_bytes = 0;
         std::vector<segment> segments;
     };
     std::array<pager_selector_submission, 2> pager_selector_submissions_;
+    bool complete_router_query_job(int32_t sequence_id, uint64_t turn_id) noexcept;
+    void retain_pager_coarse_shortlist(uint64_t query_generation,
+            uint64_t table_epoch, uint32_t layer,
+            const llama_kv_prefetch_candidate * records, uint32_t count) noexcept;
     struct pager_selector_page_state {
         llama_kv_page_id identity;
         uint64_t content_version = 0;

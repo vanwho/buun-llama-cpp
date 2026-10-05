@@ -962,6 +962,9 @@ private:
     // deliberately outside the scheduler backend list so the pager worker
     // cannot share a compute stream/allocator owner with graph execution.
     ggml_backend_ptr pager_transfer_backend;
+    // Probe reranking has its own stream/event owner and never shares the
+    // host-capture transfer backend.
+    ggml_backend_ptr pager_ranking_backend;
     // Packed selected-attention destinations outlive graph rebuilds. This is
     // declared after the backends so its buffers are released before them.
     mutable llama_kv_attention_packed_cache kv_attention_packed_cache;

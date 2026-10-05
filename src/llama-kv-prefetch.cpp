@@ -173,6 +173,98 @@ bool llama_kv_prefetch_expand_rank_records(
     return true;
 }
 
+bool llama_kv_prefetch_expand_selector_segments(
+        const void * raw_bytes, uint32_t raw_count, uint64_t byte_count,
+        const std::vector<llama_kv_prefetch_selector_segment> & segments,
+        uint32_t mailbox_capacity,
+        std::vector<int32_t> & copied_ids,
+        llama_kv_prefetch_candidate * records,
+        uint32_t & written) noexcept {
+    constexpr uint64_t packed_stride = sizeof(ggml_kv_page_rank_record);
+    if (raw_bytes == nullptr || records == nullptr || raw_count == 0 ||
+            raw_count > mailbox_capacity || written > mailbox_capacity ||
+            byte_count > uint64_t(mailbox_capacity) * packed_stride || segments.empty()) return false;
+    std::vector<uint8_t> snapshot;
+    try {
+        snapshot.resize(size_t(byte_count));
+        std::memcpy(snapshot.data(), raw_bytes, size_t(byte_count));
+        copied_ids.assign(raw_count, -1);
+    } catch (...) { return false; }
+    uint64_t end = 0;
+    uint32_t record_end = 0;
+    for (const auto & segment : segments) {
+        const uint32_t expected_stride = segment.record_format ==
+                llama_kv_prefetch_selector_segment::format::packed_rank_records
+            ? uint32_t(packed_stride) : uint32_t(sizeof(int32_t));
+        if (segment.pages == nullptr || segment.count == 0 ||
+                segment.byte_stride != expected_stride ||
+                segment.byte_offset != end || segment.byte_count != uint64_t(segment.count) * expected_stride ||
+                segment.byte_offset > byte_count ||
+                segment.byte_count > byte_count - segment.byte_offset ||
+                segment.raw_offset != record_end || segment.raw_offset > raw_count ||
+                segment.count > raw_count - segment.raw_offset ||
+                segment.count != segment.resident_count + segment.cold_count ||
+                segment.resident_offset > segment.pages->size() || segment.cold_offset > segment.pages->size() ||
+                segment.resident_count > segment.pages->size() - segment.resident_offset ||
+                segment.cold_count > segment.pages->size() - segment.cold_offset) return false;
+        end += segment.byte_count;
+        record_end += segment.count;
+        for (uint32_t rank = 0; rank < segment.count; ++rank) {
+            const uint8_t * source = snapshot.data() + segment.byte_offset + uint64_t(rank) * expected_stride;
+            int32_t logical_page = -1;
+            ggml_kv_page_rank_record packed{};
+            if (segment.record_format == llama_kv_prefetch_selector_segment::format::packed_rank_records) {
+                std::memcpy(&packed, source, sizeof(packed));
+                logical_page = packed.logical_page;
+            } else {
+                std::memcpy(&logical_page, source, sizeof(logical_page));
+            }
+            copied_ids[segment.raw_offset + rank] = logical_page;
+            if (logical_page < 0 || size_t(logical_page) >= segment.pages->size()) continue;
+            if (segment.record_format == llama_kv_prefetch_selector_segment::format::packed_rank_records &&
+                    (packed.validity_flags != 1u || !std::isfinite(packed.peak_probability) ||
+                     !std::isfinite(packed.mean_probability) || packed.peak_probability < 0.0f ||
+                     packed.mean_probability < 0.0f || packed.peak_probability > 1.0f ||
+                     packed.mean_probability > 1.0f)) continue;
+            const auto & page = (*segment.pages)[size_t(logical_page)];
+            if (page.identity.logical_page != uint32_t(logical_page) ||
+                    page.identity.sequence_id != segment.sequence_id ||
+                    page.identity.session_generation != segment.session_generation ||
+                    page.identity.sequence_generation == 0 || page.identity.page_generation == 0 ||
+                    page.content_version == 0 || page.summary_version != page.content_version) continue;
+            const bool cold = rank >= segment.resident_count;
+            llama_kv_prefetch_candidate candidate;
+            candidate.identity = page.identity;
+            candidate.attention_layer = segment.attention_layer;
+            candidate.selector_rank = rank - (cold ? segment.resident_count : 0);
+            candidate.generation = segment.query_generation;
+            candidate.table_epoch = segment.table_epoch;
+            candidate.query_position = segment.query_position;
+            candidate.speculation_generation = segment.sequence_generation;
+            candidate.rollback_generation = segment.rollback_generation;
+            candidate.cold = cold;
+            candidate.requested_bytes = segment.requested_bytes;
+            candidate.content_version = page.content_version;
+            candidate.summary_version = page.summary_version;
+            if (segment.record_format == llama_kv_prefetch_selector_segment::format::packed_rank_records) {
+                candidate.provenance = llama_kv_prefetch_candidate::score_kind::probe_softmax;
+                candidate.peak_probability = packed.peak_probability;
+                candidate.mean_probability = packed.mean_probability;
+                candidate.score = packed.peak_probability;
+            } else {
+                candidate.score = 1.0f / (1.0f + float(candidate.selector_rank));
+            }
+            if (std::find_if(records, records + written, [&](const auto & old) {
+                    return old.identity == candidate.identity &&
+                        old.attention_layer == candidate.attention_layer;
+                }) != records + written) continue;
+            if (written >= mailbox_capacity) return false;
+            records[written++] = candidate;
+        }
+    }
+    return end == byte_count && record_end == raw_count;
+}
+
 const char * llama_kv_prefetch_mailbox_status_name(
         llama_kv_prefetch_mailbox_status status) noexcept {
     switch (status) {
@@ -1148,7 +1240,8 @@ bool llama_kv_rerank_stage_ring::configure(
         const std::array<void *, LLAMA_KV_RERANK_STAGE_SLOTS> & device,
         size_t slot_bytes, llama_kv_rerank_stage_backend backend) noexcept {
     if (busy_slots() != 0 || slot_bytes == 0 || slot_bytes > LLAMA_KV_RERANK_STAGE_MAX_BYTES ||
-            !backend.enqueue || !backend.poll || !backend.cancel || !backend.release) return false;
+            (!backend.enqueue && !backend.enqueue_task) || !backend.poll ||
+            !backend.cancel || !backend.release) return false;
     for (uint32_t i = 0; i < LLAMA_KV_RERANK_STAGE_SLOTS; ++i) {
         if (host[i] == nullptr || device[i] == nullptr) return false;
     }
@@ -1163,9 +1256,21 @@ bool llama_kv_rerank_stage_ring::configure(
 llama_kv_rerank_stage_status llama_kv_rerank_stage_ring::submit(
         const llama_kv_rerank_stage_source & source, uint64_t offset, size_t bytes,
         uint64_t query_generation, uint64_t content_version, uint32_t & slot_index) noexcept {
-    if (slot_bytes_ == 0 || !backend_.enqueue || source.page_holder == nullptr ||
+    llama_kv_rerank_chunk_task task;
+    task.rows = 1;
+    task.query_generation = query_generation;
+    task.content_version = content_version;
+    return submit(source, offset, bytes, task, slot_index, nullptr);
+}
+
+llama_kv_rerank_stage_status llama_kv_rerank_stage_ring::submit(
+        const llama_kv_rerank_stage_source & source, uint64_t offset, size_t bytes,
+        const llama_kv_rerank_chunk_task & task, uint32_t & slot_index,
+        uint64_t * ticket_out) noexcept {
+    if (slot_bytes_ == 0 || (!backend_.enqueue && !backend_.enqueue_task) ||
+            source.page_holder == nullptr ||
             !source.recheck || !source.read || bytes == 0 || bytes > slot_bytes_ ||
-            query_generation == 0 || content_version == 0) {
+            task.query_generation == 0 || task.content_version == 0 || task.rows == 0) {
         return slot_bytes_ == 0 ? llama_kv_rerank_stage_status::not_configured
                                 : llama_kv_rerank_stage_status::invalid_argument;
     }
@@ -1175,32 +1280,64 @@ llama_kv_rerank_stage_status llama_kv_rerank_stage_ring::submit(
         if (!slots_[i].busy) { chosen = i; break; }
     }
     if (chosen == LLAMA_KV_RERANK_STAGE_SLOTS) return llama_kv_rerank_stage_status::backpressure;
-    if (!source.recheck(source.context, content_version)) return llama_kv_rerank_stage_status::stale_source;
+    if (!source.recheck(source.context, task.content_version)) return llama_kv_rerank_stage_status::stale_source;
     if (!source.read(source.context, offset, host_[chosen], bytes)) return llama_kv_rerank_stage_status::read_failed;
-    if (!source.recheck(source.context, content_version)) return llama_kv_rerank_stage_status::stale_source;
+    if (!source.recheck(source.context, task.content_version)) return llama_kv_rerank_stage_status::stale_source;
+    // Publish ownership before enqueue: enqueue may launch a reader immediately.
+    const uint64_t ticket = next_ticket_++;
+    if (next_ticket_ == 0) next_ticket_ = 1;
+    slots_[chosen].page_holder = source.page_holder;
+    slots_[chosen].ticket = ticket;
+    slots_[chosen].task = task;
+    slots_[chosen].busy = true;
     uint64_t event = 0;
-    if (!backend_.enqueue(backend_.context, chosen, host_[chosen], device_[chosen], bytes,
-            query_generation, content_version, &event) || event == 0) {
+    const bool enqueued = backend_.enqueue_task
+        ? backend_.enqueue_task(backend_.context, chosen, host_[chosen], device_[chosen], bytes,
+                task, &event)
+        : backend_.enqueue(backend_.context, chosen, host_[chosen], device_[chosen], bytes,
+                task.query_generation, task.content_version, &event);
+    if (!enqueued || event == 0) {
         if (event != 0) {
             if (backend_.cancel) backend_.cancel(backend_.context, event);
             if (backend_.release) backend_.release(backend_.context, event);
         }
+        slots_[chosen] = {};
         return llama_kv_rerank_stage_status::enqueue_failed;
     }
-    slots_[chosen].page_holder = source.page_holder;
     slots_[chosen].event = event;
-    slots_[chosen].busy = true;
     slot_index = chosen;
+    if (ticket_out) *ticket_out = ticket;
     next_slot_ = (chosen + 1) % LLAMA_KV_RERANK_STAGE_SLOTS;
     return llama_kv_rerank_stage_status::ok;
 }
 
 uint32_t llama_kv_rerank_stage_ring::poll() noexcept {
+    return poll_completed(nullptr, 0);
+}
+
+uint32_t llama_kv_rerank_stage_ring::poll_completed(
+        llama_kv_rerank_stage_ticket * output, uint32_t capacity) noexcept {
     uint32_t retired = 0;
+    while (cancelled_count_ != 0) {
+        if (output != nullptr && retired < capacity) output[retired] = cancelled_[0];
+        for (uint32_t i = 1; i < cancelled_count_; ++i) cancelled_[i - 1] = cancelled_[i];
+        --cancelled_count_;
+        ++retired;
+    }
     for (auto & slot : slots_) {
         if (!slot.busy) continue;
         const auto status = backend_.poll(backend_.context, slot.event);
         if (status == llama_kv_prefetch_poll::pending) continue;
+        if (output != nullptr && retired < capacity) {
+            output[retired].ticket = slot.ticket;
+            output[retired].slot = uint32_t(&slot - slots_.data());
+            output[retired].task = slot.task;
+            output[retired].terminal = status == llama_kv_prefetch_poll::completed
+                ? llama_kv_rerank_stage_terminal::succeeded
+                : status == llama_kv_prefetch_poll::failed
+                    ? llama_kv_rerank_stage_terminal::failed
+                    : llama_kv_rerank_stage_terminal::cancelled;
+        }
         backend_.release(backend_.context, slot.event);
         slot = {};
         ++retired;
@@ -1219,6 +1356,13 @@ void llama_kv_rerank_stage_ring::cancel() noexcept {
         if (!slot.busy) continue;
         if (backend_.cancel) backend_.cancel(backend_.context, slot.event);
         if (backend_.release) backend_.release(backend_.context, slot.event);
+        if (cancelled_count_ < cancelled_.size()) {
+            auto & result = cancelled_[cancelled_count_++];
+            result.ticket = slot.ticket;
+            result.slot = uint32_t(&slot - slots_.data());
+            result.task = slot.task;
+            result.terminal = llama_kv_rerank_stage_terminal::cancelled;
+        }
         slot = {};
     }
 }

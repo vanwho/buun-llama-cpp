@@ -86,6 +86,7 @@ void ggml_compute_forward_top_k(const struct ggml_compute_params * params, struc
 void ggml_compute_forward_kv_page_select(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_kv_page_rank(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_kv_page_rerank(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+void ggml_compute_forward_kv_page_mass(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_kv_query_accumulate(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_kv_query_probes(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_kv_page_summary(const struct ggml_compute_params * params, struct ggml_tensor * dst);

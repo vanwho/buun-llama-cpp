@@ -104,6 +104,10 @@ struct llama_kv_pager_resources {
     uint32_t host_stream_index = 0;
     std::vector<vbr_capture_lane> host_lanes;
     ggml_backend_t host_backend = nullptr;
+    // Dedicated owner for ranking H2D and rerank kernels. This is borrowed by
+    // the pager/cache and must outlive their terminal events.
+    ggml_backend_t ranking_backend = nullptr;
+    ggml_backend_buffer_type_t ranking_host_buft = nullptr;
     uint64_t host_ring_bytes = 0;
     size_t host_chunk_bytes = 0;
     vbr_selected_page_capture_limits host_capture_limits;
@@ -766,6 +770,12 @@ public:
     const llama_kv_pager_host * host_catalog() const noexcept {
         return host_.get();
     }
+    ggml_backend_t ranking_backend() const noexcept {
+        return resources_ranking_backend_;
+    }
+    ggml_backend_buffer_type_t ranking_host_buft() const noexcept {
+        return resources_ranking_host_buft_;
+    }
     ggml_backend_t host_backend() const noexcept {
         return host_ ? resources_host_backend_ : nullptr;
     }
@@ -1044,6 +1054,8 @@ private:
     std::unique_ptr<llama_kv_residency_pool> residency_pool_;
     llama_kv_residency_pool_backend residency_backend_;
     ggml_backend_t resources_host_backend_ = nullptr;
+    ggml_backend_t resources_ranking_backend_ = nullptr;
+    ggml_backend_buffer_type_t resources_ranking_host_buft_ = nullptr;
     uint64_t resources_host_source_namespace_ = 0;
     uint64_t resources_host_topology_identity_ = 0;
     uint32_t resources_host_child_id_ = UINT32_MAX;

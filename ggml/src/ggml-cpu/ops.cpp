@@ -8975,12 +8975,13 @@ void ggml_compute_forward_kv_page_rerank(const ggml_compute_params * params, ggm
     std::vector<float> decoded(size_t(dim * kv_heads));
     for (int64_t page = 0; page < n_pages; ++page) {
         const int64_t * desc = (const int64_t *) ((const char *) descriptors->data + page * descriptors->nb[1]);
+        const int64_t * expected = ids + 2 * (page + 1);
         const int64_t logical = desc[0], slot = desc[1], rows = desc[2], stream = desc[3];
         const int64_t page_size = desc[4], first_position = desc[8], key_set = desc[9];
         const ggml_tensor * keys = key_set == 0 ? resident_keys : staged_keys;
         const bool eligible = desc[7] != 0 && logical >= 0 && slot >= 0 && rows > 0 &&
             (key_set == 0 || key_set == 1) && page_size > 0 && rows <= page_size && stream >= 0 && stream < keys->ne[2] &&
-            slot <= (keys->ne[1] - rows) / page_size && desc[5] == ids[0] && desc[6] == ids[1];
+            slot <= (keys->ne[1] - rows) / page_size && desc[5] == expected[0] && desc[6] == expected[1] && valid[0] == ids[0];
         for (int64_t head = 0; head < heads; ++head) for (int64_t probe = 0; probe < n_probes; ++probe) {
             const size_t out_index = size_t(page + n_pages * (head + heads * probe));
             float * out = (float *) ((char *) dst->data + page * dst->nb[0] + head * dst->nb[1] + probe * dst->nb[2]);
@@ -9001,7 +9002,7 @@ void ggml_compute_forward_kv_page_rerank(const ggml_compute_params * params, ggm
                     dot += double(q) * decoded[size_t(kv_head * dim + d)];
                 }
                 double logit = dot * scale;
-                if (softcap > 0.0f) logit = softcap * std::tanh(logit);
+                if (softcap > 0.0f) logit = softcap * std::tanh(logit / softcap);
                 if (!std::isfinite(logit)) continue;
                 if (logit > chunk_m) { chunk_s = chunk_s * std::exp(chunk_m - logit) + 1.0; chunk_m = logit; }
                 else chunk_s += std::exp(logit - chunk_m);
@@ -9019,6 +9020,47 @@ void ggml_compute_forward_kv_page_rerank(const ggml_compute_params * params, ggm
             }
             (void) out_index;
         }
+    }
+}
+
+void ggml_compute_forward_kv_page_mass(const ggml_compute_params * params, ggml_tensor * dst) {
+    GGML_ASSERT(params->ith == 0 && params->nth == 1);
+    const ggml_tensor * state=dst->src[0], * descriptors=dst->src[1], * identity=dst->src[2], * validity=dst->src[3];
+    const int64_t * ids=(const int64_t *)identity->data, * valid=(const int64_t *)validity->data;
+    const int64_t pages=state->ne[1], heads=state->ne[2], probes=state->ne[3];
+    std::vector<uint8_t> eligible(size_t(pages),0);
+    for(int64_t p=0;p<pages;++p){
+        const int64_t * d=(const int64_t *)((const char *)descriptors->data+p*descriptors->nb[1]);
+        const int64_t * exp=ids+2*(p+1);
+        eligible[size_t(p)]=d[7]&&d[0]>=0&&d[5]==exp[0]&&d[6]==exp[1]&&valid[0]==ids[0];
+    }
+    std::vector<double> probs(size_t(pages*heads*probes),0.0);
+    std::vector<double> logs(size_t(pages),0.0);
+    for(int64_t h=0;h<heads;++h)for(int64_t q=0;q<probes;++q){
+        double maxlog=-INFINITY;
+        for(int64_t p=0;p<pages;++p){
+            float m=*(const float *)((const char *)state->data+p*state->nb[1]+h*state->nb[2]+q*state->nb[3]);
+            float z=*(const float *)((const char *)state->data+state->nb[0]+p*state->nb[1]+h*state->nb[2]+q*state->nb[3]);
+            logs[size_t(p)]=eligible[size_t(p)]&&valid[5+q]&&z>0&&std::isfinite(m)&&std::isfinite(z)?double(m)+std::log(double(z)):-INFINITY;
+            maxlog=std::max(maxlog,logs[size_t(p)]);
+        }
+        if(!std::isfinite(maxlog))continue;
+        double denom=0;for(double x:logs)if(std::isfinite(x))denom+=std::exp(x-maxlog);
+        if(!(denom>0)||!std::isfinite(denom))continue;
+        for(int64_t p=0;p<pages;++p)if(std::isfinite(logs[size_t(p)]))probs[size_t(p+pages*(h+heads*q))]=std::exp(logs[size_t(p)]-maxlog)/denom;
+    }
+    auto * out=(ggml_kv_page_rank_record *)dst->data;
+    for(int64_t p=0;p<pages;++p){
+        double peak=0,total=0;int count=0;
+        for(int64_t q=0;q<probes;++q)if(valid[5+q])for(int64_t h=0;h<heads;++h){
+            const float m=*(const float *)((const char *)state->data+p*state->nb[1]+h*state->nb[2]+q*state->nb[3]);
+            const float z=*(const float *)((const char *)state->data+state->nb[0]+p*state->nb[1]+h*state->nb[2]+q*state->nb[3]);
+            double x=probs[size_t(p+pages*(h+heads*q))];if(eligible[size_t(p)]&&valid[5+q]&&z>0&&std::isfinite(m)&&std::isfinite(z)){peak=std::max(peak,x);total+=x;++count;}
+        }
+        if(eligible[size_t(p)]&&count){
+            const int64_t * d=(const int64_t *)((const char *)descriptors->data+p*descriptors->nb[1]);
+            out[p]={int32_t(d[0]),1u,float(peak),float(total/count)};
+        }else out[p]={-1,0u,0.0f,0.0f};
     }
 }
 

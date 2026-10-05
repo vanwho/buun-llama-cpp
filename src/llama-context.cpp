@@ -1072,6 +1072,7 @@ llama_context::~llama_context() {
         memory->set_kv_pager(nullptr);
     }
     kv_pager_owner.reset();
+    pager_ranking_backend.reset();
 
     delete crosskv_proj;
 
@@ -1775,6 +1776,22 @@ void llama_context::init_kv_pager() {
     if (!dedicated_transfer_backend) {
         LLAMA_LOG_WARN("%s: KV pager transfer backend unavailable; canonical host capture disabled\n",
                 __func__);
+    }
+    if (kv_pager.router == llama_kv_router_mode::probe_rerank) {
+        if (!pager_ranking_backend ||
+                ggml_backend_get_device(pager_ranking_backend.get()) != dev) {
+            pager_ranking_backend.reset(ggml_backend_dev_init(dev, nullptr));
+        }
+        if (!pager_ranking_backend || pager_ranking_backend.get() == resources.host_backend) {
+            throw std::runtime_error("probe-rerank KV pager requires a dedicated ranking backend");
+        }
+        resources.ranking_backend = pager_ranking_backend.get();
+        resources.ranking_host_buft = ggml_backend_dev_host_buffer_type(dev);
+        if (resources.ranking_host_buft == nullptr ||
+                !ggml_backend_buft_is_host(resources.ranking_host_buft)) {
+            pager_ranking_backend.reset();
+            throw std::runtime_error("probe-rerank KV pager requires pinned host buffer support");
+        }
     }
     const uint64_t host_cap = resources.host_budget_bytes;
     resources.host_budget.host.pageable_cap = host_cap;

@@ -397,6 +397,67 @@ static void test_layer_duplicate_and_refresh_budget(prefetch_fake & fake) {
     scheduler->shutdown();
 }
 
+static void test_mixed_selector_segments() {
+    llama_kv_prefetch_mailbox mailbox({1, 8});
+    uint32_t slot = UINT32_MAX;
+    llama_kv_prefetch_candidate * records = nullptr;
+    assert(mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    std::vector<llama_kv_prefetch_page_descriptor> packed_pages(8), legacy_pages(8);
+    for (uint32_t logical = 0; logical < 8; ++logical) {
+        packed_pages[logical].identity = mailbox_page(logical, 0);
+        packed_pages[logical].content_version = 100 + logical;
+        packed_pages[logical].summary_version = 100 + logical;
+        legacy_pages[logical].identity = mailbox_page(logical, 1);
+        legacy_pages[logical].content_version = 200 + logical;
+        legacy_pages[logical].summary_version = 200 + logical;
+    }
+    const ggml_kv_page_rank_record packed {1, 1u, 0.75f, 0.5f};
+    const int32_t legacy[2] = {2, 3};
+    std::memcpy(records, &packed, sizeof(packed));
+    std::memcpy(reinterpret_cast<uint8_t *>(records) + sizeof(packed), legacy, sizeof(legacy));
+    llama_kv_prefetch_selector_segment packed_segment{};
+    packed_segment.raw_offset = 0;
+    packed_segment.count = 1;
+    packed_segment.resident_count = 1;
+    packed_segment.sequence_id = 0;
+    packed_segment.attention_layer = 0;
+    packed_segment.session_generation = 1;
+    packed_segment.sequence_generation = 1;
+    packed_segment.query_generation = 7;
+    packed_segment.table_epoch = 9;
+    packed_segment.pages = &packed_pages;
+    packed_segment.record_format = llama_kv_prefetch_selector_segment::format::packed_rank_records;
+    packed_segment.byte_offset = 0;
+    packed_segment.byte_count = sizeof(packed);
+    packed_segment.byte_stride = sizeof(packed);
+    auto legacy_segment = packed_segment;
+    legacy_segment.raw_offset = 1;
+    legacy_segment.count = 2;
+    legacy_segment.resident_count = 1;
+    legacy_segment.cold_count = 1;
+    legacy_segment.attention_layer = 1;
+    legacy_segment.pages = &legacy_pages;
+    legacy_segment.record_format = llama_kv_prefetch_selector_segment::format::legacy_i32_ids;
+    legacy_segment.byte_offset = sizeof(packed);
+    legacy_segment.byte_count = sizeof(legacy);
+    legacy_segment.byte_stride = sizeof(int32_t);
+    const std::vector<llama_kv_prefetch_selector_segment> segments = {
+        packed_segment, legacy_segment,
+    };
+    std::vector<int32_t> copied_ids;
+    uint32_t written = 0;
+    assert(llama_kv_prefetch_expand_selector_segments(records, 3,
+            sizeof(packed) + sizeof(legacy), segments, mailbox.candidates_per_slot(),
+            copied_ids, records, written));
+    assert((copied_ids == std::vector<int32_t>{1, 2, 3}));
+    assert(written == 3 && records[0].provenance ==
+            llama_kv_prefetch_candidate::score_kind::probe_softmax &&
+            records[0].peak_probability == packed.peak_probability);
+    assert(records[1].identity.logical_page == 2 && records[1].attention_layer == 1 &&
+            records[1].provenance != llama_kv_prefetch_candidate::score_kind::probe_softmax);
+    assert(records[2].identity.logical_page == 3 && records[2].cold && records[2].selector_rank == 0);
+}
+
 int main() {
     llama_kv_prefetch_predictor predictor(2);
     assert(predictor.observe(41, 3, 100,
@@ -504,6 +565,7 @@ int main() {
            scheduler->active_events() == 0);
     test_candidate_mailbox();
     test_scaled_candidate_mailbox();
+    test_mixed_selector_segments();
     test_layer_duplicate_and_refresh_budget(fake);
     test_rerank_stage_ring();
     test_rerank_bundle_order();

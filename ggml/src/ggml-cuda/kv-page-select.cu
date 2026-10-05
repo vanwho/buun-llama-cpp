@@ -489,19 +489,274 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
     }
 }
 
-// Defensive output initialization for accidental internal dispatch. The
-// CUDA supports_op gate rejects this node until its score kernel is available;
-// the CPU implementation remains the executable oracle in this phase.
-__global__ static void page_rank_clear(ggml_kv_page_rank_record * output, int count) {
+__device__ float page_rank_score(const float * probes, size_t probe_nb0,
+        size_t probe_nb1, size_t probe_nb2, const half * bounds,
+        size_t bounds_nb0, size_t bounds_nb1, size_t bounds_nb2,
+        size_t bounds_nb3, int64_t * metadata, size_t metadata_nb0,
+        size_t metadata_nb1, const int32_t * membership, size_t membership_nb0,
+        const int64_t * query, size_t query_nb0, int metadata_fields,
+        int page_size, int page, int region, int source, int head, int probe,
+        int kv_head, int dim, float scale) {
+    if (!page_select_eligible(metadata, metadata_nb0, metadata_nb1,
+            membership, membership_nb0, query, query_nb0, page,
+            region == 0 ? 1 : 0, page_size, metadata_fields)) return nanf("");
+    double score = 0.0;
+    for (int d = 0; d < dim; ++d) {
+        const float q = *(const float *) ((const char *) probes +
+                d * probe_nb0 + head * probe_nb1 + probe * probe_nb2) * scale;
+        if (isnan(q)) return nanf("");
+        if (q == 0.0f) continue;
+        const int bound_index = source == 0 ? (q > 0.0f ? 1 : 0) : 2;
+        const float value = __half2float(*(const half *) ((const char *) bounds +
+                d * bounds_nb0 + bound_index * bounds_nb1 + kv_head * bounds_nb2 + page * bounds_nb3));
+        if (isnan(value) || (source == 0 && q > 0.0f &&
+                __half2float(*(const half *) ((const char *) bounds + d * bounds_nb0 + kv_head * bounds_nb2 + page * bounds_nb3)) > value)) return nanf("");
+        if (source == 0 && q < 0.0f &&
+                __half2float(*(const half *) ((const char *) bounds + d * bounds_nb0 + bounds_nb1 + kv_head * bounds_nb2 + page * bounds_nb3)) < value) return nanf("");
+        score += double(q) * double(value);
+    }
+    return float(score);
+}
+
+__global__ static void page_rank_clear(float * peak, float * sum, uint32_t * count,
+        ggml_kv_page_rank_record * output, int pages, int output_count) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < count) output[i] = {-1, 0, 0.0f, 0.0f};
+    const int total = 4 * pages;
+    if (i < total) { peak[i] = 0.0f; sum[i] = 0.0f; count[i] = 0; }
+    if (i < output_count) output[i] = {-1, 0, 0.0f, 0.0f};
+}
+
+__global__ static void page_rank_normalize_accumulate(
+        const float * probes, size_t probe_nb0, size_t probe_nb1, size_t probe_nb2,
+        const half * bounds, size_t bounds_nb0, size_t bounds_nb1,
+        size_t bounds_nb2, size_t bounds_nb3,
+        const int64_t * metadata, size_t metadata_nb0, size_t metadata_nb1,
+        const int32_t * membership, size_t membership_nb0,
+        const int64_t * query, size_t query_nb0, const int64_t * validity,
+        int metadata_fields, int page_size, int pages, int dim, int heads,
+        int kv_heads, int n_probes, uint32_t probe_mask, float scale,
+        float * peak, float * sum, uint32_t * count) {
+    const int context = blockIdx.x;
+    const int probe = context % n_probes;
+    const int head = (context / n_probes) % heads;
+    const int region = (context / (n_probes * heads)) % 2;
+    const int source = context / (n_probes * heads * 2);
+    const int combo = source * 2 + region;
+    const int64_t * valid = validity;
+    if (!(probe_mask & (1u << probe)) || !valid[5 + probe]) return;
+    const int kv_head = head / (heads / kv_heads);
+    __shared__ float values[256];
+    __shared__ float sums[256];
+    __shared__ int valid_counts[256];
+    __shared__ int inf_counts[256];
+    float local_max = -INFINITY;
+    int local_valid = 0, local_inf = 0;
+    for (int page = threadIdx.x; page < pages; page += blockDim.x) {
+        const float value = page_rank_score(probes, probe_nb0, probe_nb1, probe_nb2,
+                bounds, bounds_nb0, bounds_nb1, bounds_nb2, bounds_nb3,
+                (int64_t *) metadata, metadata_nb0, metadata_nb1, membership,
+                membership_nb0, query, query_nb0, metadata_fields, page_size,
+                page, region, source, head, probe, kv_head, dim, scale);
+        if (!isnan(value)) {
+            ++local_valid;
+            local_inf += value == INFINITY;
+            local_max = fmaxf(local_max, value);
+        }
+    }
+    values[threadIdx.x] = local_max;
+    valid_counts[threadIdx.x] = local_valid;
+    inf_counts[threadIdx.x] = local_inf;
+    __syncthreads();
+    for (int offset = 128; offset > 0; offset >>= 1) {
+        if (threadIdx.x < offset) {
+            values[threadIdx.x] = fmaxf(values[threadIdx.x], values[threadIdx.x + offset]);
+            valid_counts[threadIdx.x] += valid_counts[threadIdx.x + offset];
+            inf_counts[threadIdx.x] += inf_counts[threadIdx.x + offset];
+        }
+        __syncthreads();
+    }
+    const float maximum = values[0];
+    const int total_valid = valid_counts[0], total_inf = inf_counts[0];
+    float local_sum = 0.0f;
+    if (total_inf == 0 && maximum != -INFINITY) {
+        for (int page = threadIdx.x; page < pages; page += blockDim.x) {
+            const float value = page_rank_score(probes, probe_nb0, probe_nb1, probe_nb2,
+                    bounds, bounds_nb0, bounds_nb1, bounds_nb2, bounds_nb3,
+                    (int64_t *) metadata, metadata_nb0, metadata_nb1, membership,
+                    membership_nb0, query, query_nb0, metadata_fields, page_size,
+                    page, region, source, head, probe, kv_head, dim, scale);
+            if (isfinite(value)) local_sum += expf(value - maximum);
+        }
+    }
+    sums[threadIdx.x] = local_sum;
+    __syncthreads();
+    for (int offset = 128; offset > 0; offset >>= 1) {
+        if (threadIdx.x < offset) sums[threadIdx.x] += sums[threadIdx.x + offset];
+        __syncthreads();
+    }
+    const float denominator = sums[0];
+    for (int page = threadIdx.x; page < pages; page += blockDim.x) {
+        const float value = page_rank_score(probes, probe_nb0, probe_nb1, probe_nb2,
+                bounds, bounds_nb0, bounds_nb1, bounds_nb2, bounds_nb3,
+                (int64_t *) metadata, metadata_nb0, metadata_nb1, membership,
+                membership_nb0, query, query_nb0, metadata_fields, page_size,
+                page, region, source, head, probe, kv_head, dim, scale);
+        if (isnan(value)) continue;
+        float probability;
+        if (total_inf != 0) probability = value == INFINITY ? 1.0f / total_inf : 0.0f;
+        else if (maximum == -INFINITY) probability = 1.0f / total_valid;
+        else probability = isfinite(value) && denominator > 0.0f ? expf(value - maximum) / denominator : 0.0f;
+        const int index = combo * pages + page;
+        atomicMax((unsigned int *) (peak + index), __float_as_uint(probability));
+        atomicAdd(sum + index, probability);
+        atomicAdd(count + index, 1u);
+    }
+}
+
+__global__ static void page_rank_make_order(const float * peak, const float * sum,
+        const uint32_t * count, int * ordered, int pages, int top_k) {
+    const int combo = blockIdx.y;
+    const int page = blockIdx.x * blockDim.x + threadIdx.x;
+    if (page >= pages) return;
+    const int index = combo * pages + page;
+    if (count[index] == 0) return;
+    const float page_peak = peak[index], page_mean = sum[index] / count[index];
+    int rank = 0;
+    for (int other = 0; other < pages; ++other) {
+        const int other_index = combo * pages + other;
+        if (count[other_index] == 0) continue;
+        const float other_peak = peak[other_index];
+        const float other_mean = sum[other_index] / count[other_index];
+        rank += other_peak > page_peak || (other_peak == page_peak &&
+                (other_mean > page_mean || (other_mean == page_mean && other < page)));
+    }
+    if (rank < top_k) ordered[combo * pages + rank] = page;
+}
+
+__global__ static void page_rank_emit(const float * peak, const float * sum,
+        const uint32_t * count, const int * ordered,
+        const int64_t * metadata, size_t metadata_nb0, size_t metadata_nb1,
+        const int32_t * membership, size_t membership_nb0,
+        const int64_t * query, size_t query_nb0, int metadata_fields, int page_size,
+        ggml_kv_page_rank_record * output, int pages, int k_resident, int k_cold) {
+    if (blockIdx.x != 0 || threadIdx.x != 0) return;
+    for (int region = 0; region < 2; ++region) {
+        const int output_begin = region == 0 ? 0 : k_resident;
+        const int width = region == 0 ? k_resident : k_cold;
+        const int mean_combo = 2 + region;
+        const int bound_combo = region;
+        int source_count[2] = {0, 0};
+        for (int page = 0; page < pages; ++page) {
+            source_count[0] += count[mean_combo * pages + page] != 0;
+            source_count[1] += count[bound_combo * pages + page] != 0;
+        }
+        int eligible = 0;
+        for (int page = 0; page < pages; ++page) {
+            eligible += page_select_eligible(metadata, metadata_nb0, metadata_nb1,
+                    membership, membership_nb0, query, query_nb0, page,
+                    region == 0 ? 1 : 0, page_size, metadata_fields);
+        }
+        int limit = width;
+        if (region == 1) {
+            const int bound = max(8, min(32, (eligible + 3) / 4));
+            limit = min(width, min(eligible, bound));
+        } else {
+            limit = min(width, eligible);
+        }
+        const int seed = (limit + 1) / 2;
+        int written = 0;
+        for (int source = 0; source < 2; ++source) {
+            const int combo = source == 0 ? bound_combo : mean_combo;
+            const int source_eligible = source_count[source == 0 ? 1 : 0];
+            for (int rank = 0; rank < seed && rank < source_eligible && written < limit; ++rank) {
+                const int page = ordered[combo * pages + rank];
+                bool duplicate = false;
+                for (int i = 0; i < written; ++i) duplicate |= output[output_begin + i].logical_page == page;
+                if (!duplicate) {
+                    const int index = combo * pages + page;
+                    output[output_begin + written++] = {page, 1u, peak[index], sum[index] / count[index]};
+                }
+            }
+        }
+        int cursors[2] = {seed, seed};
+        bool take_bound = true;
+        while (written < limit && (cursors[0] < source_count[1] || cursors[1] < source_count[0])) {
+            const int source = take_bound ? 0 : 1;
+            const int combo = source == 0 ? bound_combo : mean_combo;
+            const int source_eligible = source_count[source == 0 ? 1 : 0];
+            if (cursors[source] < source_eligible) {
+                const int page = ordered[combo * pages + cursors[source]];
+                bool duplicate = false;
+                for (int i = 0; i < written; ++i) duplicate |= output[output_begin + i].logical_page == page;
+                if (!duplicate) {
+                    const int index = combo * pages + page;
+                    output[output_begin + written++] = {page, 1u, peak[index], sum[index] / count[index]};
+                }
+                ++cursors[source];
+            }
+            take_bound = !take_bound;
+        }
+        for (int i = 1; i < written; ++i) {
+            const ggml_kv_page_rank_record value = output[output_begin + i];
+            int j = i;
+            while (j > 0) {
+                const auto previous = output[output_begin + j - 1];
+                if (previous.peak_probability > value.peak_probability ||
+                        (previous.peak_probability == value.peak_probability &&
+                         (previous.mean_probability > value.mean_probability ||
+                          (previous.mean_probability == value.mean_probability && previous.logical_page < value.logical_page)))) break;
+                output[output_begin + j] = previous;
+                --j;
+            }
+            output[output_begin + j] = value;
+        }
+    }
 }
 
 void ggml_cuda_op_kv_page_rank(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
-    const int count = ggml_get_op_params_i32(dst, 0) + ggml_get_op_params_i32(dst, 1);
-    if (count <= 0) return;
-    page_rank_clear<<<(count + 255) / 256, 256, 0, ctx.stream()>>>(
-        (ggml_kv_page_rank_record *) dst->data, count);
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * bounds = dst->src[1];
+    const ggml_tensor * metadata = dst->src[2];
+    const ggml_tensor * membership = dst->src[3];
+    const ggml_tensor * query = dst->src[4];
+    const ggml_tensor * probes = dst->src[5];
+    const ggml_tensor * validity = dst->src[6];
+    const int k_resident = ggml_get_op_params_i32(dst, 0);
+    const int k_cold = ggml_get_op_params_i32(dst, 1);
+    const int page_size = ggml_get_op_params_i32(dst, 2);
+    const uint32_t probe_mask = uint32_t(ggml_get_op_params_i32(dst, 4));
+    const float scale = ggml_get_op_params_f32(dst, 5);
+    const int pages = int(bounds->ne[3]);
+    const int heads = int(probes->ne[1]);
+    const int n_probes = int(probes->ne[2]);
+    const int output_count = k_resident + k_cold;
+    ggml_cuda_pool_alloc<float> peak(ctx.pool(), size_t(4) * pages);
+    ggml_cuda_pool_alloc<float> sum(ctx.pool(), size_t(4) * pages);
+    ggml_cuda_pool_alloc<uint32_t> count(ctx.pool(), size_t(4) * pages);
+    ggml_cuda_pool_alloc<int> ordered(ctx.pool(), size_t(4) * pages);
+    const int clear_count = max(4 * pages, output_count);
+    page_rank_clear<<<(clear_count + 255) / 256, 256, 0, ctx.stream()>>>(
+        peak.get(), sum.get(), count.get(),
+        (ggml_kv_page_rank_record *) dst->data, pages, output_count);
+    CUDA_CHECK(cudaGetLastError());
+    page_rank_normalize_accumulate<<<2 * 2 * heads * n_probes, 256, 0, ctx.stream()>>>(
+        (const float *) probes->data, probes->nb[0], probes->nb[1], probes->nb[2],
+        (const half *) bounds->data, bounds->nb[0], bounds->nb[1], bounds->nb[2], bounds->nb[3],
+        (const int64_t *) metadata->data, metadata->nb[0], metadata->nb[1],
+        (const int32_t *) membership->data, membership->nb[0],
+        (const int64_t *) query->data, query->nb[0],
+        (const int64_t *) validity->data, int(metadata->ne[0]), page_size,
+        pages, int(bounds->ne[0]), heads, int(bounds->ne[2]), n_probes,
+        probe_mask, scale, peak.get(), sum.get(), count.get());
+    CUDA_CHECK(cudaGetLastError());
+    page_rank_make_order<<<dim3((pages + 127) / 128, 4), 128, 0, ctx.stream()>>>(
+        peak.get(), sum.get(), count.get(), ordered.get(), pages, max(k_resident, k_cold));
+    CUDA_CHECK(cudaGetLastError());
+    page_rank_emit<<<1, 1, 0, ctx.stream()>>>(peak.get(), sum.get(), count.get(), ordered.get(),
+        (const int64_t *) metadata->data, metadata->nb[0], metadata->nb[1],
+        (const int32_t *) membership->data, membership->nb[0],
+        (const int64_t *) query->data, query->nb[0], int(metadata->ne[0]), page_size,
+        (ggml_kv_page_rank_record *) dst->data, pages, k_resident, k_cold);
     CUDA_CHECK(cudaGetLastError());
 }
 

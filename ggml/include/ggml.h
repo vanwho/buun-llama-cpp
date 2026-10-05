@@ -780,6 +780,9 @@ extern "C" {
         // Exact key-only log-mass over checked Turbo4 page descriptors.
         GGML_OP_KV_PAGE_RERANK,
 
+        // Normalize final exact-key state over the complete candidate pool.
+        GGML_OP_KV_PAGE_MASS,
+
         // Accumulate transformed query rows within the turn's user span,
         // updating persistent sum/count sidebands.
         GGML_OP_KV_QUERY_ACCUMULATE,
@@ -2744,8 +2747,9 @@ extern "C" {
     // Mutates caller-owned [2,n_pages,Qheads,probes] running (max,sum) state.
     // [10,n_pages]: logical id, physical slot, valid rows, stream, page size,
     // generation, content version, eligible, first absolute row, key set (0 resident/1 staged).
-    // Identity is [generation,version];
-    // state is [2,n_pages,Qheads,probes] containing running max and sum.
+    // Identity is I64[2,P+1]: column 0 is query generation/job serial and
+    // columns 1..P contain page generation/content version pairs. State is
+    // [2,P,Qheads,probes] containing running max and sum.
     GGML_API struct ggml_tensor * ggml_kv_page_rerank(
             struct ggml_context * ctx,
             struct ggml_tensor  * probes,
@@ -2757,6 +2761,15 @@ extern "C" {
             struct ggml_tensor  * state,
             float                 attention_scale,
             float                 logit_softcap);
+
+    // Normalize final exact-key state over resident+cold candidates. Output
+    // I64[2,P] carries ggml_kv_page_rank_record probability records.
+    GGML_API struct ggml_tensor * ggml_kv_page_mass(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * state,
+            struct ggml_tensor  * descriptors,
+            struct ggml_tensor  * identity,
+            struct ggml_tensor  * validity);
 
     // Accumulate transformed query rows whose absolute positions are in
     // [query_start, query_end), resetting persistent sum/count on turn change.

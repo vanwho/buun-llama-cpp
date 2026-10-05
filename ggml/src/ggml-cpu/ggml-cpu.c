@@ -3047,6 +3047,10 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_kv_page_rerank(params, tensor);
             } break;
+        case GGML_OP_KV_PAGE_MASS:
+            {
+                ggml_compute_forward_kv_page_mass(params, tensor);
+            } break;
         case GGML_OP_KV_QUERY_ACCUMULATE:
             {
                 ggml_compute_forward_kv_query_accumulate(params, tensor);
@@ -3506,6 +3510,7 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
         case GGML_OP_KV_PAGE_SELECT:
         case GGML_OP_KV_PAGE_RANK:
         case GGML_OP_KV_PAGE_RERANK:
+        case GGML_OP_KV_PAGE_MASS:
             {
                 n_tasks = 1;
             } break;

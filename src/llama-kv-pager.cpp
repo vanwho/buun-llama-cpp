@@ -2023,6 +2023,8 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
         output->snapshot_.realized_bytes = output->allocation_.realized_bytes;
         output->snapshot_.initialized = true;
         output->resources_host_backend_ = resources.host_backend;
+        output->resources_ranking_backend_ = resources.ranking_backend;
+        output->resources_ranking_host_buft_ = resources.ranking_host_buft;
         output->resources_host_source_namespace_ = resources.host_source_namespace;
         output->resources_host_topology_identity_ = resources.host_topology_identity;
         output->resources_host_child_id_ = resources.host_child_id;
