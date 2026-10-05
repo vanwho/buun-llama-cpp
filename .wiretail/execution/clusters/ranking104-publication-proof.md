@@ -1,5 +1,9 @@
 # ranking104-publication-proof
 
+Current predecessors:104-04e/f/g/h, not deferred104-04d. Read compact
+RANKING104_PIPELINE and104-04h handoff. Keep publication/eviction/replay in
+the existing transaction owners; don't reimplement the GPU executor here.
+
 Revision: `hotpath-v10-20260914`. Task104-05 (revised).
 
 After104-04d, gate real policy commit on admitted transaction publication,

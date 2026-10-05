@@ -8,16 +8,16 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current work is104-04a/b/c/d -> revised104-05 ->104-06/08 isolated ranking recovery. Historical104-02/03/04 unit proofs did not establish CUDA production pipeline. Implement real CUDA shortlist, heads/streams and per-page identity repairs, GPU exact-pool normalization, real cache-owner staging and boundary call chain before publication/replay proof. Read only RANKING104_IMPLEMENTATION current named section and compact immediate handoff, never old retry JSONL. Experiment code lives in existing /srv/repos/vanwho/buun-llama-cpp-ranking-v1; main state/receipts remain here. No task-agent Git or experiment merge; outer snapshot426e34562 preserves prior work, dirty source hash accompanies receipts. Keep legacy main default, GPU Turbo4 target/full-L MTP, B1024/U256, one Qwen, no context shift. Tiny real CUDA op/lifecycle tests belong in implementation tasks; natural recall/performance misses are later findings, not endless gates. Never relabel probe_softmax exact_mass or count usage-only/no-model fixture invocation as proof.103-03 remains deferred.",
+  "context_policy": "Current isolated ranking work: 104-04a/b/c groundwork preserved; 104-04d deferred, not passed. Execute 104-04e/f/g/h -> revised104-05 ->104-06/07/08 ->103-04/05. Read compact RANKING104_PIPELINE, current packet and immediate handoff only; no raw retry JSONL or whole historical recovery document. Implement actual frozen key inputs, owned GPU graphs/reader events, final-user invocation and fair resident/cold competition; then tiny same-cache CUDA proof. Missing APIs are implementation work, not audit-only external blockers. Preserve experiment83e5cbfda; no task-agent Git or experiment merge. Keep legacy default, GPU Turbo4 target/full-L native MTP, B1024/U256. Implementation fixtures are tiny; later natural recall/performance misses are findings for measured verdict, not endless proof loops.103-03 deferred.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "blocked",
+  "status": "ready",
   "current_phase": "104",
-  "current_task": "104-04d",
-  "last_updated_utc": "2026-10-05T15:37:29+00:00",
+  "current_task": "104-04e",
+  "last_updated_utc": "2026-10-05T16:58:53.737981+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01\u201312, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Phase102 contains the ordered capacity runs and its final goal review at 102-07.",
+    "active_scope": "Isolated ranking implementation 104-04e/f/g/h, then104-05 publication/replay,104-06/07/08 paired natural recall/speed/verdict,103-04/05 main review;104-04d deferred without integration claim.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -34483,8 +34483,8 @@
       "cluster": "ranking104-owner-production",
       "title": "Connect final-user production job and authenticated exact records",
       "packet": ".wiretail/execution/tasks/104-04d.md",
-      "status": "blocked",
-      "blocker": "Attempt 4 recovery exhausted the distinct CUDA/build path: lower-level CUDA PAGE_RERANK/PAGE_MASS and owner fixtures pass, but complete_router_query_job still does not execute the production cache-to-owner pipeline or produce authenticated terminal mass records. Required V10_104-04d receipt is therefore absent; see .wiretail/execution/handoffs/104-04d.md and /srv/ai/paged-kv/results/ranking104/104-04d/attempt-04/.",
+      "status": "deferred",
+      "blocker": "Missing executable production pipeline; implementation and missing proof transferred to 104-04e/f/g/h. Do not retry the old broad packet.",
       "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
       "required_proofs": [
         "production_final_user_rerank_and_authenticated_mass"
@@ -34640,7 +34640,152 @@
           "total_tokens_source": "derived_input_plus_output",
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
+      },
+      "planning_recovery": {
+        "previous_status": "blocked",
+        "previous_blocker": "Attempt 4 recovery exhausted the distinct CUDA/build path: lower-level CUDA PAGE_RERANK/PAGE_MASS and owner fixtures pass, but complete_router_query_job still does not execute the production cache-to-owner pipeline or produce authenticated terminal mass records. Required V10_104-04d receipt is therefore absent; see .wiretail/execution/handoffs/104-04d.md and /srv/ai/paged-kv/results/ranking104/104-04d/attempt-04/.",
+        "reason": "Broad audit exhausted; replace missing implementation/proof with 104-04e/f/g/h. Preserve all usage and artifacts; not accepted completion."
       }
+    },
+    {
+      "id": "104-04e",
+      "phase": "104",
+      "cluster": "ranking104-cache-inputs",
+      "title": "Freeze real cache layer plans and canonical cold-key readers",
+      "packet": ".wiretail/execution/tasks/104-04e.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+      "required_proofs": [
+        "frozen_cache_layer_plans_and_key_readers"
+      ],
+      "depends_on": [
+        "104-04c"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+        ".wiretail/execution/handoffs/104-04c.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04e",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04e.json"
+      ]
+    },
+    {
+      "id": "104-04f",
+      "phase": "104",
+      "cluster": "ranking104-executor",
+      "title": "Execute owned GPU resident/cold rerank and terminal exact MASS",
+      "packet": ".wiretail/execution/tasks/104-04f.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+      "required_proofs": [
+        "owned_gpu_rerank_mass_execution"
+      ],
+      "depends_on": [
+        "104-04e"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+        ".wiretail/execution/handoffs/104-04e.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04f",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04f.json"
+      ]
+    },
+    {
+      "id": "104-04g",
+      "phase": "104",
+      "cluster": "ranking104-executor",
+      "title": "Wire final-user executor and fair common resident/cold policy",
+      "packet": ".wiretail/execution/tasks/104-04g.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+      "required_proofs": [
+        "production_executor_call_and_common_history_policy"
+      ],
+      "depends_on": [
+        "104-04f"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+        ".wiretail/execution/handoffs/104-04f.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04g",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04g.json"
+      ]
+    },
+    {
+      "id": "104-04h",
+      "phase": "104",
+      "cluster": "ranking104-executor",
+      "title": "Exercise actual cache-to-owner CUDA pipeline with tiny encoded fixture",
+      "packet": ".wiretail/execution/tasks/104-04h.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+      "required_proofs": [
+        "production_final_user_rerank_and_authenticated_mass"
+      ],
+      "depends_on": [
+        "104-04g"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+        ".wiretail/execution/handoffs/104-04g.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04h",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04h.json"
+      ]
     },
     {
       "id": "104-05",
@@ -34656,17 +34801,17 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_PIPELINE.md",
       "required_proofs": [
         "ranked_history_commit_and_frozen_mtp_state"
       ],
       "depends_on": [
-        "104-04d"
+        "104-04h"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
-        ".wiretail/execution/handoffs/104-04d.md"
+        ".wiretail/execution/forward/RANKING104_PIPELINE.md",
+        ".wiretail/execution/handoffs/104-04h.md"
       ],
       "completion_check": [
         "python3",

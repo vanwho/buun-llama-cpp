@@ -24,12 +24,14 @@ misses and separate queued-but-unpublished transfers. 103-03 is deferred:
 C=254393 was committed, but exact C=L is unproven after an attention-ubatch
 planning failure. Do not resume its campaign, inherit its exact-fill helper
 archive, or claim that ranking changes solve that capacity boundary.
-104-01/04 completed partial interface/unit work; the current recovery sequence
-is104-04a/b/c/d -> revised104-05 ->104-06/08. Missing CUDA shortlist, correct
-rerank shapes/identity, real owner staging and exact records are implementation
-tasks, not external blockers or reasons to repeat a missing-symbol audit.
-Read only RANKING104_IMPLEMENTATION's current section and immediate compact
-handoff; no old retry logs. Then103-04/05 consume the experiment verdict.
+104-04a/b/c completed CUDA/math/owner groundwork;104-04d is deferred, not
+passed. Current sequence is104-04e/f/g/h -> revised104-05 ->104-06/08.
+RANKING104_PIPELINE and the current packet specify frozen canonical inputs,
+actual owner graphs/reader events, cache invocation and fair resident/cold
+competition, then same-adapter CUDA proof. Implement assigned missing methods;
+do not repeat broad missing-symbol audits or fabricated-record fixtures.
+Read only that compact document and immediate handoff; no old retry logs or
+entire historical recovery document. Then103-04/05 consume the verdict.
 RANKING104.md and
 the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
 directions only inside this experiment. Never load old transcripts, full
