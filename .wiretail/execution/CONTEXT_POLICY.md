@@ -24,16 +24,22 @@ misses and separate queued-but-unpublished transfers. 103-03 is deferred:
 C=254393 was committed, but exact C=L is unproven after an attention-ubatch
 planning failure. Do not resume its campaign, inherit its exact-fill helper
 archive, or claim that ranking changes solve that capacity boundary.
-Next104-01–08 run an isolated ranking experiment; then
-103-04/05 consume its verdict for main benchmark/review. RANKING104.md and
+104-01/04 completed partial interface/unit work; the current recovery sequence
+is104-04a/b/c/d -> revised104-05 ->104-06/08. Missing CUDA shortlist, correct
+rerank shapes/identity, real owner staging and exact records are implementation
+tasks, not external blockers or reasons to repeat a missing-symbol audit.
+Read only RANKING104_IMPLEMENTATION's current section and immediate compact
+handoff; no old retry logs. Then103-04/05 consume the experiment verdict.
+RANKING104.md and
 the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
 directions only inside this experiment. Never load old transcripts, full
 request bodies, retired103-02 or unregistered103-02b as active context.
 
 The experiment uses /srv/repos/vanwho/buun-llama-cpp-ranking-v1 and branch
 experiment/attention-aware-ranking-v1 created from the then-current local
-plan branch. Explicit experiment Git milestone commits are task-authorized;
-the main project's branch/commits remain owned by Wiretail. Do not switch
+plan branch. Keep the already-created worktree and follow Wiretail's no-Git
+rule; outer-owner snapshots preserve experiment work (426e34562). Lack of an
+agent commit is not an implementation blocker. Main Git remains Wiretail-owned. Do not switch
 the active main worktree, run nested Wiretail, modify the experiment's copied
 state ledger, merge it into plan or change main default routing implicitly.
 Keep GPU Turbo4 full-L MTP, B1024/U256 and frozen history during generation.

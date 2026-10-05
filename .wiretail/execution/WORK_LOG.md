@@ -2131,3 +2131,28 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04`
 - Commit at update: `aa7e3f224`
 - Summary: Implemented and verified bounded Turbo4 key reranking API, CPU oracle, CUDA kernel build, and two-slot staging seam; V10 receipt passes, with CUDA execution and owner allocation lifecycle deferred per packet.
+
+## 2026-10-05T03:52:49+00:00 — 104-05 — blocked
+
+- Branch: `codex/task-104-05`
+- Commit at update: `ad882b073`
+- Summary: Attempt 03 exhausted the bounded recovery path. Focused CPU checks and declared builds pass, but production still does not connect coarse selection to owner-bound key reranking, authenticated exact-mass publication, and the required ranked-history commit proof. Receipt remains absent.
+
+## 2026-10-05T03:53:04+00:00 — 104-05 — todo
+
+- Branch: `codex/task-104-05`
+- Commit at update: `5d4f83794`
+- Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Attempt 03 exhausted the bounded recovery path. Focused CPU checks and declared builds pass, but production still does not connect coarse selection to owner-bound key reranking, authenticated exact-mass publication, and the required ranked-history commit proof. Receipt remains absent.
+
+## 2026-10-05T04:02:49+00:00 — 104-05 — blocked
+
+- Branch: `codex/task-104-05`
+- Commit at update: `1b169f0d9`
+- Summary: Attempt 04 exhausted the distinct existing-staging integration path. Required production owner-bound rerank/publication route and executed ranked_history_commit_and_frozen_mtp_state proof are absent; exact completion check fails on missing V10_104-05.json. See handoff and attempt-04 recovery-route-audit/build/test artifacts.
+
+## 2026-10-05T10:49:59Z — phase104 — production recovery amendment
+
+- Source review confirmed CUDA PAGE_RANK clear-only stub, unconditional support refusal, legacy production graph call, absent owner/caller/normalization and exact_mass guard correctly rejecting coarse scores. Further defects: stream/head confusion and global rather than per-page rerank identity.
+- Preserved experiment interfaces/oracles in426e34562; no experiment code merged into main and no old unit evidence relabeled production proof.
+- Added104-04a/b/c/d for real CUDA coarse route, corrected/parallel math and GPU MASS, cache-owned staging/error events, and final-user exact-candidate pipeline. Revised104-05 is todo after them, with publication/replay/freeze and a correctly invoked model-required fixture.104-06/08 consume only final working candidate findings.
+- Next task104-04a is todo/ready in a fresh cluster. Existing usage events and historical blocker/artifacts are retained. Metadata/state validation and diff checks passed; no production build/model tests run by the planning session.

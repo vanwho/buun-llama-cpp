@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "103-02a transport/owner work is complete; compact findings record ranking misses and unpublished transfers, not semantic success. 103-03 is deferred with C254393 committed and exact C=L unproven after attention planning failure; do not resume, require its receipt or import archived exact-fill helpers. Next execute104-01..08 isolated ranking experiment before103-04/05 main benchmark/review. Use forward/RANKING104.md current sections and one compact predecessor handoff; source symbols are pointers, not whole-file reads. Experiment code lives on experiment/attention-aware-ranking-v1 in a separate worktree from the then-current plan branch, not the archived103-03 branch. Scoped experiment Git milestones are authorized, main Git remains Wiretail-owned. No nested runner, experiment state ledger or automatic merge/default flip. Keep main legacy/default attention, GPU full-L Turbo4 MTP, B1024/U256, one Qwen, no context shift. Query-boundary GPU probes and bounded key-only rerank add no historical generation work. Completed accuracy/speed misses produce decisions, not repeat loops.",
+  "context_policy": "Current work is104-04a/b/c/d -> revised104-05 ->104-06/08 isolated ranking recovery. Historical104-02/03/04 unit proofs did not establish CUDA production pipeline. Implement real CUDA shortlist, heads/streams and per-page identity repairs, GPU exact-pool normalization, real cache-owner staging and boundary call chain before publication/replay proof. Read only RANKING104_IMPLEMENTATION current named section and compact immediate handoff, never old retry JSONL. Experiment code lives in existing /srv/repos/vanwho/buun-llama-cpp-ranking-v1; main state/receipts remain here. No task-agent Git or experiment merge; outer snapshot426e34562 preserves prior work, dirty source hash accompanies receipts. Keep legacy main default, GPU Turbo4 target/full-L MTP, B1024/U256, one Qwen, no context shift. Tiny real CUDA op/lifecycle tests belong in implementation tasks; natural recall/performance misses are later findings, not endless gates. Never relabel probe_softmax exact_mass or count usage-only/no-model fixture invocation as proof.103-03 remains deferred.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "104",
-  "current_task": "104-05",
-  "last_updated_utc": "2026-10-05T03:23:00+00:00",
+  "current_task": "104-04a",
+  "last_updated_utc": "2026-10-05T04:02:59+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -34248,10 +34248,149 @@
       }
     },
     {
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "id": "104-04a",
+      "phase": "104",
+      "cluster": "ranking104-gpu-production",
+      "title": "Implement real CUDA coarse shortlist and production graph route",
+      "packet": ".wiretail/execution/tasks/104-04a.md",
+      "status": "todo",
+      "blocker": null,
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+      "required_proofs": [
+        "production_cuda_shortlist_and_route"
+      ],
+      "depends_on": [
+        "104-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04a.json"
+      ]
+    },
+    {
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "id": "104-04b",
+      "phase": "104",
+      "cluster": "ranking104-gpu-production",
+      "title": "Correct rerank geometry/identity and GPU exact-pool masses",
+      "packet": ".wiretail/execution/tasks/104-04b.md",
+      "status": "todo",
+      "blocker": null,
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+      "required_proofs": [
+        "cuda_rerank_geometry_identity_and_exact_pool_mass"
+      ],
+      "depends_on": [
+        "104-04a"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+        ".wiretail/execution/handoffs/104-04a.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04b",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04b.json"
+      ]
+    },
+    {
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "id": "104-04c",
+      "phase": "104",
+      "cluster": "ranking104-owner-production",
+      "title": "Allocate cache-owned staging and terminal CUDA lifecycle",
+      "packet": ".wiretail/execution/tasks/104-04c.md",
+      "status": "todo",
+      "blocker": null,
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+      "required_proofs": [
+        "production_owner_staging_and_terminal_event_lifecycle"
+      ],
+      "depends_on": [
+        "104-04b"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+        ".wiretail/execution/handoffs/104-04b.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04c",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04c.json"
+      ]
+    },
+    {
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "id": "104-04d",
+      "phase": "104",
+      "cluster": "ranking104-owner-production",
+      "title": "Connect final-user production job and authenticated exact records",
+      "packet": ".wiretail/execution/tasks/104-04d.md",
+      "status": "todo",
+      "blocker": null,
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+      "required_proofs": [
+        "production_final_user_rerank_and_authenticated_mass"
+      ],
+      "depends_on": [
+        "104-04c"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+        ".wiretail/execution/handoffs/104-04c.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "104-04d",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_104-04d.json"
+      ]
+    },
+    {
       "id": "104-05",
       "phase": "104",
-      "cluster": "ranking104-rerank-commit",
-      "title": "Commit reranked history through existing promotion and MTP freeze",
+      "cluster": "ranking104-publication-proof",
+      "title": "Publish completed exact ranking then production replay/freeze once",
       "packet": ".wiretail/execution/tasks/104-05.md",
       "status": "todo",
       "blocker": null,
@@ -34261,17 +34400,17 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
       "required_proofs": [
         "ranked_history_commit_and_frozen_mtp_state"
       ],
       "depends_on": [
-        "104-04"
+        "104-04d"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/forward/RANKING104.md",
-        ".wiretail/execution/handoffs/104-04.md"
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
+        ".wiretail/execution/handoffs/104-04d.md"
       ],
       "completion_check": [
         "python3",
@@ -34280,7 +34419,132 @@
         "104-05",
         "--receipt",
         ".wiretail/execution/evidence/V10_104-05.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/104-05-attempt-1-20261005T032324418240693-20261005T032324420813982-PElmF9.jsonl:199",
+            "total_tokens": 25549694,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 25437660,
+            "cached_input_tokens": 24825088,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 612572,
+            "output_tokens": 112034,
+            "thinking_tokens": 54542
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/104-05-attempt-2-20261005T033948601428108-20261005T033948604394295-EKipKB.jsonl:52",
+            "total_tokens": 1499897,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1488434,
+            "cached_input_tokens": 1402880,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 85554,
+            "output_tokens": 11463,
+            "thinking_tokens": 4783
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-6.1-sol",
+            "reasoning": "high",
+            "source": ".wiretail/build/104-05-assessment-before-attempt-3-20261005T034354805246837-20261005T034354807755366-2y4qd0.jsonl:44",
+            "total_tokens": 601493,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 595818,
+            "cached_input_tokens": 508160,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 87658,
+            "output_tokens": 5675,
+            "thinking_tokens": 718
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/104-05-attempt-3-20261005T034838203897491-20261005T034838206374110-ZwUWC7.jsonl:53",
+            "total_tokens": 1374972,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1364559,
+            "cached_input_tokens": 1264384,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 100175,
+            "output_tokens": 10413,
+            "thinking_tokens": 4529
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "xhigh",
+            "source": ".wiretail/build/104-05-assessment-before-attempt-4-20261005T035304686643685-20261005T035304689274633-gh5E1P.jsonl:50",
+            "total_tokens": 693343,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 676718,
+            "cached_input_tokens": 589312,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 87406,
+            "output_tokens": 16625,
+            "thinking_tokens": 12573
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/104-05-attempt-4-20261005T035950385121082-20261005T035950387951199-yLbmFw.jsonl:43",
+            "total_tokens": 1125598,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1117565,
+            "cached_input_tokens": 1028864,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 88701,
+            "output_tokens": 8033,
+            "thinking_tokens": 2855
+          }
+        ],
+        "totals": {
+          "usage_events": 6,
+          "total_tokens": 30844997,
+          "input_tokens": 30680754,
+          "cached_input_tokens": 29618688,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 1062066,
+          "output_tokens": 164243,
+          "thinking_tokens": 80000,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 6,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      },
+      "planning_recovery": {
+        "previous_status": "blocked",
+        "previous_blocker": "Attempt 04 exhausted the distinct existing-staging integration path. Required production owner-bound rerank/publication route and executed ranked_history_commit_and_frozen_mtp_state proof are absent; exact completion check fails on missing V10_104-05.json. See handoff and attempt-04 recovery-route-audit/build/test artifacts.",
+        "reason": "Audit identified absent CUDA shortlist/production job and actual rerank shape/identity defects; new104-04a/b/c/d implement them before revised104-05 publication proof. Preserve previous usage and artifacts."
+      }
     },
     {
       "id": "104-06",
@@ -34305,7 +34569,7 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
         ".wiretail/execution/handoffs/104-05.md"
       ],
       "completion_check": [
@@ -34340,7 +34604,7 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
         ".wiretail/execution/handoffs/104-06.md"
       ],
       "completion_check": [
@@ -34375,7 +34639,7 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/forward/RANKING104_IMPLEMENTATION.md",
         ".wiretail/execution/handoffs/104-07.md",
         ".wiretail/execution/handoffs/104-06.md"
       ],
@@ -36333,16 +36597,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 4,
-        "total_tokens": 79162213,
-        "input_tokens": 78835634,
-        "cached_input_tokens": 77253120,
+        "usage_events": 10,
+        "total_tokens": 110007210,
+        "input_tokens": 109516388,
+        "cached_input_tokens": 106871808,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 1582514,
-        "output_tokens": 326579,
-        "thinking_tokens": 133484,
+        "input_tokens_minus_cached_tokens": 2644580,
+        "output_tokens": 490822,
+        "thinking_tokens": 213484,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 4,
+        "total_tokens_derived_events": 10,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -36357,17 +36621,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 512,
-      "total_tokens": 12314592424,
-      "input_tokens": 12271090070,
-      "cached_input_tokens": 11989985536,
+      "usage_events": 518,
+      "total_tokens": 12345437421,
+      "input_tokens": 12301770824,
+      "cached_input_tokens": 12019604224,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 158,
-      "input_tokens_minus_cached_tokens": 281104534,
-      "output_tokens": 43502354,
-      "thinking_tokens": 20024940,
+      "cache_write_input_tokens_known_events": 164,
+      "input_tokens_minus_cached_tokens": 282166600,
+      "output_tokens": 43666597,
+      "thinking_tokens": 20104940,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 512,
+      "total_tokens_derived_events": 518,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
