@@ -17,17 +17,26 @@ product code. Use `--clean-first` only when the task requires a clean candidate;
 it is not a general speed setting. If an active packet still specifies another
 job count, correct its command to `--parallel 16` before building.
 
-## Current phase-103 override
+## Current phase-103/104 override
 
-103-02a replaces the exhausted 103-02 campaign and starts a fresh bounded
-cluster. Its packet and engineering-notes/selector-readback-lifecycle-103.md
-are the current selector/owner validation directions. Do not load 103-02's
-transcripts, 249K requests, obsolete missing-fence hypothesis, or old task
-status directions below as startup context. The fixes are source-only until
-103-02a compiles/tests them. Validate scaled compact IDs and stable pager
-ownership first; test the final-user query at small geometry before one
-just-over-H 200-page row. Never assert replay/freeze from idle-slot fields
-cleared by release(). 103-03/04/05 remain capacity/benchmark/review successors.
+103-02a completed transport/owner checks; its compact handoff records ranking
+misses and separate queued-but-unpublished transfers. Preserve the active
+103-03 capacity task. Next104-01–08 run an isolated ranking experiment; then
+103-04/05 consume its verdict for main benchmark/review. RANKING104.md and
+the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
+directions only inside this experiment. Never load old transcripts, full
+request bodies, retired103-02 or unregistered103-02b as active context.
+
+The experiment uses /srv/repos/vanwho/buun-llama-cpp-ranking-v1 and branch
+experiment/attention-aware-ranking-v1 created from the then-current local
+plan branch. Explicit experiment Git milestone commits are task-authorized;
+the main project's branch/commits remain owned by Wiretail. Do not switch
+the active main worktree, run nested Wiretail, modify the experiment's copied
+state ledger, merge it into plan or change main default routing implicitly.
+Keep GPU Turbo4 full-L MTP, B1024/U256 and frozen history during generation.
+Experiment misses and speed losses become recorded decisions, not endless
+retries. Only the current packet/design slice and immediate compact handoff
+are startup context; source paths identify symbol regions to inspect.
 
 For phase94 onward, forward/OVERVIEW.md and forward/TESTING.md supersede
 REPAIR85's accepted-token retrieval cadence and route preference. Do not load

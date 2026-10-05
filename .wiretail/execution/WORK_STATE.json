@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current selector/lifecycle validation is 103-02a; unfinished 103-02 is superseded, not passed. Load only its packet, fresh cluster, engineering-notes/selector-readback-lifecycle-103.md and named symbol regions. Source fixes are implemented but uncompiled/unverified by the outer investigation. First deterministic scaled readback and owner-lifecycle coverage, then one small natural-query row and one just-over-50K-hot transport row. No unchanged 249K diagnostic refill or full transcript loading. Preserve Turbo4 target/draft, GPU native full-L MTP, B1024/U256, no context shift and one Qwen process. Request-scoped replay/freeze must not be asserted from cleared idle-slot counters. 103-03 owns separate full capacity; 103-04/05 own refreshed performance/semantic findings and any necessary successor repair.",
+  "context_policy": "103-02a transport/owner work is complete; its compact handoff records ranking misses and separate unpublished transfers, not semantic success. Preserve the active 103-03 capacity run. Next execute isolated ranking experiment104-01..08 before103-04/05 main benchmark/review. Use forward/RANKING104.md current task sections and one compact predecessor handoff; source symbols are pointers, not whole-file startup reads. Experiment product code lives on experiment/attention-aware-ranking-v1 in a separate worktree from the then-current plan branch; scoped experimental Git milestones are authorized, main Git remains Wiretail-owned. No nested runner, no experiment state ledger, no automatic experiment merge/default flip. Keep legacy/default main attention, GPU full-L Turbo4 MTP, B1024/U256, one Qwen, no context shift. Query-boundary GPU probes and bounded key-only rerank must not add historical work during generation. Completed accuracy/speed misses produce decisions, not repeat loops.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -33948,10 +33948,203 @@
       ]
     },
     {
+      "id": "104-01",
+      "phase": "104",
+      "cluster": "ranking104-query-scores",
+      "title": "Create isolated ranking experiment branch and bounded interfaces",
+      "packet": ".wiretail/execution/tasks/104-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["experiment_branch_mode_and_budget_contract"],
+      "depends_on": ["103-03"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/103-02a.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-01", "--receipt", ".wiretail/execution/evidence/V10_104-01.json"]
+    },
+    {
+      "id": "104-02",
+      "phase": "104",
+      "cluster": "ranking104-query-scores",
+      "title": "Capture independent final-user GPU query probes",
+      "packet": ".wiretail/execution/tasks/104-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["independent_query_probe_capture"],
+      "depends_on": ["104-01"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-01.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-02", "--receipt", ".wiretail/execution/evidence/V10_104-02.json"]
+    },
+    {
+      "id": "104-03",
+      "phase": "104",
+      "cluster": "ranking104-query-scores",
+      "title": "Broaden GPU shortlist and preserve numerical ranking scores",
+      "packet": ".wiretail/execution/tasks/104-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["scored_gpu_shortlist_and_record_transport"],
+      "depends_on": ["104-02"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-02.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-03", "--receipt", ".wiretail/execution/evidence/V10_104-03.json"]
+    },
+    {
+      "id": "104-04",
+      "phase": "104",
+      "cluster": "ranking104-rerank-commit",
+      "title": "Implement bounded fused Turbo4 key-only GPU reranking",
+      "packet": ".wiretail/execution/tasks/104-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["bounded_turbo4_key_rerank_arithmetic"],
+      "depends_on": ["104-03"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-03.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-04", "--receipt", ".wiretail/execution/evidence/V10_104-04.json"]
+    },
+    {
+      "id": "104-05",
+      "phase": "104",
+      "cluster": "ranking104-rerank-commit",
+      "title": "Commit reranked history through existing promotion and MTP freeze",
+      "packet": ".wiretail/execution/tasks/104-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["ranked_history_commit_and_frozen_mtp_state"],
+      "depends_on": ["104-04"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-04.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-05", "--receipt", ".wiretail/execution/evidence/V10_104-05.json"]
+    },
+    {
+      "id": "104-06",
+      "phase": "104",
+      "cluster": "ranking104-live-decision",
+      "title": "Collect focused CUDA oracle and paired small natural recall",
+      "packet": ".wiretail/execution/tasks/104-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["paired_small_ranking_outcomes_and_cuda_oracle"],
+      "depends_on": ["104-05"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-05.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-06", "--receipt", ".wiretail/execution/evidence/V10_104-06.json"]
+    },
+    {
+      "id": "104-07",
+      "phase": "104",
+      "cluster": "ranking104-live-decision",
+      "title": "Compare ranking speed memory and bounded growing-context recall",
+      "packet": ".wiretail/execution/tasks/104-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["paired_ranking_speed_memory_and_scale_findings"],
+      "depends_on": ["104-06"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-06.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-07", "--receipt", ".wiretail/execution/evidence/V10_104-07.json"]
+    },
+    {
+      "id": "104-08",
+      "phase": "104",
+      "cluster": "ranking104-live-decision",
+      "title": "Decide ranking experiment and preserve isolated implementation branch",
+      "packet": ".wiretail/execution/tasks/104-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/RANKING104.md",
+      "required_proofs": ["ranking_experiment_decision_and_isolated_branch"],
+      "depends_on": ["104-07"],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/forward/RANKING104.md",
+        ".wiretail/execution/handoffs/104-07.md",
+        ".wiretail/execution/handoffs/104-06.md"
+      ],
+      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "104-08", "--receipt", ".wiretail/execution/evidence/V10_104-08.json"]
+    },
+    {
       "id": "103-04",
       "phase": "103",
-      "cluster": "forward103-post-selector",
-      "title": "Rerun compact canonical benchmark and refresh final summary",
+      "cluster": "forward103-after-ranking-review",
+      "title": "Refresh main benchmark summary after isolated ranking decision",
       "packet": ".wiretail/execution/tasks/103-04.md",
       "status": "todo",
       "blocker": null,
@@ -33966,13 +34159,14 @@
         "canonical_goal_benchmark_and_summary"
       ],
       "depends_on": [
-        "103-03"
+        "104-08"
       ],
       "commit": null,
       "context_files": [
         "tools/server/bench/measure-speed-occupancy.py",
         "tools/server/bench/validate-speed-occupancy.py",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json"
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+        ".wiretail/execution/handoffs/104-08.md"
       ],
       "completion_check": [
         "python3",
@@ -33986,7 +34180,7 @@
     {
       "id": "103-05",
       "phase": "103",
-      "cluster": "forward103-post-selector",
+      "cluster": "forward103-after-ranking-review",
       "title": "Assess repaired goals and create ordered successors if needed",
       "packet": ".wiretail/execution/tasks/103-05.md",
       "status": "todo",
@@ -34009,7 +34203,8 @@
         ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
         ".wiretail/execution/v10/validate.py",
         ".wiretail/execution/forward/OVERVIEW.md",
-        ".wiretail/execution/forward/TESTING.md"
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/104-08.md"
       ],
       "completion_check": [
         "python3",
