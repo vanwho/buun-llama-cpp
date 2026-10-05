@@ -2131,3 +2131,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-04`
 - Commit at update: `aa7e3f224`
 - Summary: Implemented and verified bounded Turbo4 key reranking API, CPU oracle, CUDA kernel build, and two-slot staging seam; V10 receipt passes, with CUDA execution and owner allocation lifecycle deferred per packet.
+
+## 2026-10-05T03:52:49+00:00 — 104-05 — blocked
+
+- Branch: `codex/task-104-05`
+- Commit at update: `ad882b073`
+- Summary: Attempt 03 exhausted the bounded recovery path. Focused CPU checks and declared builds pass, but production still does not connect coarse selection to owner-bound key reranking, authenticated exact-mass publication, and the required ranked-history commit proof. Receipt remains absent.
