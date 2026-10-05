@@ -34818,7 +34818,7 @@
       "depends_on": [
         "104-04f"
       ],
-      "commit": "698e09f0c9f11daed9880854eac01db359cae4d4",
+      "commit": "3ea847a6d3b39615a710c1a39204e5ecfb77b6f6",
       "context_files": [
         ".wiretail/execution/forward/RANKING104_PIPELINE.md",
         ".wiretail/execution/handoffs/104-04f.md"
