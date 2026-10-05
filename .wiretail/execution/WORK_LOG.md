@@ -2119,3 +2119,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-02`
 - Commit at update: `c4c8f19de`
 - Summary: Implemented and CPU-validated independent final-user Q probe capture; both required targets build, CUDA execution deferred to 104-06 under managed GPU load.
+
+## 2026-10-05T02:52:45+00:00 — 104-03 — done
+
+- Branch: `codex/task-104-03`
+- Commit at update: `e540bb8f5`
+- Summary: Added isolated scored page-rank op, CPU softmax oracle, alias-safe packed-record decoder, and format-aware transport. CUDA rank execution is gated unsupported and deferred to 104-06; legacy route remains default. CUDA-enabled build and CPU selector/prefetch fixtures pass; V10 receipt validated.

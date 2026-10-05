@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "task": "104-03",
+  "source_commit": "b68e46ac2e6b852906c5f4b008caaab2c5658820",
+  "source_tree_sha256": "474bccfad96001b2403ea3fe8cb55b399b6384c549a554574444db8eb9c39432",
+  "checks": {
+    "scored_gpu_shortlist_and_record_transport": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "bash",
+        "-lc",
+        "env -u LLAMA_TEST_KV_PAGE_SELECT_CUDA build-ranking/bin/test-kv-page-select && build-ranking/bin/test-kv-prefetch"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-03/attempt-01/test-page-select.log",
+          "sha256": "a9f06516b9fd254bf8ab24f17e30ff9c421cdb51b7a8f6b1d42c3db449d76549"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-03/attempt-01/test-prefetch.log",
+          "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-03/attempt-01/storage-geometry.json",
+          "sha256": "3ae0f167fe8a1d03015e47d4c6640396675da5d3004fb1ef16dccebc5fcaf0b8"
+        }
+      ]
+    }
+  },
+  "build": {
+    "command": "cmake --build build-ranking --target test-kv-page-select test-kv-prefetch --parallel 16",
+    "exit_code": 0,
+    "artifact": "/srv/ai/paged-kv/results/ranking104/104-03/attempt-01/build-verified.log",
+    "artifact_sha256": "ffe40093d13b896e4fc36a58b94e94bd029656b6012857b485a3f5e38649b261"
+  },
+  "source_diff_check": {
+    "path": "/srv/ai/paged-kv/results/ranking104/104-03/attempt-01/diff-check.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "deferred": {
+    "cuda_page_rank_mathematical_execution": "The rank opcode compiles in CUDA dispatch, but ggml_cuda_supports_op rejects it until the CUDA score kernel is implemented; the owner path remains on legacy selection. CUDA execution/parity is explicitly deferred to 104-06 as required by the packet. No live GPU score result is claimed."
+  }
+}
