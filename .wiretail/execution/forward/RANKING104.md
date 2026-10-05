@@ -9,6 +9,14 @@ opaque Turbo4 host backing, full-L GPU Turbo4 MTP, and a small additional
 memory footprint. This is an experimental deviation, not a change to the
 accepted main-branch attention, storage, or MTP implementation.
 
+Current recovery amendment:104-01/04 completed interfaces/oracles, not the
+production GPU pipeline.104-05's blocker is missing implementation, not a
+negative experimental performance result. Execute104-04a/b/c/d before the
+revised104-05; then104-06/08. The exact code contracts and examples in
+[RANKING104_IMPLEMENTATION](RANKING104_IMPLEMENTATION.md) supersede earlier
+deferred-owner/CPU-only verification directions and are bounded startup context.
+Do not repeat the old blocked104-05 audit or relabel coarse scores exact.
+
 Order: 103-03 is deferred with C=254393 measured, not exact-full accepted.
 Execute 104-01 through 104-08 next; then 103-04 and 103-05 consume the
 experiment decision. 104-01 depends on completed 103-02a, not completion of
@@ -31,9 +39,11 @@ normally. 104-01 creates a separate worktree at
 `experiment/attention-aware-ranking-v1`, from the then-current local
 `plan/attention-aware-kv-paging` commit. Experimental product code, test code,
 and benchmark helpers are edited and committed only in that worktree. The
-scope-specific Git exception is explicit: agents may create this worktree and
-commit its implementation milestones; Wiretail still owns commits/merges in
-the main project. Never switch the active main worktree's branch, run a nested
+worktree is now created; task agents follow Wiretail's no-Git rule and edit
+that existing worktree. The outer owner preserved incomplete code in426e34562;
+commit absence must not become an implementation blocker. Wiretail owns
+main Git, the outer owner owns experiment milestones. Never switch the active
+main worktree's branch, run a nested
 Wiretail, modify the experiment's inherited WORK_STATE, or merge the experiment
 back automatically. Record experiment SHA and build provenance separately.
 
