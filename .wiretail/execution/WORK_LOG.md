@@ -2143,3 +2143,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-05`
 - Commit at update: `5d4f83794`
 - Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Attempt 03 exhausted the bounded recovery path. Focused CPU checks and declared builds pass, but production still does not connect coarse selection to owner-bound key reranking, authenticated exact-mass publication, and the required ranked-history commit proof. Receipt remains absent.
+
+## 2026-10-05T04:02:49+00:00 — 104-05 — blocked
+
+- Branch: `codex/task-104-05`
+- Commit at update: `1b169f0d9`
+- Summary: Attempt 04 exhausted the distinct existing-staging integration path. Required production owner-bound rerank/publication route and executed ranked_history_commit_and_frozen_mtp_state proof are absent; exact completion check fails on missing V10_104-05.json. See handoff and attempt-04 recovery-route-audit/build/test artifacts.
