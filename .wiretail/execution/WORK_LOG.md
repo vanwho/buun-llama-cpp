@@ -2125,3 +2125,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-03`
 - Commit at update: `e540bb8f5`
 - Summary: Added isolated scored page-rank op, CPU softmax oracle, alias-safe packed-record decoder, and format-aware transport. CUDA rank execution is gated unsupported and deferred to 104-06; legacy route remains default. CUDA-enabled build and CPU selector/prefetch fixtures pass; V10 receipt validated.
+
+## 2026-10-05T03:22:20+00:00 — 104-04 — done
+
+- Branch: `codex/task-104-04`
+- Commit at update: `aa7e3f224`
+- Summary: Implemented and verified bounded Turbo4 key reranking API, CPU oracle, CUDA kernel build, and two-slot staging seam; V10 receipt passes, with CUDA execution and owner allocation lifecycle deferred per packet.
