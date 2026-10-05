@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "task": "104-04h",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "source_dirty_diff_sha256": "45c074ee011a2a0ade194b6a5e1d584a6e7eff98bad839cea550db60ee82bb83",
+  "candidate_identity": {
+    "experiment_root": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "branch": "experiment/attention-aware-ranking-v1",
+    "dirty_diff_sha256": "45c074ee011a2a0ade194b6a5e1d584a6e7eff98bad839cea550db60ee82bb83",
+    "binaries_and_dsos": {
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/llama-server": {
+        "sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+        "bytes": 17872
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job": {
+        "sha256": "2214ce0657380d9a6227e9184d9b2b7fa6a0ed86b2c7e6cc6f8d76cf5e6eaab9",
+        "bytes": 114000
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-policy": {
+        "sha256": "d390c72ec8eccf812ccf94499594d8162442ffdb3574937d2ee8505a7af582ad",
+        "bytes": 176120
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libllama.so.0": {
+        "sha256": "dbb57f06180599db669571e750a849ae2c664c6d55665ae864eb0ed928b3ffef",
+        "bytes": 14972968
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml.so.0": {
+        "sha256": "ad89a77ba14702dd15478a7019391142e3747bfd86c35ce2477f47744a667a74",
+        "bytes": 59656
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml-base.so.0": {
+        "sha256": "46eef5442e8274896c473620bceeeec0b228796d1599b2b6cd334a2104d86851",
+        "bytes": 1500032
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml-cpu.so.0": {
+        "sha256": "6344bf427a0bafe1b06174156b9b114519ea316568395dc544926eb1f4e7af9f",
+        "bytes": 2023376
+      },
+      "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libggml-cuda.so.0": {
+        "sha256": "54df3ba9938c7255c7c2cc55b809e43e715976970de9306711c16abf7c23bcea",
+        "bytes": 380189296
+      }
+    }
+  },
+  "checks": {
+    "production_final_user_rerank_and_authenticated_mass": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+        "--cache-cuda"
+      ],
+      "additional_commands": [
+        [
+          "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+          "--cpu-only"
+        ],
+        [
+          "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-policy"
+        ],
+        [
+          "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+          "--unknown"
+        ]
+      ],
+      "additional_exit_codes": [
+        0,
+        0,
+        2
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking",
+        "--parallel",
+        "16",
+        "--target",
+        "llama-server",
+        "test-kv-router-job",
+        "test-kv-policy"
+      ],
+      "coverage": [
+        "The production cache commit path and fixture invoke the shared llama_kv_router_cache_adapter for plan preparation, once-per-query executor gating, exact terminal batch, and terminal adoption.",
+        "The CUDA fixture executes stream-0 and stream-1 cases with Qheads=4, KVheads=2, compact/model mappings 0/0 and 1/11, and capture generation 701 distinct from route generation 31.",
+        "Each case uses Turbo4 resident keys and an immutable canonical segment-chain cold key unit with seven valid rows in a 256-token page; four cold reader submissions execute through the two-slot owner.",
+        "The authenticated terminal records preserve descriptor content/summary versions and exact_mass provenance; normalized resident/cold masses reverse coarse order, common history policy selects the cold page, and publication remains withheld.",
+        "Repeated final-user boundary reuses the terminal batch without new cold reader or MASS work. Existing CPU owner/policy coverage checks reader failure, cancellation, resident-only, stale identities, duplicate exact records, and call gating.",
+        "No natural model semantic recall or publication/replay result is claimed."
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04h/attempt-01/final-build.log",
+          "sha256": "4ecabc1ad8c84b57b3a5cc41d47c0f8663a8c3dcfb80413564b87d4baf21843b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04h/attempt-01/cache-cuda.log",
+          "sha256": "cb778ff561e31ca5bb1888652ce7df0dc38526ce290348726b4226c6f9aec443"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04h/attempt-01/cpu-only.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04h/attempt-01/policy.log",
+          "sha256": "3a98c7c4952b7819266ac3fbcfe93616a1b02993d8411819acf0571ff5da8fc8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04h/attempt-01/unsupported.log",
+          "sha256": "5f8bd21203fdbe78b3339b6c8102f5a67cea53316e7b8797aa7aea63e498d985"
+        }
+      ]
+    }
+  }
+}
