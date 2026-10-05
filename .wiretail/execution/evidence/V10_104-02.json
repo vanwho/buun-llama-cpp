@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "task": "104-02",
+  "source_commit": "b68e46ac2e6b852906c5f4b008caaab2c5658820",
+  "source_tree_sha256": "2926c8dd0417de37c3a7e15ebb8f226baa50dfe0bcff861f9ff0115db220459b",
+  "checks": {
+    "independent_query_probe_capture": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-ranking/bin/test-kv-page-select"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-02/attempt-01/final-test-kv-page-select.log",
+          "sha256": "011f68614154468c4e39a71c9716d2f4a061c75b0f51c9cccfc826f1af68a023"
+        }
+      ]
+    }
+  },
+  "build": {
+    "command": "cmake --build build-ranking --parallel 16 --target test-kv-page-select test-cuda-kv-page-summary",
+    "exit_code": 0,
+    "artifact": "/srv/ai/paged-kv/results/ranking104/104-02/attempt-01/final-build.log",
+    "artifact_sha256": "da5b63ddad7261f28f870521ca247d18f4283c5e02ae0de6d34640f5f266dd88"
+  },
+  "deferred": {
+    "cuda_probe_execution": "The fixture is available through LLAMA_TEST_KV_PAGE_SELECT_CUDA=1. Deferred to 104-06 because the managed model occupies 15405 MiB of 16376 MiB reported GPU memory."
+  }
+}
