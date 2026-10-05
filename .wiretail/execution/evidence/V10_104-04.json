@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task": "104-04",
+  "source_commit": "b68e46ac2e6b852906c5f4b008caaab2c5658820",
+  "source_tree_sha256": "442ed9911aa65a3d5c279aa73daf717c15b42b2839e9740ec2d75a6bf92cc73b",
+  "checks": {
+    "bounded_turbo4_key_rerank_arithmetic": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "bash",
+        "-lc",
+        "env -u LLAMA_TEST_KV_PAGE_SELECT_CUDA build-ranking/bin/test-cuda-kv-page-summary --cpu-only && build-ranking/bin/test-kv-prefetch && env -u LLAMA_TEST_KV_PAGE_SELECT_CUDA build-ranking/bin/test-kv-page-select"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04/attempt-01/test-rerank-cpu.log",
+          "sha256": "20ec47d8179f8515c6aa10fd59d6dadb37265b60c16e47fc867b7ce9cfa09b21"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04/attempt-01/test-prefetch.log",
+          "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04/attempt-01/test-page-select.log",
+          "sha256": "2a403b5ddf6f8d131137de1c40c4ce4339aafea790667f14382ebeb7955e8bbf"
+        }
+      ],
+      "summary": "CPU rerank graph matched an independent decoded Turbo4 QK/LSE reference; stale descriptor, causal rows, shifted physical slot, resident/staged selection, and split-chunk (m,s) combination passed. Two-slot staging lifetime/backpressure and selector CPU regression passed."
+    }
+  },
+  "build": {
+    "command": "cmake --build build-ranking --target test-cuda-kv-page-summary test-kv-prefetch --parallel 16",
+    "exit_code": 0,
+    "artifact": "/srv/ai/paged-kv/results/ranking104/104-04/attempt-01/build-07.log",
+    "artifact_sha256": "ee7df77aae07b9d2d206eb0fdf7f4fda6118b683810e50694ae6764e78d3cda6"
+  },
+  "source_diff_check": {
+    "path": "/srv/ai/paged-kv/results/ranking104/104-04/attempt-01/diff-check.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "deferred": {
+    "cuda_rerank_execution": "CUDA kernel and dispatch compiled successfully. Full CUDA numerical execution, owner pinned/device allocation lifecycle and live route are scheduled for 104-05/104-06 per the packet; no runtime CUDA result is claimed."
+  }
+}
