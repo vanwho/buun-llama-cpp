@@ -2113,3 +2113,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-01`
 - Commit at update: `d9ccc007f`
 - Summary: Implemented isolated router mode, bounded budget and owned ranking interfaces; targeted build and both fixtures pass; V10 receipt validated.
+
+## 2026-10-05T02:19:14+00:00 — 104-02 — done
+
+- Branch: `codex/task-104-02`
+- Commit at update: `c4c8f19de`
+- Summary: Implemented and CPU-validated independent final-user Q probe capture; both required targets build, CUDA execution deferred to 104-06 under managed GPU load.
