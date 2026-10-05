@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "task": "104-04a",
+  "source_commit": "426e34562deea4d732a4326bb50d4003de0d351a",
+  "experiment_source": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "branch": "experiment/attention-aware-ranking-v1",
+    "head": "426e34562deea4d732a4326bb50d4003de0d351a",
+    "dirty_diff_sha256": "43847aa0fa24cddce5d9c88d62fe42c1dc6b9d8d833583df4c26b239e586e2d9",
+    "dirty_diff_scope": "git diff --binary (tracked working-tree changes)"
+  },
+  "cuda_fixture": {
+    "device": "NVIDIA GeForce RTX 4080, CUDA0",
+    "heads": [
+      16,
+      200
+    ],
+    "logical_pages": 1024,
+    "output_records_compared": 48,
+    "cold_winners": [
+      22,
+      23
+    ],
+    "winner_peak_probability_min": 0.99,
+    "cpu_oracle": "all 48 logical IDs and validity flags exact; peak/mean probabilities within 0.02"
+  },
+  "checks": {
+    "production_cuda_shortlist_and_route": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "LLAMA_TEST_KV_PAGE_SELECT_CUDA=1",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-page-select"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04a/attempt-01/build-final-02.log",
+          "sha256": "0bb3ab501a7c8fa25fc433377f086ef9409f8eb68c3f3b4f8ab5cc6d6a7fa7b7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04a/attempt-01/test-kv-page-select-cuda-final-02.log",
+          "sha256": "17493abd986e2394f929e5ad868be34fa26e9532bdb23de1eeae812952431dcd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04a/attempt-01/test-cuda-kv-page-summary-final-02.log",
+          "sha256": "93873d605e02f01a4aeedfb9d7b6b4623aeacc90f328224e56ea1c2413cb88e4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-04a/attempt-01/test-kv-prefetch-final-02.log",
+          "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57"
+        }
+      ]
+    }
+  }
+}
