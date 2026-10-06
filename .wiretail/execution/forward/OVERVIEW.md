@@ -90,6 +90,7 @@ card, service paths or these counts in portable production logic.
 | 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
 | 104 | 04e/f/g/h and05 done;04d/06 deferred;06a/b/c/d then07/08 | typed finalization repair, fresh target/MTP sanity, frozen harness, bounded paired outcomes, speed/cost and adoption verdict |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
+| 105 | 105-01–02 repair;105-03 minimum final proof;105-04–05 summary/review | repair semantic retrieval and occupied-context MTP, then reassess core capabilities; only schedule the full scale curve after acceptance |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
 specified in `OPTIONAL_ADVANCEMENTS.md`. Phase104 is now reserved for the

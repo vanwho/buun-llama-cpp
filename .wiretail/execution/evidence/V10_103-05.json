@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "103-05",
+  "source_commit": "43f55649ba8c0ae5fa145fb74e00d80e85496fae",
+  "result": "primary_architecture_not_accepted",
+  "review_path": ".wiretail/execution/evidence/V10_103-05-review.json",
+  "checks": {
+    "repaired_forward_goal_review_and_successors": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "103-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_103-05.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_103-05-review.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_103-05-review.json",
+          "sha256": "7f26445a0a02a27df126454b518934bf0d79fa53cf43eea75beda4a9e95da458"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+          "sha256": "b43f99492eb82417bbf629c526b08bfb8bbbf648d6c6e43ee078f6a85a2296c1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-05/attempt-01/review-validation.txt",
+          "sha256": "e26deec7779e5d4cbec34d5284bb77f550e00c88216c283c497314bb92f9ed24"
+        }
+      ]
+    }
+  }
+}
