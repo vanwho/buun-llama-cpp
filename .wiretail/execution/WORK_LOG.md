@@ -2287,3 +2287,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-06c`
 - Commit at update: `c297c6799`
 - Summary: Implemented and validated the mode-aware frozen schedule and zero-generation preflight harness
+
+## 2026-10-06T03:25:10+00:00 — 104-06d — done
+
+- Branch: `codex/task-104-06d`
+- Commit at update: `5c98165c8`
+- Summary: Recorded nine paired outcomes, validated exact CUDA encoded-key oracle, and restored healthy probe-rerank service
