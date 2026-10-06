@@ -2317,3 +2317,27 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-103-05`
 - Commit at update: `43f55649b`
 - Summary: Reviewed all 15 forward goals; recorded unaccepted core and ordered phase-105 repairs, proof, summary, and review.
+
+## 2026-10-06T05:05:58+00:00 — 105-01 — blocked
+
+- Branch: `codex/task-105-01`
+- Commit at update: `ef706590c`
+- Summary: Required live semantic proof cannot run safely: llama-server.service is pinned by a root-owned transient ExecStart to the isolated 104 binary at C=8192/H=4096, bypassing the profile lifecycle; no request-local owner trace or repair evidence exists, and task recovery budget is exhausted.
+
+## 2026-10-06T05:06:55+00:00 — 105-01 — todo
+
+- Branch: `codex/task-105-01`
+- Commit at update: `ef706590c`
+- Summary: Retrying with a distinct managed-systemd candidate path while preserving and restoring the 104 override.
+
+## 2026-10-06T05:06:55+00:00 — 105-01 — in_progress
+
+- Branch: `codex/task-105-01`
+- Commit at update: `ef706590c`
+- Summary: Task started
+
+## 2026-10-06T06:57:00+00:00 — 105-01 — blocked
+
+- Branch: `codex/task-105-01`
+- Commit at update: `ef706590c`
+- Summary: Attempt 3 repaired and proved the delayed empty-inventory query-turn defect and verified shortlist/readback bounds, but full-context semantic retrieval still fails. With the eight-page shortlist, target page 720 remained eligible yet unranked under centroid and upper-bound scorers; the required V10 semantic receipt cannot be truthfully produced.
