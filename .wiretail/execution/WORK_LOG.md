@@ -2269,3 +2269,9 @@ receives `PROJECT_ROOT` from the shared runner.
   checkpoint/source-branch carry logic preserves them before branch switching.
 - Apply installed-runner patch before restart. Then next task is104-06a,
   not another104-06 retry. Full assessment: forward/RANKING104_LIVE_REPAIR.md.
+
+## 2026-10-06T02:04:56+00:00 — 104-06a — done
+
+- Branch: `codex/task-104-06a`
+- Commit at update: `0d8ad89cb`
+- Summary: Repaired nonfinite-probe finalization to empty terminal owner completion; CUDA regression and A1/B1 pressure replay passed with both requests returning HTTP 200.
