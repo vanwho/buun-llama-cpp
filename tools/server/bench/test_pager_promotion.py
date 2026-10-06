@@ -25,6 +25,7 @@ _DRIVER = importlib.util.module_from_spec(_DRIVER_SPEC)
 _DRIVER_SPEC.loader.exec_module(_DRIVER)
 _promotion_for_page = _DRIVER._promotion_for_page
 _assess_content_retrieval = _DRIVER.assess_content_retrieval
+_case_acceptance_status = _DRIVER.case_acceptance_status
 _completed_pressure_tail_pages = _DRIVER.completed_pressure_tail_pages
 _generation_start_index = _DRIVER.generation_start_index
 
@@ -66,6 +67,18 @@ class PagerPromotionPromptTest(unittest.TestCase):
             "The preallocated output writes each output position exactly once.")
         self.assertTrue(source["matched"])
         self.assertTrue(final["matched"])
+
+    def test_answer_quality_is_required_for_case_acceptance(self) -> None:
+        slash_filler = _assess_content_retrieval(
+            "The preallocated merge writes each output position exactly once.",
+            "// / /// **/***", ("preallocated", "output position", "once"))
+        coherent = _assess_content_retrieval(
+            "The preallocated merge writes each output position exactly once.",
+            "The preallocated merge writes each output position exactly once.",
+            ("preallocated", "output position", "once"))
+        self.assertEqual("diagnostic_incomplete",
+                         _case_acceptance_status(True, True, slash_filler))
+        self.assertEqual("pass", _case_acceptance_status(True, True, coherent))
 
     def test_exact_three_user_turns_and_fixture_order(self) -> None:
         steps = build_promotion_steps(self.catalog)
@@ -110,8 +123,10 @@ class PagerPromotionPromptTest(unittest.TestCase):
             messages_for_step(steps, 2, replies[:1])
 
     def test_response_budget_and_filename_scoring(self) -> None:
-        self.assertEqual(256, response_budget(100))
-        self.assertEqual(256, response_budget(SERVER_CONTEXT_TOKENS - 128 - 257))
+        self.assertEqual(GENERATION_COMPLETION_LIMIT_TOKENS, response_budget(100))
+        self.assertEqual(GENERATION_COMPLETION_LIMIT_TOKENS,
+                         response_budget(SERVER_CONTEXT_TOKENS - 128 -
+                                         GENERATION_COMPLETION_LIMIT_TOKENS - 1))
         self.assertTrue(assess_natural_retrieval(
             "merge_sorted_lists_03.py", '"merge_sorted_lists_03.py"')['matched'])
         self.assertFalse(assess_natural_retrieval(
@@ -152,11 +167,13 @@ class PagerPromotionPromptTest(unittest.TestCase):
                          plan["steps"][1]["appended_fixture_ids_local_only"])
         budget = plan["token_budget"]
         self.assertEqual(5120, budget["selected_fixture_tokens_no_bos"])
-        self.assertEqual(512, budget["planned_prior_reply_tokens"])
+        self.assertEqual(2 * GENERATION_COMPLETION_LIMIT_TOKENS,
+                         budget["planned_prior_reply_tokens"])
         self.assertEqual(GENERATION_COMPLETION_LIMIT_TOKENS,
                          budget["final_completion_reserve_tokens"])
         self.assertEqual(1024, PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS)
-        self.assertEqual(7040, budget["estimated_required_tokens"])
+        self.assertEqual(5120 + 3 * GENERATION_COMPLETION_LIMIT_TOKENS + 128 + 1024,
+                         budget["estimated_required_tokens"])
         self.assertTrue(budget["fits_with_context_reserve"])
         self.assertTrue(budget["fixture_pressure_exceeds_hot_capacity"])
         self.assertEqual("source_file", plan["steps"][0]["stage"])

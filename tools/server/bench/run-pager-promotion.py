@@ -69,6 +69,12 @@ def assess_content_retrieval(expected: str, answer: str,
             "markers": list(markers), "answer": answer}
 
 
+def case_acceptance_status(answer_page_promoted: bool, boundary_pass: bool,
+                           answer_quality: Mapping[str, Any]) -> str:
+    return "pass" if answer_page_promoted and boundary_pass and \
+        answer_quality.get("matched") is True else "diagnostic_incomplete"
+
+
 def generation_start_index(samples: list[dict[str, Any]]) -> int | None:
     """Find the first sample after changed-query replay has frozen history."""
     for index, sample in enumerate(samples):
@@ -1146,7 +1152,8 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         "mtp": mtp, "requests": records, "preflight": preflight_rows,
         "generation_boundary": generation_boundary,
         "physical_promotion_status": "pass" if same_answer_page_promoted else "incomplete",
-        "acceptance_status": "pass" if same_answer_page_promoted and boundary_pass else "diagnostic_incomplete",
+        "acceptance_status": case_acceptance_status(
+            same_answer_page_promoted, boundary_pass, final_record["answer_quality"]),
         "answer_quality_diagnostic": final_record["answer_quality"],
     }
     case["raw_artifacts"] = artifact_refs(case_root)
