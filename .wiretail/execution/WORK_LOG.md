@@ -2347,3 +2347,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01`
 - Commit at update: `9ad3c34b9`
 - Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Attempt 3 repaired and proved the delayed empty-inventory query-turn defect and verified shortlist/readback bounds, but full-context semantic retrieval still fails. With the eight-page shortlist, target page 720 remained eligible yet unranked under centroid and upper-bound scorers; the required V10 semantic receipt cannot be truthfully produced.
+
+## 2026-10-06T07:27:44+00:00 — 105-01 — blocked
+
+- Branch: `codex/task-105-01`
+- Commit at update: `894243023`
+- Summary: Attempt 4 exhausted the bounded recovery cycle: semantic acceptance remains unmet after a fresh 256K request ranked target page 720 out and produced no coherent answer; selector score diagnosis and V10 receipt remain required.
