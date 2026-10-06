@@ -1,0 +1,77 @@
+{
+  "checks": {
+    "ranking_experiment_decision_and_isolated_branch": {
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.json",
+          "sha256": "f3e18c85d6b7f66622ec820134b47ddcf6045557bf14cc56c17c29ec0a13d101"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.md",
+          "sha256": "ced7cd71b66604242baf796aeab5c97866b37449b24af6114e724b6d96e80492"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.json",
+          "sha256": "469160130127d1aa6dffce2c64bbc5a85ef06cb2061daaea210c13f13e413557"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.md",
+          "sha256": "f6ab2d331d58c80112be1859c384803d2e8bc5f006f39eff26b07a42d10e2dcd"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_104-07.json",
+          "sha256": "5969a389229d63f78ba7d2b92405d57ecf20138187d94f526b0869b55e9a1d95"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/RANKING104_RECALL.json",
+          "sha256": "bf16a9314ddbea113ccf07e9536c744ea54e49649596f244ee8edf1bebebf2db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/RANKING104_RECALL.md",
+          "sha256": "83f055e565053fcd6d34902ff8d5500d55b9b9b03ee411a4f8b59db4128f16c7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/validate-104-07.stdout",
+          "sha256": "36d7f2c19ea6c0a36f7d7222da72bf97b96a83bc6292d529c34e98d8253b0fe8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/validate_decision.py",
+          "sha256": "b8661562272260a127a2e858caa8a5e2b5d815f87a5a32a3a08a09c4f6e2048b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/validate-decision.stdout",
+          "sha256": "0d7901cef9fbd8eb2ddac4a218135edc4dc9f59317f8d2aa785075f754f41109"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/experiment-source-snapshot.json",
+          "sha256": "53d0066640181df2beb1cb38439a5aad5b53321c39201c8071e078c1aa5d3f5b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/kept-service.json",
+          "sha256": "7e93971e81fb34fc4e304bb378a674a1574ef42e07e78830afa88dddf4ad9dfc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/resource-evidence.json",
+          "sha256": "17f1fcc74fe267fbc6b9e9667493bb0ebc3b82adb05ac3253c5ab36aeaf77f6c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/candidate-build-receipt.json",
+          "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+        }
+      ],
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/validate_decision.py",
+        "--json",
+        "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.json",
+        "--markdown",
+        "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.md"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "task": "104-08"
+}

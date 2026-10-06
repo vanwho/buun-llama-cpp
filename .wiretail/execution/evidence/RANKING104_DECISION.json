@@ -1,0 +1,206 @@
+{
+  "adoption_assessment": {
+    "adopt_supported": false,
+    "criteria_unresolved": [
+      "useful recall improvement across independent targets",
+      "median pp/tg regression <=5% or justified end-to-end gain",
+      "no recurring MTP regression",
+      "bounded ranker byte ledger respected"
+    ],
+    "decision": "inconclusive",
+    "reasons": [
+      "No complete same-binary legacy/probe paired quality row exists.",
+      "No paired speed, query-boundary cost, or byte-ledger comparison exists.",
+      "Observed probe publication failures and degenerate generation cannot establish ranking benefit."
+    ]
+  },
+  "costs": {
+    "full_page_h2d_bytes": null,
+    "interpretation": "Unknown is not zero. 104-07 legacy aborted before query timing; no paired probe-rerank row was run. 104-06d reports missing memory/page counters as unknown.",
+    "key_only_h2d_bytes": null,
+    "mtp_regression_comparison": null,
+    "paired_gpu_memory_delta_bytes": null,
+    "paired_pageable_memory_delta_bytes": null,
+    "paired_pinned_memory_delta_bytes": null,
+    "per_prompt_pp_tg_ratios": null,
+    "query_replay_ms": null,
+    "query_retrieval_ms": null,
+    "ranker_scratch_bytes": null,
+    "ttft_and_request_duration": null
+  },
+  "decision": "inconclusive",
+  "evidence_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/RANKING104_RECALL.json",
+      "sha256": "bf16a9314ddbea113ccf07e9536c744ea54e49649596f244ee8edf1bebebf2db"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/RANKING104_RECALL.md",
+      "sha256": "83f055e565053fcd6d34902ff8d5500d55b9b9b03ee411a4f8b59db4128f16c7"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.json",
+      "sha256": "469160130127d1aa6dffce2c64bbc5a85ef06cb2061daaea210c13f13e413557"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.md",
+      "sha256": "f6ab2d331d58c80112be1859c384803d2e8bc5f006f39eff26b07a42d10e2dcd"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_104-07.json",
+      "sha256": "5969a389229d63f78ba7d2b92405d57ecf20138187d94f526b0869b55e9a1d95"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/resource-evidence.json",
+      "sha256": "17f1fcc74fe267fbc6b9e9667493bb0ebc3b82adb05ac3253c5ab36aeaf77f6c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/candidate-build-receipt.json",
+      "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/validate-104-07.stdout",
+      "sha256": "36d7f2c19ea6c0a36f7d7222da72bf97b96a83bc6292d529c34e98d8253b0fe8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/experiment-source-snapshot.json",
+      "sha256": "53d0066640181df2beb1cb38439a5aad5b53321c39201c8071e078c1aa5d3f5b"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/kept-service.json",
+      "sha256": "7e93971e81fb34fc4e304bb378a674a1574ef42e07e78830afa88dddf4ad9dfc"
+    }
+  ],
+  "findings": {
+    "answer_quality": "dense PY controls were diagnostic mismatches; probe BASH completed but was degenerate; legacy natural requests were incomplete. No useful recall improvement or clean paired semantic result is established.",
+    "coarse_shortlist": "unknown end-to-end: natural legacy requests did not reach ranking; probe natural rows did not produce a completed comparable query outcome",
+    "exact_key_mass": {
+      "natural_query_quality": "unknown: oracle correctness does not establish per-request shortlist quality or recall",
+      "numerical_oracle": "pass: encoded Turbo4 CUDA and CPU oracle covered 64/256/1024 candidates with resident/cold pages; normalized means within 3e-8 and top-page IDs matched"
+    },
+    "fresh_generation_mtp": "104-06b same-input fresh controls returned coherent code/prose; response-local counts were dense 256/194 and legacy/probe 266/199. This bounds the fresh-generation anomaly. The natural BASH degenerate result remains a quality failure, not proof of a recurring fresh MTP failure.",
+    "physical_transfer_and_publication": "probe PY merge rows fail at query replay publication with HTTP 500; this is a publication/finalization failure, not an observed rank miss. Legacy crashes before a paired publication result. No transfer-byte outcome is comparable.",
+    "promotion_budget": "unknown: no completed paired query exposes whether a valid candidate was omitted by budget"
+  },
+  "kept_managed_service": {
+    "active": {
+      "ActiveState": "active",
+      "MainPID": "3898343",
+      "SubState": "running"
+    },
+    "all_identity_checks_pass": true,
+    "batch": 1024,
+    "binary": "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/llama-server",
+    "binary_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+    "context_tokens": 8192,
+    "evidence": {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-08/attempt-01/kept-service.json",
+      "sha256": "7e93971e81fb34fc4e304bb378a674a1574ef42e07e78830afa88dddf4ad9dfc"
+    },
+    "health": {
+      "body": "{\"status\":\"ok\"}",
+      "status_code": 200
+    },
+    "hot_pages": 16,
+    "hot_tokens": 4096,
+    "mode": "probe-rerank",
+    "pid": "3898343",
+    "ubatch": 256
+  },
+  "missing_fact": "Why the legacy canonical user prompt leaves the query-accumulation tensor without a backend buffer in llama_kv_cache_context::set_kv_query_accumulate_inputs.",
+  "next_technical_action": "Add a deterministic regression/diagnostic for that exact query-accumulation tensor at L8192/B1024/U256, identify and repair the missing buffer assignment, then verify one canonical legacy request. Do not start another full corpus or occupancy campaign in this decision task.",
+  "provenance": {
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/candidate-build-receipt.json",
+      "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+    },
+    "candidate_binary_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+    "experiment_base": "699eaf1f5dabc3c6ffbb89670622b25d48c8d8ff",
+    "experiment_branch": "experiment/attention-aware-ranking-v1",
+    "experiment_dirty_snapshot_sha256": "ee22810f9da38722a01ccc70d48e77cba903d43214ef9106d90dbb2fc2f23bd1",
+    "experiment_head": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+    "experiment_modified_tracked_paths": [
+      "ggml/include/ggml.h",
+      "ggml/src/ggml-cpu/ops.cpp",
+      "ggml/src/ggml-cuda/ggml-cuda.cu",
+      "ggml/src/ggml-cuda/kv-page-rerank.cu",
+      "src/llama-context.h",
+      "src/llama-graph.cpp",
+      "src/llama-kv-cache.cpp",
+      "src/llama-kv-cache.h",
+      "src/llama-kv-prefetch.h",
+      "src/llama-kv-router-job.cpp",
+      "src/llama-kv-router-job.h",
+      "src/llama-kv-router-ranking.h",
+      "src/llama-memory-hybrid-iswa.h",
+      "src/llama-memory-hybrid.h",
+      "src/llama-memory.h",
+      "tests/CMakeLists.txt",
+      "tests/test-cuda-kv-page-summary.cpp",
+      "tests/test-kv-page-select.cpp",
+      "tests/test-kv-policy.cpp",
+      "tests/test-kv-router-job.cpp",
+      "tests/test-server-query-replay.cpp",
+      "tools/server/bench/pager_promotion.py",
+      "tools/server/bench/run-pager-profile-benchmark.py",
+      "tools/server/bench/run-pager-promotion.py",
+      "tools/server/bench/test_pager_promotion.py"
+    ],
+    "experiment_tracked_diff_sha256": "a6c68dab97b3f543a5ec629c3f2cf8d2d070f068f7298844d1238df67c62124b",
+    "experiment_untracked_paths": [
+      {
+        "path": ".wiretail/execution/handoffs/104-02.md",
+        "sha256": "c14ff2f9de62465d8064be4b3500fdbe7a6e3acd98cb90efbd67e3c048a9eb27"
+      },
+      {
+        "path": ".wiretail/execution/handoffs/104-06a.md",
+        "sha256": "951c995088fd96f76dcd2142dff36849376eb1e47a7201c6399f556cfbcd7c93"
+      },
+      {
+        "path": "tools/server/bench/validate-ranking104-results.py",
+        "sha256": "72f7f885f5483f605aaad455077504c04e1e637a2a09ecc7c14d2c2b09afbab1"
+      }
+    ],
+    "main_coordinator_head": "b73b8f1a05ba7a8a2b200af42e43126a8594c4e1",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "scaled_row": {
+    "batch": 1024,
+    "comparison": "no completed recall, speed, memory, or query-cost row",
+    "context_tokens": 131072,
+    "hot_tokens": 51200,
+    "legacy": "model and full-L Turbo4 GPU MTP reservation loaded; first occupancy request hit the same GGML tensor-buffer assertion at frontier 3630",
+    "probe_rerank": "not attempted after fatal legacy peer failure",
+    "ubatch": 256
+  },
+  "schema": "ranking104-decision-v1",
+  "source_disposition": {
+    "commit_or_push_requested": false,
+    "default_router_changed": false,
+    "experiment_preserved": true,
+    "merged_or_cherry_picked": false
+  },
+  "targets": [
+    {
+      "dense_control": "dense_inconclusive: HTTP 200 diagnostic mismatch",
+      "legacy": "execution_incomplete: typed HTTP 0 at first request; backend tensor-buffer assertion",
+      "probe_rerank": "execution_incomplete: HTTP 500 at query replay finalization",
+      "ranking_outcome": "unknown",
+      "target": "PY_MERGE_03"
+    },
+    {
+      "dense_control": "dense_inconclusive: HTTP 200 diagnostic mismatch",
+      "legacy": "execution_incomplete: typed HTTP 0 at first request; backend tensor-buffer assertion",
+      "probe_rerank": "execution_incomplete: HTTP 500 at query replay finalization",
+      "ranking_outcome": "unknown",
+      "target": "PY_MERGE_01"
+    },
+    {
+      "dense_control": "execution_incomplete: typed HTTP 0 transport failure",
+      "legacy": "execution_incomplete: typed HTTP 0 at first request; backend tensor-buffer assertion",
+      "probe_rerank": "degenerate_generation: HTTP 200, 400 reply tokens, diagnostic mismatch",
+      "ranking_outcome": "no usable paired answer comparison",
+      "target": "BASH_WATCH_01"
+    }
+  ]
+}

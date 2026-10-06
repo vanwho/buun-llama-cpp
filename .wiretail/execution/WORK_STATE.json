@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "104",
-  "current_task": "104-08",
-  "last_updated_utc": "2026-10-06T04:02:44+00:00",
+  "current_phase": "103",
+  "current_task": "103-04",
+  "last_updated_utc": "2026-10-06T04:10:34+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -35632,7 +35632,7 @@
       "cluster": "ranking104-paired-outcomes",
       "title": "Decide ranking experiment and preserve isolated implementation branch",
       "packet": ".wiretail/execution/tasks/104-08.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -35647,7 +35647,7 @@
       "depends_on": [
         "104-07"
       ],
-      "commit": null,
+      "commit": "b73b8f1a05ba7a8a2b200af42e43126a8594c4e1",
       "context_files": [
         ".wiretail/execution/forward/RANKING104_LIVE_REPAIR.md",
         ".wiretail/execution/handoffs/104-07.md"
@@ -35659,7 +35659,47 @@
         "104-08",
         "--receipt",
         ".wiretail/execution/evidence/V10_104-08.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/104-08-attempt-1-20261006T040308169539121-20261006T040308172005439-u1dLCX.jsonl:47",
+            "total_tokens": 50485728,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 50218572,
+            "cached_input_tokens": 49069056,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 1149516,
+            "output_tokens": 267156,
+            "thinking_tokens": 122843
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 50485728,
+          "input_tokens": 50218572,
+          "cached_input_tokens": 49069056,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 1149516,
+          "output_tokens": 267156,
+          "thinking_tokens": 122843,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "103-04",
@@ -37606,16 +37646,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 34,
-        "total_tokens": 580854763,
-        "input_tokens": 578317049,
-        "cached_input_tokens": 565745280,
+        "usage_events": 35,
+        "total_tokens": 631340491,
+        "input_tokens": 628535621,
+        "cached_input_tokens": 614814336,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 12571769,
-        "output_tokens": 2537714,
-        "thinking_tokens": 1134595,
+        "input_tokens_minus_cached_tokens": 13721285,
+        "output_tokens": 2804870,
+        "thinking_tokens": 1257438,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 34,
+        "total_tokens_derived_events": 35,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -37630,17 +37670,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 542,
-      "total_tokens": 12816284974,
-      "input_tokens": 12770571485,
-      "cached_input_tokens": 12478477696,
+      "usage_events": 543,
+      "total_tokens": 12866770702,
+      "input_tokens": 12820790057,
+      "cached_input_tokens": 12527546752,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 188,
-      "input_tokens_minus_cached_tokens": 292093789,
-      "output_tokens": 45713489,
-      "thinking_tokens": 21026051,
+      "cache_write_input_tokens_known_events": 189,
+      "input_tokens_minus_cached_tokens": 293243305,
+      "output_tokens": 45980645,
+      "thinking_tokens": 21148894,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 542,
+      "total_tokens_derived_events": 543,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
