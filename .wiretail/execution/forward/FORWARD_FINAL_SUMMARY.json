@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "task": "102-07",
+  "task": "103-04",
   "result": "primary_architecture_not_accepted",
   "goal_met": false,
   "geometry": {
@@ -40,98 +40,301 @@
     "page_tokens": 256
   },
   "canonical_8k_selected_vs_controls": {
-    "geometry": {
-      "L": 8192,
-      "C": 0,
-      "H": 4096,
-      "R": "not separately measured",
-      "G": "not separately measured",
-      "A": "not separately measured",
-      "B": 1024,
-      "U": 256
+    "candidate": {
+      "branch_role": "main candidate; isolated 104 experiment not adopted",
+      "binary_path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+      "binary_sha256": "a24b26ba1b55066d81eb1af795d3d58889099a4b1ed087a4d3e6f74f3fe375de",
+      "libllama_path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libllama.so",
+      "libllama_sha256": "e799b3284f7f9ea1a2f89e452b6a357b9503651cbec716b2265f98b3e19cc403",
+      "version": "version: 0.5.0-dev (build 14312, commit 457e0c905) built with GNU 15.2.0 for Linux x86_64",
+      "source_commit": "1cfb18b6383e585e40cc5e96472f56f3befec600",
+      "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "geometry": {
+        "L": 8192,
+        "C": 0,
+        "H": 4096,
+        "page_tokens": 256,
+        "page_capacity": 16,
+        "B": 1024,
+        "U": 256
+      },
+      "mtp": "native GPU Turbo4; draft MTP n-max=2",
+      "canonical_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+      "cache_contract": "slot cleared before each row; all measured rows cached_tokens=0",
+      "measured_trials_per_prompt": 3
     },
     "selected": {
       "prompt_1": {
-        "fresh_prefill_tps": 1518.751132604505,
-        "decode_tps": 54.95023835870938,
-        "mtp_acceptance_percent": 39.69230769230769,
         "fresh_tokens": [
           4115,
           4115,
           4115
-        ]
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1503.7440119744067,
+        "decode_tps_median": 36.82316326476934,
+        "mtp_drafted": 1194,
+        "mtp_accepted": 0,
+        "mtp_acceptance_percent": 0.0,
+        "completed_trials": 3
       },
       "prompt_2": {
-        "fresh_prefill_tps": 1530.6923926225986,
-        "decode_tps": 59.23772890445744,
-        "mtp_acceptance_percent": 49.36708860759494,
         "fresh_tokens": [
           4112,
           4112,
           4112
-        ]
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1506.0996670245117,
+        "decode_tps_median": 36.79998745664587,
+        "mtp_drafted": 1194,
+        "mtp_accepted": 0,
+        "mtp_acceptance_percent": 0.0,
+        "completed_trials": 3
       },
       "prompt_3": {
-        "fresh_prefill_tps": 1517.4725172555773,
-        "decode_tps": 68.59493504626978,
-        "mtp_acceptance_percent": 65.26315789473684,
         "fresh_tokens": [
           4113,
           4113,
           4113
-        ]
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1505.1263219257712,
+        "decode_tps_median": 36.78329614287038,
+        "mtp_drafted": 1194,
+        "mtp_accepted": 0,
+        "mtp_acceptance_percent": 0.0,
+        "completed_trials": 3
       }
     },
     "cpu_main_kv_gpu_mtp": {
       "prompt_1": {
-        "fresh_prefill_tps": 672.068584639893,
-        "decode_tps": 24.93937303193529,
-        "mtp_acceptance_percent": 80.37037037
+        "fresh_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 671.7654452996825,
+        "decode_tps_median": 25.13832116366529,
+        "mtp_drafted": 810,
+        "mtp_accepted": 651,
+        "mtp_acceptance_percent": 80.37037037037037,
+        "completed_trials": 3
       },
       "prompt_2": {
-        "fresh_prefill_tps": 675.2124612167453,
-        "decode_tps": 18.464358039602622,
-        "mtp_acceptance_percent": 50.0
+        "fresh_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 678.1481278691833,
+        "decode_tps_median": 19.118182421804345,
+        "mtp_drafted": 378,
+        "mtp_accepted": 189,
+        "mtp_acceptance_percent": 50.0,
+        "completed_trials": 3
       },
       "prompt_3": {
-        "fresh_prefill_tps": 671.7331646569384,
-        "decode_tps": 21.652535628596176,
-        "mtp_acceptance_percent": 65.03496503
+        "fresh_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 671.5013238192279,
+        "decode_tps_median": 21.432204083570767,
+        "mtp_drafted": 858,
+        "mtp_accepted": 558,
+        "mtp_acceptance_percent": 65.03496503496504,
+        "completed_trials": 3
       }
     },
-    "dense_gpu_kv_gpu_mtp": {
+    "feature_off_all_gpu": {
       "prompt_1": {
-        "fresh_prefill_tps": 1633.7034409407272,
-        "decode_tps": 84.1293535549437,
-        "mtp_acceptance_percent": 78.19548872
+        "fresh_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1633.6119935306583,
+        "decode_tps_median": 84.29721324117433,
+        "mtp_drafted": 798,
+        "mtp_accepted": 624,
+        "mtp_acceptance_percent": 78.19548872180451,
+        "completed_trials": 3
       },
       "prompt_2": {
-        "fresh_prefill_tps": 1630.4352135941501,
-        "decode_tps": 62.61172873259821,
-        "mtp_acceptance_percent": 51.61290323
+        "fresh_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1631.2948363091637,
+        "decode_tps_median": 62.85419768902258,
+        "mtp_drafted": 372,
+        "mtp_accepted": 192,
+        "mtp_acceptance_percent": 51.61290322580645,
+        "completed_trials": 3
       },
       "prompt_3": {
-        "fresh_prefill_tps": 1632.0178652984114,
-        "decode_tps": 71.15477965736567,
-        "mtp_acceptance_percent": 63.32179931
+        "fresh_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1633.799348148619,
+        "decode_tps_median": 71.3307693586613,
+        "mtp_drafted": 867,
+        "mtp_accepted": 549,
+        "mtp_acceptance_percent": 63.32179930795848,
+        "completed_trials": 3
       }
     },
-    "selected_to_cpu_prefill_ratio": {
-      "prompt_1": 2.259815690415407,
-      "prompt_2": 2.2669788852300843,
-      "prompt_3": 2.2590406386002506
+    "comparators": {
+      "selected_to_cpu_prefill_ratio": {
+        "prompt_1": 2.2384956274486085,
+        "prompt_2": 2.220900722319833,
+        "prompt_3": 2.2414346309329987
+      },
+      "selected_to_feature_off_prefill_ratio": {
+        "prompt_1": 0.9205025538068111,
+        "prompt_2": 0.9232541129303711,
+        "prompt_3": 0.921243066739709
+      },
+      "placements": {
+        "selected": "GPU target Turbo4 KV, selective pager, native GPU Turbo4 MTP",
+        "cpu_main_kv_gpu_mtp": "CPU target Turbo4 KV, pager off, native GPU Turbo4 MTP",
+        "feature_off_all_gpu": "GPU target Turbo4 KV, pager off, native GPU Turbo4 MTP"
+      }
     },
-    "selected_to_cpu_decode_ratio": {
-      "prompt_1": 2.2033528384352192,
-      "prompt_2": 3.208220333325616,
-      "prompt_3": 3.1679862452542276
+    "route_and_costs": {
+      "selected_route": "selected packed",
+      "route_override": "auto",
+      "request_replay_count": null,
+      "query_replay_us": null,
+      "selector_costs": "not separately reported by these canonical receipts",
+      "interpretation": "Fresh empty-history prompts do not exercise query replay; no selector/retrieval timing attribution is available."
     },
-    "source_scope": "101-12l canonical 4,112\u20134,115 fresh-token selected rows; dense GPU comparison only at 8K/4K.",
-    "codec_comparators": {
-      "selected": "target GPU Turbo4 K/V, native GPU Turbo4 MTP",
-      "cpu_main_kv_gpu_mtp": "target CPU-resident Turbo4 K/V, native GPU Turbo4 MTP",
-      "dense_gpu_kv_gpu_mtp": "target GPU-resident Turbo4 K/V, native GPU Turbo4 MTP",
-      "source": "exact 101-12 run-config target placement and server -ctk/-ctv arguments; same Qwen model and B/U"
+    "answer_quality": {
+      "selected": "semantic miss: slash filler on all three prompts; no useful answers despite HTTP 200 and 400-token completion cap",
+      "cpu_main_kv_gpu_mtp": "useful coherent answers on the three canonical prompts (manual spot check)",
+      "feature_off_all_gpu": "useful coherent answers on the three canonical prompts (manual spot check)",
+      "independent_score": "not measured"
+    },
+    "memory": {
+      "selected_8k_pager_snapshot": {
+        "physical_pool_capacity_bytes": 138412032,
+        "target_allocated_bytes": 138412032,
+        "live_allocation_peak_bytes": 138412032,
+        "weights_bytes": 13695551488,
+        "recurrent_state_bytes": 470679552,
+        "mtp_compute_bytes": 268435456,
+        "graph_bytes": 268435456,
+        "device_used_bytes": 14877589504,
+        "device_free_bytes": 1842610176,
+        "mtp_rows": 8192,
+        "mtp_bytes": 8781824
+      },
+      "cpu_control": "target-GPU pager counters unavailable in CPU-placement control; no paired allocator snapshot",
+      "feature_off_control": "pager allocator counters unavailable with pager disabled; no paired allocator snapshot",
+      "L262144_prior_candidate_bound": {
+        "target_gpu_pool_high_water_bytes": 865075200,
+        "target_gpu_compute_high_water_bytes": 244929152,
+        "full_L_gpu_mtp_bytes": 276955136,
+        "full_L_gpu_mtp_rows": 262144,
+        "mtp_compute_high_water_bytes": 169877632,
+        "target_dequant_high_water_bytes": 0,
+        "mtp_dequant_high_water_bytes": 0,
+        "graph_scratch_high_water_bytes": 54067200,
+        "packed_live_high_water_bytes": 0,
+        "packed_draining_high_water_bytes": 0,
+        "host_pageable_bytes_final": 4233660000,
+        "host_valid_bytes_final": 816617000,
+        "host_pinned_bytes_final": 0,
+        "minimum_sampled_device_free_mib": 502,
+        "headroom_reserved_not_observed_bytes": 201326592,
+        "catalogue_reserved_not_observed_bytes": 100876288,
+        "graph_reserved_not_observed_bytes": 198435072,
+        "external_reserved_not_observed_bytes": 771728128,
+        "note": "Reservations are not observed allocation; do not add overlapping device categories."
+      }
+    },
+    "capacity": {
+      "L262144_allocation_bytes": 865075200,
+      "C250572": "prior candidate-bound occupied frontier; exact C=L unproven",
+      "C254393": "separate build-102-06 candidate-bound deferred frontier; next request failed attention-ubatch planning; exact C=L unproven",
+      "exact_full_C": "unproven"
+    },
+    "ranking104_verdict": {
+      "decision": "inconclusive",
+      "evidence_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.json",
+      "evidence_sha256": "f3e18c85d6b7f66622ec820134b47ddcf6045557bf14cc56c17c29ec0a13d101",
+      "adoption": "not adopted; this main benchmark does not promote experimental binary or infer a ranking win/loss"
+    },
+    "raw_root": "/srv/ai/paged-kv/results/forward/103-04/attempt-01",
+    "artifact_manifest": {
+      "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/artifact-manifest.json",
+      "sha256": "1183ced8c1aacf7bfc7bb77dc9d98c81e975ba82be4aa1e96c37b8053dc310bc",
+      "artifacts": 628
+    },
+    "run_artifacts": {
+      "selected": {
+        "run_config_sha256": "a545c91cdc0cba1dff869dbc7ac4f669b5d90ff7f7f3a7eacc55195622ed441d",
+        "records_sha256": "0912d90cbb255b854f34cfd05f57607b3680e84c0d374143fe5e4e46f8351419",
+        "summary_sha256": "bd5479ce75769975fd7eb4b888c99f5d720a9bf6d31d1f198a25934506b498a1"
+      },
+      "cpu_main_kv_gpu_mtp": {
+        "run_config_sha256": "834c18f385bd6d23a393237dea193caa182ea3f6e36812d1cd047c72b89a8c96",
+        "records_sha256": "750ad5e2b8f4de9bffa536d8996d9b1ed65a417fc497ab3175991d42fe90ab9a",
+        "summary_sha256": "f83c5d674580062586ea778672063cd1ae1ba456b59eeaaa51db3cf6591fed86"
+      },
+      "feature_off_all_gpu": {
+        "run_config_sha256": "ddfec87596ebd234ffa2cb1b533baa88b7eef04fd3d1fefa9d9c567525019c68",
+        "records_sha256": "acbe0a610c87a3ab2b1a42332a43b5570085294ad2d0a37d2f5aaae853430d2a",
+        "summary_sha256": "0a9febeee6c45ec6d4920c4e3e57651f0c1ee210595f9266975ebe2db3de3716"
+      }
     }
   },
   "post_load_128k_canonical": {
@@ -452,6 +655,14 @@
     {
       "path": ".wiretail/execution/evidence/V10_101-11.json",
       "sha256": "7cdc8866870bcfd0dd77f49a3ced463bc061345724da74583f0e94de21aa7d76"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/artifact-manifest.json",
+      "sha256": "1183ced8c1aacf7bfc7bb77dc9d98c81e975ba82be4aa1e96c37b8053dc310bc"
+    },
+    {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.json",
+      "sha256": "f3e18c85d6b7f66622ec820134b47ddcf6045557bf14cc56c17c29ec0a13d101"
     }
   ],
   "curve_findings": "Incremental occupancy-fill prompt rates were recovered from the 102-05 and 102-06 raw request journals and are now recorded in both compact handoffs and V10 receipts. They are not the canonical three-prompt benchmark or a paired A/B comparison; see occupied_context_prefill_curve in each receipt.",
@@ -471,5 +682,304 @@
     "graph_scratch_and_reserved_headroom": "not separately recorded in the named summary (unknown, not zero)",
     "samples": 110,
     "note": "Device sampled ranges and allocation-event metrics overlap; do not sum them."
-  }
+  },
+  "canonical_8k_selected_vs_controls_101_12l": {
+    "candidate": {
+      "branch_role": "main candidate; isolated 104 experiment not adopted",
+      "binary_path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+      "binary_sha256": "a24b26ba1b55066d81eb1af795d3d58889099a4b1ed087a4d3e6f74f3fe375de",
+      "libllama_path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/libllama.so",
+      "libllama_sha256": "e799b3284f7f9ea1a2f89e452b6a357b9503651cbec716b2265f98b3e19cc403",
+      "version": "version: 0.5.0-dev (build 14312, commit 457e0c905) built with GNU 15.2.0 for Linux x86_64",
+      "source_commit": "1cfb18b6383e585e40cc5e96472f56f3befec600",
+      "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "geometry": {
+        "L": 8192,
+        "C": 0,
+        "H": 4096,
+        "page_tokens": 256,
+        "page_capacity": 16,
+        "B": 1024,
+        "U": 256
+      },
+      "mtp": "native GPU Turbo4; draft MTP n-max=2",
+      "canonical_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+      "cache_contract": "slot cleared before each row; all measured rows cached_tokens=0",
+      "measured_trials_per_prompt": 3
+    },
+    "selected": {
+      "prompt_1": {
+        "fresh_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1503.7440119744067,
+        "decode_tps_median": 36.82316326476934,
+        "mtp_drafted": 1194,
+        "mtp_accepted": 0,
+        "mtp_acceptance_percent": 0.0,
+        "completed_trials": 3
+      },
+      "prompt_2": {
+        "fresh_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1506.0996670245117,
+        "decode_tps_median": 36.79998745664587,
+        "mtp_drafted": 1194,
+        "mtp_accepted": 0,
+        "mtp_acceptance_percent": 0.0,
+        "completed_trials": 3
+      },
+      "prompt_3": {
+        "fresh_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1505.1263219257712,
+        "decode_tps_median": 36.78329614287038,
+        "mtp_drafted": 1194,
+        "mtp_accepted": 0,
+        "mtp_acceptance_percent": 0.0,
+        "completed_trials": 3
+      }
+    },
+    "cpu_main_kv_gpu_mtp": {
+      "prompt_1": {
+        "fresh_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 671.7654452996825,
+        "decode_tps_median": 25.13832116366529,
+        "mtp_drafted": 810,
+        "mtp_accepted": 651,
+        "mtp_acceptance_percent": 80.37037037037037,
+        "completed_trials": 3
+      },
+      "prompt_2": {
+        "fresh_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 678.1481278691833,
+        "decode_tps_median": 19.118182421804345,
+        "mtp_drafted": 378,
+        "mtp_accepted": 189,
+        "mtp_acceptance_percent": 50.0,
+        "completed_trials": 3
+      },
+      "prompt_3": {
+        "fresh_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 671.5013238192279,
+        "decode_tps_median": 21.432204083570767,
+        "mtp_drafted": 858,
+        "mtp_accepted": 558,
+        "mtp_acceptance_percent": 65.03496503496504,
+        "completed_trials": 3
+      }
+    },
+    "feature_off_all_gpu": {
+      "prompt_1": {
+        "fresh_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1633.6119935306583,
+        "decode_tps_median": 84.29721324117433,
+        "mtp_drafted": 798,
+        "mtp_accepted": 624,
+        "mtp_acceptance_percent": 78.19548872180451,
+        "completed_trials": 3
+      },
+      "prompt_2": {
+        "fresh_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1631.2948363091637,
+        "decode_tps_median": 62.85419768902258,
+        "mtp_drafted": 372,
+        "mtp_accepted": 192,
+        "mtp_acceptance_percent": 51.61290322580645,
+        "completed_trials": 3
+      },
+      "prompt_3": {
+        "fresh_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "cached_tokens": [
+          0,
+          0,
+          0
+        ],
+        "fresh_prefill_tps_median": 1633.799348148619,
+        "decode_tps_median": 71.3307693586613,
+        "mtp_drafted": 867,
+        "mtp_accepted": 549,
+        "mtp_acceptance_percent": 63.32179930795848,
+        "completed_trials": 3
+      }
+    },
+    "comparators": {
+      "selected_to_cpu_prefill_ratio": {
+        "prompt_1": 2.2384956274486085,
+        "prompt_2": 2.220900722319833,
+        "prompt_3": 2.2414346309329987
+      },
+      "selected_to_feature_off_prefill_ratio": {
+        "prompt_1": 0.9205025538068111,
+        "prompt_2": 0.9232541129303711,
+        "prompt_3": 0.921243066739709
+      },
+      "placements": {
+        "selected": "GPU target Turbo4 KV, selective pager, native GPU Turbo4 MTP",
+        "cpu_main_kv_gpu_mtp": "CPU target Turbo4 KV, pager off, native GPU Turbo4 MTP",
+        "feature_off_all_gpu": "GPU target Turbo4 KV, pager off, native GPU Turbo4 MTP"
+      }
+    },
+    "route_and_costs": {
+      "selected_route": "selected packed",
+      "route_override": "auto",
+      "request_replay_count": null,
+      "query_replay_us": null,
+      "selector_costs": "not separately reported by these canonical receipts",
+      "interpretation": "Fresh empty-history prompts do not exercise query replay; no selector/retrieval timing attribution is available."
+    },
+    "answer_quality": {
+      "selected": "semantic miss: slash filler on all three prompts; no useful answers despite HTTP 200 and 400-token completion cap",
+      "cpu_main_kv_gpu_mtp": "useful coherent answers on the three canonical prompts (manual spot check)",
+      "feature_off_all_gpu": "useful coherent answers on the three canonical prompts (manual spot check)",
+      "independent_score": "not measured"
+    },
+    "memory": {
+      "selected_8k_pager_snapshot": {
+        "physical_pool_capacity_bytes": 138412032,
+        "target_allocated_bytes": 138412032,
+        "live_allocation_peak_bytes": 138412032,
+        "weights_bytes": 13695551488,
+        "recurrent_state_bytes": 470679552,
+        "mtp_compute_bytes": 268435456,
+        "graph_bytes": 268435456,
+        "device_used_bytes": 14877589504,
+        "device_free_bytes": 1842610176,
+        "mtp_rows": 8192,
+        "mtp_bytes": 8781824
+      },
+      "cpu_control": "target-GPU pager counters unavailable in CPU-placement control; no paired allocator snapshot",
+      "feature_off_control": "pager allocator counters unavailable with pager disabled; no paired allocator snapshot",
+      "L262144_prior_candidate_bound": {
+        "target_gpu_pool_high_water_bytes": 865075200,
+        "target_gpu_compute_high_water_bytes": 244929152,
+        "full_L_gpu_mtp_bytes": 276955136,
+        "full_L_gpu_mtp_rows": 262144,
+        "mtp_compute_high_water_bytes": 169877632,
+        "target_dequant_high_water_bytes": 0,
+        "mtp_dequant_high_water_bytes": 0,
+        "graph_scratch_high_water_bytes": 54067200,
+        "packed_live_high_water_bytes": 0,
+        "packed_draining_high_water_bytes": 0,
+        "host_pageable_bytes_final": 4233660000,
+        "host_valid_bytes_final": 816617000,
+        "host_pinned_bytes_final": 0,
+        "minimum_sampled_device_free_mib": 502,
+        "headroom_reserved_not_observed_bytes": 201326592,
+        "catalogue_reserved_not_observed_bytes": 100876288,
+        "graph_reserved_not_observed_bytes": 198435072,
+        "external_reserved_not_observed_bytes": 771728128,
+        "note": "Reservations are not observed allocation; do not add overlapping device categories."
+      }
+    },
+    "capacity": {
+      "L262144_allocation_bytes": 865075200,
+      "C250572": "prior candidate-bound occupied frontier; exact C=L unproven",
+      "C254393": "separate build-102-06 candidate-bound deferred frontier; next request failed attention-ubatch planning; exact C=L unproven",
+      "exact_full_C": "unproven"
+    },
+    "ranking104_verdict": {
+      "decision": "inconclusive",
+      "evidence_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.json",
+      "evidence_sha256": "f3e18c85d6b7f66622ec820134b47ddcf6045557bf14cc56c17c29ec0a13d101",
+      "adoption": "not adopted; this main benchmark does not promote experimental binary or infer a ranking win/loss"
+    },
+    "raw_root": "/srv/ai/paged-kv/results/forward/103-04/attempt-01",
+    "artifact_manifest": {
+      "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/artifact-manifest.json",
+      "sha256": "4e13fab0e6ee16ae358640df71ff1aa111cb76592e5e80fd1446a37ddde353d5",
+      "artifacts": 628
+    },
+    "run_artifacts": {
+      "selected": {
+        "run_config_sha256": "a545c91cdc0cba1dff869dbc7ac4f669b5d90ff7f7f3a7eacc55195622ed441d",
+        "records_sha256": "0912d90cbb255b854f34cfd05f57607b3680e84c0d374143fe5e4e46f8351419",
+        "summary_sha256": "bd5479ce75769975fd7eb4b888c99f5d720a9bf6d31d1f198a25934506b498a1"
+      },
+      "cpu_main_kv_gpu_mtp": {
+        "run_config_sha256": "834c18f385bd6d23a393237dea193caa182ea3f6e36812d1cd047c72b89a8c96",
+        "records_sha256": "750ad5e2b8f4de9bffa536d8996d9b1ed65a417fc497ab3175991d42fe90ab9a",
+        "summary_sha256": "f83c5d674580062586ea778672063cd1ae1ba456b59eeaaa51db3cf6591fed86"
+      },
+      "feature_off_all_gpu": {
+        "run_config_sha256": "ddfec87596ebd234ffa2cb1b533baa88b7eef04fd3d1fefa9d9c567525019c68",
+        "records_sha256": "acbe0a610c87a3ab2b1a42332a43b5570085294ad2d0a37d2f5aaae853430d2a",
+        "summary_sha256": "0a9febeee6c45ec6d4920c4e3e57651f0c1ee210595f9266975ebe2db3de3716"
+      }
+    }
+  },
+  "summary_refresh_task": "103-04"
 }
