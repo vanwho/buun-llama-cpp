@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "103",
-  "current_task": "103-05",
-  "last_updated_utc": "2026-10-06T04:30:12+00:00",
+  "current_phase": "105",
+  "current_task": "105-01",
+  "last_updated_utc": "2026-10-06T04:36:51+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -35784,7 +35784,7 @@
       "cluster": "forward103-after-ranking-review",
       "title": "Assess repaired goals and create ordered successors if needed",
       "packet": ".wiretail/execution/tasks/103-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -35799,7 +35799,7 @@
       "depends_on": [
         "103-04"
       ],
-      "commit": null,
+      "commit": "2e43cf45a81d757f0a83613b45525023ef72b041",
       "context_files": [
         ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
         ".wiretail/execution/v10/validate.py",
@@ -35814,6 +35814,249 @@
         "103-05",
         "--receipt",
         ".wiretail/execution/evidence/V10_103-05.json"
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/103-05-attempt-1-20261006T043036964254697-20261006T043036966858247-lssTAo.jsonl:74",
+            "total_tokens": 15100985,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 15026923,
+            "cached_input_tokens": 14710784,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 316139,
+            "output_tokens": 74062,
+            "thinking_tokens": 34782
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 15100985,
+          "input_tokens": 15026923,
+          "cached_input_tokens": 14710784,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 316139,
+          "output_tokens": 74062,
+          "thinking_tokens": 34782,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
+    },
+    {
+      "id": "105-01",
+      "phase": "105",
+      "cluster": "forward105-goal-repair",
+      "title": "Repair final-context semantic retrieval",
+      "packet": ".wiretail/execution/tasks/105-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [
+        "final_context_semantic_retrieval_repair"
+      ],
+      "depends_on": [
+        "103-05"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-goal-repair.md",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        "src/llama-kv-routing-retrieval.cpp",
+        "src/llama-kv-attention-view.cpp",
+        "src/llama-kv-cache.cpp",
+        "tests/test-kv-pager-model.cpp",
+        "tools/server/bench/run-pager-promotion.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-01.json"
+      ]
+    },
+    {
+      "id": "105-02",
+      "phase": "105",
+      "cluster": "forward105-goal-repair",
+      "title": "Repair occupied-context native MTP acceptance",
+      "packet": ".wiretail/execution/tasks/105-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [
+        "occupied_context_mtp_source_repair"
+      ],
+      "depends_on": [
+        "105-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-goal-repair.md",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        "src/llama-context.cpp",
+        "common/speculative.cpp",
+        "tests/test-server-query-replay.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-02.json"
+      ]
+    },
+    {
+      "id": "105-03",
+      "phase": "105",
+      "cluster": "forward105-goal-repair",
+      "title": "Reassess minimum canonical forward capabilities",
+      "packet": ".wiretail/execution/tasks/105-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [
+        "minimum_canonical_forward_capability_reassessment"
+      ],
+      "depends_on": [
+        "105-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-goal-repair.md",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/v10/validate.py",
+        "tools/server/bench/measure-speed-occupancy.py",
+        "tools/server/bench/validate-speed-occupancy.py",
+        "tests/test-server-query-replay.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-03.json"
+      ]
+    },
+    {
+      "id": "105-04",
+      "phase": "105",
+      "cluster": "forward105-goal-repair",
+      "title": "Refresh the compact forward goal summary",
+      "packet": ".wiretail/execution/tasks/105-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [
+        "refreshed_forward_goal_summary"
+      ],
+      "depends_on": [
+        "105-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-goal-repair.md",
+        ".wiretail/execution/tasks/105-01.md",
+        ".wiretail/execution/tasks/105-02.md",
+        ".wiretail/execution/tasks/105-03.md",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.md",
+        ".wiretail/execution/forward/TESTING.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-04.json"
+      ]
+    },
+    {
+      "id": "105-05",
+      "phase": "105",
+      "cluster": "forward105-goal-repair",
+      "title": "Review forward goals and schedule bounded follow-up",
+      "packet": ".wiretail/execution/tasks/105-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "required_proofs": [
+        "final_forward_goal_review_and_successors"
+      ],
+      "depends_on": [
+        "105-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-goal-repair.md",
+        ".wiretail/execution/tasks/105-03.md",
+        ".wiretail/execution/tasks/105-04.md",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/v10/validate.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-05.json"
       ]
     }
   ],
@@ -37665,16 +37908,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 7,
-        "total_tokens": 213784360,
-        "input_tokens": 213012350,
-        "cached_input_tokens": 209124736,
+        "usage_events": 8,
+        "total_tokens": 228885345,
+        "input_tokens": 228039273,
+        "cached_input_tokens": 223835520,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 3887614,
-        "output_tokens": 772010,
-        "thinking_tokens": 397067,
+        "input_tokens_minus_cached_tokens": 4203753,
+        "output_tokens": 846072,
+        "thinking_tokens": 431849,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 7,
+        "total_tokens_derived_events": 8,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -37710,17 +37953,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 544,
-      "total_tokens": 12880249709,
-      "input_tokens": 12834212869,
-      "cached_input_tokens": 12540732288,
+      "usage_events": 545,
+      "total_tokens": 12895350694,
+      "input_tokens": 12849239792,
+      "cached_input_tokens": 12555443072,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 190,
-      "input_tokens_minus_cached_tokens": 293480581,
-      "output_tokens": 46036840,
-      "thinking_tokens": 21175480,
+      "cache_write_input_tokens_known_events": 191,
+      "input_tokens_minus_cached_tokens": 293796720,
+      "output_tokens": 46110902,
+      "thinking_tokens": 21210262,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 544,
+      "total_tokens_derived_events": 545,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

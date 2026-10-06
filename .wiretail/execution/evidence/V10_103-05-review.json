@@ -1,0 +1,142 @@
+{
+  "goal_met": false,
+  "decision": "primary architecture remains unaccepted; repair semantic retrieval and occupied-context MTP before minimum final capability recheck",
+  "basis": {
+    "summary_task": "103-04",
+    "ranking104_decision": "inconclusive; no experimental source or binary adopted",
+    "configured_L_vs_occupied_C": "L=262144 allocation observed; C=250572 and C=254393 are distinct candidate-bound frontiers; exact C=L unproven and not a gate for this review",
+    "selected_prefill_gate": {
+      "status": "pass",
+      "prompts": {
+        "prompt_1": {
+          "selected_median_tps": 1503.7440119744067,
+          "cpu_ram_median_tps": 671.7654452996825,
+          "distance_to_preferred_tps": -753.7440119744067
+        },
+        "prompt_2": {
+          "selected_median_tps": 1506.0996670245117,
+          "cpu_ram_median_tps": 678.1481278691833,
+          "distance_to_preferred_tps": -756.0996670245117
+        },
+        "prompt_3": {
+          "selected_median_tps": 1505.1263219257712,
+          "cpu_ram_median_tps": 671.5013238192272,
+          "distance_to_preferred_tps": -755.1263219257712
+        }
+      }
+    }
+  },
+  "goals": [
+    {
+      "id": 1,
+      "verdict": "met_with_frontier_gap",
+      "evidence": "L-sized target allocation and host backing observed; exact-full C separately unproven."
+    },
+    {
+      "id": 2,
+      "verdict": "met",
+      "evidence": "L=128K/256K with unchanged H=51200."
+    },
+    {
+      "id": 3,
+      "verdict": "partial",
+      "evidence": "prior natural cold promotion passed; final 256K semantic recall failed."
+    },
+    {
+      "id": 4,
+      "verdict": "met_at_boundary",
+      "evidence": "101-10 parity owner and paired final restore; replay cost unmeasured."
+    },
+    {
+      "id": 5,
+      "verdict": "met_at_boundary",
+      "evidence": "frozen generation unchanged on replay and 101-11 tests."
+    },
+    {
+      "id": 6,
+      "verdict": "partial",
+      "evidence": "zero historical H2D observed for final replay interval only."
+    },
+    {
+      "id": 7,
+      "verdict": "partial",
+      "evidence": "ring tests exist; no final numeric rollback observation."
+    },
+    {
+      "id": 8,
+      "verdict": "not_reassessed",
+      "evidence": "no new GDN exactness proof in capacity receipts."
+    },
+    {
+      "id": 9,
+      "verdict": "not_met",
+      "evidence": "full-L GPU Turbo4 MTP allocated; occupied 128K and 256K acceptance was 0%."
+    },
+    {
+      "id": 10,
+      "verdict": "met",
+      "evidence": "host pageable/valid data measured; final replay required zero historical H2D."
+    },
+    {
+      "id": 11,
+      "verdict": "not_measured_at_256k",
+      "evidence": "no matched 256K route timing or CUDA event profile."
+    },
+    {
+      "id": 12,
+      "verdict": "met_at_8k",
+      "evidence": "selected fresh prefill >750 and beats CPU prefill for each prompt; no large-context fresh-input curve."
+    },
+    {
+      "id": 13,
+      "verdict": "partial",
+      "evidence": "selected decode beats CPU at 8K and replay historical H2D is zero; scale-wide PCIe relation unmeasured."
+    },
+    {
+      "id": 14,
+      "verdict": "not_met",
+      "evidence": "near-full C, semantic recall miss, no 256K speed matrix; memory frontier measured."
+    },
+    {
+      "id": 15,
+      "verdict": "not_reassessed",
+      "evidence": "feature-off comparison absent from capacity receipts."
+    }
+  ],
+  "findings": {
+    "selected_8k_prefill": "pass: all three prompt medians exceed 750 tok/s and beat the CPU-main-KV control",
+    "semantic_retrieval": "miss: selected route returned slash filler on all three canonical prompts; independent score not measured",
+    "occupied_context_mtp": "miss: acceptance was 0% at 128K and 256K recall cases",
+    "capacity": "partial: candidate-bound occupied frontiers only; exact C=L remains unproven and deferred",
+    "replay_ring_gdn": "partial/unmeasured: replay boundary and zero historical H2D are scoped to prior evidence; numeric rollback is absent and GDN exactness was not reassessed",
+    "route_memory_speed": "incomplete: no final 256K route timing, selector/replay attribution, paired scale comparison, or feature-off reassessment; 8K snapshot exists but controls lack paired allocator counters",
+    "experiment": "inconclusive, not adopted"
+  },
+  "next_task_ids": [
+    "105-01",
+    "105-02",
+    "105-03",
+    "105-04",
+    "105-05"
+  ],
+  "selected_prefill_gate": {
+    "status": "pass",
+    "prompts": {
+      "prompt_1": {
+        "selected_median_tps": 1503.7440119744067,
+        "cpu_ram_median_tps": 671.7654452996825,
+        "distance_to_preferred_tps": -753.7440119744067
+      },
+      "prompt_2": {
+        "selected_median_tps": 1506.0996670245117,
+        "cpu_ram_median_tps": 678.1481278691833,
+        "distance_to_preferred_tps": -756.0996670245117
+      },
+      "prompt_3": {
+        "selected_median_tps": 1505.1263219257712,
+        "cpu_ram_median_tps": 671.5013238192272,
+        "distance_to_preferred_tps": -755.1263219257712
+      }
+    }
+  }
+}
