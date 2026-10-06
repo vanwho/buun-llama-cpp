@@ -2242,3 +2242,36 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-05`
 - Commit at update: `ef1f60e30`
 - Summary: Implemented and verified authenticated exact ranking publication, one-pass replay/frozen MTP parity, cancellation and unchanged-map handling; clean build, CPU/CUDA owner transaction tests and required CUDA model fixture pass. Receipt and completion validator verified.
+
+## 2026-10-06T01:19:04Z — ranking104 live assessment and fresh repair sequence
+
+-104-06 deferred, not passed: its live Bash-pressure request returnedHTTP500
+  at query_finalize after16 resident graphs/5 cold readers/16 MASS/53 records.
+  The rejected predicate is not yet identified. Preserve already-applied
+  pending-turn/empty-publication and completed104-05 replay/parity work.
+- Two fresh attempt02 responses contain400 slash characters and0/398 accepted
+  drafts; their1290ish prefill/37ish decode speeds are diagnostic only. This
+  gets three fresh dense/legacy/new-mode controls, not an expanded corpus.
+- Added104-06a/b/c/d (finalization producer repair, fresh target/MTP sanity,
+  frozen harness, bounded paired outcomes) before104-07/08 and103-04/05.
+  Current task104-06a todo, fresh cluster/attempt1, gpt-6-luna High. Prior task
+  and aggregate token usage are unchanged. Startup loads compact amendment,
+  current packet and immediate handoff, not old retry JSONL/phase histories.
+- Found generic Wiretail unquoted-heredoc command substitution: Markdown
+  backticks invoke context_files, task-state complete, and assessment cat/sed
+  during prompt construction. Saved exact generic patch/non-mutating tests
+  under execution/tool-fixes. Two isolated prompt tests and patch dry-run
+  passed; installed tool not edited because outside writable roots.
+- State validation passes518 tasks; active-plan validation and git diff--check
+  pass. No CUDA build, model benchmark or service mutation performed in this
+  assessment. Experiment source/dirty work preserved. Main planning changes
+  are uncommitted because.git is read-only in this session; existing Wiretail
+  checkpoint/source-branch carry logic preserves them before branch switching.
+- Apply installed-runner patch before restart. Then next task is104-06a,
+  not another104-06 retry. Full assessment: forward/RANKING104_LIVE_REPAIR.md.
+
+## 2026-10-06T02:04:56+00:00 — 104-06a — done
+
+- Branch: `codex/task-104-06a`
+- Commit at update: `0d8ad89cb`
+- Summary: Repaired nonfinite-probe finalization to empty terminal owner completion; CUDA regression and A1/B1 pressure replay passed with both requests returning HTTP 200.

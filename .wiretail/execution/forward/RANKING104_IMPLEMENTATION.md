@@ -2,11 +2,11 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `ranking104-production-recovery`.
 
-Current scheduling authority: RANKING104_PIPELINE.md. A/B/C work is preserved;
-104-04d is deferred and new104-04e/f/g/h explicitly implement its absent
-cache-owned executor. SectionsD/E below are historical background, not a
-request to repeat missing-symbol audits or older retries. Revised104-05 owns
-publication/replay after the new cache-seam proof.
+Current scheduling authority: RANKING104_LIVE_REPAIR.md.104-04e/f/g/h and
+104-05 completed cache-owned execution/publication/replay.104-06 is deferred;
+104-06a/b/c/d own the remaining diagnosed finalization, fresh generation and
+comparison work. This document is historical detailed reference only;
+don't load it wholesale or repeat missing-symbol audits/old patches.
 
 ## Authority, failures and preserved work
 

@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "task": "104-06a",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "candidate_identity": {
+    "server_path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/llama-server",
+    "server_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+    "library_path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/libllama.so.0.5.0",
+    "library_sha256": "f1dd9a589645eb5309c7dc4ea0eee5391be6803a32b4dd86a4ca0a2400ce4e78",
+    "loaded_library_inode": 5008242,
+    "candidate_library_inode": 5008242,
+    "service_pid": 3760036
+  },
+  "root_cause": {
+    "reason": "layer_mass_sum",
+    "diagnosis": "captured query probes were all nonfinite on the first failing compact/model layer; a controlled raw-Q capture showed the values were nonfinite before routing WHT",
+    "repair": "when a failure snapshot proves a probe layer contains zero finite values and at least one nonfinite value, complete the full-identity owner transaction with an empty exact batch; retain committed selection and never promote zero-mass records to exact_mass",
+    "deferred_to": "104-06b"
+  },
+  "live_reproduction": {
+    "slot_erased_before_sequence": true,
+    "slot_valid_rows_after_cleanup": 0,
+    "a1_http": 200,
+    "b1_http": 200,
+    "a1_request_sha256": "cedb930c27fe933d9cf5d4176e97a7e812558b01a60320372b177ea38650e4a1",
+    "b1_request_sha256": "c334dbd4abf64766783abc52f4d86c72a812af4475c386e73d790c76368f058e",
+    "a1_actual_reply_sha256": "4ed476f587ad9d7e454acf94251c707c3d61fc76df5ec6fba98312385d0a1128",
+    "command": [
+      "python3",
+      "/tmp/run_104_06a_final.py"
+    ],
+    "finalization_failures": 0,
+    "fallback_log": "router exact rerank skipped reason=nonfinite_query_probe compact=1 model=7 nonfinite=24576"
+  },
+  "owner_completion": {
+    "status": "ready",
+    "terminal_records": 0,
+    "exact_candidates": 0,
+    "production_path": "llama_kv_router_job::execute_query through llama_kv_router_cache_adapter",
+    "same_turn_different_session_rejected": true,
+    "idempotent_empty_result_reused": true
+  },
+  "checks": {
+    "finalization_producer_repair_and_pressure_reproduction": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-router-job",
+        "--cache-cuda"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a-build-final.log",
+          "sha256": "0d1e889617101563ccde01d82310d7475562dac8d61b08175a11e64d86bac541"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a-router-final.log",
+          "sha256": "e4e9808b0d4bb39cc785a88261335345f4c12292b97b2aa884ac96ecaa03831c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/server-diagnostic.log",
+          "sha256": "74fa533c04e42aadbee9db32075d4f079cb253c0eccadbe5895e2c6e216f7997"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/summary.json",
+          "sha256": "cc2d20a4b7063e8dd47abb69376cac3a9c8bd0e1ec1de090b5db0348b65c6617"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/request-a1.sha256",
+          "sha256": "c709d411f4c12b47c3444439935a0e2e632cba7571617bf6f0903ea04cb8b3dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/request-b1.sha256",
+          "sha256": "e55c3185010b3e5da9b1b53c1ce85c2623df63bee5727f23823841b000051bef"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/a1-answer.sha256",
+          "sha256": "7df60f0584e0b0f7da45067307a52afe2417755121092e52d2c93d9b68dbddf5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/a1-response.raw",
+          "sha256": "b6826a31650121b79f5b8a3d4b0a45534b78011561132c7227e01479ee10a330"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/b1-response.raw",
+          "sha256": "9efd8de518e5ac8eb388a4f5bbc5a9dd8cd733fd51c00a8dbf1020888cb5a263"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/slot-erase-response.raw",
+          "sha256": "c2e3659c254ef388e931e952567acecd7d18735e8a095990f57e7e53e6a619af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06a/attempt-01/a1-b1-final/slot-erased.json",
+          "sha256": "0f1da6f841e27d5ed210b6a5a8b589c42d25e7d1c4538dfd684247de12bd6b38"
+        }
+      ]
+    }
+  }
+}

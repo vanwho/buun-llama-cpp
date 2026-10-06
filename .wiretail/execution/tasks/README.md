@@ -1,13 +1,17 @@
 # Active task contract — V10
 
-Current phase104 execution:104-04e/f/g/h ->104-05/06/07/08 ->103-04/05.
-104-04d is deferred, not an accepted production proof. Current compact ranking
-authority is `../forward/RANKING104_PIPELINE.md`; the current packet contains
-the executable API/implementation details. Earlier packets remain historical.
+Current phase104 execution:104-06a/b/c/d ->104-07/08 ->103-04/05.
+104-04e/f/g/h and104-05 are done; preserve their production owner/parity proof.
+104-04d and overloaded104-06 are deferred, not accepted. Current compact
+authority is `../forward/RANKING104_LIVE_REPAIR.md`; current packet and
+immediate handoff contain actionable context. Earlier packets are historical.
 
 Only unfinished tasks with the current revision and their explicit context
 lists are executable instructions. Completed packets are historical records.
-The current design is `../v10/OVERVIEW.md`, not V9 or an archived all-phase plan.
+Current architecture is `../forward/OVERVIEW.md`; this phase's startup context
+is RANKING104_LIVE_REPAIR plus current packet/immediate handoff. V10/V9 broad
+overview/testing files are historical; only a specifically needed receipt
+schema or named source contract should be read, not their entire history.
 
 Tasks name source symbols, implementation decisions, focused validation and
 compact deliverables. Read only the selected technical contracts. Initial
@@ -16,8 +20,8 @@ follow state/runner policy. Shared runner defaults are unchanged.
 No generic old-phase acceptance audit or unavailable-hardware deferral replaces
 a required live test on the available target machine.
 
-Use `../v10/OVERVIEW.md`, `../v10/TESTING.md` and `../v10/RECEIPTS.md` for
-ownership, sudo, lifecycle, specific physical-promotion proofs and completion
-checks. Review52-01 schedules bounded measured-bottleneck repair, benchmark,
-summary and repeating review tasks if needed. Never reset historical token
-usage or infer actual capability from task count alone.
+Use the current packet and CONTEXT_POLICY for ownership/lifecycle/testing.
+Consult `../v10/RECEIPTS.md` only if needed for the executed completion-check
+schema. Don't repeat earlier full promotion proofs for missing optional
+measurement telemetry. Never reset historical usage or infer capability from
+task count alone. New repairs must name a measured owner and bounded proof.

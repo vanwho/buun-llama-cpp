@@ -16,12 +16,15 @@ overridden by this explicit scheduling amendment.
 
 ## Architecture decisions
 
-The isolated phase104 amendment is [RANKING104](RANKING104.md). Its current
-production recovery is104-04a/b/c/d -> revised104-05 ->104-06/08; code recipes
-are in [RANKING104_IMPLEMENTATION](RANKING104_IMPLEMENTATION.md).104-03/04
-unit completion is not CUDA production pipeline completion. It follows
-the deferred103-03 capacity investigation and precedes103-04/05 benchmark/review.
-104-04a is next, dependent on completed unit104-04, not exact C=L. Preserve
+The current isolated phase104 amendment is
+[RANKING104_LIVE_REPAIR](RANKING104_LIVE_REPAIR.md).104-04e/f/g/h and104-05
+completed actual owner execution and model-backed publication/replay/parity.
+104-06 is deferred for HTTP500 at finalization, not passed; next is104-06a,
+then104-06b/c/d,104-07/08 and103-04/05. Earlier RANKING104_IMPLEMENTATION and
+PIPELINE are source-specific historical design, not whole startup context.
+Use typed rejection evidence before producer fixes, three fresh generation
+controls before recall, one frozen schedule, and completed misses as findings.
+Preserve
 103-03's measured C=254393 separately from its failed final request; do not
 import its unfinished exact-capacity harness into the experimental base.
 Experimental source is developed in a separate worktree/branch from the local
@@ -85,7 +88,7 @@ card, service paths or these counts in portable production logic.
 | 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
 | 102 | 102-01–07 | driver-limit regression; 16K/8K baseline; 32K/16K baseline; 102-05 is a fresh independent L=131,072/C=120,000 run with filled H=51,200 and a newly built candidate; 102-06 is L=262,144/C=250,000 with the same H; final goal review |
 | 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
-| 104 | 104-01–04 and04a/b/c done;04d deferred;04e/f/g/h then revised104-05–08 | frozen canonical key inputs, executable GPU owner pipeline, fair resident/cold policy, actual cache-seam proof, publication/replay, then paired recall/speed/memory |
+| 104 | 04e/f/g/h and05 done;04d/06 deferred;06a/b/c/d then07/08 | typed finalization repair, fresh target/MTP sanity, frozen harness, bounded paired outcomes, speed/cost and adoption verdict |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
