@@ -1,0 +1,54 @@
+{
+  "checks": {
+    "paired_ranking_speed_memory_and_scale_findings": {
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.json",
+          "sha256": "469160130127d1aa6dffce2c64bbc5a85ef06cb2061daaea210c13f13e413557"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.md",
+          "sha256": "f6ab2d331d58c80112be1859c384803d2e8bc5f006f39eff26b07a42d10e2dcd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/results-validator.stdout",
+          "sha256": "36d7f2c19ea6c0a36f7d7222da72bf97b96a83bc6292d529c34e98d8253b0fe8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/results-validator-recheck.stdout",
+          "sha256": "36d7f2c19ea6c0a36f7d7222da72bf97b96a83bc6292d529c34e98d8253b0fe8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/resource-evidence.json",
+          "sha256": "17f1fcc74fe267fbc6b9e9667493bb0ebc3b82adb05ac3253c5ab36aeaf77f6c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/candidate-build-receipt.json",
+          "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/legacy-first-request-assert.log",
+          "sha256": "eac4cf84db77909d21ce440e77ed9e32ae4d873c9dee60145840d1667ff55956"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/legacy-occupied-assert.log",
+          "sha256": "c3e66ac1b4c2e5196e0cc3e935427bb82f312a2b256dd6fb49ada6d141052cfa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01/high-context-legacy-startup.log",
+          "sha256": "f6cf041d1c403fbc5ecb2f43b4b65d9c348b90ad6e3a62be21e169ae818cc1e0"
+        }
+      ],
+      "command": [
+        "python3",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/tools/server/bench/validate-ranking104-results.py",
+        "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_RESULTS.json"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "task": "104-07"
+}
