@@ -1,0 +1,197 @@
+{
+  "identity": {
+    "base_commit": "699eaf1f5dabc3c6ffbb89670622b25d48c8d8ff",
+    "candidate": {
+      "binary_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+      "build_receipt": {
+        "path": "candidate-build-receipt.json",
+        "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+      },
+      "dsos": {
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-base.so.0": "46eef5442e8274896c473620bceeeec0b228796d1599b2b6cd334a2104d86851",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-cpu.so.0": "6344bf427a0bafe1b06174156b9b114519ea316568395dc544926eb1f4e7af9f",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-cuda.so.0": "54df3ba9938c7255c7c2cc55b809e43e715976970de9306711c16abf7c23bcea",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml.so.0": "ad89a77ba14702dd15478a7019391142e3747bfd86c35ce2477f47744a667a74",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama-common.so.0": "5a68ed0750914d9dbae10384c2c34ea83b12e992a03e9f2e5d2668806a2d3e37",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama-server-impl.so": "199415d9d2bdf5962fa99743fab4d961171eea6bfbc0e6bb3c7a3444d2b41e56",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama.so.0": "8d79a762fbc386e8502c66a2ab7e75421b03f1c60537750ca99b2adcf1ef8519",
+        "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libmtmd.so.0": "2915e32de16f799e4c0ac7daed0bb94b58eddb0957ecd65cacf6f409492fe10d"
+      }
+    },
+    "experiment_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "inconclusive_reason": "The exact canonical legacy campaign and the separate exact L131072/H51200 legacy occupancy request both terminate in GGML_ASSERT(buf != NULL && \"tensor buffer not set\") from ggml_backend_tensor_set via llama_kv_cache_context::set_kv_query_accumulate_inputs. The high-context model and Turbo4 GPU MTP reservation loaded successfully, so this is recorded as a runtime failure rather than a capacity rejection or ranking miss. The baseline cannot produce a complete prompt row set or occupied recall result; probe-rerank was therefore not run against a fatal peer failure. No comparable speed, recall, memory delta, or query-boundary timing is claimed.",
+  "outcome": "inconclusive",
+  "paired_modes": {
+    "legacy": {
+      "candidate": {
+        "binary_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+        "build_receipt": {
+          "path": "candidate-build-receipt.json",
+          "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+        },
+        "dsos": {
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-base.so.0": "46eef5442e8274896c473620bceeeec0b228796d1599b2b6cd334a2104d86851",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-cpu.so.0": "6344bf427a0bafe1b06174156b9b114519ea316568395dc544926eb1f4e7af9f",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-cuda.so.0": "54df3ba9938c7255c7c2cc55b809e43e715976970de9306711c16abf7c23bcea",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml.so.0": "ad89a77ba14702dd15478a7019391142e3747bfd86c35ce2477f47744a667a74",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama-common.so.0": "5a68ed0750914d9dbae10384c2c34ea83b12e992a03e9f2e5d2668806a2d3e37",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama-server-impl.so": "199415d9d2bdf5962fa99743fab4d961171eea6bfbc0e6bb3c7a3444d2b41e56",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama.so.0": "8d79a762fbc386e8502c66a2ab7e75421b03f1c60537750ca99b2adcf1ef8519",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libmtmd.so.0": "2915e32de16f799e4c0ac7daed0bb94b58eddb0957ecd65cacf6f409492fe10d"
+        }
+      },
+      "failed_attempts": [
+        {
+          "failure": "GGML_ASSERT(buf != NULL && \"tensor buffer not set\") in ggml_backend_tensor_set, reached via llama_kv_cache_context::set_kv_query_accumulate_inputs; systemd recorded core-dump. No score or measurements.",
+          "failure_evidence": {
+            "path": "legacy-occupied-assert.log",
+            "sha256": "c3e66ac1b4c2e5196e0cc3e935427bb82f312a2b256dd6fb49ada6d141052cfa"
+          },
+          "mode": "legacy",
+          "phase": "occupied-context first request",
+          "raw_request": {
+            "path": "occupied-legacy/request-000000.json",
+            "sha256": "3221d925da61ea4cd6d4bc0dadc96f8be78edadc65257e59ccf5d04ecafd093c"
+          }
+        }
+      ],
+      "router": "legacy",
+      "speed_rows": []
+    },
+    "probe-rerank": {
+      "blocked_by": "legacy",
+      "candidate": {
+        "binary_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+        "build_receipt": {
+          "path": "candidate-build-receipt.json",
+          "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+        },
+        "dsos": {
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-base.so.0": "46eef5442e8274896c473620bceeeec0b228796d1599b2b6cd334a2104d86851",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-cpu.so.0": "6344bf427a0bafe1b06174156b9b114519ea316568395dc544926eb1f4e7af9f",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml-cuda.so.0": "54df3ba9938c7255c7c2cc55b809e43e715976970de9306711c16abf7c23bcea",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libggml.so.0": "ad89a77ba14702dd15478a7019391142e3747bfd86c35ce2477f47744a667a74",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama-common.so.0": "5a68ed0750914d9dbae10384c2c34ea83b12e992a03e9f2e5d2668806a2d3e37",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama-server-impl.so": "199415d9d2bdf5962fa99743fab4d961171eea6bfbc0e6bb3c7a3444d2b41e56",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libllama.so.0": "8d79a762fbc386e8502c66a2ab7e75421b03f1c60537750ca99b2adcf1ef8519",
+          "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/libmtmd.so.0": "2915e32de16f799e4c0ac7daed0bb94b58eddb0957ecd65cacf6f409492fe10d"
+        }
+      },
+      "failed_attempts": [],
+      "identity_evidence": {
+        "path": "restore-probe-short.log",
+        "sha256": "5836691595057920cf7076a164db227335e8f4a6713bc1e918a5f05bf57540b2"
+      },
+      "mode_outcome": "not_attempted_after_fatal_peer_failure",
+      "router": "probe-rerank",
+      "speed_rows": []
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "candidate-build-receipt.json",
+      "sha256": "de34bf198b48d03006b490d2b0211554a6dd1a8d1e253d2c3e63ebb50c9d2daa"
+    },
+    {
+      "path": "build-final.log",
+      "sha256": "71f9cbe9c056419977f67fe78a8d9f95c4afcfefe321393f9fc0c93ebb01dde5"
+    },
+    {
+      "path": "build-llama-server.log",
+      "sha256": "94f97b176a1b41df7c94b5f0dec31946fd7b976f5b47fd54c2891b90fa513493"
+    },
+    {
+      "path": "build.log",
+      "sha256": "687c88004cf0e859bc68f33b0874436919bed757807ebea0747c95798d2167d3"
+    },
+    {
+      "path": "preflight-legacy-candidate2.log",
+      "sha256": "e8cca53ee8cca61ac395e9d17348f500e2871140f3c65313c5f98b7f8f1ed361"
+    },
+    {
+      "path": "speed-legacy-v3-adapter.log",
+      "sha256": "2e173d1d00e7575a0a63ecbc0ea7d63af9b5f94c4f421629763d346b54fb953f"
+    },
+    {
+      "path": "speed-legacy-v3/run-config.json",
+      "sha256": "ce3975544ff9fa8cf7681e6ea43a1dd54d008d2f06daa55c3a49efbfb646814d"
+    },
+    {
+      "path": "speed-legacy-v3/records.jsonl",
+      "sha256": "09561eed7a33fe1d9aaac06013d75a8aff193e2231eb3e2f0d8d7895180b5ba6"
+    },
+    {
+      "path": "speed-legacy-v3/summary.json",
+      "sha256": "640eafbd5da8337dd7526e58945889650c6b6a6ea940e31003d109fc754e4356"
+    },
+    {
+      "path": "speed-legacy-v3/progress.json",
+      "sha256": "3f2a0f24884c67fd1b18b8997a2dcf588155ac95a7b69c079e05b06c133f79f4"
+    },
+    {
+      "path": "legacy-first-request-assert.log",
+      "sha256": "eac4cf84db77909d21ce440e77ed9e32ae4d873c9dee60145840d1667ff55956"
+    },
+    {
+      "path": "occupied-legacy/repo-content-preflight.json",
+      "sha256": "c872f603c58846c70085ca05cbf5314e6cca62843fb60985d83bf13c7617a389"
+    },
+    {
+      "path": "occupied-legacy/source-inventory.json",
+      "sha256": "671a69bad6f0503c3e2b85561948520caefb95c57f9c0502bc16a827ab01d435"
+    },
+    {
+      "path": "occupied-legacy/slot-clear.json",
+      "sha256": "97cb3b2b556d9eb4443bed8456301719fd58f58b9589e0556c1d9568f02c7dfb"
+    },
+    {
+      "path": "occupied-legacy/request-000000.json",
+      "sha256": "3221d925da61ea4cd6d4bc0dadc96f8be78edadc65257e59ccf5d04ecafd093c"
+    },
+    {
+      "path": "occupied-legacy-preflight.log",
+      "sha256": "4414323e8429af0dd943134491cec6a81043fb899f7c4b8c27b1f770a0217bb1"
+    },
+    {
+      "path": "occupied-legacy-run.log",
+      "sha256": "37a1059200238503e6f43523d90635ce9559b3cbfc2d338f2c3d10cd7096e07e"
+    },
+    {
+      "path": "legacy-occupied-assert.log",
+      "sha256": "c3e66ac1b4c2e5196e0cc3e935427bb82f312a2b256dd6fb49ada6d141052cfa"
+    },
+    {
+      "path": "high-context-legacy-startup.log",
+      "sha256": "f6cf041d1c403fbc5ecb2f43b4b65d9c348b90ad6e3a62be21e169ae818cc1e0"
+    },
+    {
+      "path": "restore-probe-short.log",
+      "sha256": "5836691595057920cf7076a164db227335e8f4a6713bc1e918a5f05bf57540b2"
+    },
+    {
+      "path": "restore-probe-short/candidate-identity.json",
+      "sha256": "4425397058703751206149feafae1497c436e432ee8ab4ed163aa79e5eb6dd5d"
+    },
+    {
+      "path": "resource-evidence.json",
+      "sha256": "17f1fcc74fe267fbc6b9e9667493bb0ebc3b82adb05ac3253c5ab36aeaf77f6c"
+    },
+    {
+      "path": "results-validator.stdout",
+      "sha256": "36d7f2c19ea6c0a36f7d7222da72bf97b96a83bc6292d529c34e98d8253b0fe8"
+    }
+  ],
+  "raw_root": "/srv/ai/paged-kv/results/ranking104/104-07/attempt-01",
+  "resource_evidence": {
+    "path": "resource-evidence.json",
+    "sha256": "17f1fcc74fe267fbc6b9e9667493bb0ebc3b82adb05ac3253c5ab36aeaf77f6c"
+  },
+  "router_boundary": {
+    "legacy": "The legacy configuration dispatches ggml_kv_page_select and does not enter the probe PAGE_RANK/RERANK/MASS job and publication path.",
+    "probe_rerank": "The probe-rerank configuration dispatches ggml_kv_page_rank in llama-kv-cache.cpp; llama_kv_router_job::execute_query creates PAGE_RERANK and PAGE_MASS work, and the final-user query publication gate is in the query completion/apply-live-policy path.",
+    "scope": "Code-path identity recorded; no runtime query timing is claimed for the failing legacy requests."
+  },
+  "schema": "ranking104-results-v1"
+}
