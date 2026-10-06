@@ -1,0 +1,48 @@
+{
+  "checks": {
+    "mode_aware_frozen_schedule_and_harness_contract": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/test-pager-promotion.log",
+          "sha256": "6d922acc12146c834aed2c03fb4c7b2816834c2b215a8b98bf4433203fd0d29a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/frozen-schedule-v2.json",
+          "sha256": "9f7bc3177ed1ea9b8157231c66acc93ae6e990b88976f45c0074bc9b4c46a716"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/probe-rerank-preflight-v2-reuse/preflight/preflight-summary.json",
+          "sha256": "8a4f76f039dd2bb62c0e19aca14455e24899990268e6f48ee0c11b9179a7edb3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/probe-rerank-preflight-v2-reuse/candidate-identity.json",
+          "sha256": "5d683947cd78615cd1d757e0648082b1cd05799ac50adf6b8ab9a4870a107e63"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/probe-rerank-preflight-v2-reuse.log",
+          "sha256": "ed60c465bc0c84aaafc3e8cb7770ec4229142126ea1de791a6f254e3c6cbdf54"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--profile",
+        "probe-rerank",
+        "--preflight-only",
+        "--server-binary",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/llama-server",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--output",
+        "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/probe-rerank-preflight-v2-reuse",
+        "--schedule",
+        "/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/frozen-schedule-v2.json"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "task": "104-06c"
+}

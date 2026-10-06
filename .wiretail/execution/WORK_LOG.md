@@ -2281,3 +2281,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-06b`
 - Commit at update: `33b51b0d9`
 - Summary: Repaired and verified fresh probe-rerank empty-history finalization with matching live controls and GPU MTP carry
+
+## 2026-10-06T03:04:44+00:00 — 104-06c — done
+
+- Branch: `codex/task-104-06c`
+- Commit at update: `c297c6799`
+- Summary: Implemented and validated the mode-aware frozen schedule and zero-generation preflight harness
