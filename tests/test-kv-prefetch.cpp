@@ -170,8 +170,8 @@ static void test_scaled_candidate_mailbox() {
     std::vector<llama_kv_prefetch_candidate> ready;
     assert(mailbox.take_ready(ready) == width);
     assert(ready.back().attention_layer == layers - 1 && ready.back().cold &&
-           ready.back().identity.logical_page == 1004 &&
-           ready.back().content_version == 1104 &&
+           ready.back().identity.logical_page == 1000 + cold_pages - 1 &&
+           ready.back().content_version == 1100 + cold_pages - 1 &&
            ready.back().selector_rank == resident_pages + cold_pages - 1);
     assert(ready[(layers - 1) * (resident_pages + cold_pages) + 31].identity.logical_page ==
            32);
@@ -217,9 +217,10 @@ static void test_scaled_candidate_mailbox() {
            remapped.generation == 17 && remapped.table_epoch == 23 &&
            remapped.selector_rank == 31 && remapped.content_version == 5032);
     const auto & last = records[expanded - 1];
-    assert(last.identity.logical_page == 1004 && last.attention_layer == layers - 1 &&
+    assert(last.identity.logical_page == 1000 + cold_pages - 1 &&
+           last.attention_layer == layers - 1 &&
            last.cold && last.selector_rank == cold_pages - 1 &&
-           last.content_version == 6004);
+           last.content_version == 6000 + cold_pages - 1);
 }
 
 static void test_layer_duplicate_and_refresh_budget(prefetch_fake & fake) {

@@ -2583,6 +2583,31 @@ void llama_kv_cache::capture_kv_routing_query(
         const int32_t sequence_id = ubatch.seq_id != nullptr && ubatch.n_seq_id != nullptr &&
                 ubatch.n_seq_id[0] != 0 && ubatch.seq_id[0] != nullptr
             ? ubatch.seq_id[0][0] : -1;
+        if (sequence_id >= 0) {
+            const auto pending = pager_pending_turns_.find(sequence_id);
+            const auto current = pager_->turn_state(sequence_id);
+            if (pending != pager_pending_turns_.end() &&
+                    current.phase == llama_kv_pager_turn_phase::idle &&
+                    pending->second.query_end > pending->second.query_start &&
+                    ubatch.pos != nullptr && ubatch.n_pos != 0 &&
+                    size_t(ubatch.n_tokens - 1) <=
+                        std::numeric_limits<size_t>::max() / ubatch.n_pos) {
+                const int64_t final_query_position = pending->second.query_end - 1;
+                bool final_query_row_present = false;
+                for (size_t row = 0; row < ubatch.n_tokens; ++row) {
+                    final_query_row_present = final_query_row_present ||
+                        ubatch.pos[row * ubatch.n_pos] == final_query_position;
+                }
+                if (final_query_row_present) {
+                    // The server can announce a query before prompt prefill has
+                    // produced any exact pages. Keep that pending span and open
+                    // it at the final user graph boundary, after prefix KV is
+                    // published but before selector evaluation consumes it.
+                    begin_kv_pager_turn(sequence_id, pending->second.turn_id,
+                        pending->second.query_start, pending->second.query_end);
+                }
+            }
+        }
         const auto turn = sequence_id >= 0 ? pager_->turn_state(sequence_id)
                                             : llama_kv_pager_turn_state{};
         // The server opens one provisional query turn for a real request.

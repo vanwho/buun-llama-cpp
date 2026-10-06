@@ -28,6 +28,7 @@ struct options {
     uint32_t context = 8192;
     uint32_t hot_tokens = 4096;
     bool owner_only = false;
+    bool delayed_turn_only = false;
 };
 
 bool number(const char * raw, uint32_t & value) {
@@ -48,6 +49,7 @@ bool parse_options(int argc, char ** argv, options & out) {
         else if (arg == "--L" && i + 1 < argc && number(argv[++i], out.context)) {}
         else if (arg == "--H" && i + 1 < argc && number(argv[++i], out.hot_tokens)) {}
         else if (arg == "--owner-only") out.owner_only = true;
+        else if (arg == "--delayed-turn-only") out.delayed_turn_only = true;
         else if (arg == "--output" && i + 1 < argc) out.output = argv[++i];
         else return false;
     }
@@ -57,7 +59,7 @@ bool parse_options(int argc, char ** argv, options & out) {
 }
 
 bool decode_one(llama_context * ctx, common_speculative * spec,
-        llama_token token, llama_pos pos) {
+        llama_token token, llama_pos pos, llama_seq_id sequence_id = 0) {
     llama_batch batch = llama_batch_init(1, 0, 1);
     if (!batch.token || !batch.pos || !batch.n_seq_id || !batch.seq_id || !batch.logits) {
         llama_batch_free(batch);
@@ -67,7 +69,7 @@ bool decode_one(llama_context * ctx, common_speculative * spec,
     batch.token[0] = token;
     batch.pos[0] = pos;
     batch.n_seq_id[0] = 1;
-    batch.seq_id[0][0] = 0;
+    batch.seq_id[0][0] = sequence_id;
     batch.logits[0] = true;
     const int rc = llama_decode(ctx, batch);
     if (rc == 0) {
@@ -79,7 +81,7 @@ bool decode_one(llama_context * ctx, common_speculative * spec,
 }
 
 bool decode_prefix(llama_context * ctx, common_speculative * spec,
-        uint32_t count) {
+        uint32_t count, llama_seq_id sequence_id = 0) {
     uint32_t offset = 0;
     while (offset < count) {
         const uint32_t n = std::min<uint32_t>(256, count - offset);
@@ -93,7 +95,7 @@ bool decode_prefix(llama_context * ctx, common_speculative * spec,
             batch.token[i] = 1;
             batch.pos[i] = llama_pos(offset + i);
             batch.n_seq_id[i] = 1;
-            batch.seq_id[i][0] = 0;
+            batch.seq_id[i][0] = sequence_id;
             batch.logits[i] = offset + i + 1 == count;
         }
         const int rc = llama_decode(ctx, batch);
@@ -391,6 +393,55 @@ bool run(const options & opts) {
     params.speculative.draft.ctx_mtp = draft_init->context_mtp();
     common_speculative_ptr spec(common_speculative_init(params.speculative, 1));
     if (!spec) return false;
+
+    if (opts.delayed_turn_only) {
+        const bool seed_decoded = decode_prefix(target, nullptr, 512);
+        llama_memory_clear(llama_get_memory(target), true);
+        llama_memory_clear(llama_get_memory(draft_init->context()), true);
+        const llama_seq_id sequence_id = 0;
+        const auto before = target->get_kv_pager_metrics(draft_init->context());
+        const bool initially_empty = seed_decoded && std::none_of(before.page_inventory.begin(),
+                before.page_inventory.end(), [&](const auto & page) {
+            return page.id.sequence_id == sequence_id;
+        });
+        const uint64_t turn_id = 1014;
+        const llama_pos query_begin = 512;
+        target->begin_kv_pager_turn(sequence_id, turn_id, query_begin, query_begin + 1);
+        const int initial_phase = target->get_kv_pager_turn_phase_for_test(sequence_id);
+        const bool prefix_decoded = initially_empty && initial_phase ==
+                int(llama_kv_pager_turn_phase::idle) &&
+            decode_prefix(target, nullptr, uint32_t(query_begin));
+        const auto after_prefix = target->get_kv_pager_metrics(draft_init->context());
+        const bool inventory_populated = std::any_of(after_prefix.page_inventory.begin(),
+                after_prefix.page_inventory.end(), [&](const auto & page) {
+            return page.id.sequence_id == sequence_id;
+        });
+        const bool query_decoded = prefix_decoded && inventory_populated &&
+            decode_one(target, nullptr, 8, query_begin);
+        const bool turn_opened = query_decoded && target->get_kv_pager_turn_phase_for_test(
+                sequence_id) == int(llama_kv_pager_turn_phase::query_provisional);
+        target->end_kv_pager_turn(sequence_id, turn_id);
+        std::ostream * report = &std::cout;
+        std::ofstream output;
+        if (!opts.output.empty()) {
+            output.open(opts.output);
+            if (!output) return false;
+            report = &output;
+        }
+        *report << "{\"proof\":\"delayed_empty_inventory_turn_open\",\"passed\":"
+            << (turn_opened ? "true" : "false")
+            << ",\"seed_decoded_for_catalogue_clear\":"
+            << (seed_decoded ? "true" : "false")
+            << ",\"initially_empty\":" << (initially_empty ? "true" : "false")
+            << ",\"initial_phase\":" << initial_phase
+            << ",\"inventory_populated_after_prefix\":"
+            << (inventory_populated ? "true" : "false")
+            << ",\"prefix_decoded\":" << (prefix_decoded ? "true" : "false")
+            << ",\"query_decoded\":" << (query_decoded ? "true" : "false")
+            << ",\"turn_opened_before_query_graph\":"
+            << (turn_opened ? "true" : "false") << "}\n";
+        return turn_opened;
+    }
 
     const uint32_t prefix_count = 512;
     const llama_pos query_begin = llama_pos(prefix_count);

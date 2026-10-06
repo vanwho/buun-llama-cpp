@@ -105,9 +105,10 @@ bool llama_kv_prefetch_expand_selector_ids(
         llama_kv_prefetch_candidate * records,
         uint32_t & written) noexcept;
 
-// Shared by graph output construction and startup mailbox sizing. Changing
-// the cold ranking width must not silently exceed readback storage.
-constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 5;
+// Shared by graph output construction and startup mailbox sizing. Keep this
+// aligned with the bounded eight-page promotion transaction: a five-page
+// shortlist can exclude an eligible history page before bundle scoring.
+constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 8;
 
 enum class llama_kv_prefetch_mailbox_poll : uint8_t {
     pending = 0,
