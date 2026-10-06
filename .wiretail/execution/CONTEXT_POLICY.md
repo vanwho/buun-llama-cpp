@@ -24,14 +24,21 @@ misses and separate queued-but-unpublished transfers. 103-03 is deferred:
 C=254393 was committed, but exact C=L is unproven after an attention-ubatch
 planning failure. Do not resume its campaign, inherit its exact-fill helper
 archive, or claim that ranking changes solve that capacity boundary.
-104-04a/b/c completed CUDA/math/owner groundwork;104-04d is deferred, not
-passed. Current sequence is104-04e/f/g/h -> revised104-05 ->104-06/08.
-RANKING104_PIPELINE and the current packet specify frozen canonical inputs,
-actual owner graphs/reader events, cache invocation and fair resident/cold
-competition, then same-adapter CUDA proof. Implement assigned missing methods;
-do not repeat broad missing-symbol audits or fabricated-record fixtures.
-Read only that compact document and immediate handoff; no old retry logs or
-entire historical recovery document. Then103-04/05 consume the verdict.
+104-04e/f/g/h and104-05 are now done: preserve actual owner graphs, fair
+resident/cold competition and the model-backed publication/replay/cancellation
+proof.104-04d and overloaded104-06 are deferred, not passed. Current order:
+104-06a finalization producer repair ->104-06b fresh generation/MTP sanity
+->104-06c frozen harness ->104-06d bounded comparisons ->104-07/08 ->103-04/05.
+Read RANKING104_LIVE_REPAIR, current packet and immediate handoff ONLY.
+RANKING104_PIPELINE/IMPLEMENTATION and full RANKING104 are historical detailed
+design; consult a named source contract only when needed, not whole files at
+startup. Don't load old retry assessments, full usage ledger, raw request
+bodies or JSONL. HTTP500 at query_finalize requires exact rejection evidence;
+don't call it a ranking miss.400 slash output with0/398 accepted drafts is
+also abnormal and gets three fresh controls, not an endless natural campaign.
+Typed authentication remains fail-closed; completed semantic misses and
+missing optional telemetry are findings, not retry gates. New task/cluster
+IDs supply clean attempt1; don't reset/delete historical token usage.
 RANKING104.md and
 the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
 directions only inside this experiment. Never load old transcripts, full

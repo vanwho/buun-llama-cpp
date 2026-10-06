@@ -1,0 +1,29 @@
+--- a/wiretail.sh
++++ b/wiretail.sh
+@@ -1906,7 +1906,7 @@
+ 1. Repository-level AGENTS.md, CONTRIBUTING.md, and other instruction files if present
+ 2. The current task entry from Wiretail status or a narrow state projection;
+    never dump the full WORK_STATE.json usage ledger
+-3. Read new/changed task, cluster, policy, handoff, and `context_files` entries
++3. Read new/changed task, cluster, policy, handoff, and \`context_files\` entries
+    listed by TASK STARTUP CONTEXT. Reuse unchanged entries in the same resumed
+    session; retrieve only a needed detail if compaction made it unavailable.
+ 4. Explicitly selected predecessor receipts and files named by the packet
+@@ -2016,7 +2016,7 @@
+ - After locally executable checks pass and the handoff exists, mark only this
+   task done by calling the state tool, not by editing WORK_STATE.json directly:
+-  `PROJECT_ROOT="$ROOT" python3 "$STATE_TOOL" complete "$task_id" --summary "brief verified result"`.
++  \`PROJECT_ROOT="$ROOT" python3 "$STATE_TOOL" complete "$task_id" --summary "brief verified result"\`.
+   This command advances current_task/current_phase/status consistently. Never
+   edit those derived top-level fields or a task status by hand.
+ - Keep later tasks unchanged unless this packet explicitly requires scheduling
+   remediation/successor tasks. Scheduling them is allowed; implementing them is not.
+@@ -2102,7 +2102,7 @@
+ Do not open or ingest it wholesale. Only if the final/handoff/stderr leave a
+ specific failure fact unresolved, parse the transcript for that exact event
+ and print only the matching fields plus a small excerpt (maximum 4,000
+-characters). Never use `cat`, unbounded `sed`, or equivalent on a transcript.
++characters). Never use \`cat\`, unbounded \`sed\`, or equivalent on a transcript.
+ 
+ $context_directive
+ 

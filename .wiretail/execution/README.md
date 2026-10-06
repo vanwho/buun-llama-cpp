@@ -6,10 +6,14 @@ Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
-Continue the first unfinished task in WORK_STATE: 104-04e. CUDA/owner
-groundwork104-04a/b/c is preserved; broad104-04d is deferred, not passed.
-Recovery is104-04e/f/g/h -> revised104-05 ->104-06/08. See
-[executable pipeline contracts](forward/RANKING104_PIPELINE.md).
+Continue the first unfinished task in WORK_STATE: 104-06a, attempt1 in a new
+cluster.104-04e/f/g/h and104-05 completed real owner/publication/replay work;
+preserve it. Broad104-04d and overloaded104-06 are deferred, not passed.
+Order:104-06a/b/c/d ->104-07/08 ->103-04/05. Read the compact
+[live repair assessment](forward/RANKING104_LIVE_REPAIR.md), current task and
+immediate handoff, not old retry diaries. Before restarting, apply the generic
+[Wiretail literal-prompt patch](tool-fixes/wiretail-prompt-literals.patch);
+the planning session could not write the installed tool or .git.
 Earlier104-03/04 covered partial oracles, not the working CUDA owner path;
 do not repeat old104-05 audit retries.103-03 is deferred
 with C=254393 committed, exact C=L unproven, and its experimental capacity
@@ -20,7 +24,8 @@ is complete, with ranking/semantic misses recorded. Phase104 is defined in
 104-01 creates experiment/attention-aware-ranking-v1 from the then-current
 plan branch in /srv/repos/vanwho/buun-llama-cpp-ranking-v1;104-02–05 implement
 GPU probes, a wider scored shortlist, bounded key-only rerank and safe commit;
-104-06/07 test paired recall/speed/memory;104-08 decides without automatic
+104-06a/b isolate finalization and malformed fresh output;104-06c/d and104-07
+test paired recall/speed/memory;104-08 decides without automatic
 adoption. The main runner/state remains here. The unregistered103-02b packet
 is retired;103-02 remains superseded, not passed. Historical phase102 proceeded
 through the new 128K/H=51,200 fresh load (102-05), the 256K/H=51,200 load

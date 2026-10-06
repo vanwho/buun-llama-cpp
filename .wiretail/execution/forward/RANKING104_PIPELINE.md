@@ -2,6 +2,11 @@
 
 Revision: `hotpath-v10-20260914`. Current amendment: `ranking104-pipeline-20261005`.
 
+Current status override:104-04e/f/g/h and104-05 are complete. This document
+is implementation reference, not another unfinished pipeline audit.104-06
+is deferred; execute104-06a/b/c/d then07/08 under RANKING104_LIVE_REPAIR.
+Do not replay pending-turn or authenticated-empty publication patches.
+
 ## Why104-04d failed
 
 Source inspection on2026-10-05 found an incomplete call chain, not unavailable
@@ -70,7 +75,8 @@ historical ranking/transfers on each generated or MTP-verification token.
 4.104-04h: one tiny CUDA fixture enters the actual cache adapter and executes
    that chain, including a host-key needle outranking a resident distractor.
 5.104-05: transaction publication, replay and frozen target/draft state.
-6.104-06/07/08: measured natural recall, paired speed and adoption verdict.
+6.104-06a/b/c/d then07/08: finalization diagnosis, fresh target/MTP sanity,
+   frozen harness, bounded paired natural outcomes, speed and adoption verdict.
 
 104-04d is deferred, not passed; its absent integration proof is owned by
 104-04h now. Keep its old artifacts and usage, but never retry its broad audit.
