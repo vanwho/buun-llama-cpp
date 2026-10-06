@@ -1,0 +1,135 @@
+{
+  "build_identity": {
+    "batch": 1024,
+    "binary_path": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server",
+    "binary_sha256": "a24b26ba1b55066d81eb1af795d3d58889099a4b1ed087a4d3e6f74f3fe375de",
+    "context_tokens": 8192,
+    "libllama_sha256": "e799b3284f7f9ea1a2f89e452b6a357b9503651cbec716b2265f98b3e19cc403",
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "mtp_draft_n_max": 2,
+    "native_mtp": "GPU Turbo4",
+    "page_tokens": 256,
+    "target_kv": "Turbo4",
+    "ubatch": 256,
+    "version": "version: 0.5.0-dev (build 14312, commit 457e0c905)\nbuilt with GNU 15.2.0 for Linux x86_64"
+  },
+  "checks": {
+    "canonical_goal_benchmark_and_summary": {
+      "artifact_manifest_sha256": "1183ced8c1aacf7bfc7bb77dc9d98c81e975ba82be4aa1e96c37b8053dc310bc",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/artifact-manifest.json",
+          "sha256": "1183ced8c1aacf7bfc7bb77dc9d98c81e975ba82be4aa1e96c37b8053dc310bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/summarize-103-04.py",
+          "sha256": "e33cb30f96e8ef5f64727aa42c1cc16f92a78a07320c518051acfd3541abe4f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/summary-generation.stdout",
+          "sha256": "e2cf296b532285601bb1cd5b6c76446525390c4cb52afb613aa0656c36b38e4b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/write-v10-receipt.py",
+          "sha256": "93f7445628fee91d9d6e86434bbff3c553f0a9e7b017c64c9e15ab23a2fcb94c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
+          "sha256": "b43f99492eb82417bbf629c526b08bfb8bbbf648d6c6e43ee078f6a85a2296c1"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/forward/FORWARD_FINAL_SUMMARY.md",
+          "sha256": "bab386a739db9b21c9aaabcbc29f3583bedbe51ddfeefa6d6c1434b1f081e91d"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/RANKING104_DECISION.json",
+          "sha256": "f3e18c85d6b7f66622ec820134b47ddcf6045557bf14cc56c17c29ec0a13d101"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/selected-main-4k/run-config.json",
+          "sha256": "a545c91cdc0cba1dff869dbc7ac4f669b5d90ff7f7f3a7eacc55195622ed441d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/selected-main-4k/records.jsonl",
+          "sha256": "0912d90cbb255b854f34cfd05f57607b3680e84c0d374143fe5e4e46f8351419"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/selected-main-4k/summary.json",
+          "sha256": "bd5479ce75769975fd7eb4b888c99f5d720a9bf6d31d1f198a25934506b498a1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/selected-main-4k/lifecycle-state.json",
+          "sha256": "49afaf2e6f2a726143b4d51fa6944e18d5d39ac9bbb3d35e2e26305c63bd11a5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/selected-main-4k/raw/startup-mtp.log",
+          "sha256": "5b907d813b601fc1e91072304c0d76acd0d1a9f5be7d728259f9209e63b5db66"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/cpu-main-kv-gpu-mtp-pager-off/run-config.json",
+          "sha256": "834c18f385bd6d23a393237dea193caa182ea3f6e36812d1cd047c72b89a8c96"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/cpu-main-kv-gpu-mtp-pager-off/records.jsonl",
+          "sha256": "750ad5e2b8f4de9bffa536d8996d9b1ed65a417fc497ab3175991d42fe90ab9a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/cpu-main-kv-gpu-mtp-pager-off/summary.json",
+          "sha256": "f83c5d674580062586ea778672063cd1ae1ba456b59eeaaa51db3cf6591fed86"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/cpu-main-kv-gpu-mtp-pager-off/lifecycle-state.json",
+          "sha256": "350d52837a8c844b7524d1489b5924d0700f95652c353c409bfd0d87cfb2593b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/cpu-main-kv-gpu-mtp-pager-off/raw/startup-mtp.log",
+          "sha256": "b75ce0476f4fd8fcbe2941a9120acca97231368da130eb162be98588ef947b96"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/feature-off-all-gpu/run-config.json",
+          "sha256": "ddfec87596ebd234ffa2cb1b533baa88b7eef04fd3d1fefa9d9c567525019c68"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/feature-off-all-gpu/records.jsonl",
+          "sha256": "acbe0a610c87a3ab2b1a42332a43b5570085294ad2d0a37d2f5aaae853430d2a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/feature-off-all-gpu/summary.json",
+          "sha256": "0a9febeee6c45ec6d4920c4e3e57651f0c1ee210595f9266975ebe2db3de3716"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/feature-off-all-gpu/lifecycle-state.json",
+          "sha256": "9fa33cbb6a8f90929bbe840ad5de383e9dbbf5ab348288890019a7bdca5b32f0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/103-04/attempt-01/feature-off-all-gpu/raw/startup-mtp.log",
+          "sha256": "04f448c1f1543cada0468c0a368f9715c256b0ad6bd560348a336b28d0aab453"
+        }
+      ],
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/103-04/attempt-01/summarize-103-04.py"
+      ],
+      "exit_code": 0,
+      "incomplete_rows": 0,
+      "measured_rows": {
+        "cpu_main_kv_gpu_mtp": 9,
+        "feature_off_all_gpu": 9,
+        "selected": 9
+      },
+      "raw_root": "/srv/ai/paged-kv/results/forward/103-04/attempt-01",
+      "status": "pass"
+    }
+  },
+  "runtime": {
+    "experiment_verdict": "inconclusive; no adoption",
+    "managed_service_restored": true,
+    "restored_service_binary": "/srv/ai/paged-kv/build/ranking104-07-candidate/bin/llama-server",
+    "restored_service_sha256": "19bb5effeebea70dcc14ae40b54bf99750a9f672c7a4f8a7e601a06e892b6995",
+    "selected_candidate": "/srv/repos/vanwho/buun-llama-cpp/build-102-06/bin/llama-server"
+  },
+  "schema_version": 1,
+  "source_commit": "1cfb18b6383e585e40cc5e96472f56f3befec600",
+  "task": "103-04"
+}

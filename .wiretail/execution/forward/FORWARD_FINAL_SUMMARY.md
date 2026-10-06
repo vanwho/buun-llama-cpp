@@ -1,4 +1,4 @@
-# Forward final measured summary (102-07)
+# Forward final measured summary (refreshed 103-04)
 
 **Decision:** primary architecture remains unaccepted. The 262,144-row allocation was configured, while the largest executable occupied frontier was C=250,572 (gap 1,572); exact C=262,144 is unproven.
 
@@ -11,9 +11,38 @@
 
 * R/G are derived from H and the 256-token generation-tail invariant (R+G=H), not separately exported counters. **A is additional packed-owner allocation (measured high-water 0); 54,067,200 B graph scratch is separate.
 
-## Canonical speeds and MTP
+## Canonical 8K/4K same-candidate rerun (103-04)
 
-The 8K/4K selected run used three fresh-input trials per prompt. Selected prefill medians were 1518.75, 1530.69, and 1517.47 tok/s (prompts 1–3); decode medians were 54.95, 59.24, and 68.59 tok/s. MTP medians were 39.69%, 49.37%, and 65.26%; prompt 1 missed the 40% floor by 0.31 points. CPU-main-KV prefill medians were 672.07, 675.21, and 671.73 tok/s; selected prefill was 2.26x CPU on all prompts. Dense GPU comparison is in the JSON. Selected, CPU-main-KV, and dense GPU controls all used Turbo4 target K/V and GPU Turbo4 MTP; target placement distinguishes the controls.
+Main candidate `build-102-06/bin/llama-server` SHA256 `a24b26ba1b55066d81eb1af795d3d58889099a4b1ed087a4d3e6f74f3fe375de`
+(model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`), L=8192/H=4096, page=256,
+B=1024/U=256, native GPU Turbo4 MTP. Three measured trials per prompt used
+the same frozen prefix and cleared slot; each row rendered 4,112–4,115 tokens
+with zero cached tokens. Rows and identity are under `/srv/ai/paged-kv/results/forward/103-04/attempt-01`.
+
+| Arm | Fresh prefill medians p1/p2/p3 (tok/s) | Decode medians p1/p2/p3 (tok/s) | MTP acceptance p1/p2/p3 | Answer quality |
+|---|---:|---:|---:|---|
+| Selected pager, GPU target KV | 1503.74 / 1506.10 / 1505.13 | 36.82 / 36.80 / 36.78 | 0 / 0 / 0% | Slash filler on all prompts (semantic miss) |
+| CPU-main-KV, pager off, GPU MTP | 671.77 / 678.15 / 671.50 | 25.14 / 19.12 / 21.43 | 80.37 / 50.00 / 65.03% | Coherent useful answers |
+| Feature off, all-GPU target KV and MTP | 1633.61 / 1631.29 / 1633.80 | 84.30 / 62.85 / 71.33 | 78.20 / 51.61 / 63.32% | Coherent useful answers |
+
+The selected route reported `selected packed`; route override was `auto`. Fresh
+prompts had zero query replay time/count. Selector/retrieval cost was not
+separately reported. The selected pager snapshot measured 138,412,032 B target
+allocation, 8,781,824 B full-L MTP KV, 14,877,589,504 B device used and
+1,842,610,176 B free. CPU and pager-off controls did not expose comparable
+pager allocator memory counters. Independent answer scoring was not run.
+
+The CPU-main-KV control must disable pager mode because this candidate rejects
+CPU target KV with selective pager enabled (`bounded KV pager requires GPU
+target cache storage`). An initial 30-token short probe and that invalid
+configuration remain recorded, excluded from canonical rows.
+
+104-08's ranking experiment verdict remains **inconclusive**; no experimental
+source or binary is adopted and no ranking win/loss is inferred. The reported
+L=262,144 allocation and C=250,572/C=254,393 occupied frontiers remain
+candidate-bound partial findings; exact C=L is unproven. 103-03 remains deferred.
+
+## Historical occupancy speed findings
 
 At C=120,000, 128K post-load rows completed three 400-token trials per prompt, but MTP acceptance was 0% on all prompts. Each reused the occupied prefix; about 42 prompt tokens were newly processed, so these are not fresh-prefill comparisons. At 256K, no canonical speed matrix ran. The 249,921-token recall generated 400 tokens with 398 drafts, 0 accepted, and slash filler.
 
