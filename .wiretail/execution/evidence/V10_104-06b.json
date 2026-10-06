@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "task": "104-06b",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "checks": {
+    "fresh_target_draft_route_sanity_and_observed_repair": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/validate_sanity.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/final-build.log",
+          "sha256": "85b1eb318f7ed7fefe3fb124a80943aa890e260ff18f91b447a872ec6598746e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/test-kv-router-job-cache-cuda-final.log",
+          "sha256": "e4e9808b0d4bb39cc785a88261335345f4c12292b97b2aa884ac96ecaa03831c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/fresh-route-sanity-receipt.json",
+          "sha256": "e61c4cbade8994f0df4607e4da2188c883842d9de541b4ab33502f5debf7d14c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/fresh-route-sanity-receipt.log",
+          "sha256": "81e898f3ad15409ee0cc82b95b35c6126cc483254f6ce234d584b48a0882732b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/sanity-validation-final.json",
+          "sha256": "b73520e3f12d7ed8273992f42c63b74bbb12edfa11777ca31d418374b39f1e20"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-failure-diagnostics.log",
+          "sha256": "878ed8c51ff331222b5564d72d76548e454d3186ae7bac2d8670ce76aac9a736"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/dense/completion-request.json",
+          "sha256": "f8e4b6562f204c211640042dab8775f055e6b7e1690be43d1b75c01aa7dc40ff"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/legacy/completion-request.json",
+          "sha256": "f8e4b6562f204c211640042dab8775f055e6b7e1690be43d1b75c01aa7dc40ff"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/completion-request.json",
+          "sha256": "f8e4b6562f204c211640042dab8775f055e6b7e1690be43d1b75c01aa7dc40ff"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/dense/rendered-prompt.txt",
+          "sha256": "e78734873655e2233ab1cdd5612398e25edc1de5a687e7c9c1e688f59edc5044"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/legacy/rendered-prompt.txt",
+          "sha256": "e78734873655e2233ab1cdd5612398e25edc1de5a687e7c9c1e688f59edc5044"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/rendered-prompt.txt",
+          "sha256": "e78734873655e2233ab1cdd5612398e25edc1de5a687e7c9c1e688f59edc5044"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/dense/token-ids.json",
+          "sha256": "b503a6eb23632bed6a5773ec35a007a694f902aa4726fc7d455c9797e2c8331d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/legacy/token-ids.json",
+          "sha256": "b503a6eb23632bed6a5773ec35a007a694f902aa4726fc7d455c9797e2c8331d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/token-ids.json",
+          "sha256": "b503a6eb23632bed6a5773ec35a007a694f902aa4726fc7d455c9797e2c8331d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/dense/completion-response.raw",
+          "sha256": "b3bb920175c56f63642dbdaa83737e54bee84b4993fe2070a15ff3d3ef729d4a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/legacy/completion-response.raw",
+          "sha256": "17fb7c252fe53adc889bc10bb36af3e6c0e7a4f15ece4854fcb6335d5e7be7b0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/completion-response.raw",
+          "sha256": "06a91a70eda256c33f554cf582378584074fab550bfc72f096d783b5f5ed9e89"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/dense/summary.json",
+          "sha256": "bab9891d60c7be491bace247de6b95691d4bd17e5268f32dc6f7adc39c85cd15"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/legacy/summary.json",
+          "sha256": "9a5b6174ce2738db1662878ad709344c737ff87da650a990998a190e582e224a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/summary.json",
+          "sha256": "5e905780eabc9028e736449213616afcbb77e0f7d3a47e891985cb296415f64b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/dense/process-identity.json",
+          "sha256": "056803e05f11fae55bb98e470eb67d797355352dcbf0f826fb9d097c9db7886a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/legacy/process-identity.json",
+          "sha256": "05bf4a69c3d804a127e2cf3177634f26fa4caf92eef0572c71ea1851ca8301fe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank/process-identity.json",
+          "sha256": "4b770e4e2b167d212554e49f7bb5cff86167a78f601c83a6993a397ffc2d2a2b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/restored-probe-rerank-identity.json",
+          "sha256": "c4b88d9f9d8cbd78f24ff3eeb2e57890a8722ce9d0a2c95437aa3334868ce112"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank-rerun-final.log",
+          "sha256": "2526d0bf7664b951ef8e630ccf6a85b70e86dfe1673b1d6349828f0296f0743f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/probe-rerank-rerun.json",
+          "sha256": "5e905780eabc9028e736449213616afcbb77e0f7d3a47e891985cb296415f64b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/run_fresh_controls.py",
+          "sha256": "ce0266a808b13c129ae802ebe006ad16a061775592f530e4c9d0ca29ae00b58a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/validate_sanity.py",
+          "sha256": "28ac81fb6ffac4ae1d50dcbbacfd74c4c3563fa09941b75e0faf0d49176917f5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06b/attempt-01/test-kv-router-job-cpu-only.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        }
+      ],
+      "finding": {
+        "initial_probe_result": "HTTP 500 at query finalization because fresh short prompt produced no probe capture",
+        "repair": "complete explicit empty per-layer owner result only when no eligible historical page exists and the final current user position is resident, including a valid filling-GPU tail",
+        "dense_legacy_probe_http_status": [
+          200,
+          200,
+          200
+        ],
+        "matched_request_sha256": "5ec13d58e1fada47fa831b53ead5bd38f58323f56ee09c892529c46928390ff0",
+        "matched_rendered_prompt_sha256": "e78734873655e2233ab1cdd5612398e25edc1de5a687e7c9c1e688f59edc5044",
+        "matched_token_ids_sha256": "92ae6eb47b3efdfb6538cd8d05ba5d052a9e8223baa42f79d2de9a3f0261f274",
+        "mtp_request_counters": {
+          "dense": [
+            256,
+            194
+          ],
+          "legacy": [
+            266,
+            199
+          ],
+          "probe-rerank": [
+            266,
+            199
+          ]
+        },
+        "deferred_verification": []
+      }
+    }
+  }
+}

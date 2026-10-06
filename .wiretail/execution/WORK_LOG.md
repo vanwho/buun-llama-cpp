@@ -2275,3 +2275,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-104-06a`
 - Commit at update: `0d8ad89cb`
 - Summary: Repaired nonfinite-probe finalization to empty terminal owner completion; CUDA regression and A1/B1 pressure replay passed with both requests returning HTTP 200.
+
+## 2026-10-06T02:38:07+00:00 — 104-06b — done
+
+- Branch: `codex/task-104-06b`
+- Commit at update: `33b51b0d9`
+- Summary: Repaired and verified fresh probe-rerank empty-history finalization with matching live controls and GPU MTP carry
