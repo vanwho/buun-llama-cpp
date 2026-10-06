@@ -35497,7 +35497,7 @@
       "depends_on": [
         "104-06c"
       ],
-      "commit": "5c98165c8ce39a8b4e23fa998d08239da00de0b7",
+      "commit": "69bca9cc2e754f506289616905ebf8f6f5958656",
       "context_files": [
         ".wiretail/execution/forward/RANKING104_LIVE_REPAIR.md",
         ".wiretail/execution/handoffs/104-06c.md"
