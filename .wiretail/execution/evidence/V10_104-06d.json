@@ -1,0 +1,160 @@
+{
+  "checks": {
+    "paired_small_ranking_outcomes_and_cuda_oracle": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/RANKING104_RECALL.json",
+          "sha256": "bf16a9314ddbea113ccf07e9536c744ea54e49649596f244ee8edf1bebebf2db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/RANKING104_RECALL.md",
+          "sha256": "83f055e565053fcd6d34902ff8d5500d55b9b9b03ee411a4f8b59db4128f16c7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/recall-report-validation.log",
+          "sha256": "5838e4c9be502de08db0507780be469200c6a6eeefbe435e790be83331ceaa96"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/test-pager-promotion.log",
+          "sha256": "6d922acc12146c834aed2c03fb4c7b2816834c2b215a8b98bf4433203fd0d29a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/build-test-cuda-kv-page-summary.log",
+          "sha256": "3d80474024d400d9f6bcd6e7b515a3ea45ad5a6ec0d23c4da47c960fe3dde433"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/test-cuda-kv-page-summary.log",
+          "sha256": "38cfd99823ff94f151c84712e2637120a79d876d325081e69fac69a3de749b73"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/legacy/PY_MERGE_03-retry/campaign-summary.json",
+          "sha256": "fd24db9347ff369dd68dac606f4a3ef0495b42042b97e88f14d80fa805512138"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/legacy_PY_MERGE_03.stdout.json",
+          "sha256": "b5b0ee629b0ee3e205a0bd689e66993ade5eebdf8b6248bfb936bd3f91b461bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/legacy/PY_MERGE_01/campaign-summary.json",
+          "sha256": "9109d2ed653d3810b8de03a5a913a0a55a33cef24a6db7054836c2bf54cbe453"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/legacy_PY_MERGE_01.stdout.json",
+          "sha256": "b5b0ee629b0ee3e205a0bd689e66993ade5eebdf8b6248bfb936bd3f91b461bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/legacy/BASH_WATCH_01-retry/campaign-summary.json",
+          "sha256": "15bfa8b933574ea66128889db359f60663b8230db1156ef8127e6c68005b1ca5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/legacy_BASH_WATCH_01.stdout.json",
+          "sha256": "b5b0ee629b0ee3e205a0bd689e66993ade5eebdf8b6248bfb936bd3f91b461bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/dense/PY_MERGE_03-retry2/campaign-summary.json",
+          "sha256": "4f08d84efc9d1b03284a78f35a3526cb20b2ed6fa1a550f06a57c1b2112b7b3b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/dense_PY_MERGE_03.stdout.json",
+          "sha256": "5f00f4e7e0a0e1fab4b3e874962bdc9d47b7451bd19500f9070966c414f8fb05"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/dense/PY_MERGE_01/campaign-summary.json",
+          "sha256": "b2e09db3d6674dd52fea31afbf3bf325e9d235314c18ea289b5f587007a517f0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/dense_PY_MERGE_01.stdout.json",
+          "sha256": "5f00f4e7e0a0e1fab4b3e874962bdc9d47b7451bd19500f9070966c414f8fb05"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/dense/BASH_WATCH_01/campaign-summary.json",
+          "sha256": "23bd92574226247e47748c4b3c60295e5b3f24e2c9e92ed4fdf1c46d1ad4a8ec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/dense_BASH_WATCH_01.stdout.json",
+          "sha256": "5f00f4e7e0a0e1fab4b3e874962bdc9d47b7451bd19500f9070966c414f8fb05"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank/PY_MERGE_03/campaign-summary.json",
+          "sha256": "015e4a80236184a3d46c7fda20a4d90148639379b7995b5ecf4209404788a307"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/probe_PY_MERGE_03.stdout.json",
+          "sha256": "a71b4d9012fd7e5892c4a836292601887086747eb34c7c27942194b6d6138118"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank/PY_MERGE_01/campaign-summary.json",
+          "sha256": "1537a29ee23b1ab49b4f27d2160deed701cc37cac88fbfb819287e67d6c79453"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/probe_PY_MERGE_01.stdout.json",
+          "sha256": "a71b4d9012fd7e5892c4a836292601887086747eb34c7c27942194b6d6138118"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank/BASH_WATCH_01/campaign-summary.json",
+          "sha256": "80896f7ac44c1375613d5018785bddfc00fe47fcaac3e4190fa073dbb0f966fc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/validation/probe_BASH_WATCH_01.stdout.json",
+          "sha256": "a71b4d9012fd7e5892c4a836292601887086747eb34c7c27942194b6d6138118"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/legacy/PY_MERGE_03-retry/candidate-identity.json",
+          "sha256": "bf7a5ab6ed27e9e12a4aed22a908b430866ac914155fc7b5a4a6bb4a2066777f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/legacy/PY_MERGE_01/candidate-identity.json",
+          "sha256": "5cc960c9a3d1ef42800f16e016592110093bbbc3dbaa87c4875f409a40909dab"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/legacy/BASH_WATCH_01-retry/candidate-identity.json",
+          "sha256": "d797df6fbad43ace1ee22f169d2971713ccebd862e93f3bcfd8b9f5d686ee8d3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/dense/PY_MERGE_03-retry2/candidate-identity.json",
+          "sha256": "92923d529f5687d31fc6885a4abde3f3d2dc4249dcae340022f69b6ff114ffd1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/dense/PY_MERGE_01/candidate-identity.json",
+          "sha256": "c308b33bce9718636b23ae11e97031827190c64455c56213ceaf437fb6ef7781"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/dense/BASH_WATCH_01/candidate-identity.json",
+          "sha256": "c308b33bce9718636b23ae11e97031827190c64455c56213ceaf437fb6ef7781"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank/PY_MERGE_03/candidate-identity.json",
+          "sha256": "6aa2368d71221b8cb122d606d1aca4dcd736e8a7417a636829e5f1b276a90680"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank/PY_MERGE_01/candidate-identity.json",
+          "sha256": "a9e5cc9ae1e6d9d2c34b6f980364b50ab9e167808ccda9dce6d0e7f40e3af61f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank/BASH_WATCH_01/candidate-identity.json",
+          "sha256": "a9e5cc9ae1e6d9d2c34b6f980364b50ab9e167808ccda9dce6d0e7f40e3af61f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank-restore-preflight-corrected2/preflight/preflight-summary.json",
+          "sha256": "8a4f76f039dd2bb62c0e19aca14455e24899990268e6f48ee0c11b9179a7edb3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank-restore-preflight-corrected2/candidate-identity.json",
+          "sha256": "c435ffb5804171d0547e4ec45b99d5c760481ec01ec077fc5f9f689ac7719b6b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/ranking104/104-06d/attempt-01/probe-rerank-restore-preflight-corrected2/health-response.json",
+          "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+        }
+      ],
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-cuda-kv-page-summary"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "5c98165c8ce39a8b4e23fa998d08239da00de0b7",
+  "task": "104-06d"
+}
