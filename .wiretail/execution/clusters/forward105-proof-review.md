@@ -19,8 +19,8 @@ Completed ownership and findings:
   `evidence/V10_105-02a.json`.
 - The selected cold page was eligible, rank1/8, nominated/admitted, mapped and
   resident after recall. Identity-bound physical-transfer/target-use witness
-  remains unknown/incomplete; `target_graph_used=false` is a tracing gap, not
-  semantic execution failure or a completion gate.
+  remains unknown/incomplete; `target_graph_used=false` does not by itself
+  negate the successful semantic answer and is not a completion gate.
 - The current tested candidate was built from source HEAD
   `d4826061b7656ed788aea3467fd9d613fc855413` plus source delta now production
   commit `ccf07a9a6b7bbd32f85b6cab61a789d7c020214d` (diff

@@ -128,8 +128,9 @@ the after snapshot. Query104 covered5503..5557. Dense returned the same fact
 with prompt5569/cached5494/new75, 141 outputs, 1541.8ms decode, MTP84/112.
 Selected returned134 outputs, prompt5569/cached5501/new125, MTP79/112.
 However, formal identity-bound transfer/target-use proof is unknown/incomplete;
-`target_graph_used=false` is a tracing gap, not evidence that semantic execution
-failed. Record witness tags as unknown where unsupported; no witness or bitwise
+`target_graph_used=false` leaves target-use certification unproven, not evidence
+by itself that semantic execution failed. Record witness tags as unknown where
+unsupported; no witness or bitwise
 parity gate applies. No forced page ownership or retired diagnostic route is
 required.
 

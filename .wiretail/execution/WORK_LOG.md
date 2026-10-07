@@ -2441,3 +2441,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-02`
 - Commit at update: `ccf07a9a6`
 - Summary: Validated current-candidate cold requested-page recall and matched dense control; fresh canonical 12-row benchmark passed with MTP medians 91.86/61.04/88.27 percent. Preserved separately identified 32K prefill curve; formal transfer/use tags remain findings, not certified.
+
+## 2026-10-07T20:35:22+00:00 — 105-03 — in_progress
+
+- Branch: `codex/task-105-02`
+- Commit at update: `a4c2d7025`
+- Summary: Task started

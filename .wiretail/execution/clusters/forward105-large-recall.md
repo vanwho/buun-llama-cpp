@@ -28,8 +28,9 @@ Selected/dense exact-fact answers were both correct with HTTP200/EOS and actual
 response-local MTP. The selected requested page was cold/host-backed before,
 rank1/8, admitted and mapped; it was resident/host-backed afterward. Formal
 identity-bound transfer/target-use witness remains unknown where tracing is
-incomplete. `target_graph_used=false` is a tracing gap, not a failed semantic
-answer. Do not turn unknown witness tags into pass/fail or a completion gate.
+incomplete. `target_graph_used=false` leaves target-use certification unproven,
+not a failed semantic answer by itself. Do not turn unknown witness tags into
+pass/fail or a completion gate.
 Bitwise parity, the optional cache LCP journal check, forced page ownership, and
 retired diagnostic routes are not gates.
 
