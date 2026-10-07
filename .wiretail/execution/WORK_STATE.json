@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "105",
-  "current_task": "105-01c",
-  "last_updated_utc": "2026-10-07T00:31:52+00:00",
+  "current_task": "105-01d",
+  "last_updated_utc": "2026-10-07T00:48:59+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -36175,7 +36175,7 @@
       "cluster": "forward105-key-ranking",
       "title": "Small paired retrieval replay MTP proof and adoption",
       "packet": ".wiretail/execution/tasks/105-01c.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36190,7 +36190,7 @@
       "depends_on": [
         "105-01b"
       ],
-      "commit": null,
+      "commit": "2e2a907e0e55c088c50e4f5060b516f29271d087",
       "context_files": [
         ".wiretail/execution/clusters/forward105-key-ranking.md",
         ".wiretail/execution/engineering-notes/ranking-query-repair.md",
@@ -36203,7 +36203,47 @@
         "105-01c",
         "--receipt",
         ".wiretail/execution/evidence/V10_105-01c.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/105-01c-attempt-1-20261007T003216757530462-20261007T003216760113042-QL4VZF.jsonl:321",
+            "total_tokens": 20495364,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 20362531,
+            "cached_input_tokens": 19831040,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 531491,
+            "output_tokens": 132833,
+            "thinking_tokens": 66398
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 20495364,
+          "input_tokens": 20362531,
+          "cached_input_tokens": 19831040,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 531491,
+          "output_tokens": 132833,
+          "thinking_tokens": 66398,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "105-01d",
@@ -36242,6 +36282,42 @@
       ]
     },
     {
+      "id": "105-01e",
+      "phase": "105",
+      "cluster": "forward105-key-ranking",
+      "title": "Repair integrated probe capture generation ownership",
+      "packet": ".wiretail/execution/tasks/105-01e.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "required_proofs": [
+        "probe_query_capture_generation_lifecycle_repair"
+      ],
+      "depends_on": [
+        "105-01d"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-key-ranking.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-01c.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-01e",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-01e.json"
+      ]
+    },
+    {
       "id": "105-02",
       "phase": "105",
       "cluster": "forward105-proof-review",
@@ -36260,7 +36336,7 @@
         "occupied_context_mtp_source_repair"
       ],
       "depends_on": [
-        "105-01d"
+        "105-01e"
       ],
       "commit": null,
       "context_files": [
@@ -38276,16 +38352,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 8,
-        "total_tokens": 94790727,
-        "input_tokens": 94312203,
-        "cached_input_tokens": 92079872,
+        "usage_events": 9,
+        "total_tokens": 115286091,
+        "input_tokens": 114674734,
+        "cached_input_tokens": 111910912,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 2232331,
-        "output_tokens": 478524,
-        "thinking_tokens": 255114,
+        "input_tokens_minus_cached_tokens": 2763822,
+        "output_tokens": 611357,
+        "thinking_tokens": 321512,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 8,
+        "total_tokens_derived_events": 9,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -38300,17 +38376,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 553,
-      "total_tokens": 12990141421,
-      "input_tokens": 12943551995,
-      "cached_input_tokens": 12647522944,
+      "usage_events": 554,
+      "total_tokens": 13010636785,
+      "input_tokens": 12963914526,
+      "cached_input_tokens": 12667353984,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 199,
-      "input_tokens_minus_cached_tokens": 296029051,
-      "output_tokens": 46589426,
-      "thinking_tokens": 21465376,
+      "cache_write_input_tokens_known_events": 200,
+      "input_tokens_minus_cached_tokens": 296560542,
+      "output_tokens": 46722259,
+      "thinking_tokens": 21531774,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 553,
+      "total_tokens_derived_events": 554,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
