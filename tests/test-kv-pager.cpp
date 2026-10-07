@@ -36,6 +36,85 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+static void test_natural_proof_query_scope() {
+    llama_kv_pager_natural_proof scope;
+    scope.sequence_id = 3;
+    scope.sequence_generation = 17;
+    scope.query_generation = 29;
+    assert(scope.matches_query(3, 17, 29));
+    assert(!scope.matches_query(4, 17, 29));
+    assert(!scope.matches_query(3, 18, 29));
+    assert(!scope.matches_query(3, 17, 30));
+    assert(!scope.matches_query(3, 17, 0));
+    scope.sequence_generation = 0;
+    assert(!scope.matches_query(3, 0, 29));
+
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 2;
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(1));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    llama_kv_pager_status status;
+    auto pager = llama_kv_pager::create(config, geometry(1024), resources(640, 128),
+            backend, status);
+    assert(pager && status == llama_kv_pager_status::ok);
+
+    llama_kv_pager_write_ticket ticket;
+    assert(pager->begin_write(0, 101, 0, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(pager->begin_write(1, 202, 0, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    const auto pages = pager->residency().pages();
+    const auto page0 = std::find_if(pages.begin(), pages.end(), [](const auto & page) {
+        return page.id.sequence_id == 0;
+    });
+    const auto page1 = std::find_if(pages.begin(), pages.end(), [](const auto & page) {
+        return page.id.sequence_id == 1;
+    });
+    assert(page0 != pages.end() && page1 != pages.end());
+    assert(page0->id.logical_page == page1->id.logical_page);
+
+    const std::vector<uint32_t> selected = { page1->id.logical_page };
+    llama_kv_pager_natural_proof proof;
+    proof.sequence_id = 0; // Deliberately pair seq-0 proof with seq-1 page identity.
+    proof.sequence_generation = page0->id.sequence_generation;
+    proof.query_generation = 29;
+    proof.logical_page = page1->id.logical_page;
+    proof.page_generation = page1->id.page_generation;
+    proof.content_version = page1->content_version;
+    proof.mapping_published = true;
+    pager->record_natural_proof(proof);
+    pager->record_natural_proof_target_use(selected, pager->residency().epoch(), 29);
+    assert(!pager->natural_proof().target_graph_used);
+
+    proof.sequence_id = page1->id.sequence_id;
+    proof.sequence_generation = page1->id.sequence_generation + 1;
+    pager->record_natural_proof(proof);
+    pager->record_natural_proof_draft_use(selected, pager->residency().epoch(), 29);
+    assert(!pager->natural_proof().draft_graph_used);
+
+    proof.sequence_generation = page1->id.sequence_generation;
+    pager->record_natural_proof(proof);
+    pager->record_natural_proof_target_use(selected, pager->residency().epoch(), 30);
+    assert(!pager->natural_proof().target_graph_used);
+    pager->record_natural_proof_target_use(selected, pager->residency().epoch(), 29);
+    assert(pager->natural_proof().target_graph_used);
+    assert(pager->natural_proof().target_use_query_generation == 29);
+
+    proof.target_graph_used = false;
+    pager->record_natural_proof(proof);
+    pager->record_natural_proof_draft_use(selected, pager->residency().epoch(), 29);
+    assert(pager->natural_proof().draft_graph_used);
+    assert(pager->natural_proof().draft_use_query_generation == 29);
+}
+
 static void test_turn_epoch_state_and_geometry() {
     llama_kv_pager_turn_geometry derived;
     assert(llama_kv_pager_derive_turn_geometry(5, 256, 300, 1, 0, derived));
@@ -1674,6 +1753,7 @@ static void test_generation_ring_victim_and_history_pins() {
 }
 
 int main() {
+    test_natural_proof_query_scope();
     test_turn_epoch_state_and_geometry();
     test_layer_slot_geometry();
     test_dynamic_live_geometry_and_capture();

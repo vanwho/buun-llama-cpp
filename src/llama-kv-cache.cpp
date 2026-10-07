@@ -5817,11 +5817,13 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                     result.transaction.h2d_counters.event_completions != 0;
                 proof.mapping_published = result.published &&
                     after->physical_slot != UINT32_MAX;
-                // Preserve a completed chain receipt. A later boundary may
-                // promote another page before the next graph, but it must not
-                // erase the first proof whose target attention has already
-                // crossed the scheduler fence.
-                if (!pager_->natural_proof().target_graph_used) {
+                // Preserve a completed witness within this query only. A
+                // prior query's successful page must not hide the next query's
+                // real promotion or keep its target-use trace permanently false.
+                const auto & previous_proof = pager_->natural_proof();
+                if (!previous_proof.target_graph_used ||
+                        !previous_proof.matches_query(proof.sequence_id,
+                            proof.sequence_generation, proof.query_generation)) {
                     pager_->record_natural_proof(proof);
                 }
                 break;
@@ -5835,7 +5837,8 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
             // residency result is the publication boundary. Do not infer this
             // receipt from aggregate H2D counters, which can also include
             // unrelated transfers.
-            if (pager_->natural_proof().logical_page == UINT32_MAX &&
+            if (!pager_->natural_proof().matches_query(boundary.query_commit.sequence_id,
+                        boundary.query_commit.sequence_generation, pager_query_generation_) &&
                     result.published &&
                     result.transaction.h2d_counters.event_completions != 0) {
                 for (const auto & plan : boundary.transaction.transfers) {
@@ -5899,7 +5902,8 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                         pager_->record_natural_proof(proof);
                         break;
                     }
-                    if (pager_->natural_proof().logical_page != UINT32_MAX) {
+                    if (pager_->natural_proof().matches_query(boundary.query_commit.sequence_id,
+                                boundary.query_commit.sequence_generation, pager_query_generation_)) {
                         break;
                     }
                 }

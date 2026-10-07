@@ -422,6 +422,14 @@ struct llama_kv_pager_natural_proof {
     bool draft_graph_used = false;
     uint64_t draft_use_epoch = 0;
     uint64_t draft_use_query_generation = 0;
+
+    bool matches_query(int32_t sequence, uint64_t sequence_gen,
+            uint64_t query_gen) const noexcept {
+        return sequence_id >= 0 && sequence == sequence_id &&
+            sequence_generation != 0 && sequence_gen != 0 &&
+            sequence_gen == sequence_generation && query_generation != 0 &&
+            query_gen != 0 && query_gen == query_generation;
+    }
 };
 
 // Bounded rejection accounting for the current-Q promotion boundary. The

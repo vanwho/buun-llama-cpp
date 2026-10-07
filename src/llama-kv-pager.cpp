@@ -248,6 +248,9 @@ void llama_kv_pager::record_natural_proof_target_use(
         uint64_t table_epoch, uint64_t query_generation) noexcept {
     auto & proof = natural_proof_;
     if (!proof.mapping_published || proof.logical_page == UINT32_MAX ||
+            proof.sequence_id < 0 || proof.sequence_generation == 0 ||
+            (query_generation != 0 && !proof.matches_query(
+                proof.sequence_id, proof.sequence_generation, query_generation)) ||
             std::find(selected_page_ids.begin(), selected_page_ids.end(),
                 proof.logical_page) == selected_page_ids.end()) {
         return;
@@ -255,7 +258,9 @@ void llama_kv_pager::record_natural_proof_target_use(
     const auto snapshot = residency_.snapshot();
     const auto found = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
             [&](const auto & page) {
-        return page.id.logical_page == proof.logical_page &&
+        return page.id.sequence_id == proof.sequence_id &&
+            page.id.sequence_generation == proof.sequence_generation &&
+            page.id.logical_page == proof.logical_page &&
             page.id.page_generation == proof.page_generation &&
             page.content_version == proof.content_version &&
             page.physical_slot != UINT32_MAX;
@@ -280,6 +285,9 @@ void llama_kv_pager::record_natural_proof_draft_use(
         uint64_t table_epoch, uint64_t query_generation) noexcept {
     auto & proof = natural_proof_;
     if (!proof.mapping_published || proof.logical_page == UINT32_MAX ||
+            proof.sequence_id < 0 || proof.sequence_generation == 0 ||
+            (query_generation != 0 && !proof.matches_query(
+                proof.sequence_id, proof.sequence_generation, query_generation)) ||
             std::find(selected_page_ids.begin(), selected_page_ids.end(),
                 proof.logical_page) == selected_page_ids.end()) {
         return;
@@ -287,7 +295,9 @@ void llama_kv_pager::record_natural_proof_draft_use(
     const auto snapshot = residency_.snapshot();
     const auto found = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
             [&](const auto & page) {
-        return page.id.logical_page == proof.logical_page &&
+        return page.id.sequence_id == proof.sequence_id &&
+            page.id.sequence_generation == proof.sequence_generation &&
+            page.id.logical_page == proof.logical_page &&
             page.id.page_generation == proof.page_generation &&
             page.content_version == proof.content_version &&
             page.physical_slot != UINT32_MAX;
