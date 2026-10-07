@@ -2083,17 +2083,12 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
     llm_graph_params attention_params = params;
     attention_params.mctx = mctx->get_attn();
     const bool attention_reusable = inp_attn->can_reuse(attention_params);
-    bool recurrent_reusable = true;
-
-    recurrent_reusable &= inp_rs->s_copy->ne[0] == mctx->get_recr()->get_n_rs();
-
-    recurrent_reusable &= inp_rs->s_copy_main->ne[0]  == params.ubatch.n_seqs;
-    recurrent_reusable &= inp_rs->s_copy_extra->ne[0] == mctx->get_recr()->get_n_rs() - params.ubatch.n_seqs;
-
-    recurrent_reusable &= inp_rs->head == mctx->get_recr()->get_head();
-    recurrent_reusable &= inp_rs->rs_z == mctx->get_recr()->get_rs_z();
-    recurrent_reusable &= inp_rs->tensor_binding_epoch ==
-        mctx->get_recr()->get_tensor_binding_epoch();
+    // Use the recurrent child's complete reuse policy too. Shape/head alone
+    // do not authenticate a decode-only direct state view after src0 remaps;
+    // the child checks identity gathers and refreshes its context binding.
+    llm_graph_params recurrent_params = params;
+    recurrent_params.mctx = mctx->get_recr();
+    const bool recurrent_reusable = inp_rs->can_reuse(recurrent_params);
 
     if (attention_reusable && !recurrent_reusable &&
             inp_attn->kv_attention_metrics != nullptr) {
