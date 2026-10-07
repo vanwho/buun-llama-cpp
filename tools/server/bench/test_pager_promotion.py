@@ -321,6 +321,8 @@ class PagerPromotionPromptTest(unittest.TestCase):
         record = {"request_id": "req-1", "request_generation": 4,
                   "pager_after": {"selector_trace": {
                       "enabled": True, "raw_selector_output_valid": True,
+                      "target_logical_page": 7, "target_page_generation": 12,
+                      "target_content_version": 31,
                       "raw_cold_logical_pages": [7, 9], "outcome": "selected_pending"}}}
         report = _promotion_for_page(page, {}, record, [])
         self.assertTrue(report["selector_nominated"])
@@ -335,7 +337,9 @@ class PagerPromotionPromptTest(unittest.TestCase):
                 "resident": False, "host_backed": True}
         record = {"request_id": "req-1", "request_generation": 4,
                   "pager_after": {"selector_trace": {
-                      "enabled": True, "target_candidate_nominated": True,
+                      "enabled": True, "target_logical_page": 7,
+                      "target_page_generation": 12, "target_content_version": 31,
+                      "target_candidate_nominated": True,
                       "raw_selector_output_valid": True,
                       "raw_cold_logical_pages": [8, 9], "outcome": "selected_pending"}}}
         report = _promotion_for_page(page, {}, record, [])
@@ -348,16 +352,21 @@ class PagerPromotionPromptTest(unittest.TestCase):
                 "resident": False, "host_backed": True}
         record = {"request_id": "req-1", "request_generation": 4,
                   "pager_after": {"selector_trace": {"enabled": True,
-                      "target_logical_page": 7, "outcome": "selector_not_run"}}}
+                      "target_logical_page": 7, "target_page_generation": 12,
+                      "target_content_version": 31, "outcome": "selector_not_run"}}}
         snapshots = [
             {"observed_monotonic_ns": 1, "trace": {"enabled": True,
-                "target_logical_page": 7, "outcome": "selector_not_run"}},
+                "target_logical_page": 7, "target_page_generation": 12,
+                "target_content_version": 31, "query_generation": 8,
+                "outcome": "selector_not_run"}},
             {"observed_monotonic_ns": 2, "trace": {"enabled": True,
                 "target_logical_page": 7, "target_found": True,
                 "target_eligible": True, "target_page_generation": 12,
-                "target_content_version": 31, "raw_selector_output_valid": True,
+                "target_content_version": 31, "query_generation": 8,
+                "raw_selector_output_valid": True,
                 "raw_cold_logical_pages": [7, 9], "outcome": "selected_pending"}},
         ]
+        record["pager_after"]["selector_trace"]["query_generation"] = 8
         report = _promotion_for_page(page, {}, record, [], snapshots)
         self.assertTrue(report["selector_nominated"])
         self.assertEqual("raw_selector_output", report["selector_evidence_source"])
@@ -370,9 +379,59 @@ class PagerPromotionPromptTest(unittest.TestCase):
             with self.subTest(outcome=outcome):
                 record = {"request_id": "req-1", "request_generation": 4,
                           "pager_after": {"selector_trace": {"enabled": True,
+                              "target_logical_page": 7, "target_page_generation": 12,
+                              "target_content_version": 31,
                               "outcome": outcome}}}
                 report = _promotion_for_page(page, {}, record, [])
                 self.assertFalse(report["selector_nominated"])
+
+    def test_old_query_trace_and_other_page_proof_cannot_claim_final_page_promotion(self) -> None:
+        page = {"sequence_id": 0, "sequence_generation": 1,
+                "logical_page_id": 5, "generation": 9, "content_version": 256,
+                "resident": False, "host_backed": True, "valid_length": 256}
+        current = {"enabled": True, "query_generation": 104,
+                   "turn_query_start": 5503, "turn_query_end": 5557,
+                   "target_logical_page": 5, "target_page_generation": 9,
+                   "target_content_version": 256, "target_sequence_generation": 1,
+                   "target_found": True, "target_eligible": True,
+                   "target_candidate_scan_complete": True,
+                   "target_candidate_nominated": False,
+                   "raw_selector_output_valid": True,
+                   "raw_cold_logical_pages": [6, 7, 8],
+                   "h2d_completed_bytes": 4325376, "h2d_event_completions": 96,
+                   "mapping_published": False, "target_graph_used": False,
+                   "outcome": "eligible_ranked_out"}
+        natural_other_page = {
+            "logical_page": 8, "page_generation": 86, "content_version": 298,
+            "candidate_was_cold": True, "h2d_completed": True,
+            "h2d_queued": True, "h2d_useful_bytes": 4325376,
+            "h2d_event_sequence": 37, "mapping_published": True,
+            "published_epoch": 17738, "catalogue_epoch": 17680,
+            "physical_slot": 2, "target_graph_used": True,
+            "target_use_epoch": 17867, "target_use_query_generation": 104,
+            "query_generation": 104, "selector_published": True,
+            "draft_graph_used": True, "draft_use_epoch": 18445,
+            "draft_use_query_generation": 104,
+        }
+        record = {"request_id": "req-final", "request_generation": 3,
+                  "pager_after": {"selector_trace": current}}
+        snapshots = [
+            {"observed_monotonic_ns": 1, "trace": {
+                **current, "query_generation": 86,
+                "turn_query_start": 2311, "turn_query_end": 5486,
+                "target_candidate_nominated": True,
+                "target_cold_bundle_rank": 3, "target_cold_bundle_score": 0.627}},
+            {"observed_monotonic_ns": 2, "trace": current},
+        ]
+        report = _promotion_for_page(page, natural_other_page, record, [page], snapshots)
+        self.assertFalse(report["selector_nominated"])
+        self.assertEqual("complete_selector_candidate_scan", report["selector_evidence_source"])
+        self.assertEqual(104, report["selector_diagnostic"]["query_generation"])
+        self.assertFalse(report["selector_stages"][1]["published"])
+        self.assertFalse(report["selector_stages"][3]["completed"])
+        self.assertFalse(report["selector_stages"][4]["published"])
+        self.assertFalse(report["selector_stages"][5]["consumed"])
+        self.assertFalse(report["claimed_promoted"])
 
 
 if __name__ == "__main__":

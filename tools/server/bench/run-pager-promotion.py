@@ -788,16 +788,52 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
                         natural.get("content_version"))
     pager_after = final_record.get("pager_after")
     pager_after = pager_after if isinstance(pager_after, dict) else {}
-    trace = pager_after.get("selector_trace")
-    trace = trace if isinstance(trace, dict) else {}
+    current_trace = pager_after.get("selector_trace")
+    current_trace = current_trace if isinstance(current_trace, dict) else {}
+    # The request generation in the HTTP slot record is not the selector's
+    # query generation. Bind poll history to the final query represented by
+    # the request-local current trace (or, when absent, the natural-use proof).
+    final_query_generation = current_trace.get("query_generation")
+    if type(final_query_generation) is not int or final_query_generation <= 0:
+        final_query_generation = natural.get("target_use_query_generation")
+    if type(final_query_generation) is not int or final_query_generation <= 0:
+        final_query_generation = natural.get("query_generation")
+    if type(final_query_generation) is not int or final_query_generation <= 0:
+        final_query_generation = None
+    final_query_span = None
+    span_start = current_trace.get("turn_query_start")
+    span_end = current_trace.get("turn_query_end")
+    if type(span_start) is int and type(span_end) is int and span_start < span_end:
+        final_query_span = (span_start, span_end)
+
+    def trace_matches_page(candidate: Mapping[str, Any]) -> bool:
+        if candidate.get("enabled") is not True or \
+                candidate.get("target_logical_page") != identity[0]:
+            return False
+        if type(identity[1]) is int and candidate.get("target_page_generation") != identity[1]:
+            return False
+        if type(identity[2]) is int and candidate.get("target_content_version") != identity[2]:
+            return False
+        sequence_generation = page.get("sequence_generation")
+        if type(sequence_generation) is int and \
+                candidate.get("target_sequence_generation") != sequence_generation:
+            return False
+        return True
+
+    trace = current_trace if trace_matches_page(current_trace) else {}
     matching_traces = []
     for snapshot in selector_trace_snapshots or []:
         candidate = snapshot.get("trace") if isinstance(snapshot, dict) else None
-        if not isinstance(candidate, dict) or candidate.get("enabled") is not True or \
-                candidate.get("target_logical_page") != identity[0]:
+        if not isinstance(candidate, dict) or not trace_matches_page(candidate):
             continue
-        if candidate.get("target_page_generation", 0) not in (0, identity[1]) or \
-                candidate.get("target_content_version", 0) not in (0, identity[2]):
+        # Historical samples are useful only if they belong to this exact
+        # final query. Never select an older, "higher quality" trace from the
+        # same page identity: it may describe a prior request/query span.
+        if final_query_generation is None or \
+                candidate.get("query_generation") != final_query_generation:
+            continue
+        if final_query_span is not None and (
+                candidate.get("turn_query_start"), candidate.get("turn_query_end")) != final_query_span:
             continue
         matching_traces.append(snapshot)
     def trace_quality(snapshot: Mapping[str, Any]) -> tuple[int, ...]:
@@ -816,10 +852,33 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
         )
     if matching_traces:
         trace = max(matching_traces, key=trace_quality)["trace"]
+    trace_is_page_bound = trace_matches_page(trace) and (
+        final_query_generation is None or
+        trace.get("query_generation") == final_query_generation)
+    trace_nominated_for_page = trace_is_page_bound and \
+        trace.get("target_candidate_nominated") is True
+    natural_query_generation = natural.get("target_use_query_generation",
+                                          natural.get("query_generation"))
+    natural_query_position = natural.get("query_position")
+    natural_position_in_span = final_query_span is None or (
+        type(natural_query_position) is int and
+        final_query_span[0] <= natural_query_position < final_query_span[1])
+    natural_sequence_generation_matches = (
+        type(page.get("sequence_generation")) is not int or
+        natural.get("sequence_generation") == page.get("sequence_generation"))
+    natural_sequence_id_matches = (
+        type(page.get("sequence_id")) is not int or
+        natural.get("sequence_id") == page.get("sequence_id"))
+    natural_page_evidence = natural_identity == identity and \
+        final_query_generation is not None and \
+        natural_query_generation == final_query_generation and \
+        natural_position_in_span and natural_sequence_generation_matches and \
+        natural_sequence_id_matches
+    natural_for_page = natural if natural_page_evidence else {}
     raw_ids = trace.get("raw_cold_logical_pages")
-    raw_output = trace.get("raw_selector_output_valid") is True and isinstance(raw_ids, list)
-    natural_selector_evidence = natural.get("selector_published") is True and \
-        identity == natural_identity
+    raw_output = trace_is_page_bound and trace.get("raw_selector_output_valid") is True and \
+        isinstance(raw_ids, list)
+    natural_selector_evidence = natural_for_page.get("selector_published") is True
     if trace.get("target_candidate_nominated") is True:
         nominated = True
         nomination_source = "authenticated_selector_candidate"
@@ -868,32 +927,36 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
          } if natural_selector_evidence else None,
          "explicit_reason": selector_outcome if not raw_output and not natural_selector_evidence else None},
         {"stage": "mailbox", **stage_identity,
-         "submitted": trace.get("async_readback_submitted") is True,
-         "completed": trace.get("async_readback_completed") is True or
-                     trace.get("synchronous_readback_completed") is True,
-         "published": trace.get("mailbox_published") is True,
-         "dropped": trace.get("mailbox_dropped") is True},
+         "submitted": trace_nominated_for_page and trace.get("async_readback_submitted") is True,
+         "completed": trace_nominated_for_page and (
+                     trace.get("async_readback_completed") is True or
+                     trace.get("synchronous_readback_completed") is True),
+         "published": trace_nominated_for_page and trace.get("mailbox_published") is True,
+         "dropped": trace_nominated_for_page and trace.get("mailbox_dropped") is True},
         {"stage": "policy", **stage_identity,
-         "candidate_authenticated": trace.get("candidate_authenticated") is True or natural_selector_evidence,
-         "admitted": trace.get("policy_admitted") is True or natural_selector_evidence,
+         "candidate_authenticated": (trace_nominated_for_page and
+             trace.get("candidate_authenticated") is True) or natural_selector_evidence,
+         "admitted": (trace_nominated_for_page and
+             trace.get("policy_admitted") is True) or natural_selector_evidence,
          "reason": trace.get("outcome")},
         {"stage": "h2d", **stage_identity,
-         "queued_bytes": trace.get("h2d_queued_bytes", natural.get("h2d_useful_bytes", 0)),
-         "completed_bytes": trace.get("h2d_completed_bytes", natural.get("h2d_useful_bytes", 0)),
-         "event_completions": trace.get("h2d_event_completions", 0),
-         "completed": natural.get("h2d_completed") is True or
-                      trace.get("h2d_completion_observed") is True or
-                      (trace.get("h2d_completed_bytes", 0) > 0 and trace.get("h2d_event_completions", 0) > 0),
-         "completion_observed": natural.get("h2d_completed") is True or
-                               trace.get("h2d_completion_observed") is True},
+         # Selector-trace transfer counters are graph/mailbox aggregates, not
+         # an authenticated transfer receipt for this page. Only the
+         # identity-bound natural proof can establish this page's H2D.
+         "queued_bytes": natural_for_page.get("h2d_useful_bytes", 0)
+             if natural_for_page.get("h2d_queued") is True else 0,
+         "completed_bytes": natural_for_page.get("h2d_useful_bytes", 0),
+         "event_completions": natural_for_page.get("h2d_event_sequence", 0),
+         "completed": natural_for_page.get("h2d_completed") is True,
+         "completion_observed": natural_for_page.get("h2d_completed") is True},
         {"stage": "mapping", **stage_identity,
-         "published": trace.get("mapping_published") is True or natural.get("mapping_published") is True,
-         "epoch": trace.get("published_epoch", natural.get("published_epoch")),
-         "physical_slot": trace.get("target_physical_slot", natural.get("physical_slot"))},
+         "published": natural_for_page.get("mapping_published") is True,
+         "epoch": natural_for_page.get("published_epoch"),
+         "physical_slot": natural_for_page.get("physical_slot")},
         {"stage": "target_use", **stage_identity,
-         "consumed": trace.get("target_graph_used") is True or natural.get("target_graph_used") is True,
-         "epoch": natural.get("target_use_epoch"),
-         "query_generation": natural.get("target_use_query_generation")},
+         "consumed": natural_for_page.get("target_graph_used") is True,
+         "epoch": natural_for_page.get("target_use_epoch"),
+         "query_generation": natural_for_page.get("target_use_query_generation")},
     ]
     result = {
         "page_identity": {
@@ -913,7 +976,7 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
         "selector_nominated": nominated,
         "selector_evidence_source": nomination_source,
         "selector_outcome": selector_outcome,
-        "selector_diagnostic": trace if trace.get("enabled") is True else None,
+        "selector_diagnostic": trace if trace_is_page_bound else None,
         "selector_stages": selector_stages,
         "claimed_promoted": nominated is True and cold_before,
         "events": [],
@@ -927,9 +990,13 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     }
     if not result["claimed_promoted"]:
         return result
+    if not natural_page_evidence:
+        result["chain_valid"] = False
+        result["missing_transition"] = ["promotion_chain_incomplete: no same-page, same-query natural proof"]
+        return result
     chain = promotion_event_chain_from_snapshots(
-        cold_pages, natural, request_id=str(final_record.get("request_id") or ""),
-        event_request_id=natural.get("request_id", final_record.get("request_id")),
+        [page], natural_for_page, request_id=str(final_record.get("request_id") or ""),
+        event_request_id=natural_for_page.get("request_id", final_record.get("request_id")),
         request_generation=final_record.get("request_generation"),
         prior_request_generation=final_record.get("request_generation_before"))
     result["chain_valid"] = chain["valid"]
