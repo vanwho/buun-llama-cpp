@@ -761,6 +761,24 @@ def _snapshot_tracked_pages(inventory: list[dict[str, Any]],
     return rows
 
 
+def _answer_page_file_scope(answer_pages: list[dict[str, Any]], file_start: int,
+                            file_end: int,
+                            selector_trace_page: int | None = None) -> dict[str, Any]:
+    """Report page/file overlap and validate an explicitly selected trace page."""
+    answer_page_ids = sorted({page.get("logical_page_id") for page in answer_pages
+                              if page.get("logical_page_id") is not None})
+    page_bounds = {page_id: (page_id * PAGE_TOKENS, (page_id + 1) * PAGE_TOKENS)
+                   for page_id in answer_page_ids}
+    wholly_within_file = {
+        page_id: file_start <= bounds[0] and bounds[1] <= file_end
+        for page_id, bounds in page_bounds.items()
+    }
+    if selector_trace_page is not None and selector_trace_page not in answer_page_ids:
+        raise RuntimeError("filtered selector trace page does not overlap the answer-bearing source span")
+    return {"answer_bearing_page_ids": answer_page_ids,
+            "answer_bearing_pages_wholly_within_file": wholly_within_file}
+
+
 def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
                         final_record: Mapping[str, Any], cold_pages: list[dict[str, Any]],
                         selector_trace_snapshots: list[dict[str, Any]] | None = None
@@ -1030,20 +1048,8 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                                                                    record["render"].get("answer_bearing_end_byte")],
                             "answer_bearing_token_span": [anchor_start, anchor_end],
                             "answer_page_resident_after_request_1": answer_resident_after_request_1}
-            answer_ids = {page.get("logical_page_id") for page in answer_pages}
-            fixture_span["answer_bearing_page_ids"] = sorted(x for x in answer_ids if x is not None)
-            page_bounds = {page_id: (page_id * PAGE_TOKENS,
-                                     (page_id + 1) * PAGE_TOKENS)
-                           for page_id in fixture_span["answer_bearing_page_ids"]}
-            fixture_span["answer_bearing_pages_wholly_within_file"] = {
-                page_id: start <= bounds[0] and bounds[1] <= end
-                for page_id, bounds in page_bounds.items()
-            }
-            if not fixture_span["answer_bearing_pages_wholly_within_file"].get(
-                    selector_trace_page, False):
-                raise RuntimeError("tracked answer page overlaps a file boundary or unrelated prompt text")
-            if selector_trace_page not in fixture_span["answer_bearing_page_ids"]:
-                raise RuntimeError("filtered selector trace page does not overlap the answer-bearing source span")
+            fixture_span.update(_answer_page_file_scope(
+                answer_pages, start, end, selector_trace_page))
         page_snapshots[snapshot_name] = _snapshot_tracked_pages(inventory, initial_pages) \
             if index else [dict(page) for page in initial_pages]
         write_json(case_root / f"{snapshot_name}-tracked-pages.json", page_snapshots[snapshot_name])
@@ -1051,22 +1057,30 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
             answer_before_final = _snapshot_tracked_pages(inventory, answer_initial_pages)
             trace = record["pager_after"].get("selector_trace")
             trace = trace if isinstance(trace, dict) else {}
-            target_page = next((page for page in answer_before_final
-                                if page.get("logical_page_id") == selector_trace_page), {})
+            readiness_pages = answer_before_final if selector_trace_page is None else [
+                page for page in answer_before_final
+                if page.get("logical_page_id") == selector_trace_page]
+            target_page = readiness_pages[0] if len(readiness_pages) == 1 else None
             readiness = {
                 "page": target_page,
+                "pages": readiness_pages,
+                "tracking_mode": "all_answer_bearing_pages" if selector_trace_page is None
+                    else "explicit_selector_trace_page",
                 "selector_trace": trace,
-                "cold": target_page.get("resident") is False and
-                        target_page.get("host_backed") is True,
-                "summary_ready": target_page.get("summary_ready") is True and
-                                 target_page.get("summary_content_version") ==
-                                     target_page.get("content_version"),
-                "target_found": trace.get("target_found") is True,
+                "cold": bool(readiness_pages) and all(
+                    page.get("resident") is False and page.get("host_backed") is True
+                    for page in readiness_pages),
+                "summary_ready": bool(readiness_pages) and all(
+                    page.get("summary_ready") is True and
+                    page.get("summary_content_version") == page.get("content_version")
+                    for page in readiness_pages),
+                "target_found": trace.get("target_found") is True
+                    if selector_trace_page is not None else None,
             }
             readiness["ready_for_final_query"] = readiness["cold"] and \
                 readiness["summary_ready"]
             write_json(case_root / "pre-final-readiness.json", readiness)
-            if not readiness["ready_for_final_query"]:
+            if selector_trace_page is not None and not readiness["ready_for_final_query"]:
                 raise RuntimeError(
                     "answer-bearing page is not cold, host-backed, and summary-ready before final query")
 
@@ -1102,6 +1116,15 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                            if row["page_identity"].get("logical_page_id") in answer_page_ids]
     same_answer_page_promoted = any(row.get("claimed_promoted") and row.get("chain_valid")
                                     for row in answer_page_reports)
+    answer_pages_resident_before_final = bool(answer_page_reports) and all(
+        row.get("resident_before_final_request") is True for row in answer_page_reports)
+    answer_pages_cold_before_final = bool(answer_page_reports) and all(
+        row.get("cold_before") is True for row in answer_page_reports)
+    promotion_classification = (
+        "natural_cold_promotion" if same_answer_page_promoted else
+        "resident_target_control" if answer_pages_resident_before_final else
+        "cold_target_not_promoted" if answer_pages_cold_before_final else
+        "mixed_or_unknown_target_state")
     whole_fixture_resident_after = bool(initial_pages) and all(
         page.get("resident") is True for page in _snapshot_tracked_pages(
             get_pages({"pager_metrics": final_record["pager_after"]}), initial_pages))
@@ -1244,6 +1267,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         "answer_bearing_pages": answer_page_reports,
         "tracked_page_results": page_reports,
         "answer_bearing_page_naturally_promoted": same_answer_page_promoted,
+        "promotion_classification": promotion_classification,
         "whole_fixture_hot_before_final_request": whole_fixture_resident_after,
         "request_1_answer_quality": records[0]["answer_quality"],
         "final_request_answer_quality": final_record["answer_quality"],

@@ -30,9 +30,34 @@ _assess_content_retrieval = _DRIVER.assess_content_retrieval
 _case_acceptance_status = _DRIVER.case_acceptance_status
 _completed_pressure_tail_pages = _DRIVER.completed_pressure_tail_pages
 _generation_start_index = _DRIVER.generation_start_index
+_answer_page_file_scope = _DRIVER._answer_page_file_scope
 
 
 class PagerPromotionPromptTest(unittest.TestCase):
+    def test_answer_page_file_scope_without_trace_page_is_accepted(self) -> None:
+        result = _answer_page_file_scope(
+            [{"logical_page_id": 5}], 1078, 2103)
+        self.assertEqual([5], result["answer_bearing_page_ids"])
+        self.assertEqual({5: True}, result["answer_bearing_pages_wholly_within_file"])
+
+    def test_matching_explicit_trace_page_is_accepted(self) -> None:
+        result = _answer_page_file_scope(
+            [{"logical_page_id": 5}], 1078, 2103, selector_trace_page=5)
+        self.assertEqual([5], result["answer_bearing_page_ids"])
+
+    def test_wrong_explicit_trace_page_is_rejected(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "does not overlap"):
+            _answer_page_file_scope(
+                [{"logical_page_id": 5}], 1078, 2103, selector_trace_page=4)
+
+    def test_mixed_file_page_content_is_reported_without_aborting(self) -> None:
+        result = _answer_page_file_scope(
+            [{"logical_page_id": 4}, {"logical_page_id": 5}],
+            1078, 2103)
+        self.assertEqual([4, 5], result["answer_bearing_page_ids"])
+        self.assertEqual({4: False, 5: True},
+                         result["answer_bearing_pages_wholly_within_file"])
+
     def test_stale_or_foreign_candidate_library_requires_reload(self) -> None:
         maps = "1000-2000 r-xp 0 08:01 123 /tmp/build/bin/libggml-cuda.so"
         self.assertEqual([pathlib.Path("/tmp/build/bin/libggml-cuda.so")],
