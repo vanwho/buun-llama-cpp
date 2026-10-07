@@ -99,3 +99,61 @@ must remain excluded from an upstream product-code PR alongside other local
 tools/server/bench campaign tooling. The next runner owns the unfinished
 105-02 CUDA/replay fixture changes and its live proof/receipt; do not stage
 those partial edits as completed proof during this planning checkpoint.
+
+## October7 first-row producer and MTP rollback source repairs
+
+The new short model fixture reports nonfinite target logits immediately after
+`llama_decode`, before speculative processing/publication/restore: initially
+three selected pages/519 rows, later the first provisional query token with
+4089 causally visible rows. Neither a nonempty mask nor the passing direct
+kernel fixture proves the production packed producer is safe.
+
+Code review found three independent defects:
+
+1. Packed copies read raw cache views with no graph dependency on this
+   layer's `GGML_SET_ROWS` write. The active task's dependency patch is retained.
+   Nested ggml views flatten to the allocation owner and absolute `view_offs`.
+   The copy's view of the write result must use a relative layer offset;
+   the repair checks common owner/base/type and byte bounds. It does not
+   change selected membership, row IDs, promotion or route policy.
+2. Packed staging copies only valid rows into a page-rounded tensor. The
+   ordinary Turbo4 MMA loader reads every capacity row, including padding,
+   before masking, unlike the direct-paged loader's invalid-row zero path.
+   519/768 leaves249 uninitialized rows;4089/4096 leaves7. Arbitrary half
+   norms may be NaN, and a -inf mask cannot sanitize them (or NaN V operands
+   multiplied by zero). The shared slab's tail is now zero-filled once per
+   graph execution, not once per layer or across all H rows. CPU/CUDA
+   `GGML_FILL` now supports only Turbo4 zero via encoded norm-zero blocks;
+   CUDA uses captured stream-ordered memset, without a host fence or expanded
+   F16 cache. All layer copies preserve the initialized padding.
+   `refresh_selected_data` also wrongly compared nested views' flattened
+   owners with intermediate views, rejecting graph reuse. It now checks
+   actual allocation owners and exact absolute byte offsets while retaining
+   physical/layout/row-count compatibility checks.
+3. After `replay_accepted_prefix` repaired the draft's sampled+accepted rows,
+   `common_speculative_rollback_dft` sent `target_restored_without_draft`.
+   `sequence_transition` invalidated pending carry AND reset the applied
+   rollback guard; the following `process` took its target-only path and
+   cleared the ENTIRE draft sequence. This is not rejected-suffix cleanup.
+   Successful paired repair now retains accepted carry and idempotence;
+   native accepted frontier/hidden-buffer sizes are checked before replay.
+   Genuine unpaired checkpoint restores continue to invalidate carry.
+
+These are source-confirmed defects; their individual contributions to the
+observed model failure and acceptance are not yet measured. The repeated
+37/374 is response-local data (9.893%), not a hardcoded acceptance count.
+The frozen deterministic temperature0 workload repeats the same poor token
+trajectory. The erroneous carry reset additionally creates no-draft recovery
+cycles and loses draft attention history; corrupt target rows can independently
+poison hidden handoff and verification. Do not retune ranking or fabricate
+acceptance as a repair for either defect. Sparse target/full-history draft
+disagreement may still limit acceptance after finite/state parity is restored.
+
+105-02 owns the short real-production finite/parity and two-transaction
+partial-rejection check before its one saved live outcome.105-02a then runs
+the bounded32K finding and matched canonical prompts. Stop only genuine
+execution failures; coherent semantic/MTP misses are findings for a measured
+producer repair, not repeated unchanged large campaigns. Keep diagnostics
+fixture-only and preserve full-L GPU Turbo4 draft, B1024/U256, automatic
+production routes and once-per-turn retrieval. No task state was reset by
+this review; unfinished active fixture edits are retained separately.
