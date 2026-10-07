@@ -310,7 +310,6 @@ static void test_scaled_candidate_mailbox() {
            last.attention_layer == layers - 1 &&
            last.cold && last.selector_rank == cold_pages - 1 &&
            last.content_version == 6000 + cold_pages - 1);
-           last.content_version == 6004);
 }
 
 static void test_layer_duplicate_and_refresh_budget(prefetch_fake & fake) {
