@@ -1,71 +1,87 @@
-# Forward final measured summary (refreshed 103-04)
+# Forward measured summary — refreshed for 105-04
 
-**Decision:** primary architecture remains unaccepted. The 262,144-row allocation was configured, while the largest executable occupied frontier was C=250,572 (gap 1,572); exact C=262,144 is unproven.
+Overall goal status is **not assessed**. The completed evidence includes a candidate-matched 105-03b occupied-base canonical matrix and correct semantic recalls, while the matched CPU-KV speed comparison is still missing. That gap does not establish a production defect. The 105-03b numeric trajectory ended 707 tokens below its requested C=250000 frontier; execution completed and its checker passed. Exact C=L remains unproven.
 
-## Geometry and capacity
+## Current 105-03b candidate and geometry
 
-| L | C | H | R | G | A | B/U | Result |
-|---:|---:|---:|---:|---:|---:|---:|---|
-| 131,072 | 120,000 | 51,200 | 50,944* | 256* | 0** | 1024/256 | 200/200 pages; occupied run passed |
-| 262,144 | 250,572 | 51,200 | 50,944* | 256* | 0** | 1024/256 | near-full frontier; exact-full unproven |
+Attempt02 used source HEAD `8f8faebacedff769e48a3ce80b7544d886a3a049` plus the captured dirty pager diff (dirty fingerprint `85f92af631fc2b9b620167fcd5b5b72d775bb6b73bdf23e44535462319d882ed`; compiled delta `f493a4817f92590acbe510d0051516d9f8dfd90445ce67f42f47d35f940bce99`). The raw build identity stays attached to that HEAD-plus-diff candidate. Executable SHA-256 is `2d46af95cc6151096a026845d763947cb9d4041b857acb1515b962db418a4af4`, libllama `d9c93b62edaff5322108d684c1dd9f95d71eeeffb953afec351855200f3247dd`, server implementation `efa611a672ab73931f8d834cd6d7017fc4e702acc2307f9ccebb1c1384f6b1c0`, CUDA `f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867`, and model `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`. Full loaded DSO identity and actual server argv are in the hashed candidate artifact.
 
-* R/G are derived from H and the 256-token generation-tail invariant (R+G=H), not separately exported counters. **A is additional packed-owner allocation (measured high-water 0); 54,067,200 B graph scratch is separate.
+| L | Occupied C | H | R/G | B/U | KV and MTP | Result |
+|---:|---:|---:|---:|---:|---|---|
+| 262144 | 249293 | 51200 | 50944/256 | 1024/256 | Turbo4 target KV; full-L GPU Turbo4 MTP | Execution complete; 707 short of requested C=250000; C=L unproven |
 
-## Canonical 8K/4K same-candidate rerun (103-04)
+The old 105-03 trajectory and 105-03a paired layout remain separately identified findings. The older 103-04 canonical, geometry, replay, and memory sections retained in the JSON are historical candidate-bound results; no candidate identity is blended across them.
 
-Main candidate `build-102-06/bin/llama-server` SHA256 `a24b26ba1b55066d81eb1af795d3d58889099a4b1ed087a4d3e6f74f3fe375de`
-(model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`), L=8192/H=4096, page=256,
-B=1024/U=256, native GPU Turbo4 MTP. Three measured trials per prompt used
-the same frozen prefix and cleared slot; each row rendered 4,112–4,115 tokens
-with zero cached tokens. Rows and identity are under `/srv/ai/paged-kv/results/forward/103-04/attempt-01`.
+## 105-03b occupied-context curve
 
-| Arm | Fresh prefill medians p1/p2/p3 (tok/s) | Decode medians p1/p2/p3 (tok/s) | MTP acceptance p1/p2/p3 | Answer quality |
-|---|---:|---:|---:|---|
-| Selected pager, GPU target KV | 1503.74 / 1506.10 / 1505.13 | 36.82 / 36.80 / 36.78 | 0 / 0 / 0% | Slash filler on all prompts (semantic miss) |
-| CPU-main-KV, pager off, GPU MTP | 671.77 / 678.15 / 671.50 | 25.14 / 19.12 / 21.43 | 80.37 / 50.00 / 65.03% | Coherent useful answers |
-| Feature off, all-GPU target KV and MTP | 1633.61 / 1631.29 / 1633.80 | 84.30 / 62.85 / 71.33 | 78.20 / 51.61 / 63.32% | Coherent useful answers |
+The 21 bulk rows below use fresh tokens divided by `timings.prompt_ms` for useful ingestion, and `timings.prompt_n` divided by the same duration for GPU-executed input. `usage.prompt_tokens` contains cached history and is not executed input. Each MTP value is request-local accepted/drafted.
 
-The selected route reported `selected packed`; route override was `auto`. Fresh
-prompts had zero query replay time/count. Selector/retrieval cost was not
-separately reported. The selected pager snapshot measured 138,412,032 B target
-allocation, 8,781,824 B full-L MTP KV, 14,877,589,504 B device used and
-1,842,610,176 B free. CPU and pager-off controls did not expose comparable
-pager allocator memory counters. Independent answer scoring was not run.
+| Stage | C after | Fresh | Processed (`prompt_n`) | Fresh tok/s | Processed tok/s | Decode tok/s | MTP |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A1 | 4293 | 3894 | 4030 | 1224.41 | 1267.18 | 82.61 | 228/341 |
+| B | 16586 | 11894 | 11991 | 1214.51 | 1224.41 | 86.99 | 244/308 |
+| F2 | 28845 | 11860 | 11892 | 923.66 | 926.16 | 77.76 | 235/328 |
+| F3 | 41146 | 11902 | 11934 | 742.95 | 744.94 | 75.67 | 239/318 |
+| F4 | 53442 | 11897 | 11929 | 632.38 | 634.08 | 47.14 | 243/311 |
+| F5 | 65726 | 11885 | 11917 | 901.12 | 903.54 | 43.77 | 233/331 |
+| F6 | 78023 | 11900 | 11932 | 875.53 | 877.89 | 42.01 | 227/340 |
+| F7 | 90289 | 11867 | 11899 | 855.96 | 858.27 | 42.39 | 231/335 |
+| F8 | 102559 | 11890 | 11922 | 842.12 | 844.39 | 43.79 | 226/308 |
+| F9 | 114725 | 11859 | 11891 | 827.17 | 829.41 | 41.35 | 177/260 |
+| F10 | 126960 | 11899 | 11931 | 815.90 | 818.10 | 38.13 | 184/304 |
+| F11 | 139151 | 11891 | 11923 | 801.08 | 803.24 | 45.16 | 186/228 |
+| F12 | 151398 | 11904 | 11936 | 787.27 | 789.39 | 40.23 | 198/290 |
+| F13 | 163684 | 11895 | 11927 | 776.95 | 779.04 | 38.93 | 223/336 |
+| F14 | 175920 | 11903 | 11935 | 765.06 | 767.12 | 39.99 | 195/276 |
+| F15 | 188182 | 11863 | 11895 | 752.69 | 754.72 | 37.47 | 225/346 |
+| F16 | 200212 | 11798 | 11830 | 739.33 | 741.33 | 38.57 | 134/196 |
+| F17 | 212511 | 11900 | 11932 | 730.85 | 732.81 | 36.20 | 221/353 |
+| F18 | 224801 | 11891 | 11923 | 719.32 | 721.25 | 31.89 | 200/398 |
+| F19 | 236943 | 11891 | 11923 | 708.60 | 710.51 | 33.68 | 134/234 |
+| F20 | 249075 | 11878 | 11910 | 699.11 | 700.99 | 38.17 | 150/208 |
 
-The CPU-main-KV control must disable pager mode because this candidate rejects
-CPU target KV with selective pager enabled (`bounded KV pager requires GPU
-target cache storage`). An initial 30-token short probe and that invalid
-configuration remain recorded, excluded from canonical rows.
+Across the 21 fill rows, median fresh/processed rates were 787.27/789.39 tok/s and median decode was 41.35 tok/s. The short A2 tail added 62 fresh tokens and executed 115 prompt tokens in 2869.059 ms (21.61/40.08 tok/s); it correctly answered `<ff fe>` with `invalid_utf8=true` and is not a bulk-prefill point. The final 699.11 tok/s fresh rate differs from 700.99 tok/s processed because the denominators are 11878 fresh versus 11910 executed tokens.
 
-104-08's ranking experiment verdict remains **inconclusive**; no experimental
-source or binary is adopted and no ranking win/loss is inferred. The reported
-L=262,144 allocation and C=250,572/C=254,393 occupied frontiers remain
-candidate-bound partial findings; exact C=L is unproven. 103-03 remains deferred.
+## Canonical generation and retrieval
 
-## Historical occupancy speed findings
+The occupied prefix was reused for all 12 canonical rows: one 40-token warmup and three measured requests for each prompt, with reasoning off. All responses were coherent; request-local medians and accepted/drafted pairs are:
 
-At C=120,000, 128K post-load rows completed three 400-token trials per prompt, but MTP acceptance was 0% on all prompts. Each reused the occupied prefix; about 42 prompt tokens were newly processed, so these are not fresh-prefill comparisons. At 256K, no canonical speed matrix ran. The 249,921-token recall generated 400 tokens with 398 drafts, 0 accepted, and slash filler.
+| Prompt | Median decode tok/s | Median MTP acceptance | Accepted/drafted per measured row |
+|---|---:|---:|---|
+| Merge two sorted lists | 43.32 | 88.28% | 113/128, 113/128, 113/128 |
+| mmap vs read | 31.17 | 48.91% (48.78% pooled) | 90/184, 77/172, 72/134 |
+| Directory watcher | 40.75 | 79.78% | 228/302, 217/272, 231/286 |
 
-The occupancy-fill journals do contain incremental fresh-input prefill curves,
-which were previously omitted from this compact summary. In the 128K run,
-server-reported prompt rate declined from 1,117 tok/s at C=3,890 to 668 tok/s
-at C=119,357 (multi-thousand-token fresh chunks; short 112/140-token tail
-requests excluded). In the separate 256K build/run it declined from 1,131
-tok/s at C=3,890 to 585 tok/s at C=250,037 (the final point processed 7,754
-fresh tokens). These are occupancy-fill measurements, not the three-prompt
-canonical benchmark, not paired A/B, and from different candidate binaries;
-they must not be attributed to a specific code change. Complete point tables,
-fresh-token counts, candidate hashes, and raw journal SHA256 values are recorded
-in the 102-05/102-06 handoffs and V10 receipts.
+The primary A2 fact and both additional earlier-source facts were correct with natural EOS. The extra facts were the `CONTRIBUTING.md` bug-fix PR requirements and `PP + B * TG` in the batched-bench README. These semantic answers do not certify physical cold-page residency, rank, transfer, or target use; that optional identity-bound witness remains unknown.
 
-## Retrieval, replay, memory and quality
+105-02a also established semantically successful selected and dense exact-fact responses. The selected response recorded the page cold/host-backed before recall, rank/admission/mapping observations, and a correct answer. Its identity-bound physical-transfer/target-use witness remains unknown; this is not a retrieval failure or completion gate. The 105-03 primary recall and 105-02a recall are separate candidate-bound evidence.
 
-A prior 101-18 candidate passed natural cold promotion (page 5, 34,603,008 useful H2D bytes, mapping published, target/draft consumed). Final 256K replay restored target and draft, kept 200/200 pages resident and frozen-history generation at 0, advanced slot generation 36→37, and observed zero historical H2D in that interval. It failed semantic file retrieval. Selector/replay/promotion/view timings, final 256K route comparison, generation rollback count and exact full-C commit are not measured.
+## Route, replay, and memory
 
-At 128K: target pool 865,075,200 B; target compute 193,974,912 B; full-L GPU Turbo4 MTP 138,543,104 B (131,072 rows); MTP compute 102,768,768 B; MTP dequant scratch 536,870,912 B; target dequant and packed live/peak/draining high-water 0 B; minimum sampled free VRAM 232 MiB over 110 samples. Host-valid/pinned bytes and separate graph scratch/headroom are unknown in this receipt, not zero.
+The current live route was `probe-rerank`. Occupied-base replay was coherent for canonical and extra-fact requests. Selector, replay, and promotion costs were not measured separately; a matched route comparison and candidate-matched CPU-KV speed control are missing. The missing comparison does not imply a known implementation defect.
 
-At 256K: target pool 865,075,200 B; target compute 244,929,152 B; full-L GPU Turbo4 MTP 276,955,136 B (262,144 rows); MTP compute 169,877,632 B; graph scratch 54,067,200 B; target/MTP dequant high-water 0 B; packed live/draining high-water 0 B; host pageable 4,233,660,000 B, host valid 816,617,000 B, pinned 0 B; minimum sampled free VRAM 502 MiB. Headroom (201,326,592 B), catalogue (100,876,288 B), graph (198,435,072 B), and external (771,728,128 B) are reservations, not observed allocations.
+Current attempt02 memory counters (bytes) are candidate-bound: target pool capacity/allocation 865075000; target resident 856424000 and valid 855563000; full-L GPU MTP 276955000 bytes / 262144 rows; graph 198435000; scratch high-water 54067200; host pageable 4212050000, host valid 855563000, pinned 0; packed storage 54067200 and workspace/dequant reported 0; device used/free 16041500000/678691000. Reserved headroom 201327000 and catalogue 100876000 are not observed allocations. Do not add overlapping categories; unreported categories remain unknown.
 
-## Goal verdict
+## Goal rows
 
-All 15 items are listed in `FORWARD_FINAL_SUMMARY.json`. Core misses are occupied-context MTP acceptance, final semantic retrieval, exact-full C, final route/scale attribution and feature-off reassessment. The 8K selected-prefill floor and CPU-main-KV comparison pass. Earlier replay, freeze, promotion and ring proofs remain scoped to their executable evidence. The full canonical three-prompt benchmark at each context and a paired before/after context-speed comparison remain unmeasured; the incremental occupancy-fill curves above are findings, not acceptance gates. Receipt-backed raw roots and hashes are listed in the JSON.
+All 15 rows are retained. This refresh records current evidence without re-auditing every historical phase.
+
+| Goal | Current compact finding |
+|---:|---|
+| 1 | Partial: L-sized allocation and C=249293 measured; exact C=L unproven and requested C short by 707. |
+| 2 | Met: current L=262144 with H=51200; historical 128K evidence stays separate. |
+| 3 | Semantic success: 105-02a selected/dense and 105-03b facts correct; physical witness unknown. |
+| 4 | Historical boundary parity and replay findings retained; no new bitwise claim. |
+| 5 | Historical frozen-history findings retained within their tested scopes. |
+| 6 | Historical zero-H2D observation remains interval-scoped; current physical transfer witness unknown. |
+| 7 | Ring implementation/tests are historical; current numeric rollback counter not measured. |
+| 8 | Not reassessed in current scale receipts. |
+| 9 | Current full-L GPU Turbo4 MTP canonical medians are 88.28%, 48.91%, 79.78%. |
+| 10 | Current host pageable/valid/pinned counters are recorded in the candidate-bound memory snapshot. |
+| 11 | Unknown: matched current candidate CPU-KV comparison is missing. |
+| 12 | 105-03a paired small-layout B measured 1236.61 fresh tok/s split versus 703.20 legacy; 105-03b large curve is separate. |
+| 13 | Historical replay/PCIe findings remain scoped; current scale-wide relation unknown. |
+| 14 | Partial: large-context curve, canonical, semantic, and memory findings exist; C=L is unproven and CPU-KV comparison missing. |
+| 15 | Not reassessed for the current candidate. |
+
+The full 105-03b findings and validation artifacts are hashed in `FORWARD_FINAL_SUMMARY.json` and `.wiretail/execution/evidence/V10_105-03b.json`. The 105-03 large trajectory/primary fact and 105-03a paired layout remain in their own compact handoffs; attempt01's 105-03b reservation failure remains a separate runtime finding with unknown cause.

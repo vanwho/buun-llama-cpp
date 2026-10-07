@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "task": "105-05",
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": {
+      "status": "pass",
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_105-03b.json", "sha256": "e7fb22240467545fb693a13a5779d084e650e8215ee1c9744ddedcfbf54e9ee7"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/candidate-identity.json", "sha256": "3d9166c3b1bd14f72275c2deaa4ee0bec73c61b1f4ad413a68ead97e8ece7290"}
+      ]
+    },
+    "required_turbo4_placements": {
+      "status": "pass",
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_105-03b.json", "sha256": "e7fb22240467545fb693a13a5779d084e650e8215ee1c9744ddedcfbf54e9ee7"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-occupancy-findings.json", "sha256": "c80aba3af7450ddc7222349008d9df69ee1e669a81ced5acc14929d5717ed6e5"}
+      ]
+    },
+    "semantic_cold_recall": {
+      "status": "pass",
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-occupancy-findings.json", "sha256": "c80aba3af7450ddc7222349008d9df69ee1e669a81ced5acc14929d5717ed6e5"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-extra-facts-findings.json", "sha256": "76663fa45a7d63c9337cfd6e136232f4b81b8be2994d44474850dc5b1ad246dd"},
+        {"path": ".wiretail/execution/evidence/V10_105-02a.json", "sha256": "e16709c2aa6f846e43cdf26a3c3e4f585dca599d3e94df53d76286ed3dd31f3e"}
+      ]
+    },
+    "replay_frozen_gpu_attention": {
+      "status": "pass",
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json", "sha256": "69eb33ed6ad777a4f6088b89deb6cec9a64272bf89f3fd049d4e3df16d68a6f3"},
+        {"path": ".wiretail/execution/evidence/V10_105-03b.json", "sha256": "e7fb22240467545fb693a13a5779d084e650e8215ee1c9744ddedcfbf54e9ee7"}
+      ]
+    },
+    "larger_occupied_context": {
+      "status": "pass",
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-occupancy-findings.json", "sha256": "c80aba3af7450ddc7222349008d9df69ee1e669a81ced5acc14929d5717ed6e5"},
+        {"path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json", "sha256": "69eb33ed6ad777a4f6088b89deb6cec9a64272bf89f3fd049d4e3df16d68a6f3"}
+      ]
+    }
+  },
+  "bulk_prefill": {
+    "status": "pass",
+    "uncached_input_tokens": 241561,
+    "fresh_input_tok_s": 787.27,
+    "candidate_fingerprint": "eb71506818a87d651a72794ff3380a0c73d9ca84eb3857211a27260aa9967d70",
+    "artifacts": [
+      {"path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json", "sha256": "69eb33ed6ad777a4f6088b89deb6cec9a64272bf89f3fd049d4e3df16d68a6f3"},
+      {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/occupied-frontier.json", "sha256": "d7811d038527482253424ce191a50397d5fc02db1fca3cc0bd6a3c19703c2e88"}
+    ]
+  },
+  "matched_decode": {
+    "status": "unknown",
+    "reason": "Candidate-matched ordinary CPU-KV decode comparison is missing; current GPU Turbo4 canonical rates are not a matched control.",
+    "selected_tok_s": null,
+    "cpu_ram_tok_s": null,
+    "identity_and_workload_matched": false,
+    "artifacts": [
+      {"path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json", "sha256": "69eb33ed6ad777a4f6088b89deb6cec9a64272bf89f3fd049d4e3df16d68a6f3"}
+    ]
+  },
+  "canonical_mtp": {
+    "status": "pass",
+    "prompts": {
+      "prompt_1": {"drafted": 384, "accepted": 339},
+      "prompt_2": {"drafted": 490, "accepted": 239},
+      "prompt_3": {"drafted": 860, "accepted": 676}
+    },
+    "artifacts": [
+      {"path": ".wiretail/execution/evidence/V10_105-03b.json", "sha256": "e7fb22240467545fb693a13a5779d084e650e8215ee1c9744ddedcfbf54e9ee7"},
+      {"path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json", "sha256": "69eb33ed6ad777a4f6088b89deb6cec9a64272bf89f3fd049d4e3df16d68a6f3"}
+    ]
+  },
+  "optional_physical_witnesses": {
+    "status": "unknown",
+    "reason": "Identity-bound physical cold-page residency, rank, transfer, or target-use evidence was not captured; semantic correctness does not establish it."
+  },
+  "next_task_ids": ["105-06", "105-07"]
+}

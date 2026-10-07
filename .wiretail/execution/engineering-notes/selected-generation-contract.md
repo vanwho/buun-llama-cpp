@@ -1,10 +1,20 @@
 # Selected generation: current source and measured findings
 
-Revision: hotpath-v10-20260914. Updated October7 for105-02 onward.
+Revision: hotpath-v10-20260914. Updated October8 for105-02 onward.
 Current summary, not an attempt diary. Raw runs remain external. The 105-02a
 selected/dense exact-fact comparison succeeded semantically with response-local
 MTP. Identity-bound transfer/target-use witness remains unknown; this is not a
 semantic failure or completion gate. Root owns task state/receipt.
+
+Latest105-03b attempt02 completed C249293 at L262144/H51200 and all12
+post-load canonical probes. Primary invalid-UTF8 recall plus CONTRIBUTING PR
+requirements and the shared-prompt N_KV formula were correct without source
+reattachment. Final bulk ingestion was699.11 fresh/700.99 executed tok/s;
+measured canonical decode43.32/31.17/40.75 tok/s, median MTP88.28%/48.91%/
+79.78%. See `evidence/FORWARD105_SPLIT_LONG.md` for candidate-bound curve and
+identity; prior candidates below remain historical, not matched controls.
+Physical requested-page witness is unknown and current matched CPU-KV decode
+advantage remains to be measured; neither is a diagnosed ranking defect.
 
 ## Architecture and preserved repairs
 

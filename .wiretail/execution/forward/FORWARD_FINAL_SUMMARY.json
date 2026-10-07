@@ -1,8 +1,90 @@
 {
   "schema_version": 1,
-  "task": "103-04",
-  "result": "primary_architecture_not_accepted",
-  "goal_met": false,
+  "task": "105-04",
+  "result": "overall_goal_not_assessed_candidate_matched_cpu_kv_comparison_missing",
+  "goal_met": null,
+  "legacy_section_scope": "Existing 103-04 canonical, memory, and replay sections remain historical candidate-bound findings. Current 105-03b evidence is recorded separately below; candidate identities must not be merged.",
+  "current_105_03b": {
+    "attempt": 2,
+    "execution_status": "complete",
+    "driver_numeric_status": "goal_miss",
+    "geometry": {"L": 262144, "C": 249293, "target_C": 250000, "target_gap": 707, "H": 51200, "R": 50944, "G": 256, "A": "unknown", "page_tokens": 256, "hot_pages": 200, "B": 1024, "U": 256, "target_KV": "Turbo4", "MTP": "full-L GPU Turbo4"},
+    "exact_full_C": "unproven",
+    "candidate": {
+      "source_head": "8f8faebacedff769e48a3ce80b7544d886a3a049",
+      "dirty_source_fingerprint": "85f92af631fc2b9b620167fcd5b5b72d775bb6b73bdf23e44535462319d882ed",
+      "compiled_source_delta_sha256": "f493a4817f92590acbe510d0051516d9f8dfd90445ce67f42f47d35f940bce99",
+      "source_file_sha256": "e171c1894a3740dd0872c38e79805a2ff16e093142461da00397afaa85da93b4",
+      "binary_sha256": "2d46af95cc6151096a026845d763947cb9d4041b857acb1515b962db418a4af4",
+      "libllama_sha256": "d9c93b62edaff5322108d684c1dd9f95d71eeeffb953afec351855200f3247dd",
+      "server_impl_sha256": "efa611a672ab73931f8d834cd6d7017fc4e702acc2307f9ccebb1c1384f6b1c0",
+      "cuda_sha256": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "route": "probe-rerank",
+      "identity_fingerprint": "eb71506818a87d651a72794ff3380a0c73d9ca84eb3857211a27260aa9967d70"
+    },
+    "bulk_curve": [
+      {"stage":"A1","C":4293,"fresh_tokens":3894,"prompt_n":4030,"prompt_ms":3180.299,"fresh_tps":1224.41,"processed_tps":1267.18,"decode_tps":82.61,"mtp":[228,341]},
+      {"stage":"B","C":16586,"fresh_tokens":11894,"prompt_n":11991,"prompt_ms":9793.25,"fresh_tps":1214.51,"processed_tps":1224.41,"decode_tps":86.99,"mtp":[244,308]},
+      {"stage":"F2","C":28845,"fresh_tokens":11860,"prompt_n":11892,"prompt_ms":12840.176,"fresh_tps":923.66,"processed_tps":926.16,"decode_tps":77.76,"mtp":[235,328]},
+      {"stage":"F3","C":41146,"fresh_tokens":11902,"prompt_n":11934,"prompt_ms":16020.012,"fresh_tps":742.95,"processed_tps":744.94,"decode_tps":75.67,"mtp":[239,318]},
+      {"stage":"F4","C":53442,"fresh_tokens":11897,"prompt_n":11929,"prompt_ms":18813.06,"fresh_tps":632.38,"processed_tps":634.08,"decode_tps":47.14,"mtp":[243,311]},
+      {"stage":"F5","C":65726,"fresh_tokens":11885,"prompt_n":11917,"prompt_ms":13189.19,"fresh_tps":901.12,"processed_tps":903.54,"decode_tps":43.77,"mtp":[233,331]},
+      {"stage":"F6","C":78023,"fresh_tokens":11900,"prompt_n":11932,"prompt_ms":13591.74,"fresh_tps":875.53,"processed_tps":877.89,"decode_tps":42.01,"mtp":[227,340]},
+      {"stage":"F7","C":90289,"fresh_tokens":11867,"prompt_n":11899,"prompt_ms":13863.946,"fresh_tps":855.96,"processed_tps":858.27,"decode_tps":42.39,"mtp":[231,335]},
+      {"stage":"F8","C":102559,"fresh_tokens":11890,"prompt_n":11922,"prompt_ms":14119.134,"fresh_tps":842.12,"processed_tps":844.39,"decode_tps":43.79,"mtp":[226,308]},
+      {"stage":"F9","C":114725,"fresh_tokens":11859,"prompt_n":11891,"prompt_ms":14336.749,"fresh_tps":827.17,"processed_tps":829.41,"decode_tps":41.35,"mtp":[177,260]},
+      {"stage":"F10","C":126960,"fresh_tokens":11899,"prompt_n":11931,"prompt_ms":14583.868,"fresh_tps":815.90,"processed_tps":818.10,"decode_tps":38.13,"mtp":[184,304]},
+      {"stage":"F11","C":139151,"fresh_tokens":11891,"prompt_n":11923,"prompt_ms":14843.666,"fresh_tps":801.08,"processed_tps":803.24,"decode_tps":45.16,"mtp":[186,228]},
+      {"stage":"F12","C":151398,"fresh_tokens":11904,"prompt_n":11936,"prompt_ms":15120.626,"fresh_tps":787.27,"processed_tps":789.39,"decode_tps":40.23,"mtp":[198,290]},
+      {"stage":"F13","C":163684,"fresh_tokens":11895,"prompt_n":11927,"prompt_ms":15309.829,"fresh_tps":776.95,"processed_tps":779.04,"decode_tps":38.93,"mtp":[223,336]},
+      {"stage":"F14","C":175920,"fresh_tokens":11903,"prompt_n":11935,"prompt_ms":15558.291,"fresh_tps":765.06,"processed_tps":767.12,"decode_tps":39.99,"mtp":[195,276]},
+      {"stage":"F15","C":188182,"fresh_tokens":11863,"prompt_n":11895,"prompt_ms":15760.726,"fresh_tps":752.69,"processed_tps":754.72,"decode_tps":37.47,"mtp":[225,346]},
+      {"stage":"F16","C":200212,"fresh_tokens":11798,"prompt_n":11830,"prompt_ms":15957.745,"fresh_tps":739.33,"processed_tps":741.33,"decode_tps":38.57,"mtp":[134,196]},
+      {"stage":"F17","C":212511,"fresh_tokens":11900,"prompt_n":11932,"prompt_ms":16282.431,"fresh_tps":730.85,"processed_tps":732.81,"decode_tps":36.20,"mtp":[221,353]},
+      {"stage":"F18","C":224801,"fresh_tokens":11891,"prompt_n":11923,"prompt_ms":16530.947,"fresh_tps":719.32,"processed_tps":721.25,"decode_tps":31.89,"mtp":[200,398]},
+      {"stage":"F19","C":236943,"fresh_tokens":11891,"prompt_n":11923,"prompt_ms":16780.872,"fresh_tps":708.60,"processed_tps":710.51,"decode_tps":33.68,"mtp":[134,234]},
+      {"stage":"F20","C":249075,"fresh_tokens":11878,"prompt_n":11910,"prompt_ms":16990.276,"fresh_tps":699.11,"processed_tps":700.99,"decode_tps":38.17,"mtp":[150,208]}
+    ],
+    "bulk_curve_definition": "Fresh tok/s = fresh input tokens / timings.prompt_ms; processed tok/s = timings.prompt_n / timings.prompt_ms. usage.prompt_tokens includes cached history and is not executed GPU input.",
+    "fill_curve_medians": {"fresh_tps":787.27,"processed_tps":789.39,"decode_tps":41.35,"rows":21},
+    "A2_short_tail": {"fresh_tokens":62,"prompt_n":115,"prompt_ms":2869.059,"fresh_tps":21.61,"processed_tps":40.08,"decode_tps":33.86,"mtp":[84,144],"semantic":"correct `<ff fe>` and invalid_utf8=true; short cached tail, not bulk prefill"},
+    "canonical": {
+      "rows":12,"occupied_base_reused":true,"warmups_per_prompt":1,"measured_per_prompt":3,
+      "prompts":[
+        {"id":"merge","median_decode_tps":43.32,"median_mtp_acceptance_percent":88.28,"accepted_drafted_pairs":[[113,128],[113,128],[113,128]],"semantic":"coherent correct merge implementation"},
+        {"id":"mmap-read","median_decode_tps":31.17,"median_mtp_acceptance_percent":48.91,"pooled_mtp_acceptance_percent":48.78,"accepted_drafted_pairs":[[90,184],[77,172],[72,134]],"semantic":"coherent correct distinction"},
+        {"id":"bash-watcher","median_decode_tps":40.75,"median_mtp_acceptance_percent":79.78,"accepted_drafted_pairs":[[228,302],[217,272],[231,286]],"semantic":"coherent watch-and-print script"}
+      ]
+    },
+    "retrieval": {
+      "primary_fact":"correct","primary_fact_markers":["<ff fe>","invalid_utf8=true"],
+      "extra_facts_correct":2,"extra_fact_status":"both semantic_status=met with natural EOS",
+      "physical_rank_residency_promotion_witness":"unknown",
+      "semantic_success_does_not_prove_physical_cold_promotion":true
+    },
+    "replay_and_costs": {
+      "query_replay":"coherent occupied-base restore observed for canonical and extra fact requests",
+      "selector_replay_promotion_costs":"unknown; not separately measured",
+      "matched_route_comparison":"unknown",
+      "optional_physical_page_witness":"unknown"
+    },
+    "memory_bytes": {
+      "target_pool_capacity":865075000,"target_allocated":865075000,"target_resident":856424000,"target_valid":855563000,
+      "full_L_gpu_mtp":276955000,"full_L_gpu_mtp_rows":262144,"mtp_compute":0,
+      "graph":198435000,"scratch_high_water":54067200,"host_pageable":4212050000,"host_valid":855563000,"host_pinned":0,
+      "packed_storage":54067200,"packed_workspace":0,"packed_dequant":0,
+      "headroom_reserved_not_observed":201327000,"catalogue_reserved_not_observed":100876000,"external_bytes":291543000,
+      "device_used":16041500000,"device_free":678691000,"note":"Counter fields are candidate-bound; overlapping/reserved categories are not additive. Unknown is not zero."
+    },
+    "candidate_matched_cpu_kv_comparison":{"status":"missing","meaning":"overall goal remains unassessed; the missing comparison is not evidence of a known implementation defect"},
+    "artifact_hashes": {
+      "validated_findings_sha256":"c80aba3af7450ddc7222349008d9df69ee1e669a81ced5acc14929d5717ed6e5",
+      "occupied_frontier_sha256":"d7811d038527482253424ce191a50397d5fc02db1fca3cc0bd6a3c19703c2e88",
+      "receipt_sha256":"e7fb22240467545fb693a13a5779d084e650e8215ee1c9744ddedcfbf54e9ee7",
+      "compact_findings_sha256":"869955c8699b39f81216a35a5a9034c49551dca2d79d8b3ff7443149e9833302"
+    }
+  },
   "geometry": {
     "context_rows": [
       {
@@ -14,7 +96,7 @@
         "A": 0,
         "B": 1024,
         "U": 256,
-        "status": "occupied_frontier_complete",
+        "status": "historical_103_04_occupied_frontier_complete",
         "R_G_note": "R=H-G under the 256-token generation-tail invariant; 200-page H retained. A is additional packed-owner allocation, measured high-water 0."
       },
       {
@@ -26,9 +108,22 @@
         "A": 0,
         "B": 1024,
         "U": 256,
-        "status": "near_full_functional_frontier",
+        "status": "historical_103_04_near_full_frontier",
         "reserved_gap_to_L": 1572,
         "R_G_note": "R=H-G under the 256-token generation-tail invariant; replay snapshot had 50,952 target-valid rows, 200/200 pages resident. A is additional packed-owner allocation, measured high-water 0."
+      },
+      {
+        "L": 262144,
+        "C": 249293,
+        "H": 51200,
+        "R": 50944,
+        "G": 256,
+        "A": "unknown",
+        "B": 1024,
+        "U": 256,
+        "status": "105_03b_attempt02_execution_complete_numeric_target_missed_by_707",
+        "target_C": 250000,
+        "R_G_note": "Configured full-L GPU MTP with 200 hot pages. Exact C=L and additional packed-owner allocation are unknown."
       }
     ],
     "exact_full_C": {
@@ -468,45 +563,46 @@
   "post_load_256k": {
     "geometry": {
       "L": 262144,
-      "C": 250572,
+      "C": 249293,
       "H": 51200,
       "B": 1024,
       "U": 256
     },
-    "canonical_speed_matrix": "not_run",
+    "scope": "current 105-03b attempt02 candidate; do not merge with the historical 103-04 or 105-03 candidates",
+    "canonical_speed_matrix": {
+      "status": "complete",
+      "rows": 12,
+      "occupied_prefix_reused": true,
+      "decode_medians_tok_s": {"merge": 43.32, "mmap_read": 31.17, "bash_watcher": 40.75},
+      "request_local_mtp_acceptance_percent": {"merge": 88.28, "mmap_read": 48.91, "bash_watcher": 79.78},
+      "semantic": "all three prompts produced coherent useful responses"
+    },
     "recall": {
-      "rendered_prompt_tokens": 249921,
-      "completion_tokens": 400,
-      "mtp_drafted": 398,
-      "mtp_accepted": 0,
-      "mtp_acceptance_percent": 0.0,
-      "semantic_result": "slash filler; requested revision/hooks not recovered"
+      "rendered_prompt_tokens": 249137,
+      "fresh_question_tokens": 62,
+      "completion_tokens": 156,
+      "mtp_drafted": 144,
+      "mtp_accepted": 84,
+      "semantic_result": "correct: invalid UTF-8 bytes ff fe are rendered as <ff fe> and invalid_utf8=true",
+      "physical_cold_residency_or_promotion": "unknown"
+    },
+    "extra_facts": {
+      "contributing_pr": "met: reproducible issue plus regression that fails before and passes after",
+      "batched_bench_n_kv": "met: PP + B * TG",
+      "natural_eos": true
     }
   },
   "retrieval_replay_and_ring": {
-    "prior_natural_cold_promotion": "101-18 passed: page 5 selected, 34603008 useful H2D bytes, mapping published, target/draft consumed; candidate differs from 102 candidate.",
-    "final_256k_replay": {
-      "target_and_draft_restore": "observed",
-      "resident_pages_before_after": [
-        200,
-        200
-      ],
-      "frozen_history_generation_before_after": [
-        0,
-        0
-      ],
-      "historical_H2D_useful_bytes_delta": 0,
-      "slot_generation_before_after": [
-        36,
-        37
-      ],
-      "semantic_recall": "miss"
-    },
-    "selector_replay_promotion_view_costs": "not measured comparably; canonical TTFT and selected-route CUDA event timing unavailable.",
-    "generation_ring": "earlier executable ownership exists; final live run exposes no rollback counter, so no final numeric assertion.",
-    "historical_decode_pcie": "zero useful H2D on final replay observation only."
+    "105_02a_selected_dense_semantic_recall": "both selected and dense returned the exact fact; selected cold page rank/admission/mapping observations were recorded",
+    "105_02a_identity_bound_transfer_target_use_witness": "unknown; not a retrieval failure or completion gate",
+    "105_03b_primary_and_two_extra_facts": "all three correct at occupied C=249293; answer correctness does not prove physical cold residency/rank/promotion",
+    "query_replay": "occupied-base canonical and extra-fact requests coherently restored cached history",
+    "selector_replay_promotion_costs": "unknown; not measured separately",
+    "historical_101_18_promotion": "separate candidate-bound evidence only; not attributed to current candidate",
+    "generation_ring": "historical executable ownership/tests exist; current numeric rollback counter not measured"
   },
   "memory_256k": {
+    "scope": "historical 103-04 candidate; current 105-03b memory categories are in current_105_03b.memory_bytes",
     "target_gpu_pool_high_water_bytes": 865075200,
     "target_gpu_compute_high_water_bytes": 244929152,
     "full_L_gpu_mtp_bytes": 276955136,
@@ -528,31 +624,33 @@
     "note": "Reservations are not observed allocation; do not add overlapping device categories."
   },
   "route_and_quality": {
-    "production_route": "not attributed by the final 128K/256K receipts; no matched final route comparison or route timing. Earlier attempts contain setup diagnostics but are not promoted as final-route evidence.",
-    "output_quality": "256K recall returned 400 slash filler tokens (semantic miss); 128K occupied rows completed but MTP acceptance was zero; independent quality scoring unavailable.",
-    "comparator_codecs": "Selected, CPU-main-KV and dense GPU controls used Turbo4 target K/V and GPU Turbo4 MTP; target placement differed as named. The 128K/256K receipts do not add a matched route timing comparison.",
+    "current_105_03b_route": "probe-rerank on a HEAD 8f8faeb plus captured dirty pager diff candidate; not paired against historical CPU-KV controls",
+    "current_output_quality": "primary fact and both extra facts correct; all three occupied-base canonical answers coherent; no physical cold-page witness",
+    "candidate_matched_cpu_kv_comparison": "missing; do not infer an overall goal verdict or a known implementation defect",
+    "historical_comparator_codecs": "older candidate-bound controls remain historical; no identity blending",
     "quality_categories": {
-      "completion": "128K occupied canonical rows completed; 256K recall reached the 400-token output cap.",
-      "semantic": "256K old-file request failed to retrieve the requested content and returned slash filler.",
-      "mtp": "0% acceptance at all measured occupied 128K rows and 256K recall.",
-      "independent_answer_score": "not measured."
+      "completion": "105-03b completed the scheduled trajectory, A2, 12 canonical rows, and two extra facts; C remained 707 below target.",
+      "semantic": "three source facts correct; canonical responses coherent.",
+      "mtp": "all three canonical prompt medians exceed 40%; request-local pairs preserved.",
+      "physical_witness": "unknown, optional, and not a semantic gate",
+      "independent_answer_score": "not separately measured."
     }
   },
   "goals": [
     {
       "id": 1,
-      "verdict": "met_with_frontier_gap",
-      "evidence": "L-sized target allocation and host backing observed; exact-full C separately unproven."
+      "verdict": "partial",
+      "evidence": "Current L=262144 allocation and occupied C=249293 measured; exact C=L unproven and requested 250000 frontier missed by 707."
     },
     {
       "id": 2,
       "verdict": "met",
-      "evidence": "L=128K/256K with unchanged H=51200."
+      "evidence": "Current L=262144 with H=51200; historical 128K evidence remains separately candidate-bound."
     },
     {
       "id": 3,
-      "verdict": "partial",
-      "evidence": "prior natural cold promotion passed; final 256K semantic recall failed."
+      "verdict": "semantic_success_physical_witness_unknown",
+      "evidence": "105-02a selected and dense exact-fact answers succeeded; cold-page rank/admission/mapping observed, identity-bound transfer/target-use witness unknown. 105-03b answered three occupied-base facts correctly."
     },
     {
       "id": 4,
@@ -581,8 +679,8 @@
     },
     {
       "id": 9,
-      "verdict": "not_met",
-      "evidence": "full-L GPU Turbo4 MTP allocated; occupied 128K and 256K acceptance was 0%."
+      "verdict": "met_on_105_03b_canonical_rows",
+      "evidence": "Full-L GPU Turbo4 MTP; per-prompt canonical medians 88.28%, 48.91% (48.78% pooled), and 79.78%, with all request-local pairs recorded."
     },
     {
       "id": 10,
@@ -591,28 +689,28 @@
     },
     {
       "id": 11,
-      "verdict": "not_measured_at_256k",
-      "evidence": "no matched 256K route timing or CUDA event profile."
+      "verdict": "unknown_candidate_matched_cpu_kv_missing",
+      "evidence": "Current 105-03b route and canonical decode are measured, but no candidate-matched CPU-KV comparison exists. This gap is not a known defect."
     },
     {
       "id": 12,
-      "verdict": "met_at_8k",
-      "evidence": "selected fresh prefill >750 and beats CPU prefill for each prompt; no large-context fresh-input curve."
+      "verdict": "met_on_paired_small_layout_measurement",
+      "evidence": "105-03a split B arm measured 1236.61 fresh tok/s versus 703.20 legacy; 105-03b bulk fill curve is independently recorded and candidate-bound."
     },
     {
       "id": 13,
       "verdict": "partial",
-      "evidence": "selected decode beats CPU at 8K and replay historical H2D is zero; scale-wide PCIe relation unmeasured."
+      "evidence": "Historical replay observations remain separately scoped; current physical transfer witness and scale-wide PCIe relation are unknown."
     },
     {
       "id": 14,
-      "verdict": "not_met",
-      "evidence": "near-full C, semantic recall miss, no 256K speed matrix; memory frontier measured."
+      "verdict": "partial_current_frontier_and_speed_findings",
+      "evidence": "C=249293 with exact-full C unproven; primary and two extra facts succeeded, 12-row canonical matrix and memory snapshot measured; matched CPU-KV comparison remains missing."
     },
     {
       "id": 15,
-      "verdict": "not_reassessed",
-      "evidence": "feature-off comparison absent from capacity receipts."
+      "verdict": "not_reassessed_for_current_candidate",
+      "evidence": "No candidate-matched feature-off control is present in the current capacity receipts."
     }
   ],
   "raw_evidence": [
@@ -665,7 +763,7 @@
       "sha256": "f3e18c85d6b7f66622ec820134b47ddcf6045557bf14cc56c17c29ec0a13d101"
     }
   ],
-  "curve_findings": "Incremental occupancy-fill prompt rates were recovered from the 102-05 and 102-06 raw request journals and are now recorded in both compact handoffs and V10 receipts. They are not the canonical three-prompt benchmark or a paired A/B comparison; see occupied_context_prefill_curve in each receipt.",
+  "curve_findings": "Current 105-03b attempt02 provides a 21-row occupancy curve with distinct genuinely-fresh and executed prompt_n throughput, plus a short cached A2 tail. Historical 105-03 and 105-03a findings remain separate; none substitutes for a candidate-matched CPU-KV comparison.",
   "memory_128k": {
     "target_gpu_pool_high_water_bytes": 865075200,
     "target_gpu_compute_high_water_bytes": 193974912,
@@ -981,5 +1079,5 @@
       }
     }
   },
-  "summary_refresh_task": "103-04"
+  "summary_refresh_task": "105-04"
 }

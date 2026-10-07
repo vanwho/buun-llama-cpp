@@ -91,6 +91,12 @@ finalization, and their fixtures in:
 Production attention/router/MTP fixes, including structural CPU graph-arena
 capacity commit `a079452f5`, remain separate from these fork-only workloads.
 
+Also exclude `90cb448f4` (`bench(fork): preserve producing runtime faults
+through frontier finalization`), touching `run-occupancy-frontier.py` and
+`test_occupancy_frontier.py`. Production pager commit `ab47babc9` separately
+contains the clean-victim invariant and sealed-tail regression; its bounded
+error-only diagnostics are not success-path timing or catalogue scans.
+
 These changes preserve frozen source/question identity and byte-exact prompt
 replay, and distinguish measured goal misses from incomplete executions. They
 are useful locally but are not proposed production llama.cpp API changes.

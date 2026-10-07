@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "105",
-  "current_task": "105-03b",
-  "last_updated_utc": "2026-10-07T21:52:11+00:00",
+  "current_task": "105-06",
+  "last_updated_utc": "2026-10-07T22:47:45+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -36659,7 +36659,7 @@
       "cluster": "forward105-post-layout-capability",
       "title": "Run novel post-layout capability and canonical evidence",
       "packet": ".wiretail/execution/tasks/105-03b.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36674,7 +36674,7 @@
       "depends_on": [
         "105-03a"
       ],
-      "commit": null,
+      "commit": "90cb448f410e83a1cb64f9c51d7010d35685a6d6",
       "context_files": [
         ".wiretail/execution/clusters/forward105-post-layout-capability.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
@@ -36696,7 +36696,7 @@
       "cluster": "forward105-post-layout-capability",
       "title": "Refresh the compact forward goal summary",
       "packet": ".wiretail/execution/tasks/105-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36711,7 +36711,7 @@
       "depends_on": [
         "105-03b"
       ],
-      "commit": null,
+      "commit": "90cb448f410e83a1cb64f9c51d7010d35685a6d6",
       "context_files": [
         ".wiretail/execution/clusters/forward105-post-layout-capability.md",
         ".wiretail/execution/handoffs/105-03a.md",
@@ -36730,10 +36730,13 @@
     {
       "id": "105-05",
       "phase": "105",
+      "review_policy": {
+        "type": "semantic_forward_findings_v1"
+      },
       "cluster": "forward105-post-layout-capability",
       "title": "Review forward goals and schedule bounded follow-up",
       "packet": ".wiretail/execution/tasks/105-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36748,7 +36751,7 @@
       "depends_on": [
         "105-04"
       ],
-      "commit": null,
+      "commit": "90cb448f410e83a1cb64f9c51d7010d35685a6d6",
       "context_files": [
         ".wiretail/execution/clusters/forward105-post-layout-capability.md",
         ".wiretail/execution/handoffs/105-03a.md",
@@ -36763,6 +36766,84 @@
         "105-05",
         "--receipt",
         ".wiretail/execution/evidence/V10_105-05.json"
+      ]
+    },
+    {
+      "id": "105-06",
+      "phase": "105",
+      "cluster": "forward105-matched-control",
+      "title": "Measure a bounded matched ordinary CPU-KV speed control",
+      "packet": ".wiretail/execution/tasks/105-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "matched_ordinary_cpu_kv_and_selected_speed_findings"
+      ],
+      "depends_on": [
+        "105-05"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matched-control.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-03b.md",
+        ".wiretail/execution/handoffs/105-05.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-06.json"
+      ]
+    },
+    {
+      "id": "105-07",
+      "phase": "105",
+      "cluster": "forward105-matched-control",
+      "title": "Review the final candidate-matched goal findings",
+      "packet": ".wiretail/execution/tasks/105-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "review_policy": {
+        "type": "semantic_forward_findings_v1"
+      },
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "final_matched_forward_goal_review"
+      ],
+      "depends_on": [
+        "105-06"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matched-control.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-04.md",
+        ".wiretail/execution/handoffs/105-05.md",
+        ".wiretail/execution/handoffs/105-06.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-07",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-07.json"
       ]
     }
   ],

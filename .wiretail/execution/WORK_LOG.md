@@ -2465,3 +2465,39 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-02`
 - Commit at update: `4e9154257`
 - Summary: Validated six matched requests: both layouts recall the earlier source fact; split messages reduce B prompt time from 7.61s to 4.33s and raise fresh ingest from 703 to 1237 tok/s, with normal output caps labeled and physical telemetry unknown.
+
+## 2026-10-07T21:53:24+00:00 — 105-03b — in_progress
+
+- Branch: `codex/task-105-02`
+- Commit at update: `8f8faebac`
+- Summary: Task started
+
+## 2026-10-07T22:38:53+00:00 — 105-03b — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `90cb448f4`
+- Summary: Completed 22 split-layout occupancy requests to C249293 with H51200, all12 occupied-base canonical probes and two extra factual recalls. Default full and extra validators passed; semantic recall correct and MTP measured. Exact250000 and identity-bound physical witness remain unclaimed.
+
+## 2026-10-07T22:43:55+00:00 — 105-04 — in_progress
+
+- Branch: `codex/task-105-02`
+- Commit at update: `90cb448f4`
+- Summary: Task started
+
+## 2026-10-07T22:43:55+00:00 — 105-04 — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `90cb448f4`
+- Summary: Refreshed current forward summary with 15 goal rows, candidate-bound split curve to C249293, all12 canonical and three factual recalls; validated exact source artifacts and fresh/executed metrics. Matched ordinary CPU-KV comparison remains unknown.
+
+## 2026-10-07T22:45:25+00:00 — 105-05 — in_progress
+
+- Branch: `codex/task-105-02`
+- Commit at update: `90cb448f4`
+- Summary: Task started
+
+## 2026-10-07T22:47:45+00:00 — 105-05 — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `90cb448f4`
+- Summary: Validated findings-based review: earlier-source recall, replay, Turbo4 GPU placements, near250K occupancy, bulk ingestion and canonical MTP supported. Overall goal remains unconfirmed solely on missing matched ordinary CPU-KV speed control. Ordered exact-command Luna High tasks10506/10507 are ready; no unchanged large refill or forced-witness gate.

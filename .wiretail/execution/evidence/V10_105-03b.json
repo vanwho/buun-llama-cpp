@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "task": "105-03b",
+  "source_commit": "8f8faebacedff769e48a3ce80b7544d886a3a049",
+  "checks": {
+    "post_layout_forward_capability_and_canonical": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/check_105_03_findings.py",
+        "--frontier",
+        "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/occupied-frontier.json",
+        "--output-json",
+        "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-occupancy-findings.json"
+      ],
+      "exit_code": 0,
+      "checker_sha256": "e4bcf98ab95f13605c45a9c1b98c2328800f68b40638cd2a7183edd0839995c1",
+      "additional_validators": [
+        {
+          "command": [
+            "python3",
+            ".wiretail/execution/v10/check_105_03b_extra_facts.py",
+            "--report",
+            "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/extra-facts-findings.json",
+            "--frontier",
+            "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/occupied-frontier.json",
+            "--output-json",
+            "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-extra-facts-findings.json"
+          ],
+          "exit_code": 0,
+          "checker_sha256": "3613750e190603c6bb5396661d267847ce12c2dc69dc423f99afe09c7cc5964a"
+        }
+      ],
+      "supporting_regressions": {
+        "command": [
+          "python3",
+          "-m",
+          "unittest",
+          "test_forward_review",
+          "test_validate",
+          "test_check_105_03_findings",
+          "test_check_105_03b_extra_facts"
+        ],
+        "working_directory": ".wiretail/execution/v10",
+        "exit_code": 0,
+        "tests_run": 77,
+        "result": "OK"
+      },
+      "execution": {
+        "driver_status": "incomplete",
+        "status": "complete",
+        "occupancy_goal_status": "goal_miss",
+        "committed_C": 249293,
+        "requested_C": 250000,
+        "target_gap": 707,
+        "interpretation": "All scheduled proof requests completed; the numeric C target gap is reported, not used as an exact-C acceptance gate."
+      },
+      "candidate": {
+        "identity_fingerprint": "eb71506818a87d651a72794ff3380a0c73d9ca84eb3857211a27260aa9967d70",
+        "binary_sha256": "2d46af95cc6151096a026845d763947cb9d4041b857acb1515b962db418a4af4",
+        "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "compiled_source": {
+          "repo_head": "8f8faebacedff769e48a3ce80b7544d886a3a049",
+          "dirty_file": "src/llama-kv-pager.cpp",
+          "source_identity_dirty_fingerprint": "85f92af631fc2b9b620167fcd5b5b72d775bb6b73bdf23e44535462319d882ed",
+          "build_provenance_delta_sha256": "f493a4817f92590acbe510d0051516d9f8dfd90445ce67f42f47d35f940bce99",
+          "execution_snapshot_file_sha256": "e171c1894a3740dd0872c38e79805a2ff16e093142461da00397afaa85da93b4"
+        },
+        "loaded_dso_sha256": {
+          "libggml-base.so.0.25.3": "a767e6e635e540216ff4cafdbe6cf6dedcb57a80a0b8b40de5cd50805003ba8b",
+          "libggml-cpu.so.0.25.3": "c12734653ac843921f49ea959e105314cbd6640751cec39fbb989c8f8c608f87",
+          "libggml-cuda.so.0.25.3": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+          "libggml.so.0.25.3": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+          "libllama-common.so.0.5.0": "b96212adb1e3494b07c42ad5b9083779256d3aa685bf87b1f06b724db9e803e5",
+          "libllama-server-impl.so": "efa611a672ab73931f8d834cd6d7017fc4e702acc2307f9ccebb1c1384f6b1c0",
+          "libllama.so.0.5.0": "d9c93b62edaff5322108d684c1dd9f95d71eeeffb953afec351855200f3247dd",
+          "libmtmd.so.0.5.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+          "llama-server": "2d46af95cc6151096a026845d763947cb9d4041b857acb1515b962db418a4af4"
+        },
+        "geometry": {
+          "L": 262144,
+          "H": 51200,
+          "hot_pages": 200,
+          "page_tokens": 256,
+          "B": 1024,
+          "U": 256,
+          "target_kv": "GPU Turbo4",
+          "mtp_kv": "GPU Turbo4",
+          "mtp_draft_n_max": 2
+        },
+        "server_argv": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 200 --kv-pin-recent 0 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4"
+      },
+      "semantic_findings": {
+        "primary_A2": {
+          "status": "correct",
+          "natural_eos": true,
+          "details": "Explains invalid UTF-8 bytes ff fe print as <ff fe> and invalid_utf8 is true.",
+          "physical_cold_residency": "unknown"
+        },
+        "extra_facts": {
+          "contributing-pr": "met",
+          "batched-bench-n-kv": "met",
+          "both_natural_eos": true,
+          "matched_occupied_base": true
+        },
+        "canonical_content_review": {
+          "prompt_1_merge_sorted_lists": "coherent correct implementation with docstring in all measured repetitions",
+          "prompt_2_mmap_vs_read": "accurate distinction in all measured repetitions",
+          "prompt_3_watch_directory": "scripts detect and print newly created files",
+          "scoring_note": "Canonical content was qualitatively inspected; the checker validates request/identity/denominators, not semantic correctness for these three general prompts."
+        }
+      },
+      "canonical_measured_medians": {
+        "prompt_1": {"decode_tok_s": 43.3233, "mtp_acceptance_percent": 88.28125, "mtp_pairs": ["113/128", "113/128", "113/128"]},
+        "prompt_2": {"decode_tok_s": 31.1719, "mtp_acceptance_percent_median": 48.91304, "mtp_acceptance_percent_pooled": 48.78, "mtp_pairs": ["90/184", "77/172", "72/134"]},
+        "prompt_3": {"decode_tok_s": 40.7473, "mtp_acceptance_percent": 79.77941, "mtp_pairs": ["228/302", "217/272", "231/286"]}
+      },
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-occupancy-findings.json", "sha256": "c80aba3af7450ddc7222349008d9df69ee1e669a81ced5acc14929d5717ed6e5"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/occupied-frontier.json", "sha256": "d7811d038527482253424ce191a50397d5fc02db1fca3cc0bd6a3c19703c2e88"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/incremental-state.json", "sha256": "d1f7c0b1a901b6c2a9a73452df4212503d860eb714dbc1f8462d1c6351b5d893"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/candidate-identity.json", "sha256": "3d9166c3b1bd14f72275c2deaa4ee0bec73c61b1f4ad413a68ead97e8ece7290"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/build-provenance.txt", "sha256": "060cab5cadb997b219fd2bf3b0b1cad42eeffd7e5165e2df6337fead3f460397"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/run-source-hashes.txt", "sha256": "04d14b39e6b9140b1f98fb0e81a9d43bbe3ebf66cd92433e5fc981563f6185c4"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-extra-facts-findings.json", "sha256": "76663fa45a7d63c9337cfd6e136232f4b81b8be2994d44474850dc5b1ad246dd"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/extra-facts-findings.json", "sha256": "9fc6b9466159b8e1bdf11eb6dc2945f0305eabe25f8ac2ede364f2d06198a7a4"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/raw-000021.sse", "sha256": "9a5d4028cfde8ecd0cce64397af0aad7ffd06f86fbe1f6576504ad81c4931462"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/extra-question-00.sse", "sha256": "acf5ccac31a6a2d5f431b46a3fa76231f958780bfda6a33c1939f3f8f33339e1"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/extra-question-01.sse", "sha256": "376ff1ae77417c700d0ad6258f00195d3b0af8bdefb916bf80fa1dd09766eb8c"},
+        {"path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/FORWARD105_SPLIT_LONG.md", "sha256": "869955c8699b39f81216a35a5a9034c49551dca2d79d8b3ff7443149e9833302"}
+      ]
+    }
+  }
+}

@@ -1268,6 +1268,16 @@ def check_selected_prefill_optimization(root: Path, run: dict, prompts: dict,
 
 
 def check_review(state: dict, review: dict) -> list[str]:
+    task = next((item for item in state["tasks"] if item["id"] == review.get("task")), None)
+    policy = task.get("review_policy", {}) if task else {}
+    if policy.get("type") == "semantic_forward_findings_v1":
+        # Declarative task policy: do not apply old exact-occupancy, physical
+        # witness or tiny-prompt prefill gates to a new bulk-ingestion review.
+        from importlib.util import module_from_spec, spec_from_file_location
+        spec = spec_from_file_location("forward_review", Path(__file__).with_name("forward_review.py"))
+        module = module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.check_forward_review(state, review, task, ROOT)
     errors = []
     if type(review.get("goal_met")) is not bool:
         return ["review requires boolean goal_met"]

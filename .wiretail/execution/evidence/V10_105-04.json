@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "task": "105-04",
+  "source_commit": "90cb448f410e83a1cb64f9c51d7010d35685a6d6",
+  "checks": {
+    "refreshed_forward_goal_summary": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/check_forward_summary.py",
+        "--summary",
+        ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-04/attempt-01/summary-consistency.stdout.json",
+          "sha256": "d34b60462d6de3db9ff8e3fa9c9fb32b7c7cff35b2e07a3230e96e09a58650de"
+        },
+        {
+          "path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.json",
+          "sha256": "69eb33ed6ad777a4f6088b89deb6cec9a64272bf89f3fd049d4e3df16d68a6f3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/FORWARD105_SUMMARY_105_04.md",
+          "sha256": "a3ef1727157bbaef377565bcab8a726374dcd636fbcc7bee256836afe0de48af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/validated-occupancy-findings.json",
+          "sha256": "c80aba3af7450ddc7222349008d9df69ee1e669a81ced5acc14929d5717ed6e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03b/attempt-02/occupied-frontier.json",
+          "sha256": "d7811d038527482253424ce191a50397d5fc02db1fca3cc0bd6a3c19703c2e88"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_105-03b.json",
+          "sha256": "e7fb22240467545fb693a13a5779d084e650e8215ee1c9744ddedcfbf54e9ee7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/FORWARD105_SPLIT_LONG.md",
+          "sha256": "869955c8699b39f81216a35a5a9034c49551dca2d79d8b3ff7443149e9833302"
+        }
+      ]
+    }
+  }
+}

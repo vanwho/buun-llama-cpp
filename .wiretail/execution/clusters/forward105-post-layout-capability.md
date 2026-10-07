@@ -2,6 +2,13 @@
 
 Revision: `hotpath-v10-20260914`.
 
+Current frontier:105-03b attempt02 completed C249293,22 scheduled requests,
+12 canonical probes and two independent earlier-source facts. Consume its
+compact validated evidence; the run instructions below describe the already
+executed campaign, not a request to refill it for105-04/05. The earlier
+attempt01 transaction failure did not recur, but causal attribution remains
+unknown. The CPU sealed-tail regression passed; no unchanged retry is needed.
+
 Load only the compact 105-03a handoff, 105-03 handoff, and this capsule. Use
 the split user-message document/final-question layout only if 105-03a validates
 it. Keep prior 105-03 attempt02 curve and recall as separately labeled

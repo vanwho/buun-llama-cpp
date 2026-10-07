@@ -180,6 +180,39 @@ def _message_text(request: Mapping[str, Any]) -> str:
     return users[-1]["content"]
 
 
+def _scheduled_additions(turn: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Normalize one frozen schedule row using repo_context's split-turn contract."""
+    additions = turn.get("request_messages")
+    if additions is None:
+        user = turn.get("user")
+        require(isinstance(user, str), "scheduled user payload is missing")
+        additions = [{"role": "user", "content": user}]
+    require(isinstance(additions, list) and additions and
+            all(isinstance(item, Mapping) and item.get("role") == "user" and
+                isinstance(item.get("content"), str) for item in additions),
+            "scheduled request messages are invalid")
+    return [{"role": "user", "content": item["content"]} for item in additions]
+
+
+def _scheduled_request_messages(prefix: list[dict[str, str]],
+                                turn: Mapping[str, Any]) -> list[dict[str, str]]:
+    return list(prefix) + _scheduled_additions(turn)
+
+
+def _response_text(record: Mapping[str, Any]) -> str:
+    response = record.get("response")
+    if isinstance(response, Mapping):
+        choices = response.get("choices")
+        if isinstance(choices, list) and choices and isinstance(choices[0], Mapping):
+            message = choices[0].get("message")
+            if isinstance(message, Mapping) and isinstance(message.get("content"), str):
+                return message["content"]
+        if isinstance(response.get("content"), str):
+            return response["content"]
+    answer = record.get("answer_text")
+    return answer if isinstance(answer, str) else ""
+
+
 def _number(value: Any) -> int | float | None:
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
@@ -263,6 +296,9 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
     if "recall_question_sha256" in geometry:
         require(geometry["recall_question_sha256"] == recall_hash,
                 "run geometry recall question differs from frozen preflight")
+    require(_scheduled_additions(schedule[-1]) == [
+        {"role": "user", "content": recall["text"]}],
+        "A2 must be the exact short held-out question as its only new user message")
 
     records = report.get("records")
     history = frontier.get("history")
@@ -277,6 +313,7 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
     require(len(history_by_index) == len(history),
             "frontier history indices are malformed or duplicated")
     previous_after = None
+    request_history: list[dict[str, str]] = []
     for index, row in enumerate(records):
         require(isinstance(row, Mapping), f"occupancy request {index} is malformed")
         require(row.get("request_index") == index and index in history_by_index,
@@ -293,6 +330,9 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
         request = _request_for_record(row, run_root, probe=False, model_alias=model_alias)
         require(request.get("max_tokens") == 400,
                 f"occupancy request {index} does not retain the task output ceiling")
+        expected_messages = _scheduled_request_messages(request_history, schedule[index])
+        require(request.get("messages") == expected_messages,
+                f"occupancy request {index} differs from the frozen complete message history")
         history_row = history_by_index[index]
         require(history_row.get("status") == "pass" and
                 history_row.get("within_fresh_limit") is True,
@@ -329,6 +369,9 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
                       "mtp": _mtp_pair(row, probe=False),
                       "request_sha256": row["artifacts"]["request"]["sha256"],
                       "response_sha256": row["artifacts"]["response"]["sha256"]})
+        response_text = _response_text(row)
+        require(bool(response_text), f"occupancy request {index} actual assistant response is missing")
+        request_history = expected_messages + [{"role": "assistant", "content": response_text}]
         row_by_index[index] = (row, request)
     require(previous_after == achieved,
             "occupancy history does not end at achieved committed C")
@@ -377,6 +420,19 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
                 f"post-load canonical request {probe_index} raw generation budget differs")
         require(_message_text(request) == CANONICAL_PROMPTS[prompt_index],
                 f"post-load canonical request {probe_index} raw question differs")
+        require(request.get("messages") == base_messages + [
+            {"role": "user", "content": CANONICAL_PROMPTS[prompt_index]}],
+            f"post-load canonical request {probe_index} does not retain the exact occupied base")
+        require(row.get("base_messages_sha256") in (None, base_hash),
+                f"post-load canonical request {probe_index} occupied-base hash differs")
+        row_identity = row.get("candidate_identity")
+        if row_identity is not None:
+            require(row_identity == identity,
+                    f"post-load canonical request {probe_index} candidate/DSO identity differs")
+        row_fingerprint = row.get("identity_fingerprint", row.get("candidate_identity_fingerprint"))
+        if row_fingerprint is not None:
+            require(row_fingerprint == fingerprint,
+                    f"post-load canonical request {probe_index} identity fingerprint differs")
         if row.get("http_status") is not None:
             require(row.get("http_status") == 200,
                     f"post-load canonical request {probe_index} was not HTTP 200")
@@ -387,7 +443,7 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
                                "response_sha256": row["response_artifact"]["sha256"]})
     require(seen == set(range(12)), "post-load canonical rows are missing required indices")
 
-    answer = str(a2_row.get("answer_text", ""))
+    answer = _response_text(a2_row)
     lowered = answer.lower()
     recall_findings = {"status": "findings_only",
                        "fffe_marker_observed": ("<fffe>" in lowered or
@@ -395,7 +451,8 @@ def validate_report(report: Mapping[str, Any], run_root: Path) -> dict[str, Any]
                        "invalid_utf8_identifier_observed": "invalid_utf8" in lowered,
                        "invalid_utf8_true_observed": (
                            "invalid_utf8=true" in lowered or
-                           "invalid_utf8 is true" in lowered)}
+                           "invalid_utf8 is true" in lowered or
+                           ("invalid_utf8" in lowered and "true" in lowered))}
     achieved_gap = target - achieved
     threshold_gap = threshold - achieved
     preflight_requested = _number(preflight.get("requested_A2_prompt_frontier_tokens"))
@@ -521,11 +578,14 @@ def validate_occupancy_checkpoint(checkpoint: Mapping[str, Any], run_root: Path)
             schedule[-1].get("stage") == "A2" and
             schedule[-1].get("user") == recall["text"],
             "frozen schedule does not end in the exact A2 recall request")
+    require(_scheduled_additions(schedule[-1]) == [
+        {"role": "user", "content": recall["text"]}],
+        "checkpoint split A2 is not exactly the short held-out question")
     source_path = "tools/tokenize/tokenize.cpp"
     source_entries = [item for item in inventory if item.get("path") == source_path]
     require(len(source_entries) == 1, "frozen source inventory omits the recalled source file")
     source_entry = source_entries[0]
-    a1_payload = schedule[0].get("user")
+    a1_payload = _scheduled_additions(schedule[0])[0].get("content")
     start_marker = f"--- BEGIN FILE: {source_path} ---\n"
     end_marker = f"--- END FILE: {source_path} ---"
     require(isinstance(a1_payload, str) and start_marker in a1_payload and
@@ -557,6 +617,7 @@ def validate_occupancy_checkpoint(checkpoint: Mapping[str, Any], run_root: Path)
     curve = []
     previous_after = 0
     a2_answer = ""
+    request_history: list[dict[str, str]] = []
     for index, row in enumerate(records):
         require(isinstance(row, Mapping), f"checkpoint request {index} is malformed")
         require(row.get("request_index") == index and row.get("stage") == schedule[index].get("stage"),
@@ -570,8 +631,9 @@ def validate_occupancy_checkpoint(checkpoint: Mapping[str, Any], run_root: Path)
         request = _request_for_record(row, run_root, probe=False, model_alias=model_alias)
         require(request.get("max_tokens") == 400,
                 f"checkpoint request {index} does not retain the 400-token output ceiling")
-        require(_message_text(request) == schedule[index].get("user"),
-                f"checkpoint request {index} differs from its frozen source payload")
+        expected_messages = _scheduled_request_messages(request_history, schedule[index])
+        require(request.get("messages") == expected_messages,
+                f"checkpoint request {index} differs from the frozen complete message history")
 
         history_row = history_by_index.get(index)
         require(history_row is not None and history_row.get("status") == "pass" and
@@ -633,6 +695,7 @@ def validate_occupancy_checkpoint(checkpoint: Mapping[str, Any], run_root: Path)
             require(row.get("stage") == "A2" and _message_text(request) == recall["text"],
                     "actual final request does not match the frozen A2 recall question")
             a2_answer = response["content"]
+        request_history = expected_messages + [{"role": "assistant", "content": response["content"]}]
         timings = row.get("timings") if isinstance(row.get("timings"), Mapping) else {}
         prompt_n, prompt_ms = _number(timings.get("prompt_n")), _number(timings.get("prompt_ms"))
         curve.append({"request_index": index, "stage": row["stage"],

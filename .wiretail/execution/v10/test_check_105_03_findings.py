@@ -17,7 +17,8 @@ def sha256(data: bytes) -> str:
 
 
 class FindingsCheckerTests(unittest.TestCase):
-    def make_report(self, root: Path, *, answer: str, goal_status: str = "goal_miss") -> dict:
+    def make_report(self, root: Path, *, answer: str, goal_status: str = "goal_miss",
+                    split: bool = False) -> dict:
         dsos = {
             "/build/libllama-server-impl.so": "1" * 64,
             "/build/libllama.so.0": "2" * 64,
@@ -61,15 +62,33 @@ class FindingsCheckerTests(unittest.TestCase):
             {"stage": "repo_continuation_2", "user": "next source payload"},
             {"stage": "A2", "user": recall_question},
         ]
+        if split:
+            schedule = [
+                {"stage": "A1", "user": "A1 source payload", "request_messages": [
+                    {"role": "user", "content": "A1 source payload"},
+                    {"role": "user", "content": "A1 query"}]},
+                {"stage": "B", "user": "B source payload", "request_messages": [
+                    {"role": "user", "content": "B source payload"},
+                    {"role": "user", "content": "B query"}]},
+                {"stage": "repo_continuation_2", "user": "next source payload",
+                 "request_messages": [{"role": "user", "content": "next source payload"},
+                                      {"role": "user", "content": "continue query"}]},
+                {"stage": "A2", "user": recall_question,
+                 "request_messages": [{"role": "user", "content": recall_question}]},
+            ]
         records, history = [], []
+        request_history = []
         before = 0
         for index, item in enumerate(schedule):
             after = (index + 1) * 15000
-            request = {"model": model_alias, "messages": [{"role": "user", "content": item["user"]}],
+            additions = checker._scheduled_additions(item)
+            request_messages = request_history + additions
+            request = {"model": model_alias, "messages": request_messages,
                        "max_tokens": 400, "n_ctx": 262144}
             request_ref = save_json(f"request-{index}.json", request)
             response_ref = save_raw(f"response-{index}.sse")
             fresh = after - before
+            reply = answer if item["stage"] == "A2" else "short response"
             record = {
                 "request_index": index, "stage": item["stage"], "status": "pass",
                 "http_status": 200, "committed": True, "within_fresh_limit": True,
@@ -83,7 +102,7 @@ class FindingsCheckerTests(unittest.TestCase):
                 "timings": {"prompt_n": fresh, "prompt_ms": 10.0 + index,
                             "draft_n": 2, "draft_n_accepted": 1},
                 "mtp": {"draft_tokens": 2, "accepted_tokens": 1},
-                "answer_text": answer if item["stage"] == "A2" else "short response",
+                "answer_text": reply,
             }
             records.append(record)
             history.append({"request_index": index, "status": "pass",
@@ -93,6 +112,7 @@ class FindingsCheckerTests(unittest.TestCase):
                             "fresh_tokens": fresh,
                             "frontier_delta_tokens": after - before})
             before = after
+            request_history = request_messages + [{"role": "assistant", "content": reply}]
 
         base_messages = [{"role": "assistant", "content": "retained history"}]
         base_hash = sha256(json.dumps(base_messages, sort_keys=True, separators=(",", ":"),
@@ -173,6 +193,36 @@ class FindingsCheckerTests(unittest.TestCase):
         self.assertEqual("goal_miss", result["goal_status"])
         self.assertFalse(result["factual_recall"]["fffe_marker_observed"])
 
+    def test_full_scope_accepts_split_document_query_schedule(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.make_report(root, answer="It prints <ff fe> and sets invalid_utf8 to true.",
+                                      split=True)
+            result = checker.validate_report(report, root)
+            self.assertEqual("pass", result["status"])
+            self.assertTrue(result["factual_recall"]["fffe_marker_observed"])
+            a1_request = json.loads(Path(report["records"][0]["request_path"]).read_text())
+            self.assertEqual("A1 query", a1_request["messages"][-1]["content"])
+            a2_request = json.loads(Path(report["records"][-1]["request_path"]).read_text())
+            self.assertEqual("What factual behavior is stated?",
+                             a2_request["messages"][-1]["content"])
+
+    def test_full_split_scope_rejects_fabricated_prior_assistant(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.make_report(root, answer="short", split=True)
+            b_row = report["records"][1]
+            request_path = Path(b_row["request_path"])
+            request = json.loads(request_path.read_text(encoding="utf-8"))
+            request["messages"][2]["content"] = "fabricated prior reply"
+            data = json.dumps(request, sort_keys=True).encode("utf-8")
+            request_path.write_bytes(data)
+            digest = sha256(data)
+            b_row["request_sha256"] = digest
+            b_row["artifacts"]["request"]["sha256"] = digest
+            with self.assertRaisesRegex(checker.FindingsError, "complete message history"):
+                checker.validate_report(report, root)
+
     def test_rejects_incomplete_execution(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -225,11 +275,13 @@ class FindingsCheckerTests(unittest.TestCase):
         records, history = [], []
         frontier = 0
         alias = "test-model"
+        request_history = []
         for index, item in enumerate(schedule):
             fresh, completion = 15000, 1
             after = frontier + fresh + completion
+            request_messages = checker._scheduled_request_messages(request_history, item)
             request = {"model": alias, "n_ctx": 262144, "max_tokens": 400,
-                       "messages": [{"role": "user", "content": item["user"]}]}
+                       "messages": request_messages}
             request_ref = self._save_json(root, f"checkpoint-request-{index}.json", request)
             response_ref = self._save_raw(root, f"checkpoint-response-{index}.sse")
             draft, accepted = 3, 1
@@ -264,6 +316,8 @@ class FindingsCheckerTests(unittest.TestCase):
                             "within_fresh_limit": True, "occupied_before_tokens": frontier,
                             "occupied_after_tokens": after, "fresh_tokens": fresh})
             frontier = after
+            request_history = request_messages + [
+                {"role": "assistant", "content": row["response"]["content"]}]
 
         frozen = {
             "status": "pass", "source_identity": {"commit": "a" * 40,
