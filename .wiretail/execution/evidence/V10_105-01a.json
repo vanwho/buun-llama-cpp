@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "task": "105-01a",
+  "source_commit": "a8cccbe072b2d2bb1a5efd65f92efcc3a61d367b",
+  "experiment": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "build_directory": "build-ranking",
+    "source_state": "pre-existing dirty experiment source preserved; supplied lifecycle patch and task repairs applied"
+  },
+  "checks": {
+    "query_owner_lifecycle_and_diagnostic_isolation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-ranking/bin/test-kv-router-job",
+        "--cache-cuda"
+      ],
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/main-build.log", "sha256": "62585572b158fad1cd711478abfd6d5f431ff6fdd5000264960328d4d3f1eea3"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/main-test-page-select.log", "sha256": "21fbccf7f65b7c84fbcb47fb7c5e521fd7994b079513dee2619ba96c379a0e50"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-build.log", "sha256": "4f571f376950dfef5b1ab74c898af852e7eff890a08430d811452cad493e3947"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-final-build.log", "sha256": "7780466c3dbcd2239ac18c8eea7f7bf7491f0af4f710de472eee05e9e57a7227"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-test-page-select.log", "sha256": "617b441da3a81f7bb28d2c77a4d4bc401b72653fb1430831a7f4c558879c5e2b"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-test-page-select-cuda-tiny.log", "sha256": "136ba6ddc7c69b4097ec7ab0107f6b34bb9fe0e9f58b9844f8b0f2198bf5a9b4"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-test-router-cpu.log", "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-test-router-cuda.log", "sha256": "37bbb9ffd212c3d1c79b0d624c2256c0b083d4c8440eb87ff985a977ac1a9090"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/experiment-diff-check.log", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/cuda-device.csv", "sha256": "ba2b79d6dd82053d9fe0f0f5070ea71f184872b44978972f90563f5034d2ad2e"},
+        {"path": "/srv/ai/paged-kv/results/forward/105-01a/attempt-01/repair-cycle.log", "sha256": "576b2baeda099ecda0dc6f3b58ea61ec6b9de4c62644d693245bc9c78840e80a"}
+      ],
+      "result": "Main and experiment focused builds and CPU fixtures passed. Experiment CUDA code compiled; RTX 4080 tiny PAGE_RANK/probe fixture and CUDA router adapter passed. Nonfinite Q returned execution failure with no published records; repeated execution remained failed. No model/occupancy campaign was run, per packet scope."
+    }
+  },
+  "builds": {
+    "main": "cmake --build build --parallel 16 --target test-kv-page-select: pass; CPU-only build",
+    "experiment": "cmake --build build-ranking --parallel 16 --target llama-server test-kv-page-select test-kv-router-job: pass; CUDA translation units compiled",
+    "cuda_runtime": "RTX 4080, driver 595.91.07; tiny selector and router tests executed and passed"
+  },
+  "deferred_verification": [
+    "Full model ranking, retrieval occupancy, speed, and MTP campaign; outside 105-01a scope."
+  ]
+}

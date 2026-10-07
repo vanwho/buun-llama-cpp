@@ -2360,3 +2360,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Implemented main-source independent final-user Q probes, valid graph reuse/input ownership, complete nomination tracing and explicit-only page-mass diagnostics; removed unused diagnostic scratch and ordinary per-token residency observer copies. Focused CPU oracle passed and modified CUDA selector compiled; NVIDIA driver prevents CUDA execution/live claims here.
 - Supplied two apply-checkable experiment source patches in execution/fixes. Experiment and Git metadata are read-only in this session: patches are not applied there, no branches/services are changed and no commit is claimed.
 - New packets prescribe the owner lifecycle fix, bounded diverse K-only shortlist/exact GPU rerank, one small paired coherent recall/MTP proof and conditional reviewed main integration. Actual numerical/execution failures remain failures; completed semantic misses create specific implementation successors, not unchanged 256K retries. Current startup context is compact; old retry diaries are historical.
+
+## 2026-10-07T00:22:28+00:00 — 105-01a — done
+
+- Branch: `codex/task-105-01a`
+- Commit at update: `a8cccbe07`
+- Summary: Applied query-owner and diagnostic-isolation repairs; focused CPU and CUDA verification passed
