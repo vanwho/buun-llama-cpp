@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -130,16 +131,28 @@ def profile_setting_mismatches(values: Mapping[str, Any], profile: str) -> list[
 
 def assess_content_retrieval(expected: str, answer: str,
                              markers: tuple[str, ...] =
-                             ("preallocated", "output position", "once")
+                             ("preallocat", "output", "once")
                              ) -> dict[str, Any]:
     """Keep semantic answer quality diagnostic and independent of movement."""
     normalized = " ".join(answer.casefold().split())
     expected_normalized = " ".join(expected.casefold().split())
-    matched = expected_normalized in normalized or all(
+    matched = expected_normalized in normalized or bool(markers) and all(
         marker.casefold() in normalized for marker in markers)
     return {"status": "pass" if matched else "diagnostic_mismatch",
             "matched": matched, "expected_fact_local_only": expected,
             "markers": list(markers), "answer": answer}
+
+
+def retrieval_fact_markers(expected: str) -> tuple[str, ...]:
+    """Score the frozen fact, not whether prose repeats the prompted filename."""
+    fact = expected.casefold()
+    if "preallocat" in fact:
+        return ("preallocat", "output", "once")
+    if "left" in fact and "ties" in fact:
+        return ("left", "tie")
+    if "create" in fact and "moved_to" in fact:
+        return ("create", "moved_to")
+    return ()  # Unknown facts require their actual expected content, not a name.
 
 
 def answer_trace_page(anchor_start: int, anchor_end: int,
@@ -674,6 +687,17 @@ def request_local_mtp(response: Mapping[str, Any], before: Mapping[str, Any],
             if isinstance(drafted, int) and drafted > 0 and isinstance(accepted, int) else None}
 
 
+def degenerate_generation(answer: str) -> bool:
+    """Classify pathological filler, not short answers or normal code/prose.
+
+    A coherent prefix must not hide a long repeated punctuation tail. This
+    is an evidence-quality flag only, never a server sampling/stop constraint.
+    """
+    return len(answer) >= 32 and (
+        answer.count("/") / len(answer) >= 0.5 or
+        re.search(r"(?:/\s*){64,}", answer) is not None)
+
+
 def classify_sequence(profile: str, requests: list[Mapping[str, Any]],
                       semantic_match: bool | None, target_was_cold: bool | None) -> str:
     if len(requests) != 3 or any(item.get("http_status") != 200 or
@@ -763,8 +787,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "user_content_sha256": sha256(step.user_content.encode("utf-8")),
         "expected_answer_local_only": step.expected_answer_local_only or None,
         "assistant_answer": answer,
-        "degenerate_generation": isinstance(answer, str) and len(answer) >= 32 and
-            answer.count("/") / max(len(answer), 1) >= 0.5,
+        "degenerate_generation": isinstance(answer, str) and degenerate_generation(answer),
         "answer_quality": (
             assess_content_retrieval(
                 step.expected_answer_local_only, answer if isinstance(answer, str) else "",
@@ -772,7 +795,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
             if step.stage == "source_file" else
             assess_content_retrieval(
                 step.expected_answer_local_only, answer if isinstance(answer, str) else "",
-                (step.question.split("(", 1)[1].split(")", 1)[0],))
+                retrieval_fact_markers(step.expected_answer_local_only))
             if step.stage == "natural_recall" else
             {"status": "not_applicable", "matched": None}),
         "request_id": response.get("id"), "http_status": http_status,
@@ -1097,13 +1120,13 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                                 if index == final_index else None)
         records.append(record)
         answers.append(record["assistant_answer"] if isinstance(record["assistant_answer"], str) else "")
-        if record.get("http_status") != 200 or record.get("runtime_error"):
+        if record.get("http_status") != 200 or record.get("runtime_error") or record.get("degenerate_generation"):
             case = {
                 "fixture_id": target.fixture_id,
                 "profile": profile,
                 "schedule_sha256": schedule_hash,
                 "execution_status": "incomplete",
-                "classification": "execution_incomplete",
+                "classification": "degenerate_generation" if record.get("degenerate_generation") else "execution_incomplete",
                 "failure": {
                     "http_status": record.get("http_status"),
                     "runtime_error": record.get("runtime_error"),
@@ -1111,7 +1134,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                 },
                 "requests": records,
                 "semantic_outcome": None,
-                "note": "Incomplete HTTP request; not counted as a ranking miss.",
+                "note": "Execution or coherent-generation failure; stop before dependent requests, not a ranking miss.",
             }
             case["raw_artifacts"] = artifact_refs(case_root)
             write_json(case_root / "case-summary.json", case)
@@ -1352,7 +1375,7 @@ def validate_summary(path: pathlib.Path) -> dict[str, Any]:
             raise ValueError("sequence profile mismatch")
         requests = case.get("requests")
         if not isinstance(requests, list) or not requests or len(requests) > 3 or \
-                (len(requests) != 3 and case.get("classification") != "execution_incomplete"):
+                (len(requests) != 3 and case.get("classification") not in {"execution_incomplete", "degenerate_generation"}):
             raise ValueError("sequence lacks the expected raw requests for its execution status")
         failed = False
         frozen_turns = frozen_sequences[case.get("fixture_id")].get("turns", [])

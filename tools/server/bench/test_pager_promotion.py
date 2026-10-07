@@ -92,6 +92,14 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertTrue(source["matched"])
         self.assertTrue(final["matched"])
 
+    def test_recall_scores_facts_in_prose_not_filename(self) -> None:
+        expected = "The preallocated merge writes each output position exactly once."
+        markers = _DRIVER.retrieval_fact_markers(expected)
+        answer = "It emphasizes preallocating the output list and writing each output position once."
+        self.assertTrue(_assess_content_retrieval(expected, answer, markers)["matched"])
+        self.assertFalse(_assess_content_retrieval(expected, "merge_sorted_lists_03.py", markers)["matched"])
+        self.assertFalse(_assess_content_retrieval("unknown fact", "unrelated", ())["matched"])
+
     def test_answer_page_boundary_is_recorded_without_dropping_outcome(self) -> None:
         page, wholly_within, answer_pages = _answer_trace_page(
             anchor_start=2092, anchor_end=2102,
@@ -397,6 +405,12 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual("dense_inconclusive",
                          _classify_sequence("dense", [{"http_status": 200}] * 3,
                                             False, None))
+
+    def test_coherent_prefix_does_not_hide_long_slash_filler(self) -> None:
+        normal = "Preallocate the output; write each position once. " * 20
+        self.assertFalse(_DRIVER.degenerate_generation(normal))
+        self.assertFalse(_DRIVER.degenerate_generation("// normal code comment\n" * 20))
+        self.assertTrue(_DRIVER.degenerate_generation(normal + "/ " * 100))
 
     def test_summary_validator_accepts_miss_dense_and_rejects_missing_raw_request(self) -> None:
         import hashlib
