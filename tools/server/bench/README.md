@@ -278,3 +278,21 @@ Calibration controls and historical short/large runs are not acceptance
 results. Held-out acceptance requires the immutable corpus and all runtime
 telemetry. Exact and selective results are reported separately, including
 failed, fault, cancellation, and churn cases; missing telemetry fails closed.
+## Promotion campaign setup (explicit geometry)
+
+`run-pager-promotion.py` requires `--context` and `--hot-pages`; no hidden
+8K geometry is assumed. They bind argv identity, allocator checks, prompt
+sizing and reports. B/U remains 1024/256, page size 256, CUDA0, Turbo4 target
+and GPU native Turbo4 MTP. `--selector-trace-page` is optional diagnostic
+instrumentation, not a normal speed-test prerequisite. Use the repository
+fixture root, not an assumed site path. Local fixture validation precedes
+service access. Print the exact matching server argv without launching it:
+
+`python3 tools/server/bench/run-pager-promotion.py --output /tmp/promotion-command-only --server-binary "$PWD/build-cuda/bin/llama-server" --model /srv/ai/models/text/current.gguf --context 16384 --hot-pages 16 --print-server-command`
+
+Reuse a healthy matching binary/model/DSO/config, otherwise replace the ONE
+managed model owner through the established lifecycle and validate again.
+Do not start another model, silently adopt its geometry, or send a generation
+"setup probe" merely to check counters; a short acknowledgement can correctly
+have zero drafts. Setup is established by identity, health and allocator
+evidence; MTP acceptance comes from completed measured responses.

@@ -8,11 +8,13 @@ import hashlib
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Mapping
 
@@ -38,6 +40,41 @@ UBATCH = 256
 NATURAL_RECALL_ANCHORS = {
     "PY_MERGE_03": "out = [0] * (len(left) + len(right))",
 }
+
+
+def geometry_for_run(context: int, hot_pages: int) -> dict[str, int]:
+    """Freeze one explicit geometry for all checks in this CLI invocation."""
+    if type(context) is not int or type(hot_pages) is not int or \
+            context <= 0 or hot_pages <= 0 or hot_pages * PAGE_TOKENS >= context:
+        raise ValueError("promotion requires 0 < hot_pages * 256 < context")
+    if context % PAGE_TOKENS:
+        raise ValueError("context must be a multiple of the 256-token page size")
+    return {"context_tokens": context, "hot_pages": hot_pages,
+            "hot_tokens": hot_pages * PAGE_TOKENS,
+            "page_tokens": PAGE_TOKENS, "batch": BATCH, "ubatch": UBATCH}
+
+
+def server_command(args: argparse.Namespace) -> list[str]:
+    """Exact matching argv; printing it never starts a second model process."""
+    geometry_for_run(args.context, args.hot_pages)
+    endpoint = urllib.parse.urlsplit(args.endpoint)
+    if endpoint.scheme not in {"http", "https"} or not endpoint.hostname:
+        raise ValueError("endpoint must be an absolute HTTP(S) URL")
+    port = endpoint.port or (443 if endpoint.scheme == "https" else 80)
+    return [str(pathlib.Path(args.server_binary).resolve()),
+            "-m", args.model, "--alias", args.model_alias, "-ngl", "999",
+            "--fit", "off", "-fa", "on", "-c", str(args.context), "-np", "1",
+            "-ctk", "turbo4", "-ctv", "turbo4", "-b", str(BATCH), "-ub", str(UBATCH),
+            "--poll", "0", "--host", "0.0.0.0", "--port", str(port),
+            "--api-key-file", args.key_file, "--metrics", "--reasoning-preserve",
+            "--no-context-shift", "--kv-pager", "selective",
+            "--kv-router", "probe-rerank", "--kv-page-size", str(PAGE_TOKENS),
+            "--kv-hot-pages", str(args.hot_pages), "--kv-pin-recent", "0",
+            "--device", "CUDA0", "--ctx-checkpoints", str(args.ctx_checkpoints),
+            "--checkpoint-min-step", "1024", "--cache-ram", "0", "--no-cache-idle-slots",
+            "--spec-draft-kv-device", "gpu", "--spec-type", "draft-mtp",
+            "--spec-draft-n-max", "2", "--spec-draft-type-k", "turbo4",
+            "--spec-draft-type-v", "turbo4"]
 
 
 def sha256(data: bytes) -> str:
@@ -136,8 +173,29 @@ def read_key(path: pathlib.Path) -> str:
     return ""
 
 
+def candidate_library_paths(maps: str, build_root: pathlib.Path) -> list[pathlib.Path]:
+    """Reject old/unlinked mapped DSOs, not just a matching server pathname."""
+    result: set[pathlib.Path] = set()
+    for line in maps.splitlines():
+        fields = line.split(maxsplit=5)
+        if len(fields) != 6:
+            continue
+        name = fields[5]
+        basename = pathlib.Path(name).name
+        if not basename.startswith(("libllama.", "libggml")):
+            continue
+        if name.endswith(" (deleted)"):
+            raise RuntimeError(f"candidate library was replaced while still mapped: {name}; reload managed owner")
+        path = pathlib.Path(name).resolve()
+        if not path.is_relative_to(build_root.resolve()):
+            raise RuntimeError(f"candidate library is outside expected build {build_root}: {path}")
+        result.add(path)
+    return sorted(result)
+
+
 def process_identity(service: str, expected_bundle: pathlib.Path,
-                     model_path: pathlib.Path, trace_page: int) -> dict[str, Any]:
+                     model_path: pathlib.Path, trace_page: int | None,
+                     ctx_checkpoints: int = 2) -> dict[str, Any]:
     pid_text = subprocess.check_output(
         ["sudo", "-n", "systemctl", "show", "--value", "--property=MainPID", service],
         text=True).strip()
@@ -151,7 +209,8 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
     start_ticks = int(stat[stat.rfind(")") + 2:].split()[19])
     values: dict[str, str | None] = {}
     for option in ("-m", "-c", "-b", "-ub", "-np", "-ngl", "-ctk", "-ctv", "--device",
-                   "--kv-pager", "--kv-page-size",
+                   "--fit", "-fa", "--ctx-checkpoints", "--cache-ram",
+                   "--kv-pager", "--kv-router", "--kv-page-size",
                    "--kv-hot-pages", "--kv-pin-recent", "--spec-draft-kv-device",
                    "--spec-type", "--spec-draft-n-max", "--spec-draft-type-k",
                    "--spec-draft-type-v"):
@@ -171,9 +230,12 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
         model = pathlib.Path()
     expected = {
         "-c": str(CONTEXT), "-b": str(BATCH), "-ub": str(UBATCH), "-np": "1",
+        "-ngl": "999", "--fit": "off", "-fa": "on",
+        "--ctx-checkpoints": str(ctx_checkpoints), "--cache-ram": "0",
         "-ctk": "turbo4", "-ctv": "turbo4",
-        "--kv-pager": "selective", "--kv-page-size": "256",
-        "--kv-hot-pages": "16",
+        "--kv-pager": "selective", "--kv-router": "probe-rerank",
+        "--kv-page-size": str(PAGE_TOKENS),
+        "--kv-hot-pages": str(HOT_TOKENS // PAGE_TOKENS),
         "--spec-draft-kv-device": "gpu", "--spec-type": "draft-mtp",
         "--spec-draft-n-max": "2", "--spec-draft-type-k": "turbo4",
         "--spec-draft-type-v": "turbo4",
@@ -193,16 +255,22 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
         mismatches.append(f"--kv-pin-recent={values['--kv-pin-recent']!r} expected default/0")
     if executable != expected_bundle.resolve() or model != model_path.resolve():
         mismatches.append(f"executable/model identity mismatch: {executable} / {model}")
-    if environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE") != "1" or \
-            environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE") != str(trace_page):
+    if "--no-context-shift" not in command:
+        mismatches.append("missing explicit --no-context-shift")
+    if trace_page is not None and (environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE") != "1" or
+            environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE") != str(trace_page)):
         mismatches.append("selector trace environment is not bound to the answer-page identity")
     if mismatches:
         raise RuntimeError("managed candidate contract mismatch: " + "; ".join(mismatches))
+    libraries = candidate_library_paths((proc / "maps").read_text(),
+                                         expected_bundle.resolve().parent.parent)
     return {
         "pid": pid, "start_time_ticks": start_ticks, "executable": str(executable),
         "binary_sha256": sha256_file(executable), "command": command,
         "model": str(model), "model_sha256": sha256_file(model),
         "settings": values, "selector_trace_environment": environment,
+        "loaded_candidate_libraries": [{"path": str(path), "sha256": sha256_file(path)}
+                                        for path in libraries],
     }
 
 
@@ -858,7 +926,7 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
 
 
 def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
-             root: pathlib.Path, model: str, selector_trace_page: int) -> dict[str, Any]:
+             root: pathlib.Path, model: str, selector_trace_page: int | None) -> dict[str, Any]:
     case_root = root / "cases" / target.fixture_id
     case_root.mkdir(parents=True, exist_ok=True)
     erase_and_verify(base, key, case_root / "reset")
@@ -1206,7 +1274,7 @@ def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any]) 
     page_capacity = pager.get("page_capacity")
     if pager.get("context_tokens") != CONTEXT or resolved != CONTEXT:
         raise RuntimeError(f"allocator did not admit exactly {CONTEXT} context tokens")
-    if pager.get("page_tokens") != PAGE_TOKENS or page_capacity != 16 or admitted != HOT_TOKENS:
+    if pager.get("page_tokens") != PAGE_TOKENS or page_capacity != HOT_TOKENS // PAGE_TOKENS or admitted != HOT_TOKENS:
         raise RuntimeError(f"allocator did not admit exactly {HOT_TOKENS // PAGE_TOKENS} pages of {PAGE_TOKENS} tokens")
     if pager.get("pin_recent_tokens") != 0:
         raise RuntimeError("allocator did not resolve the recent-token pin to zero")
@@ -1235,14 +1303,34 @@ def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any]) 
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    # One invocation = one immutable geometry, including worker-thread reads.
+    # Do not silently adopt the active service's geometry or retain the old
+    # 8192 default in prompt sizing/allocator checks after identity succeeds.
+    global CONTEXT, HOT_TOKENS
+    requested = geometry_for_run(args.context, args.hot_pages)
+    CONTEXT, HOT_TOKENS = requested["context_tokens"], requested["hot_tokens"]
+    # Validate local setup BEFORE contacting the service or erasing a slot.
+    # An obsolete site-specific fixture path must never waste a model request.
+    selected_fixture_ids = [*DEFAULT_SOURCE_FIXTURE_IDS, *DEFAULT_PRESSURE_FIXTURE_IDS]
+    fixture_root = pathlib.Path(args.fixture_root)
+    catalog = load_fixture_catalog(fixture_root, selected_fixture_ids)
+    manifest_raw = (fixture_root / "manifest.json").read_bytes()
     root = pathlib.Path(args.output).resolve()
     if root.exists() and any(root.iterdir()):
         raise FileExistsError(f"refusing to overwrite nonempty raw result root: {root}")
     root.mkdir(parents=True, exist_ok=True)
     model_path = pathlib.Path(args.model).resolve()
     candidate_path = pathlib.Path(args.server_binary).resolve()
-    identity = process_identity(args.service_name, candidate_path, model_path,
-                                args.selector_trace_page)
+    write_json(root / "expected-server-command.json",
+               {"argv": server_command(args), "command": shlex.join(server_command(args)),
+                "geometry": requested})
+    try:
+        identity = process_identity(args.service_name, candidate_path, model_path,
+                                    args.selector_trace_page, args.ctx_checkpoints)
+    except RuntimeError as error:
+        raise RuntimeError(f"{error}; reload the single managed owner with the exact argv "
+                           f"in {root / 'expected-server-command.json'} before retrying. "
+                           "No generation request was sent.") from error
     write_json(root / "candidate-identity.json", identity)
     key = read_key(pathlib.Path(args.key_file))
     base = args.endpoint.rstrip("/")
@@ -1252,10 +1340,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise RuntimeError("managed candidate is not healthy")
     geometry = validate_runtime_geometry(base, key, identity)
     write_json(root / "allocator-admission.json", geometry)
-    selected_fixture_ids = [*DEFAULT_SOURCE_FIXTURE_IDS,
-                             *DEFAULT_PRESSURE_FIXTURE_IDS]
-    catalog = load_fixture_catalog(pathlib.Path(args.fixture_root), selected_fixture_ids)
-    manifest_raw = (pathlib.Path(args.fixture_root) / "manifest.json").read_bytes()
     progress_path = root / "campaign-progress.json"
     cases: list[dict[str, Any]] = []
     failures: list[dict[str, str]] = []
@@ -1311,20 +1395,32 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     result.add_argument("--service-name", default=DEFAULT_SERVICE)
     result.add_argument("--server-binary", required=True)
+    result.add_argument("--context", type=int, required=True,
+                        help="explicit logical context; must match the managed server -c")
+    result.add_argument("--hot-pages", type=int, required=True,
+                        help="explicit 256-token physical hot-page count; must match --kv-hot-pages")
+    result.add_argument("--ctx-checkpoints", type=int, choices=(0, 2), default=2,
+                        help="checkpoint setting for the printed startup command (2 small / 0 scale)")
+    result.add_argument("--print-server-command", action="store_true",
+                        help="print the exact matching startup argv without any service/network action")
     result.add_argument("--model", default=str(MODEL_PATH))
     result.add_argument("--model-alias", default="qwen38-fast-turbo4-mtp")
     result.add_argument("--key-file", default="/srv/ai/config/llama/api-keys")
     result.add_argument("--fixture-root", default=str(FIXTURE_ROOT))
     result.add_argument("--target-fixture-id", default=DEFAULT_TARGET_FIXTURE_ID,
                         help="answer-bearing Python fixture, currently PY_MERGE_03")
-    result.add_argument("--selector-trace-page", required=True, type=int,
-                        help="candidate-preflight logical page ID filtered by server diagnostics")
+    result.add_argument("--selector-trace-page", type=int,
+                        help="optional diagnostic trace; omit for ordinary outcome/speed runs")
     return result
 
 
 if __name__ == "__main__":
     try:
-        outcome = run(parser().parse_args())
+        arguments = parser().parse_args()
+        if arguments.print_server_command:
+            print(shlex.join(server_command(arguments)))
+            raise SystemExit(0)
+        outcome = run(arguments)
         print(json.dumps(outcome, indent=2, sort_keys=True))
         if outcome.get("execution_status") != "complete":
             raise SystemExit(2)

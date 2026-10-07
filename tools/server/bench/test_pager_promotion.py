@@ -6,7 +6,9 @@ from __future__ import annotations
 import pathlib
 import importlib.util
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from pager_promotion import (
     DEFAULT_PRESSURE_FIXTURE_IDS, DEFAULT_SOURCE_FIXTURE_IDS,
@@ -31,6 +33,65 @@ _generation_start_index = _DRIVER.generation_start_index
 
 
 class PagerPromotionPromptTest(unittest.TestCase):
+    def test_stale_or_foreign_candidate_library_requires_reload(self) -> None:
+        maps = "1000-2000 r-xp 0 08:01 123 /tmp/build/bin/libggml-cuda.so"
+        self.assertEqual([pathlib.Path("/tmp/build/bin/libggml-cuda.so")],
+                         _DRIVER.candidate_library_paths(maps, pathlib.Path("/tmp/build")))
+        with self.assertRaisesRegex(RuntimeError, "replaced while still mapped"):
+            _DRIVER.candidate_library_paths(maps + " (deleted)", pathlib.Path("/tmp/build"))
+        with self.assertRaisesRegex(RuntimeError, "outside expected build"):
+            _DRIVER.candidate_library_paths(maps, pathlib.Path("/tmp/other-build"))
+        self.assertEqual([], _DRIVER.candidate_library_paths(
+            "1000-2000 r-xp 0 08:01 123 /usr/lib/libc.so", pathlib.Path("/tmp/build")))
+
+    def test_bad_fixture_root_is_rejected_before_service_access(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            args = _DRIVER.parser().parse_args([
+                "--output", directory, "--server-binary", "/tmp/llama-server",
+                "--context", "16384", "--hot-pages", "16",
+                "--fixture-root", directory + "/missing"])
+            with patch.object(_DRIVER, "process_identity") as identity, \
+                    patch.object(_DRIVER, "CONTEXT", 8192), patch.object(_DRIVER, "HOT_TOKENS", 4096):
+                with self.assertRaisesRegex(ValueError, "cannot read fixture manifest"):
+                    _DRIVER.run(args)
+                identity.assert_not_called()
+
+    def test_explicit_geometry_and_exact_startup_command(self) -> None:
+        args = _DRIVER.parser().parse_args([
+            "--output", "/tmp/promotion-test", "--server-binary", "/tmp/llama-server",
+            "--context", "16384", "--hot-pages", "16"])
+        self.assertEqual(4096, _DRIVER.geometry_for_run(args.context, args.hot_pages)["hot_tokens"])
+        self.assertIsNone(args.selector_trace_page)
+        command = _DRIVER.server_command(args)
+        for option, expected in {"-c": "16384", "--kv-hot-pages": "16",
+                                 "-b": "1024", "-ub": "256", "--device": "CUDA0",
+                                 "--kv-router": "probe-rerank", "--spec-type": "draft-mtp",
+                                 "-ctk": "turbo4", "--spec-draft-type-k": "turbo4"}.items():
+            self.assertEqual(expected, command[command.index(option) + 1])
+        self.assertIn("--no-context-shift", command)
+        for context, pages in [(8192, 16), (32768, 64), (262144, 200)]:
+            self.assertEqual(pages * 256, _DRIVER.geometry_for_run(context, pages)["hot_tokens"])
+        for context, pages in [(0, 16), (8192, 32), (8193, 16), (16384, 0)]:
+            with self.assertRaises(ValueError):
+                _DRIVER.geometry_for_run(context, pages)
+
+    def test_allocator_and_preflight_share_explicit_16k_geometry(self) -> None:
+        pager = {"context_tokens": 16384, "resolved_context_tokens": 16384,
+                 "accepted_target_tokens": 4096, "page_capacity": 16, "page_tokens": 256,
+                 "pin_recent_tokens": 0, "target_backend": "CUDA0", "mtp_backend": "CUDA0",
+                 "target_type_k": "turbo4", "target_type_v": "turbo4",
+                 "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                 "physical_pool_capacity_bytes": 12345}
+        with patch.object(_DRIVER, "CONTEXT", 16384), patch.object(_DRIVER, "HOT_TOKENS", 4096), \
+                patch.object(_DRIVER, "json_request", return_value=(200, [{"id": 0, "pager_metrics": pager}], b"{}")):
+            self.assertEqual(16384, _DRIVER.validate_runtime_geometry("unused", "", {})["context_tokens"])
+            self.assertEqual(400, _DRIVER.response_budget(9000, _DRIVER.CONTEXT))
+            with self.assertRaises(ValueError):
+                _DRIVER.response_budget(9000, 8192)
+            pager["resolved_context_tokens"] = 8192
+            with self.assertRaisesRegex(RuntimeError, "16384"):
+                _DRIVER.validate_runtime_geometry("unused", "", {})
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.catalog = load_fixture_catalog(FIXTURE_ROOT)
