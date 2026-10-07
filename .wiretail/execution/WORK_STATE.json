@@ -17,7 +17,7 @@
   "status": "ready",
   "current_phase": "105",
   "current_task": "105-01g",
-  "last_updated_utc": "2026-10-07T11:29:43+00:00",
+  "last_updated_utc": "2026-10-07T11:29:44+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -36378,7 +36378,7 @@
       "depends_on": [
         "105-01e"
       ],
-      "commit": "c015f96ff9a1db705911fbfd1be5420c21b5e49b",
+      "commit": "9d094f24f70af952491c8b6b50001f6d701c6484",
       "context_files": [
         ".wiretail/execution/clusters/forward105-ranking-integration.md",
         ".wiretail/execution/engineering-notes/ranking-query-repair.md",
