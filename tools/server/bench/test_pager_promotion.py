@@ -7,6 +7,7 @@ import pathlib
 import importlib.util
 import sys
 import unittest
+from unittest import mock
 
 from pager_promotion import (
     DEFAULT_PRESSURE_FIXTURE_IDS, DEFAULT_SOURCE_FIXTURE_IDS,
@@ -37,6 +38,23 @@ _validate_summary = _DRIVER.validate_summary
 
 
 class PagerPromotionPromptTest(unittest.TestCase):
+    def test_requested_geometry_does_not_inherit_8k_defaults(self) -> None:
+        geometry = _DRIVER.geometry_for_run(16384, 16)
+        self.assertEqual(16384, geometry["context_tokens"])
+        self.assertEqual(4096, geometry["hot_tokens"])
+        self.assertEqual(51200, _DRIVER.geometry_for_run(131072, 200)["hot_tokens"])
+        with self.assertRaises(ValueError):
+            _DRIVER.geometry_for_run(4096, 16)
+        slot = {"id": 0, "pager_metrics": {
+            "context_tokens": 16384, "resolved_context_tokens": 16384,
+            "accepted_target_tokens": 4096, "page_capacity": 16,
+            "page_tokens": 256}}
+        with mock.patch.multiple(_DRIVER, CONTEXT=16384, HOT_TOKENS=4096), \
+                mock.patch.object(_DRIVER, "json_request", return_value=(200, [slot], b"[]")):
+            observed = _DRIVER.validate_runtime_geometry("http://unused", "", {}, "probe-rerank")
+            self.assertEqual(16384, observed["context_tokens"])
+            self.assertEqual(4096, observed["hot_tokens"])
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.catalog = load_fixture_catalog(FIXTURE_ROOT)

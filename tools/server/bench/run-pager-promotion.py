@@ -62,25 +62,6 @@ def gpu_backend(value: Any) -> bool:
     return name == "gpu" or name.startswith(("cuda", "ggml_cuda"))
 
 
-def profile_setting_mismatches(values: Mapping[str, Any], profile: str) -> list[str]:
-    if profile not in {"legacy", "probe-rerank", "dense"}:
-        return [f"unknown profile {profile!r}"]
-    mismatches = []
-    if profile == "dense":
-        if values.get("--kv-pager") != "off":
-            mismatches.append("dense requires --kv-pager off")
-        if values.get("--kv-router") is not None or values.get("--kv-hot-pages") is not None:
-            mismatches.append("dense omits --kv-router and --kv-hot-pages")
-    else:
-        router = "legacy" if profile == "legacy" else "probe-rerank"
-        expected = {"--kv-pager": "selective", "--kv-router": router,
-                    "--kv-page-size": "256", "--kv-hot-pages": "16"}
-        for option, value in expected.items():
-            if values.get(option) != value:
-                mismatches.append(f"{option}={values.get(option)!r} expected {value!r}")
-    return mismatches
-
-
 def reload_managed_profile(args: argparse.Namespace, key: str) -> None:
     """Apply the same 104-06b drop-in lifecycle, then wait for one exact server."""
     argv = [str(pathlib.Path(args.server_binary).resolve()), "-m", args.model,
@@ -139,7 +120,8 @@ def profile_setting_mismatches(values: Mapping[str, Any], profile: str) -> list[
     else:
         router = "legacy" if profile == "legacy" else "probe-rerank"
         expected = {"--kv-pager": "selective", "--kv-router": router,
-                    "--kv-page-size": "256", "--kv-hot-pages": "16"}
+                    "--kv-page-size": str(PAGE_TOKENS),
+                    "--kv-hot-pages": str(HOT_TOKENS // PAGE_TOKENS)}
         for option, value in expected.items():
             if values.get(option) != value:
                 mismatches.append(f"{option}={values.get(option)!r} expected {value!r}")
@@ -1198,7 +1180,7 @@ def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any],
     page_capacity = pager.get("page_capacity")
     if pager.get("context_tokens") != CONTEXT or resolved != CONTEXT:
         raise RuntimeError(f"allocator did not admit exactly {CONTEXT} context tokens")
-    if pager.get("page_tokens") != PAGE_TOKENS or page_capacity != 16 or admitted != HOT_TOKENS:
+    if pager.get("page_tokens") != PAGE_TOKENS or page_capacity != HOT_TOKENS // PAGE_TOKENS or admitted != HOT_TOKENS:
         raise RuntimeError(f"allocator did not admit exactly {HOT_TOKENS // PAGE_TOKENS} pages of {PAGE_TOKENS} tokens")
     hot_bytes = pager.get("physical_pool_capacity_bytes")
     settings = identity.get("settings", {})
@@ -1423,9 +1405,22 @@ def validate_summary(path: pathlib.Path) -> dict[str, Any]:
             "profile": summary["profile"], "schedule_sha256": summary["schedule_sha256"]}
 
 
+def geometry_for_run(context: int, hot_pages: int) -> dict[str, int]:
+    if context <= 0 or hot_pages <= 0 or hot_pages * PAGE_TOKENS >= context:
+        raise ValueError("promotion requires 0 < hot capacity < logical context")
+    return {"context_tokens": context, "hot_tokens": hot_pages * PAGE_TOKENS,
+            "page_tokens": PAGE_TOKENS, "batch": BATCH, "ubatch": UBATCH}
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    global CONTEXT, HOT_TOKENS
     if args.validate_summary:
         return validate_summary(pathlib.Path(args.validate_summary).resolve())
+    # One CLI invocation owns one frozen geometry. The default constants are
+    # not the effective settings once --context/--hot-pages have been supplied.
+    expected_geometry = geometry_for_run(args.context, args.hot_pages)
+    CONTEXT = expected_geometry["context_tokens"]
+    HOT_TOKENS = expected_geometry["hot_tokens"]
     root = pathlib.Path(args.output).resolve()
     if root.exists() and any(root.iterdir()):
         raise FileExistsError(f"refusing to overwrite nonempty raw result root: {root}")
@@ -1453,9 +1448,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     new_schedule = not schedule_path.exists()
     if new_schedule:
         schedule = build_frozen_schedule(catalog, fixture_root)
+        schedule["geometry"] = expected_geometry
     else:
         schedule = json.loads(schedule_path.read_text(encoding="utf-8"))
         _schedule_sources_valid(schedule, catalog, fixture_root)
+    if schedule.get("geometry") != expected_geometry:
+        raise ValueError("frozen schedule geometry differs from requested/loaded settings")
     if args.model_alias != schedule["request_options"]["model_alias"]:
         raise ValueError("model alias differs from the shared frozen schedule")
     preflight_ok, preflight_rows = preflight_schedule(
