@@ -55,6 +55,7 @@ class FakeRuntime:
         self.generation = 1
         self.clear_count = 0
         self.request_indices: list[int] = []
+        self.request_messages: list[list[dict[str, str]]] = []
         self.endpoint_calls = 0
 
     def snapshot(self, _endpoint: str, _key: str) -> dict[str, object]:
@@ -104,6 +105,7 @@ class FakeRuntime:
                     **_kwargs: object) -> dict[str, object]:
         self.endpoint_calls += 1
         self.request_indices.append(request_index)
+        self.request_messages.append(json.loads(json.dumps(messages)))
         self.frontier = prompt_tokens
         self.generation += 1
         raw_path.write_text(f"data: fake-response-{request_index}\n", encoding="utf-8")
@@ -135,6 +137,38 @@ class OccupancyFrontierTests(unittest.TestCase):
         usage = {"prompt_tokens_details": {"cached_tokens": 250033}}
         self.assertEqual(140, occupancy._fresh_prompt_tokens(250173, 250436, usage))
         self.assertEqual(11892, occupancy._fresh_prompt_tokens(16181, 4289, {}))
+
+    def test_answer_envelope_covers_full_token_ceiling_under_compressed_tokenizer(self) -> None:
+        class SlashCompressingRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                count = 0
+                for message in messages:
+                    content = message["content"]
+                    if content and set(content) == {"/"}:
+                        count += 1
+                    else:
+                        count += len(content.split()) + 2
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        renderer = SlashCompressingRenderer()
+        prefix = [{"role": "user", "content": "retained prefix"}]
+        before = occupancy.render_tokens(renderer, prefix + [
+            {"role": "assistant", "content": ""}])
+        compressed_slashes = occupancy.render_tokens(renderer, prefix + [
+            {"role": "assistant", "content": "/" * occupancy.MAX_OUTPUT_TOKENS}])
+        self.assertLess(compressed_slashes - before, 16)
+        envelope = occupancy._answer_envelope(renderer, prefix)
+        measured = occupancy.render_tokens(renderer, prefix + [
+            {"role": "assistant", "content": envelope}])
+        self.assertGreaterEqual(measured - before, occupancy.MAX_OUTPUT_TOKENS)
+
+        default_envelope = occupancy._answer_envelope(FakeRenderer(), prefix)
+        default_measured = occupancy.render_tokens(FakeRenderer(), prefix + [
+            {"role": "assistant", "content": default_envelope}])
+        default_before = occupancy.render_tokens(FakeRenderer(), prefix + [
+            {"role": "assistant", "content": ""}])
+        self.assertGreaterEqual(default_measured - default_before,
+                                occupancy.MAX_OUTPUT_TOKENS)
 
     def test_post_load_canonical_reuses_immutable_prefix_and_mtp_deltas(self) -> None:
         class ProbeRuntime:
@@ -195,12 +229,71 @@ class OccupancyFrontierTests(unittest.TestCase):
                                 for row in result["prompt_summaries"]))
             self.assertEqual(list(range(12)), result["completed"])
 
-            # A resumed helper invocation skips every checkpointed probe.
             occupancy.run_post_load_canonical(
                 runtime, "", "", "fake", FakeRenderer(), original_base, root,
                 state, current_identity, fingerprint, 32768, 0, pre_snapshot,
                 pre_slot, prefill_timeout=1, total_timeout=2)
             self.assertEqual(12, len(runtime.calls))
+
+    def test_post_load_canonical_measured_reserve_uses_exact_branch_budget(self) -> None:
+        class FixedRenderer:
+            template_id = "fixed-large-prompt"
+
+            def __init__(self, count: int) -> None:
+                self.count = count
+
+            def __call__(self, _messages: list[dict[str, str]]) -> SimpleNamespace:
+                return SimpleNamespace(token_ids=tuple(range(self.count)))
+
+        class ProbeRuntime:
+            def __init__(self) -> None:
+                self.calls = 0
+                self.frontier = 257477
+                self.generation = 1
+
+            def run_request(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+                self.calls += 1
+                raw_path = pathlib.Path(_args[11])
+                raw_path.write_text("data: ok\n", encoding="utf-8")
+                self.generation += 1
+                return {"status": "pass", "usage": {"completion_tokens": 1},
+                        "response": {"choices": [{"message": {"content": "ok"}}]},
+                        "mtp": {"draft_tokens": 3, "accepted_tokens": 3}}
+
+            def snapshot(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+                return {"slots": [{"id": 0, "n_prompt_tokens": self.frontier,
+                                   "lifecycle": {"session_generation": self.generation}}]}
+
+        runtime = ProbeRuntime()
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            result = occupancy.run_post_load_canonical(
+                runtime, "", "", "fake", FixedRenderer(257477), [], output, {},
+                identity(), "f" * 64, 262144, 0,
+                runtime.snapshot(), {"slot_id": 0, "generation": 1,
+                                     "occupied_tokens": 257477},
+                prefill_timeout=1, total_timeout=2)
+            self.assertTrue(result["complete"])
+            self.assertEqual(12, runtime.calls)
+            self.assertEqual(257477, result["records"][0]["rendered_prompt_tokens"])
+            # Both 40-token warmup and 400-token measured requests fit with
+            # three MTP rows and the actual 4,096-token planner margin.
+            self.assertGreaterEqual(262144 - 257477 - 400 - 3,
+                                    occupancy.PLANNER_FRESH_TOKEN_HEADROOM)
+
+        overflow_runtime = ProbeRuntime()
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            with self.assertRaisesRegex(occupancy.ResumeStateError,
+                                        "post_frontier_reserve=4095"):
+                occupancy.run_post_load_canonical(
+                    overflow_runtime, "", "", "fake", FixedRenderer(258006), [],
+                    output, {}, identity(), "f" * 64, 262144, 0,
+                    overflow_runtime.snapshot(), {"slot_id": 0, "generation": 1,
+                                                  "occupied_tokens": 257477},
+                    prefill_timeout=1, total_timeout=2)
+            self.assertEqual(0, overflow_runtime.calls)
+            self.assertFalse(list(output.glob("canonical-request-*.json")))
 
     def test_repo_identity_ignores_wiretail_checkpoint_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -400,18 +493,33 @@ class OccupancyFrontierTests(unittest.TestCase):
         with patch.object(occupancy, "identity_fingerprint", return_value="candidate"):
             occupancy.validate_resume_state(state, {}, {"context_tokens": 32768}, slot)
 
+    def test_resume_rejects_split_query_mode_mismatch(self) -> None:
+        state = {"schema_version": 2,
+                 "geometry": {"context_tokens": 32768,
+                              "split_document_queries": True},
+                 "identity_fingerprint": "candidate",
+                 "slot": {"slot_id": 0, "generation": None},
+                 "frontier": {"live_occupied_tokens": 4258}}
+        slot = {"slot_id": 0, "generation": None, "occupied_tokens": 4258}
+        with patch.object(occupancy, "identity_fingerprint", return_value="candidate"):
+            with self.assertRaisesRegex(occupancy.ResumeStateError,
+                                        "geometry differs from this request"):
+                occupancy.validate_resume_state(
+                    state, {}, {"context_tokens": 32768}, slot)
+
     def test_adopts_hashed_completed_prefix_ending_at_live_frontier(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             records = []
             prior_frontier = 0
             messages = []
-            for index, (stage, user, prompt, completion, after) in enumerate((
-                    ("A1", "first", 100, 10, 109),
-                    ("B", "second", 200, 10, 209))):
+            for index, (stage, additions, prompt, completion, after) in enumerate((
+                    ("A1", [{"role": "user", "content": "first"}], 100, 10, 109),
+                    ("B", [{"role": "user", "content": "document"},
+                           {"role": "user", "content": "short question"}], 200, 10, 209))):
                 request_path = root / f"request-{index}.json"
                 raw_path = root / f"raw-{index}.sse"
-                request_messages = messages + [{"role": "user", "content": user}]
+                request_messages = messages + additions
                 request_path.write_text(json.dumps({"messages": request_messages}),
                                         encoding="utf-8")
                 raw_path.write_text(f"response-{index}", encoding="utf-8")
@@ -436,13 +544,30 @@ class OccupancyFrontierTests(unittest.TestCase):
                     occupancy.adopt_completed_prefix(
                         root, {}, "candidate", {"slot_id": 0, "occupied_tokens": 209},
                         [{"stage": "A1", "user": "first"},
-                         {"stage": "B", "user": "second", "fresh_token_limit": 100}],
+                         {"stage": "B", "user": "document", "fresh_token_limit": 100,
+                          "request_messages": [{"role": "user", "content": "document"},
+                                               {"role": "user", "content": "short question"}]}],
                         1000)
             self.assertEqual(2, len(adopted_records))
             self.assertTrue(all(record["committed"] for record in adopted_records))
             self.assertEqual(2, len(history))
             self.assertEqual(2, next_index)
             self.assertEqual("answer-1", adopted_messages[-1]["content"])
+
+            with patch.object(occupancy, "_read_checkpoint", return_value={
+                    "identity_fingerprint": "candidate", "records": records}), \
+                    patch.object(occupancy, "identity_fingerprint", return_value="candidate"):
+                with self.assertRaisesRegex(occupancy.ResumeStateError,
+                                            "differs from the current immutable schedule"):
+                    changed = [
+                        {"stage": "A1", "user": "first"},
+                        {"stage": "B", "user": "document", "fresh_token_limit": 100,
+                         "request_messages": [{"role": "user", "content": "document"},
+                                              {"role": "user", "content": "different question"}]},
+                    ]
+                    occupancy.adopt_completed_prefix(
+                        root, {}, "candidate", {"slot_id": 0, "occupied_tokens": 209},
+                        changed, 1000)
 
     def test_slot_snapshot_uses_pager_frontier_for_empty_slot(self) -> None:
         slot = occupancy.selected_slot(
@@ -562,6 +687,7 @@ class OccupancyFrontierTests(unittest.TestCase):
     def test_occupancy_freezes_repo_content_schedule_before_generation(self) -> None:
         self.assertIn(262144, validator.SUPPORTED_CONTEXTS)
         renderer = FakeRenderer()
+        prompts = occupancy.repo_context.load_prompts()
         source = occupancy.repo_context.SourceFile(
             "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
         chunks = occupancy.repo_context.source_chunks([source])
@@ -571,6 +697,11 @@ class OccupancyFrontierTests(unittest.TestCase):
                                            "dirty_fingerprint": "b" * 64}):
             schedule, plan = occupancy.build_repo_schedule(
                 renderer, identity(), 32768, 16384, 16000, 30720)
+            explicit_legacy_schedule, explicit_legacy_plan = occupancy.build_repo_schedule(
+                renderer, identity(), 32768, 16384, 16000, 30720,
+                split_document_queries=False)
+        self.assertEqual(schedule, explicit_legacy_schedule)
+        self.assertEqual(plan, explicit_legacy_plan)
         self.assertEqual("pass", plan["status"])
         self.assertEqual(0, plan["requests_sent"])
         self.assertGreater(len(schedule), 3)
@@ -608,6 +739,52 @@ class OccupancyFrontierTests(unittest.TestCase):
         self.assertLessEqual(
             plan["pre_A2_frontier_target_tokens"] + schedule[-2]["reserve"]["query_tokens"],
             30720)
+
+        with patch.object(occupancy.repo_context, "tracked_inventory", return_value=[source]), \
+                patch.object(occupancy.repo_context, "git_identity",
+                             return_value={"commit": "candidate-source",
+                                           "dirty_fingerprint": "b" * 64}):
+            split_schedule, split_plan = occupancy.build_repo_schedule(
+                renderer, identity(), 32768, 16384, 16000, 30720,
+                split_document_queries=True)
+        self.assertTrue(split_plan["split_document_queries"])
+        self.assertEqual(["user", "user"],
+                         [item["role"] for item in split_schedule[0]["request_messages"]])
+        self.assertIn("BEGIN FILE:", split_schedule[0]["request_messages"][0]["content"])
+        self.assertEqual(prompts["A1"], split_schedule[0]["request_messages"][1]["content"])
+        self.assertEqual(["user", "user"],
+                         [item["role"] for item in split_schedule[1]["request_messages"]])
+        self.assertEqual(prompts["B"], split_schedule[1]["request_messages"][1]["content"])
+        self.assertNotIn(prompts["B"], split_schedule[1]["request_messages"][0]["content"])
+        continuation = next(turn for turn in split_schedule
+                            if turn["stage"].startswith("repo_continuation_"))
+        self.assertEqual(2, len(continuation["request_messages"]))
+        self.assertIn("BEGIN FILE:", continuation["request_messages"][0]["content"])
+        self.assertIn("Continue with the next ordered repository source ranges",
+                      continuation["request_messages"][1]["content"])
+        self.assertNotIn("Continue with the next ordered repository source ranges",
+                         continuation["request_messages"][0]["content"])
+        self.assertTrue(all(item["role"] == "user"
+                            for turn in split_schedule for item in
+                            turn.get("request_messages", [])))
+        split_simulated = split_schedule[0]["request_messages"] + [{
+            "role": "assistant", "content": occupancy._answer_envelope(
+                renderer, split_schedule[0]["request_messages"])}]
+        self.assertEqual(split_schedule[0]["rendered_prompt_tokens"],
+                         occupancy.render_tokens(renderer,
+                                                 split_schedule[0]["request_messages"]))
+        for turn in split_schedule[1:]:
+            planned_messages = occupancy.scheduled_request_messages(split_simulated, turn)
+            self.assertEqual(turn["rendered_prompt_tokens"],
+                             occupancy.render_tokens(renderer, planned_messages))
+            if turn is not split_schedule[-1]:
+                split_simulated = planned_messages + [{
+                    "role": "assistant", "content": occupancy._answer_envelope(
+                        renderer, planned_messages)}]
+        self.assertEqual([{"role": "user", "content": split_schedule[-1]["user"]}],
+                         split_schedule[-1]["request_messages"])
+        self.assertEqual(400, occupancy._scheduled_generation_budget("B", 400))
+        self.assertEqual(0, occupancy._scheduled_generation_budget("A2", 400))
 
         exact_question = "Which exact behavior does this source document establish?"
         with patch.object(occupancy.repo_context, "tracked_inventory", return_value=[source]), \
@@ -756,6 +933,70 @@ class OccupancyFrontierTests(unittest.TestCase):
                                 for row in report["records"]))
             self.assertLess(report["frontier"]["committed_tokens"],
                             report["frontier"]["completion_threshold_tokens"])
+            self.assertTrue(runtime.request_messages)
+            for messages in runtime.request_messages:
+                self.assertTrue(all(
+                    message["content"].startswith("answer-")
+                    for message in messages if message["role"] == "assistant"))
+
+    def test_canonical_setup_refusal_preserves_curve_and_resumes_without_probe(self) -> None:
+        class CanonicalOverflowRenderer(FakeRenderer):
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                if messages and messages[-1].get("role") == "user" and \
+                        messages[-1].get("content") in occupancy.CANONICAL_POST_LOAD_PROMPTS:
+                    return SimpleNamespace(token_ids=tuple(range(32768)))
+                return super().__call__(messages)
+
+        runtime = FakeRuntime()
+        source = occupancy.repo_context.SourceFile(
+            "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            key = root / "api-key"
+            key.write_text("fake-key\n", encoding="utf-8")
+            output = root / "campaign"
+
+            def run(*, resume: bool = False) -> int:
+                argv = ["run-occupancy-frontier.py", "--output", str(output),
+                        "--api-key-file", str(key), "--target-tokens", "30000",
+                        "--context-tokens", "32768", "--hot-tokens", "16384",
+                        "--max-tokens", str(occupancy.MAX_OUTPUT_TOKENS),
+                        "--repo-content", "--post-load-canonical"]
+                if resume:
+                    argv += ["--resume-state", str(output)]
+                with patch.object(occupancy, "load_driver", return_value=runtime), \
+                        patch.object(occupancy, "capture_runtime_identity", return_value=identity()), \
+                        patch.object(occupancy, "ServerPromptRenderer", CanonicalOverflowRenderer), \
+                        patch.object(occupancy.repo_context, "tracked_inventory",
+                                     return_value=[source]), \
+                        patch.object(occupancy.repo_context, "git_identity",
+                                     return_value={"commit": "fixture-source",
+                                                   "dirty_fingerprint": "f" * 64}), \
+                        patch.object(occupancy.sys, "argv", argv), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    return occupancy.main()
+
+            self.assertEqual(1, run())
+            first_report = json.loads((output / "occupied-frontier.json").read_text())
+            self.assertEqual("incomplete", first_report["execution_status"])
+            self.assertEqual("post_load_canonical_incomplete",
+                             first_report["frontier"]["stop_reason"])
+            self.assertGreater(first_report["frontier"]["committed_tokens"], 16384)
+            self.assertTrue(first_report["records"])
+            self.assertFalse(first_report["post_load_probes"]["complete"])
+            self.assertIn("violates L/output/replay/MTP reserve",
+                          first_report["post_load_probes"]["setup_error"])
+            self.assertEqual([], list(output.glob("canonical-request-*.json")))
+            occupancy_request_count = len(runtime.request_indices)
+
+            self.assertEqual(1, run(resume=True))
+            resumed_report = json.loads((output / "occupied-frontier.json").read_text())
+            self.assertEqual("incomplete", resumed_report["execution_status"])
+            self.assertEqual(first_report["frontier"]["history"],
+                             resumed_report["frontier"]["history"])
+            self.assertEqual(first_report["records"], resumed_report["records"])
+            self.assertEqual(occupancy_request_count, len(runtime.request_indices))
+            self.assertEqual([], list(output.glob("canonical-request-*.json")))
 
     def test_runtime_fault_is_incomplete_execution_and_nonzero_exit(self) -> None:
         class FaultRuntime(FakeRuntime):

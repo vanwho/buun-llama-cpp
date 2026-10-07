@@ -211,7 +211,9 @@ class AdapterContractTests(unittest.TestCase):
 
     def test_short_path_summary_separates_incomplete_evidence_from_goal_miss(self) -> None:
         rows = self.short_path_rows()
-        complete = summarize_short_path_results(rows, expected_prefix_sha256="a" * 64)
+        complete = summarize_short_path_results(
+            rows, expected_prefix_sha256="a" * 64,
+            mtp_acceptance_goals=(60.0, 40.0, 60.0))
         self.assertTrue(complete["measurement_complete"])
         self.assertEqual("goal_miss", complete["goal_status"])
         self.assertEqual("goal_miss", complete["prefill_goal_findings"]["0"])

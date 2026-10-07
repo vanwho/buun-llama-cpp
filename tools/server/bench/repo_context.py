@@ -260,16 +260,37 @@ def render_chunk(chunk: CorpusChunk) -> str:
 
 
 def a_b_a_messages(manifest: Mapping[str, Any], prompts: Mapping[str, str],
-                   scale_text: str = "") -> list[dict[str, str]]:
-    """Build exact A/B/A user turns; A2 intentionally has no source payload."""
+                   scale_text: str = "", *,
+                   split_document_queries: bool = False) -> list[dict[str, str]]:
+    """Build exact A/B/A turns; optionally keep each query outside its source turn."""
     a_files = render_sources(load_group(manifest, "A_code"))
     b_files = render_sources(load_group(manifest, "B_docs"))
-    b = "\n\n".join(part for part in (b_files, scale_text, prompts["B"]) if part)
+    b_document = "\n\n".join(part for part in (b_files, scale_text) if part)
+    b = "\n\n".join(part for part in (b_document, prompts["B"]) if part)
+    if split_document_queries:
+        return [
+            {"role": "user", "content": a_files, "query": prompts["A1"]},
+            {"role": "user", "content": b_document, "query": prompts["B"]},
+            {"role": "user", "content": prompts["A2"]},
+        ]
     return [
         {"role": "user", "content": f"{a_files}\n\n{prompts['A1']}"},
         {"role": "user", "content": b},
         {"role": "user", "content": prompts["A2"]},
     ]
+
+
+def scheduled_request_messages(prefix: Sequence[dict[str, str]],
+                               turn: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Append frozen user messages, falling back to the legacy single-user schedule."""
+    additions = turn.get("request_messages")
+    if additions is None:
+        additions = [{"role": "user", "content": turn["user"]}]
+    if (not isinstance(additions, list) or not additions or
+            any(not isinstance(item, dict) or item.get("role") != "user" or
+                not isinstance(item.get("content"), str) for item in additions)):
+        raise ValueError("scheduled request messages are invalid")
+    return list(prefix) + [dict(item) for item in additions]
 
 
 def enforce_reserve(rendered_tokens: int, generation_tokens: int, reserve_tokens: int,
@@ -286,13 +307,23 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                               base_user: str, chunks: Sequence[CorpusChunk], *,
                               context_tokens: int, reserve_tokens: int,
                               generation_tokens: int = 400,
-                              max_fresh_tokens: int = 16000) -> tuple[str, int, list[CorpusChunk]]:
+                              max_fresh_tokens: int = 16000,
+                              final_question: str | None = None
+                              ) -> tuple[str, int, list[CorpusChunk]]:
     """Append ordered source prefixes, splitting a line only when needed at the frontier."""
     selected: list[CorpusChunk] = []
     content = base_user
-    # The complete user message is the fresh request payload.  In particular,
-    # count the fixed B documentation/query once at request entry; resetting
-    # this baseline after each appended piece would allow an oversized request.
+
+    def rendered_content(candidate: str) -> int:
+        additions = [{"role": "user", "content": candidate}]
+        if final_question is not None:
+            additions.append({"role": "user", "content": final_question})
+        messages = scheduled_request_messages(prefix, {"request_messages": additions})
+        return len(renderer(messages).token_ids)
+
+    # Count every new user message, including an optional final short question,
+    # against the same request-entry baseline. Resetting it while appending
+    # chunks would allow an oversized fresh request.
     entry_tokens = len(renderer(list(prefix)).token_ids)
     for chunk in chunks:
         lines = chunk.text.splitlines(keepends=True)
@@ -320,8 +351,7 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                                           source_byte_start + line_bytes[offset],
                                           source_byte_start + line_bytes[mid])
                 candidate = content + "\n\n" + render_chunk(piece_chunk)
-                messages = list(prefix) + [{"role": "user", "content": candidate}]
-                rendered = len(renderer(messages).token_ids)
+                rendered = rendered_content(candidate)
                 if rendered - entry_tokens <= max_fresh_tokens:
                     try:
                         enforce_reserve(rendered, generation_tokens, reserve_tokens,
@@ -352,8 +382,7 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                                               start + offset, start + offset, piece,
                                               absolute_start, absolute_end)
                     candidate = content + "\n\n" + render_chunk(piece_chunk)
-                    messages = list(prefix) + [{"role": "user", "content": candidate}]
-                    rendered = len(renderer(messages).token_ids)
+                    rendered = rendered_content(candidate)
                     fits = rendered - entry_tokens <= max_fresh_tokens
                     if fits:
                         try:
@@ -368,7 +397,7 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                     else:
                         high_chars = mid_chars - 1
                 if best_chars == 0:
-                    return content, len(renderer(list(prefix) + [{"role": "user", "content": content}]).token_ids), selected
+                    return content, rendered_content(content), selected
                 piece = line[:best_chars]
                 absolute_start = source_byte_start + preceding
                 absolute_end = absolute_start + len(piece.encode("utf-8"))
@@ -387,5 +416,5 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
             if offset < len(lines):
                 # A subsequent request is required to stay under the per-ingest ceiling.
                 return content, best_rendered, selected
-    final_tokens = len(renderer(list(prefix) + [{"role": "user", "content": content}]).token_ids)
+    final_tokens = rendered_content(content)
     return content, final_tokens, selected
