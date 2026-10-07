@@ -36039,7 +36039,7 @@
       "depends_on": [
         "105-01"
       ],
-      "commit": "a8cccbe072b2d2bb1a5efd65f92efcc3a61d367b",
+      "commit": "f569f585d7d2ffe9d9b5a9af352f731b40b90603",
       "context_files": [
         ".wiretail/execution/clusters/forward105-query-owner.md",
         ".wiretail/execution/engineering-notes/ranking-query-repair.md"
