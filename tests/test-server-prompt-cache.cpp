@@ -4586,6 +4586,42 @@ void test_recurrent_reusable_prefix() {
         prompt, exact, 4, 5, context, "adapter") == 0); // no logits shortcut on rewind
 }
 
+void test_query_capture_reuse_prefix() {
+    CHECK(server_prompt_query_capture_reuse_prefix(30, 0, 18, 30, true) == 0);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1018, 1000, 1018, 1030, true) == 1000);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1010, 1000, 1018, 1030, true) == 1000);
+    // The first spread probe is at 1004: a cache ending before it can still
+    // be reused, while caching that probe rewinds the whole query span.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1018, 1030, true) == 1004);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1005, 1000, 1018, 1030, true) == 1000);
+    // A final-user KV offset shortens the effective span. Its first spread
+    // probe is at 1003, so a cached prefix through 1004 must rewind; using
+    // the raw end at 1018 would incorrectly miss that cached probe.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1014, 1018, true) == 1000);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1018, 1018, true) == 1004);
+    // An append begins exactly after the reused prefix, so the new query
+    // tokens can be captured without replaying earlier conversation tokens.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1000, 1000, 1018, 1030, true) == 1000);
+    // A cache ending exactly at the query boundary still replays the whole
+    // query span to create a fresh capture for this turn.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1018, 1000, 1018, 1018, true) == 1000);
+    // A one-token query deduplicates the four spread probes to that token.
+    CHECK(server_prompt_query_capture_reuse_prefix(11, 10, 11, 11, true) == 10);
+
+    CHECK(server_prompt_query_capture_reuse_prefix(20, -1, 18, 30, true) == 20);
+    CHECK(server_prompt_query_capture_reuse_prefix(20, 10, 10, 30, true) == 20);
+    CHECK(server_prompt_query_capture_reuse_prefix(20, 10, 31, 30, true) == 20);
+    CHECK(server_prompt_query_capture_reuse_prefix(30, 0, 18, 30, false) == 30);
+}
+
 void test_recurrent_selection_survives_displacement_save(bool accounted) {
     server_cache_authority authority;
     configure_host_accounting(authority, accounted);
@@ -5932,6 +5968,7 @@ int main(int argc, char ** argv) {
     test_checkpoint_host_stem_lifecycle();
     test_checkpoint_draft_restore_refuses_without_context();
     test_checkpoint_suffix_trim_rebases_only_preserved_prefixes();
+    test_query_capture_reuse_prefix();
     test_lifecycle_restore_retains_immutable_source();
     test_recurrent_reusable_prefix();
     test_recurrent_selection_survives_displacement_save(false);

@@ -3618,7 +3618,13 @@ bool llama_kv_cache::commit_kv_pager_query(
                 (record.state == llama_kv_page_state::gpu_host_clean ||
                  record.state == llama_kv_page_state::gpu_dirty);
             const bool current_span_resident = record.physical_slot != UINT32_MAX &&
-                (resident || record.state == llama_kv_page_state::filling_gpu);
+                (resident || record.state == llama_kv_page_state::filling_gpu ||
+                 record.state == llama_kv_page_state::sealing_host);
+            // Host sealing only copies completed GPU rows asynchronously;
+            // the pinned physical allocation remains readable, as in the
+            // selected attention view. It must not hide an already cached
+            // current user span. Historical routing eligibility below still
+            // requires its own summary, version and pin validation.
             if (record.id.sequence_id == sequence_id && current_span_resident &&
                     record.valid_length != 0 &&
                     page_begin <= query_position && query_position < valid_end) {
@@ -3674,6 +3680,29 @@ bool llama_kv_cache::commit_kv_pager_query(
             apply_pager_live_policy(true);
             const auto & completion = complete_router_query_job(sequence_id, turn_id);
             if (!completion.ready()) {
+                // Failure-only context: a cache/checkpoint restore can skip
+                // every row of the final user span. Distinguish missing live
+                // KV from genuinely eligible historical pages before blaming
+                // the selector capture. No inventory dump or extra readback
+                // belongs on the successful prefill/decode path.
+                LLAMA_LOG_ERROR("%s: query commit visibility sequence=%d turn=%" PRIu64
+                        " range=[%" PRId64 ",%" PRId64 ") current_visible=%d"
+                        " eligible_history=%d inventory=%zu\n",
+                        __func__, sequence_id, turn_id, state.query_start, state.query_end,
+                        current_span_visible ? 1 : 0, has_eligible_history ? 1 : 0,
+                        inventory.size());
+                size_t failure_records = 0;
+                for (const auto & record : inventory) {
+                    if (record.id.sequence_id != sequence_id || failure_records++ == 4) break;
+                    LLAMA_LOG_ERROR("%s: query commit page logical=%u generation=%u"
+                            " content=%" PRIu64 " range=[%d,%d) valid=%u state=%u slot=%u"
+                            " pins=%u host=%d summary=%" PRIu64 "\n",
+                            __func__, record.id.logical_page, record.id.page_generation,
+                            record.content_version, record.id.position_begin, record.id.position_end,
+                            record.valid_length, unsigned(record.state), record.physical_slot,
+                            record.pin_count, record.host_valid ? 1 : 0,
+                            pager_->routing_summary_content_version(record.id));
+                }
                 LLAMA_LOG_ERROR("%s: query rerank failed status=%u plan_error=%u stage=%u "
                         "sequence=%d turn=%" PRIu64 " query=%" PRIu64 " layer=%u records=%zu\n",
                         __func__, unsigned(completion.status), unsigned(completion.plan_error),

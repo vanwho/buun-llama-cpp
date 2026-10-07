@@ -10,6 +10,7 @@
 #include "server-chat.h"
 #include "chat.h"
 #include "common.h"
+#include "ggml-kv-query-probes.h"
 #include "json-schema-to-grammar.h"
 #include "llama.h"
 #include "sampling.h"
@@ -8909,6 +8910,26 @@ bool server_prompt_checkpoint_frontier_is_current(
     std::string media_identity;
     return prompt.tokens.media_content_identity(frontier.token_count, media_identity) &&
            media_identity == frontier.media_content_identity;
+}
+
+size_t server_prompt_query_capture_reuse_prefix(
+        size_t cached_prefix, int64_t query_begin, int64_t query_end,
+        size_t prompt_tokens, bool query_capture_required) noexcept {
+    if (!query_capture_required || query_begin < 0 || query_end <= query_begin ||
+            uint64_t(query_end) > prompt_tokens) {
+        return cached_prefix;
+    }
+    for (int probe = 0; probe < 4; ++probe) {
+        const int64_t position = ggml_kv_query_probe_target(
+            query_begin, query_end, probe, GGML_KV_QUERY_PROBES_SPREAD);
+        if (position >= 0 && uint64_t(position) < cached_prefix) {
+            // Restore at the user boundary, rather than partway through the
+            // query: a changed selection may need the existing whole-query
+            // checkpoint/replay transaction as well as all four Q probes.
+            return size_t(query_begin);
+        }
+    }
+    return cached_prefix;
 }
 
 llama_pos server_prompt_checkpoint_reuse_threshold(llama_pos pos_next, int32_t n_swa, bool has_new_tokens) {

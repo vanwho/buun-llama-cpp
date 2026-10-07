@@ -2667,11 +2667,12 @@ public:
                 params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
                 size_t(params.ubatch.n_tokens - 1) <=
                     std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
-                routing_query_batch_matches(mctx_, selected_->src[0], params.ubatch, sequence_id_, true) &&
-                mctx_->can_reuse_kv_page_select(
-                bounds_, layer_, params.ubatch);
-                mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
-                bounds_, layer_, params.ubatch);
+                mctx_ != nullptr &&
+                (probe ? mctx_->can_reuse_kv_query_capture(
+                    query_op, params.ubatch, sequence_id_, true)
+                 : routing_query_batch_matches(
+                    mctx_, query_op, params.ubatch, sequence_id_, true)) &&
+                mctx_->can_reuse_kv_page_select(bounds_, layer_, params.ubatch);
         if (!valid && graph_selector_trace_enabled() && mctx_ != nullptr) {
             mctx_->note_kv_page_select_gate(
                 llama_kv_pager_selector_gate::graph_input_rejected_reuse,

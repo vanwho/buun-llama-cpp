@@ -22117,15 +22117,41 @@ private:
                                     n_past = std::min(n_past, slot.alora_invocation_start - 1);
                                 }
 
+                                const bool query_capture_required =
+                                    (params_base.kv_pager.mode == llama_kv_pager_mode::selective ||
+                                     params_base.kv_pager.mode == llama_kv_pager_mode::exact) &&
+                                    params_base.kv_pager.router == llama_kv_router_mode::probe_rerank;
+                                const size_t common_prefix = size_t(n_past);
+                                // Match begin_kv_pager_turn's native KV positions,
+                                // including the rendered user delimiter offset.
+                                const int64_t capture_query_end = query_end +
+                                    int64_t(slot.task->params.final_user_kv_position_offset);
+                                const int64_t capture_query_begin =
+                                    query_begin >= 0 && query_begin < capture_query_end
+                                    ? query_begin : 0;
+                                const size_t capture_prefix = server_prompt_query_capture_reuse_prefix(
+                                    n_past, capture_query_begin, capture_query_end, input_tokens.size(),
+                                    query_capture_required);
+                                const bool recapture_cached_query = capture_prefix < size_t(n_past);
+                                // A checkpoint can restore KV/recurrent state, but cannot
+                                // authenticate an old Q tensor for this new router owner.
+                                // Re-evaluate only a user with cached probe rows, not the files
+                                // or conversation preceding it. Do this before checkpoint
+                                // selection and token-ledger retention are calculated.
+                                n_past = int(capture_prefix);
+
                                 // Preserve the true token LCP before checkpoint restore
                                 // rewinds n_past to a smaller physical frontier. n_past_keep is the
                                 // separately bounded amount that prompt.tokens may continue to
                                 // claim after restore; see the restore-site recurrent guard below.
                                 // Keeping token bookkeeping never mutates KV/state by itself.
-                                n_past_common = n_past;
-                                n_past_keep   = n_past_common;
+                                n_past_common = common_prefix;
+                                n_past_keep   = capture_prefix;
 
-                                const auto n_cache_reuse = slot.task->params.n_cache_reuse;
+                                // Do not splice the deliberately recaptured user span back
+                                // into the cache and accidentally skip its graph again.
+                                const auto n_cache_reuse = recapture_cached_query
+                                    ? 0 : slot.task->params.n_cache_reuse;
 
                                 const bool can_cache_reuse =
                                     llama_memory_can_shift(llama_get_memory(ctx_tgt)) &&
