@@ -1,107 +1,156 @@
-# Query ranking and retrieval repair — 2026-10-06
+# Query capture, ranking and retrieval repair — 2026-10-07
 
-Revision: `hotpath-v10-20260914`.
+Revision: `hotpath-v10-20260914`. Supersedes October6/failed retry instructions.
+Load this compact note, current task and immediate handoff, not raw transcripts.
+Main and experiment remain distinct until selective integration in105-01g.
 
-## Conclusions from source, not another diagnostic campaign
+## Verified defects, not the last agent's pointer hypothesis
 
-The fast GPU/host storage architecture is worth retaining. Keep encoded Turbo4
-on host, GPU hot target K/V, full-L GPU MTP, GPU prefill/attention, once-per-query
-retrieval/publication/replay, and frozen historical attention during generation.
-Do not replace this with CPU attention or per-token host retrieval.
+1. **Wrong native-position layout.** `llama_batch_allocr::ubatch` in
+   src/llama-batch.cpp writes SECTION-MAJOR M-RoPE positions:
+   `pos[section*n_tokens + row]`. Qwen text batches have four planes.
+   Pager/attention/MTP additions read `pos[row*n_pos]`, confusing another
+   row/plane with the temporal position. Repeated/scalar fixtures hid this.
+   This corrupted causal masks, final-user probe detection and target hidden
+   row/MTP frontier metadata BEFORE ranking. Matching host/device readbacks
+   did NOT prove the captured temporary-pointer theory.
+   `llama_ubatch::pos0(row)` now supplies plane0 in llama-context.cpp,
+   llama-graph.cpp and all selector/capture/accumulator consumers in
+   llama-kv-cache.cpp. Other planes still feed RoPE normally.
+2. **Unpadded selected-dense Turbo4 FA views.** Exact partial-tail lengths
+   violated the ordinary CUDA FA tile/mask-stride contract. Dense eligibility
+   exposes `padded_row_count=GGML_PAD(rows,256)`, with K/V and masks padded
+   together in llama-kv-attention-op.cpp/llama-graph.cpp. Existing page storage
+   is reused; padding remains masked. No F16 historical cache.
+3. **Pinned metadata rewrite at publication.** Host-catalog discovery
+   overwrote host_valid on retained current pages; the transaction returned
+   all_pinned. Boundary construction authenticates host flags only for cold
+   pages. `llama_kv_live_policy_prepare_query_target` preserves the published
+   resident's lifecycle flags/pins/leases after identity/slot/version checks.
+   Real pinned eviction, stale content and unsafe transfers still fail.
+4. **Stale physical ownership in cold catalogue.** `reconcile_live_target`
+   drops GPU residency while catalogue records can retain the old slot.
+   Policy's local repair did NOT protect selector inputs/exact rerank plans.
+   `llama_kv_pager::exact_page_records` and `routing_inventory` now normalize
+   every catalogue-only entry to host-cold/no physical slot, clearing GPU-only
+   pins/leases while retaining immutable content/summary identity.
+   A reused slot must never supply another page's encoded keys.
 
-The legacy selector was `dot(mean(user Q), mean(page K))`. This is not an exact
-attention ranker: signed, position-dependent Q can cancel across a long file
-message; one relevant key is diluted by unrelated keys in the page mean. There
-is no mathematical guarantee that eight mean-K winners contain the correct
-page at 256K. Exact reranking cannot recover a page already excluded upstream.
+## Indexed capture and diagnostic isolation
 
-The isolated ranking experiment has separate concrete lifecycle defects:
+Experiment: /srv/repos/vanwho/buun-llama-cpp-ranking-v1.
+Product12038ee142c6941bf78798aa5eee8bf66632d9f2 preserves accumulated work.
+Current experiment source repair997b818d9; harness1b9a7d5af. Generic main
+repaird5a93544a. Final fixture/live binaries were built from the identical
+then-dirty source contents before997b818d9: retain their original build/runtime
+identities, do not retroactively replace raw hashes. Full MAIN CUDA rebuild
+was stopped before completion; it is not claimed verified.105-01g owns the
+integrated MAIN build after porting, avoiding a redundant full CUDA build now.
 
-1. `llm_graph_context::cb` uploads positions/control/catalogue before graph
-   allocation. Legacy positions/control have no buffer then. This explains
-   its `tensor buffer not set` assertion; another model instance is irrelevant.
-2. `build_kv_page_select` keys persistent probe state by `state.rows`. A partial
-   final microbatch therefore selects another capture owner. Probes across
-   batch shapes must share sequence/layer/dimension/head identity; only graph
-   inputs depend on row count.
-3. `execute_query` treats an all-nonfinite Q layer as a successful empty exact
-   transaction. That masks corrupt execution, does not repair it, and must not
-   advance a successful-turn cache or publish a selection.
+- ggml_kv_query_probe_params / ggml_kv_query_probes_indexed carry generation,
+  interval and four actual Q row indices in immutable op params. CPU/CUDA
+  gather Q directly: no production position tensor/scans/uploads. Dynamic op
+  stays as independent oracle. Indexed row selection uses corrected pos0.
+- pager_query_probe_rows, set_kv_query_probe_inputs, can_reuse_kv_query_capture
+  validate indices/bounds/sequence/owner. Scheduler fixture covers CUDA+CPU
+  fallback, U256/U37, graph replacement/replay and generation reset.
+  CPU supports_op's obsolete control tensor dereference was repaired.
+- Removed per-layer capture readbacks and abandoned persistent per-shape
+  position buffers. Direct page-mass/split workspace allocates only for an
+  explicitly enabled bounded diagnostic, not ordinary telemetry.
+  Failure logs are bounded and failure-only.
+- Indexed capture alone passed numerical replay but natural output remained
+  incoherent. Do NOT claim it alone fixed semantics/MTP.
+- The old four probes sampled only `query_end-{1,2,4,8}`: all can fall inside
+  generic trailing answer instructions and miss the filename/question. The
+  production `ggml_kv_query_probes_spread` now uses final/quarter/mid/three-quarter
+  user-span positions, keeping four channels and the same storage. Shared
+  `ggml-kv-query-probes.h` defines targets for host/CPU/CUDA; indexed graph
+  keys include the actual rows/generation/span. Cross-U256/U37 capture keeps
+  earlier probes alive until the final probe arrives; duplicates in tiny spans
+  are invalid, not double-weighted. Legacy dynamic/indexed suffix oracles stay
+  unchanged. There is no text matching, filename injection or per-token scan.
 
-The main trace also inspected only two cold candidates, including across
-multiple layer segments. A trace-only `ranked_out` conclusion was not reliable
-for ranks 3–8 or later layers. Do not infer numerical rank from that old label.
+## Small live results and how to use them
 
-## Implemented in main source during this assessment
+Raw: /srv/ai/paged-kv/results/forward/105-01e/verification/ (never load wholesale).
+L16384/H4096, B1024/U256, Turbo4 target/full-L GPU MTP, reasoning off,
+one managed Qwen; frozen PY_MERGE_03 A/B/A schedule from105-01c.
 
-- `ggml_kv_query_accumulate`: backward-compatible 2D mean; optional bounded
-  four-plane GPU state preserves span mean and actual Q rows at the first,
-  middle and final positions of the final 32-token user tail. It survives
-  ubatch splits and resets on query generation. Missing probes are NaN,
-  not fictitious zero-score measurements.
-- `ggml_kv_page_select` mode 2: independently scores probes and takes their
-  maximum mean-K response. CPU and CUDA reject nonfinite Q consistently.
-  This repairs mean-Q cancellation, not the remaining mean-K approximation.
-- `llama-graph.cpp`: intermediate capture graphs can reuse compatible shape,
-  sequence and non-final boundary; final and intermediate graphs cannot alias.
-  Final selectors have one input uploader, after allocation. Removed duplicate
-  accumulator uploads, construction-time capture and per-tensor mismatch traces.
-- `llama-kv-cache.cpp`: reject unallocated sideband uploads; nomination traces
-  inspect all segments, independently of bounded displayed IDs.
-- Direct attention no longer allocates unused split/page-mass diagnostic
-  scratch during production prefill/decode. Page-mass observation requires
-  `LLAMA_KV_PAGER_DIAGNOSTIC_PAGE_MASS=1`, small direct geometry and telemetry.
-  Ordinary telemetry must not change the timing/MTP consumer. Leave this env
-  unset for production and all performance comparisons.
-- `refresh_direct_telemetry` no longer copies the logical residency catalogue
-  per token when the page-mass observer is disabled. This is a real CPU hot-path
-  cost, not a numerical ranking measurement, and is removed rather than timed.
+- Old selected: slash filler at A1; B HTTP500/nonfinite probe. Invalid useful
+  speed evidence, not a score-quality observation.
+- Dense control: correct preallocation fact in normal prose; A2 48 drafts,
+  33 accepted (68.75%), ~73 decode tok/s. Filename-only scorer falsely
+  rejected it. Facts now score normally; acknowledgement syntax is not a gate.
+- Correct positions/padding: coherent A1/B ~1302/~1396 prefill tok/s;
+  A2 exposed pinned publication failure. Short replies are NOT canonical
+ 400-token acceptance evidence.
+- Correct resident lifecycle: all requests HTTP200; A2 ~55.67 decode tok/s,
+  43/84 drafts (51.19%) but semantic miss. Zero cold keys staged exposed stale
+  catalogue slot ownership, not a reason to tune score formulas.
+- Correct cold catalogue: A2 now actually runs48 cold-reader graphs and
+  promotes/publishes cold pages, then target uses them. One run had89.63% MTP
+  despite an incorrect/repetitive answer. Acceptance does NOT prove retrieval.
+- Matched selected all-resident isolation (H16128/C~5K): correct preallocation
+  fact;35/50 drafted accepted (70%),~71.29 decode tok/s. This is NOT offload
+  evidence. Dense also answers correctly. The low-H failure is not explained
+  by general model execution alone.
+- Spread-query capture: A1/B~1296.68/~1392.80 fresh prefill tok/s. A2 retrieves
+  preallocation/two-pointer information initially, then emits long slash
+  filler,37/374 MTP accepted (9.89%),~37.89 decode tok/s. Its83-token cached
+  recall prefill129.46 tok/s is NOT a bulk prefill measurement. Actual cold
+  page5 publication/H2D~4.3MB/target use occurred, but the requested fact page
+  was not proven cold. Do NOT call unrelated-page promotion requested recall.
+- Final current-source model replay `query-replay-final.json` PASS: resident16,
+  cold48,MASS16 graphs,288 records; cold catalogue normalization, changed/
+  unchanged replay, canonical target/draft KV parity and both cancellations.
+ 2 MTP proposals/0 accepted here are not a benchmark. CPU/CUDA spread scheduler,
+  distinct M-RoPE planes, FA padding and pinned retention fixtures PASS.
+- Harness accepts facts in prose; empty marker sets do not pass. Long slash
+  tails after a coherent prefix are flagged separately, not rescued by matched
+  words. No output-budget reduction or exact filename-only gate.
 
-These changes do not read Q on CPU, change Turbo4 encodings, change K/V page
-mapping, introduce per-token scoring, or alter MTP acceptance counters.
+## Remaining generation boundary: do not guess a repair
 
-## Executable repair supplied for the isolated experiment
+On the spread low-H A2, ordinary target decode used packed while multi-row MTP
+verification used direct. Different route names alone do NOT prove numerical
+disagreement. `llama-kv-attention-execution.cpp::planned_route`,
+`llama-graph.cpp::build_attn` and `ggml-cuda/fattn.cu` consume the same published
+page identity/native causal mask, but synthetic replay uses repeated token1
+and is weaker than diverse-language generation.105-01f must extend the existing
+CUDA attention oracle with varying nonzero encoded K and V, Q1/Q3, noncontiguous
+physical slots, partial tails and a rolled generation page; compare direct vs
+packed on identical bytes and native positions. Keep fixture work small, GPU,
+outside production loops. If it passes, do NOT force a route or undo transport
+repairs: approximate target history differs from full-L draft history, and
+misses/coherence/MTP then belong to the bounded history-selection/carry owner.
+If it fails, fix the first K/V addressing/mask/WHT/output-layout producer, not
+the acceptance counter.105-02 owns MTP generation/carry work after integration.
 
-`../fixes/ranking-query-lifecycle.patch` removes construction-time input writes
-and duplicate upload registration, shares probe owners across batch shapes,
-moves shape-specific controls/positions to graph inputs, rejects infinite Q,
-and removes the false-success nonfinite fallback. `git apply --check` passes
-against the current dirty experiment source. This patch is NOT applied there:
-the current session can write main and /tmp, not the experiment directory.
-Task 105-01a applies it in the authorized runner environment, preserving dirty
-experiment work; no wholesale experimental merge is implied.
+## Architecture, outcome branches and execution order
 
-## Remaining implementation decisions (not open-ended diagnostics)
+Keep independent final-user probes, diverse GPU coarse K-only candidates,
+then exact encoded Turbo4 key rerank. Cold staging is bounded (64 candidates
+per layer); full-K/V promotion has a separate budget. CPU RAM stores canonical
+pages; Q/attention/rerank execute GPU. Promotion/publication/replay once per
+user query; generation history then freezes. No per-token rerank, catalogue
+copy/readback, CPU attention or F16 target/draft substitution.
 
-Separate coarse key shortlist width from the eight-page full-K/V promotion
-transaction. Use at most 64 cold key candidates per attention layer, plus
-resident competition, with mean/bound candidate diversity. Preserve the union
-of independent per-head/per-probe candidates before global aggregation.
-Exact GPU encoded-key LSE reranking decides which pages justify promotion;
-stage K only for coarse candidates, V only for final promoted pages. Retain
-the stable valid map when there is no useful cold winner. All GPU readers must
-finish before staging-slot reuse. Publication/replay and MTP carry happen once.
-Do not silently promote 64 full K/V pages or increase H.
+HTTP500: fix producing invariant from bounded failure reason, not relaxed
+authentication or empty-success. Dense misses: repair ambiguity. Coherent
+selected misses: verify actual cold ownership, shortlist membership/encoded-key
+identity, exact order, publication, replay and consumer in that order.
+Do not change score formulas while reading another page's keys/mask.
 
-A finite but weak coarse rank is a retrieval approximation. Nonfinite Q,
-missing buffers, invalid masses, publication failures and replay failures are
-execution defects. Keep these categories distinct. MTP cannot be repaired by
-changing its accounting when target execution produces slash filler/NaNs.
+Order:105-01e supplied capture proof ->105-01f small numerical/recall outcome
+->105-01g selective main integration ->105-02 canonical MTP ->105-03 curve
+->105-04/05 review. Main already contains generic position/padding/residency
+fixes. Port ranker by symbol preserving newer main prefill batching/fences,
+graph reuse, sealing and diagnostic isolation. No whole experiment overwrite.
+105-01d was NO ADOPTION. Completed semantic misses may close an outcome task
+with explicit goal_miss and named repair ownership; HTTP500/nonfinite or absent
+measurements may not. No receipt turns the current poor low-H A2 into success.
 
-## Verification boundary and observed results
-
-The focused CPU selector/probe test passed (split capture, generation reset,
-mean-Q cancellation, missing/empty probes and nonfinite rejection); the modified CUDA
-translation unit compiled. GPU execution is unavailable in this session:
-`nvidia-smi` cannot communicate with the NVIDIA driver. No live speed, retrieval
-or MTP improvement is claimed for this edit.
-
-Previous tiny fresh prompt-1 controls were coherent: dense 82.01 tok/s decode,
-75.78% MTP; legacy 76.02, 74.81%; experiment 76.39, 74.81%. The larger paired
-experiment yielded slash filler and failed/inconclusive recall. Its ~1,300
-tok/s prefill and ~34–37 decode are not valid successful-retrieval benchmarks.
-Do not mix these identities or claim the experiment's semantic/MTP goal passed.
-
-Next proofs: one compiled identity; small coherent dense/selected request;
-one natural cold ABA sequence with dense answer control; then the prescribed
-three-prompt MTP/speed row. Large occupancy only follows those results.
+Build incrementally --parallel16. One Qwen under existing lifecycle lock;
+verify executable/DSOs/model/argv, leave successful matching profile loaded,
+never touch8092. No unchanged256K failure or nine-sequence retry loop.

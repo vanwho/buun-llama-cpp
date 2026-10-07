@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "task": "105-01e",
+  "source_commit": "12038ee142c6941bf78798aa5eee8bf66632d9f2",
+  "checks": {
+    "probe_query_capture_generation_lifecycle_repair": {
+      "status": "pass",
+      "command": [
+        "env",
+        "LLAMA_TEST_KV_PAGE_SELECT_CUDA_TINY=1",
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-kv-page-select"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/indexed-cpu.log",
+          "sha256": "be06acf40659bb6139706eac0a34568680a417876eb18faa1f70d792dd85c84a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/indexed-cuda.log",
+          "sha256": "0cb65fdef0222a1b0d40d76a8694e2c19938c3944dc848d096a6fcf1a0e5ed8a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay.json",
+          "sha256": "a80114ed1d153eacb1ef5f2efaeb67c9918464374a869ae0970d4754e9e2ac89"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay.log",
+          "sha256": "2d7670921bef62a49941ae3781d38cf058f463de77ab373028df405243e76023"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/build.log",
+          "sha256": "c2fcde4adda456c65ca7eb5daf5ee8cdad0e810c0b35c0541214df1939ab4c95"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/rebuild.log",
+          "sha256": "4120c9ee391c85c8492ae7fb3de123ed779b777824bccf61cdf36f4e85ae131e"
+        }
+      ]
+    },
+    "model_backed_replay_parity": {
+      "status": "pass",
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-server-query-replay",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--router",
+        "probe-rerank",
+        "--B",
+        "1024",
+        "--U",
+        "256",
+        "--L",
+        "16384",
+        "--H",
+        "4096",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay.json",
+          "sha256": "a80114ed1d153eacb1ef5f2efaeb67c9918464374a869ae0970d4754e9e2ac89"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay.log",
+          "sha256": "2d7670921bef62a49941ae3781d38cf058f463de77ab373028df405243e76023"
+        }
+      ]
+    }
+  },
+  "implementation": {
+    "experimental_branch": "experiment/attention-aware-ranking-v1",
+    "product_commit": "12038ee142c6941bf78798aa5eee8bf66632d9f2",
+    "harness_commits": [
+      "f03c75f24",
+      "6f853467c"
+    ],
+    "capture": "authoritative ubatch row indices in immutable op params; no production position tensor",
+    "main_adopted": false
+  },
+  "results": {
+    "cpu_scheduler": true,
+    "cuda_scheduler": true,
+    "model_replay_parity": true,
+    "cancellation_recovery": true,
+    "canonical_target_kv_equal": true,
+    "canonical_draft_kv_equal": true,
+    "router_resident_graphs": 16,
+    "cold_reader_graphs": 48,
+    "reader_events": 48,
+    "mass_graphs": 16,
+    "records": 272,
+    "mtp_next_cycle": true,
+    "mtp_proposals": 2,
+    "mtp_accepted": 1,
+    "semantic_retrieval": "not certified by replay fixture",
+    "performance_benchmark": "not run"
+  },
+  "latest_verification": {
+    "experiment_source_commit": "997b818d9",
+    "main_generic_repair_commit": "d5a93544a",
+    "compiled_from_identical_precommit_dirty_source": true,
+    "model_replay_passed": true,
+    "cold_catalogue_authoritative": true,
+    "router_output_records": 288,
+    "semantic_retrieval_certified": false,
+    "low_hot_generation_status": "degenerate_after_relevant_fact_prefix",
+    "low_hot_mtp_accepted": 37,
+    "low_hot_mtp_drafted": 374,
+    "main_full_build_completed": false,
+    "artifacts": [
+      {
+        "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay-final.json",
+        "sha256": "3e6466c40d23ee3329c0b7af0c8a2efdfcbdf941d16fca7e132694c3a8ea2fa8"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/query-replay-final.log",
+        "sha256": "8cf3956e35e619ee85376ec2389d1727c8e55250dee2919e5b96c1878c8b3176"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/spread-cpu.log",
+        "sha256": "f2a546d42e8604d3f64b6415fe2f43ab8c2b427281c6e18f0238850516196eca"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/forward/105-01e/verification/spread-cuda.log",
+        "sha256": "0cb65fdef0222a1b0d40d76a8694e2c19938c3944dc848d096a6fcf1a0e5ed8a"
+      }
+    ]
+  },
+  "build_provenance": {
+    "note": "Focused fixture build preceded the Git commit; its formerly dirty product changes are preserved verbatim in product_commit. The fixture baked version was the prior experiment HEAD. No source change occurred between successful fixture execution and product commit. Current service was rebuilt/reloaded after commit; do not conflate identities.",
+    "raw_root": "/srv/ai/paged-kv/results/forward/105-01e/verification"
+  }
+}

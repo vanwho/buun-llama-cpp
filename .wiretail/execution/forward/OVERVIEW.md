@@ -5,7 +5,8 @@ Revision: `hotpath-v10-20260914`. Amendment: `ranking-query-repair-20261006`.
 This is the architecture contract. The current execution amendment is
 `ranking-query-repair-20261006`, detailed in
 [ranking-query-repair](../engineering-notes/ranking-query-repair.md).
-Order105-01a/b/c/d ->105-02/03/04/05;105-01 is deferred, not passed.
+Order105-01e/f/g ->105-02/03/04/05;105-01 is deferred, not passed.
+105-01a/b/c/d are historical; d explicitly decided NO ADOPTION.
 The current task is always the first unfinished
 entry in `WORK_STATE.json`; older phase numbers and task packets are provenance,
 not startup instructions. The blocked100-04a audit remains deferred, not
@@ -29,7 +30,7 @@ Preserve
 import its unfinished exact-capacity harness into the experimental base.
 Experimental source is developed in a separate worktree/branch from the local
 plan branch; main default routing remains unchanged until an explicit later
-adoption decision in105-01c and reviewed integration in105-01d. Independent query probes plus GPU
+numerical/recall outcome proof in105-01f and reviewed integration in105-01g. Independent query probes plus GPU
 metadata shortlist/key-only rerank replace the legacy averaged-span Mean-K
 ranking. Storage, prefill/FA routes and full-L GPU Turbo4 MTP are preserved.
 Completed poor experimental results are verdicts, not repeat gates.
@@ -94,7 +95,7 @@ card, service paths or these counts in portable production logic.
 | 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
 | 104 | 04e/f/g/h and05 done;04d/06 deferred;06a/b/c/d then07/08 | typed finalization repair, fresh target/MTP sanity, frozen harness, bounded paired outcomes, speed/cost and adoption verdict |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
-| 105 | 105-01 deferred;105-01a/b source repairs;105-01c small paired proof;105-01d reviewed integration;105-02 MTP;105-03 scale findings;105-04/05 summary/review | coherent small retrieval/replay/MTP before large occupancy; completed misses get concrete source repairs, not unchanged live retry loops |
+| 105 | 105-01 deferred;a/b/c/d historical, no adoption;105-01e indexed capture verification;105-01f numerical/recall outcomes;105-01g selective main integration;105-02 coherent generation/MTP;105-03 scale;105-04/05 review | verified producer repairs integrated before residual coherence/MTP work and large occupancy; no unchanged failure loops |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
 specified in `OPTIONAL_ADVANCEMENTS.md`. Phase104 is now reserved for the
@@ -124,7 +125,7 @@ Historical phase100/101 diagnostics and their old scheduling are not current
 instructions. Their ~212 tok/s row predates subsequent GPU-route repairs;
 neither that row nor a faster but incoherent experimental row certifies the
 current candidate. Preserve existing capacity, storage and transport repairs.
-The next work is precisely105-01a/b/c/d, not reopening old release audits.
+The next work is precisely105-01e/f/g, not reopening old release audits.
 Current source integration and coherent small retrieval/MTP evidence precede
 105-03 scale measurements. A reproduced failure inserts a concrete source
 repair, never an unchanged campaign or a speculative route rewrite.

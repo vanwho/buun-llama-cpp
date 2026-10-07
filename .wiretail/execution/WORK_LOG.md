@@ -2384,3 +2384,30 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01d`
 - Commit at update: `f071883b8`
 - Summary: Validated no-adoption integration decision; retained main and ordered the specific stale query-capture repair before 105-02.
+
+## 2026-10-07T01:41:23+00:00 — 105-01e — in_progress
+
+- Branch: `codex/task-105-01e`
+- Commit at update: `9a934c3f0`
+- Summary: Task started
+
+## 2026-10-07T01:41:23+00:00 — 105-01e — done
+
+- Branch: `codex/task-105-01e`
+- Commit at update: `9a934c3f0`
+- Summary: Indexed GPU query capture repaired; real CPU/CUDA scheduler fixtures, integrated exact-rerank/replay/target-draft parity and cancellation proof pass. Natural semantic recall and main integration remain explicit 105-01f/g successors.
+
+## 2026-10-07T02:26:12Z — source-directed repair and forward plan
+
+- Main source: `d5a93544a`; experiment source: `997b818d9`; harness: `1b9a7d5af`.
+- Fixed section-major M-RoPE native positions, selected-dense FA padding,
+  retained resident lifecycle and catalogue-only cold ownership. Experiment
+  captures four whole-question indexed Q probes without position uploads or
+  per-layer diagnostic readbacks. Ordinary direct diagnostics reserve no scratch.
+- CPU/CUDA scheduler and final model replay/cancellation/cold-authority pass.
+  A1/B bulk prefill ~1297/~1393 tok/s. Low-H A2 performs real publication/target
+  use but degenerates with37/374 MTP; all-resident selected control is correct
+  at35/50. These are separate outcomes, not end-to-end success.
+- 105-01f is next/todo with fresh context, bounded nonuniform-key numerical
+  consumer parity and completed recall outcomes;105-01g selective main port;
+  105-02 owns residual coherent generation/MTP before scale. Keep raw external.

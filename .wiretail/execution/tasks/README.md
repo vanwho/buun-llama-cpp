@@ -1,6 +1,10 @@
 # Active task contract — V10
 
-Current execution:105-01a/b/c/d ->105-02/03/04/05.105-01 is deferred, not passed.
+Current execution:105-01e/f/g ->105-02/03/04/05.105-01 is deferred, not passed.
+105-01a/b/c/d are historical; d decided no-adoption. Source-indexed capture
+is supplied; e verifies, f checks numerical paths/recall outcomes, g integrates.
+105-02 resolves residual generation coherence/MTP before scaling. A measured
+semantic miss is not a numerical failure and is never end-to-end success.
 Current compact authority is `../engineering-notes/ranking-query-repair.md`;
 read current packet/cluster and immediate compact handoff. Preserve numerical,
 transport and replay work; do not repeat old104/105 retry diaries or256K

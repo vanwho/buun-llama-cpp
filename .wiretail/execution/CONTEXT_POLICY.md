@@ -19,7 +19,8 @@ job count, correct its command to `--parallel 16` before building.
 
 ## Current phase-105 source-directed override
 
-Order105-01a/b/c/d ->105-02/03/04/05.105-01 is deferred, not passed. Start from
+Order105-01e/f/g ->105-02/03/04/05.105-01a/b/c/d are historical; d decided
+no-adoption.105-01 is deferred, not passed. Start from
 WORK_STATE current task, its packet/cluster, the compact
 engineering-notes/ranking-query-repair.md and immediate relevant handoff.
 104/103/older retry plans are historical, not startup directions. Preserve
@@ -33,12 +34,16 @@ Main source owns state/receipts. Experiment implementation is in
 its copied execution ledger, start nested Wiretail or load a second Qwen.
 Supplied source patches may be applied as explicitly directed by the packet;
 that is not a task-agent commit/branch merge. The outer runner owns Git history.
-Main adoption is explicitly105-01c verdict and105-01d reviewed integration,
+Main adoption is explicitly105-01f numerical/recall outcomes and105-01g reviewed integration,
 not a wholesale experiment merge or a historical104 approval.
 
 GPU Turbo4 target/full-L GPU Turbo4 MTP, B1024/U256. Capture independent Q
 probes at the final-user boundary; diverse coarse K candidates precede exact
 GPU key rerank. Eight full-page promotions are separate from coarse width.
+Production probes use immutable authoritative row indices; no mutable device
+position inputs or per-layer input readbacks. Indexed source repair is supplied.
+Four production probes cover the user span, not just its last8 generic tokens.
+Native temporal positions use ubatch.pos0 (section-major M-RoPE plane0).
 Publish/replay once and freeze historical attention during generation. Host
 stores encoded pages; no CPU attention, per-token reranking or historical
 H2D while generating. No successful-empty masking of nonfinite Q.
@@ -46,10 +51,14 @@ H2D while generating. No successful-empty masking of nonfinite Q.
 Ordinary telemetry must not reserve diagnostic scratch or change kernels.
 Leave forced routes, experimental refresh, selector/page-mass diagnostics and
 profilers unset for speed/MTP comparisons. Diagnostic snapshots are bounded
-and failure-only. Small coherent dense control and one natural cold recall
-precede large occupancy. Correct auth/identity/port/config errors in-run and
+and failure-only. Small numerical/recall outcome work precedes integration;
+coherent retrieval/MTP work precedes large occupancy. Correct auth/identity/port/config errors in-run and
 retry the smallest affected request. A completed semantic/performance miss
 creates a specific code repair, not an unchanged large campaign loop. Missing
+semantic success does not block an outcome/porting task when numerical and
+execution invariants pass: preserve goal_miss and its105-02 owner. It does
+block an end-to-end success claim. Do not infer requested-page recall from
+promotion of a different page or from high MTP acceptance alone. Missing
 optional telemetry is unknown, not failed functionality. Actual execution or
 numerical failures cannot be relabeled ranking misses or successful evidence.
 
