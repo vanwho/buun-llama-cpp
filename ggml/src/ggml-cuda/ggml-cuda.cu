@@ -9763,11 +9763,14 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             return ggml_flash_attn_ext_is_paged_turbo4(op)
                 ? ggml_cuda_flash_attn_ext_paged_turbo4_supported(dev_ctx->device, op)
                 : ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
+        case GGML_OP_FILL:
+            return ggml_is_contiguous(op) &&
+                (op->type == GGML_TYPE_F32 || op->type == GGML_TYPE_F16 ||
+                 (op->type == GGML_TYPE_TURBO4_0 && ggml_get_op_params_f32(op, 0) == 0.0f));
         case GGML_OP_CROSS_ENTROPY_LOSS:
         case GGML_OP_CROSS_ENTROPY_LOSS_BACK:
         case GGML_OP_OPT_STEP_ADAMW:
         case GGML_OP_OPT_STEP_SGD:
-        case GGML_OP_FILL:
         case GGML_OP_CUMSUM:
         case GGML_OP_TRI:
         case GGML_OP_DIAG:

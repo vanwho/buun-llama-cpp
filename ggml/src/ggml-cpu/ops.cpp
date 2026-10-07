@@ -2286,6 +2286,18 @@ void ggml_compute_forward_fill(const ggml_compute_params * params, ggml_tensor *
             {
                 ggml_compute_forward_fill_f16(params, dst);
             } break;
+        case GGML_TYPE_TURBO4_0:
+            {
+                GGML_ASSERT(ggml_is_contiguous(dst));
+                GGML_ASSERT(ggml_get_op_params_f32(dst, 0) == 0.0f);
+                const size_t size = ggml_nbytes(dst);
+                const size_t chunk = (size + params->nth - 1) / params->nth;
+                const size_t begin = std::min(size, size_t(params->ith) * chunk);
+                const size_t end = std::min(size, begin + chunk);
+                if (end > begin) {
+                    std::memset(static_cast<char *>(dst->data) + begin, 0, end - begin);
+                }
+            } break;
         default:
             {
                 GGML_ABORT("unsupported type for ggml_compute_forward_fill: %s", ggml_type_name(src0->type));

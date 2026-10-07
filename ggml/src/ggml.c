@@ -5846,7 +5846,10 @@ static struct ggml_tensor * ggml_fill_impl(
     struct ggml_tensor  * a,
     float                 c,
     bool                  inplace) {
-    GGML_ASSERT(a->type == GGML_TYPE_F32 || a->type == GGML_TYPE_F16);
+    // Turbo4's all-zero encoded block has norm=0 and therefore decodes to
+    // zero. Nonzero quantized fill is not supported by this byte operation.
+    GGML_ASSERT(a->type == GGML_TYPE_F32 || a->type == GGML_TYPE_F16 ||
+            (a->type == GGML_TYPE_TURBO4_0 && c == 0.0f));
     GGML_ASSERT(ggml_is_contiguous(a));
 
     struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);

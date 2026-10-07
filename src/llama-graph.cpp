@@ -1428,10 +1428,17 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
                 const auto & copy = layer.copies[i];
                 if (copy.source_k == nullptr || copy.source_v == nullptr ||
                         copy.packed_k == nullptr || copy.packed_v == nullptr ||
-                        copy.source_k->view_src != layer.source_k ||
-                        copy.source_v->view_src != layer.source_v ||
-                        copy.packed_k->view_src != layer.k ||
-                        copy.packed_v->view_src != layer.v ||
+                        // ggml flattens nested views to their allocation
+                        // owner. Comparing view_src with the intermediate
+                        // layer view falsely rejects every reusable graph.
+                        copy.source_k->view_src != layer.source_k->view_src ||
+                        copy.source_v->view_src != layer.source_v->view_src ||
+                        copy.packed_k->view_src != packed_staging_k ||
+                        copy.packed_v->view_src != packed_staging_v ||
+                        copy.source_k->view_offs != layer.source_k->view_offs + copy.source_offset_k ||
+                        copy.source_v->view_offs != layer.source_v->view_offs + copy.source_offset_v ||
+                        copy.packed_k->view_offs != uint64_t(metadata.page_table()[i].compact_row_begin) * layer.k->nb[2] ||
+                        copy.packed_v->view_offs != uint64_t(metadata.page_table()[i].compact_row_begin) * layer.v->nb[2] ||
                         expected_copies[i].page_index != copy.page_index ||
                         expected_copies[i].row_count != copy.row_count) {
                     return false;
@@ -4449,6 +4456,17 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 throw std::runtime_error("packed selected attention row capacity overflows");
             }
             inp->packed_row_capacity = uint32_t(packed_row_capacity);
+            const uint32_t packed_active_rows = selected_metadata->get_n_kv();
+            uint64_t compact_end = 0;
+            for (const auto & page : packed_pages) {
+                if (page.compact_row_begin != compact_end || page.row_count == 0) {
+                    throw std::runtime_error("packed selected rows are not a contiguous compact prefix");
+                }
+                compact_end += page.row_count;
+            }
+            if (compact_end != packed_active_rows || packed_active_rows > packed_row_capacity) {
+                throw std::runtime_error("packed selected active extent disagrees with copy plan");
+            }
             const auto storage_device = pager->residency_storage_tensor() != nullptr
                 ? ggml_backend_buft_get_device(ggml_backend_buffer_get_type(
                     pager->residency_storage_tensor()->buffer)) : nullptr;
@@ -4522,6 +4540,22 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 }
                 ggml_set_name(layer.k, source_k->name);
                 ggml_set_name(layer.v, source_v->name);
+                // All layers share this slab and copy only the same active
+                // compact prefix. Clear its untouched tail once per graph
+                // execution, through the first layer, rather than once per
+                // transformer layer. The owner remains live through the last
+                // consumer, so later copies cannot overwrite these zeros.
+                if (packed_active_rows < packed_row_capacity && layer_id == layer_ids.front()) {
+                    const uint32_t padding_rows = packed_row_capacity - packed_active_rows;
+                    layer.padding_k = ggml_view_4d(ctx0, layer.k,
+                            layer.k->ne[0], layer.k->ne[1], padding_rows, 1,
+                            layer.k->nb[1], layer.k->nb[2], layer.k->nb[3],
+                            uint64_t(packed_active_rows) * layer.k->nb[2]);
+                    layer.padding_v = ggml_view_4d(ctx0, layer.v,
+                            layer.v->ne[0], layer.v->ne[1], padding_rows, 1,
+                            layer.v->nb[1], layer.v->nb[2], layer.v->nb[3],
+                            uint64_t(packed_active_rows) * layer.v->nb[2]);
+                }
                 if (kv_attention_metrics != nullptr) {
                     const uint64_t staging_bytes = uint64_t(ggml_nbytes(layer.k)) +
                         uint64_t(ggml_nbytes(layer.v));
@@ -5158,19 +5192,88 @@ ggml_tensor * llm_graph_context::build_attn(
                     layer.copies.empty()) {
                 throw std::runtime_error("packed selected attention cache writes are unavailable");
             }
+            // A -inf attention mask is not a data initializer: an unwritten
+            // Turbo4 norm can be NaN, and both NaN + -inf and 0 * NaN remain
+            // NaN inside fused attention. Clear only the page-rounded tail
+            // (at most page_tokens-1 rows), not the selected history or H.
+            // Only the first layer owns these GPU graph nodes. They run once
+            // per graph execution/replay, before any packed attention uses
+            // the slab. Later layers copy only the active prefix; the shared
+            // owner keeps its initialized padding live through the last
+            // consumer. No host transfer or synchronization is added.
+            if (layer.padding_k != nullptr && layer.padding_v != nullptr) {
+                ggml_build_forward_expand(gf, ggml_fill_inplace(ctx0, layer.padding_k, 0.0f));
+                ggml_build_forward_expand(gf, ggml_fill_inplace(ctx0, layer.padding_v, 0.0f));
+            }
             // Cache writes were expanded above. Copy every selected page,
-            // including current rows, on every graph execution. This keeps
-            // transient staging correct after reuse and page-generation
-            // changes without retaining per-layer owners.
+            // including current rows, on every graph execution. Read through
+            // the cache-write results below: merely expanding the write nodes
+            // first does not establish a data dependency from the raw cache
+            // input views, so graph scheduling could otherwise pack a stale
+            // current row on a reused partial page.
             for (const auto & copy : layer.copies) {
                 if (copy.source_k == nullptr || copy.source_v == nullptr ||
                         copy.packed_k == nullptr || copy.packed_v == nullptr) {
                     throw std::runtime_error("packed selected attention copy views are unavailable");
                 }
+                const auto updated_view = [&](ggml_tensor * updated_cache,
+                        ggml_tensor * source_view, ggml_tensor * layer_source) {
+                    const auto * updated_owner = updated_cache->view_src != nullptr
+                        ? updated_cache->view_src : updated_cache;
+                    const auto * source_owner = source_view->view_src != nullptr
+                        ? source_view->view_src : source_view;
+                    if (updated_owner != source_owner || updated_cache->type != source_view->type ||
+                            updated_cache->view_offs != layer_source->view_offs) {
+                        throw std::runtime_error("packed selected source does not share the cache-write owner/base");
+                    }
+                    if (source_view->view_offs < updated_cache->view_offs) {
+                        throw std::runtime_error("packed selected source view offset precedes layer base");
+                    }
+                    // view_offs is absolute in the pager's shared byte slab.
+                    // ggml_view_4d adds the updated_cache base itself, so use
+                    // a relative offset; otherwise a later layer is rebased
+                    // twice and reads another layer or exceeds its owner.
+                    const size_t relative_offset = source_view->view_offs - updated_cache->view_offs;
+                    if (relative_offset > ggml_nbytes(updated_cache) ||
+                            ggml_nbytes(source_view) > ggml_nbytes(updated_cache) -
+                                relative_offset) {
+                        throw std::runtime_error("packed selected cache-write view exceeds update result: " +
+                            std::to_string(relative_offset) + "/" +
+                            std::to_string(ggml_nbytes(source_view)) + "/" +
+                            std::to_string(ggml_nbytes(updated_cache)) + ", page=" +
+                            std::to_string(copy.page_index) + ", source_off=" +
+                            std::to_string(copy.source_offset_k) + ", physical_slot=" +
+                            std::to_string(inp->selected_metadata.page_table()[copy.page_index].source_physical_slot) +
+                            ", source_dims=" + std::to_string(source_view->view_src->ne[0]) + "x" +
+                            std::to_string(source_view->view_src->ne[1]) + "x" +
+                            std::to_string(source_view->view_src->ne[2]) + "x" +
+                            std::to_string(source_view->view_src->ne[3]) + ", view=" +
+                            std::to_string(source_view->ne[0]) + "x" +
+                            std::to_string(source_view->ne[1]) + "x" +
+                            std::to_string(source_view->ne[2]) + "x" +
+                            std::to_string(source_view->ne[3]) + ", nb=" +
+                            std::to_string(source_view->nb[1]) + "/" +
+                            std::to_string(source_view->nb[2]) + "/" +
+                            std::to_string(source_view->nb[3]) + ", offs=" +
+                            std::to_string(source_view->view_offs));
+                    }
+                    return ggml_view_4d(ctx0, updated_cache,
+                            source_view->ne[0], source_view->ne[1],
+                            source_view->ne[2], source_view->ne[3],
+                            source_view->nb[1], source_view->nb[2], source_view->nb[3],
+                            relative_offset);
+                };
+                ggml_tensor * source_k = updated_view(
+                        cache_k_write, copy.source_k, layer.source_k);
+                ggml_tensor * source_v = updated_view(
+                        cache_v_write, copy.source_v, layer.source_v);
+                if (source_k == nullptr || source_v == nullptr) {
+                    throw std::runtime_error("packed selected updated cache views are unavailable");
+                }
                 ggml_build_forward_expand(gf, ggml_cpy(ctx0,
-                        copy.source_k, copy.packed_k));
+                        source_k, copy.packed_k));
                 ggml_build_forward_expand(gf, ggml_cpy(ctx0,
-                        copy.source_v, copy.packed_v));
+                        source_v, copy.packed_v));
             }
             break;
         }

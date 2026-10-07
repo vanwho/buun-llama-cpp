@@ -520,6 +520,10 @@ public:
         uint32_t layer_id = 0;
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
+        // First-layer-only tail views: masked rows still pass through
+        // quantized tile loads, and must be zeroed once per slab execution.
+        ggml_tensor * padding_k = nullptr;
+        ggml_tensor * padding_v = nullptr;
         ggml_tensor * source_k = nullptr;
         ggml_tensor * source_v = nullptr;
         ggml_backend_t backend = nullptr;

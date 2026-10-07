@@ -2640,7 +2640,9 @@ extern "C" {
             struct ggml_tensor  * a,
             enum ggml_tri_type    type);
 
-    // Fill tensor a with constant c
+    // Fill a contiguous tensor with constant c (F32/F16).
+    // CPU/CUDA also support Turbo4 c=0 via zero encoded blocks; nonzero
+    // Turbo4 fill is unsupported. This does not dequantize the tensor.
     GGML_API struct ggml_tensor * ggml_fill(
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
