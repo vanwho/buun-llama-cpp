@@ -3194,12 +3194,15 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         return true;
     }
 
-    bool replay_accepted_prefix(llama_seq_id seq_id, uint16_t n_accepted) {
+    bool replay_accepted_prefix(llama_seq_id seq_id, uint16_t n_accepted, llama_pos n_past) {
         if (seq_id < 0 || seq_id >= (llama_seq_id) n_seq ||
                 verify_h_rows[seq_id] <= 0 || verify_starts[seq_id] < 0 ||
                 n_accepted >= (uint16_t) verify_h_rows[seq_id] ||
                 verify_tokens[seq_id].size() != (size_t) verify_h_rows[seq_id] ||
-                verify_positions[seq_id].size() != (size_t) verify_h_rows[seq_id]) {
+                verify_positions[seq_id].size() != (size_t) verify_h_rows[seq_id] ||
+                verify_h[seq_id].size() != (size_t) verify_h_rows[seq_id] * n_embd ||
+                verify_input_h[seq_id].size() != (size_t) n_embd ||
+                int64_t(verify_positions[seq_id][n_accepted]) + 1 != int64_t(n_past)) {
             return false;
         }
 
@@ -7300,17 +7303,19 @@ bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq
                 // KV structurally valid, but its accepted rows were produced
                 // before the target rollback/replay and are not a sufficient
                 // state-parity proof for the next draft.
-                if (!mtp->replay_accepted_prefix(seq_id, n_accepted)) {
+                if (!mtp->replay_accepted_prefix(seq_id, n_accepted, n_past)) {
                     mtp->rollback_guards[seq_id].reset();
                     return false;
                 }
-                // Force the next target process through the target-boundary
-                // refresh as well.  The replay above repairs the immediate
-                // committed image; this transition prevents a later process
-                // from treating the pre-rollback carry lifecycle as live.
-                mtp->sequence_transition(
-                    seq_id,
-                    common_speculative_sequence_event::target_restored_without_draft);
+                // This is a PAIRED rollback: target and draft now retain the
+                // same sampled+accepted prefix. accept() has already chosen
+                // that frontier's verified target hidden row as pending_h.
+                // Keep its validity and the applied-frontier guard. Sending
+                // target_restored_without_draft here would invalidate this
+                // repaired carry, and process()'s target_only recovery would
+                // erase the full draft KV history on the next token. Actual
+                // unpaired checkpoint restores still use that invalidating
+                // event; never re-arm an invalid carry just from draft replay.
             } else if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
                 mtp->rollback_guards[seq_id].reset();
                 return false;
