@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task": "105-01c",
+  "source_commit": "db6145474b77c47d2697e744678013d9930f34df",
+  "checks": {
+    "small_paired_retrieval_mtp_and_adoption_decision": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-forward105-findings.py",
+        "--attempt-root",
+        "/srv/ai/paged-kv/results/forward/105-01c/attempt-01",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/findings-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/findings-validation.json",
+          "sha256": "e55db0384eda701a77ace08e327f36bed23cbbe99aa1961707972169e65d6e06"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/findings-validation-command.log",
+          "sha256": "f9b07708fad1cbbb8fcd16ee66e74530f98101ce81f3385d47e5f7794b6ba521"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/dense-control/campaign-summary.json",
+          "sha256": "d2438251bae8f300c85de913de6fd4f147e8dd6b0d863388cc37e10b77b25748"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/probe-rerank/campaign-summary.json",
+          "sha256": "d7da0b5da2a1e55810abdd8cb6e5990b7258412eb2018af6755cb3eb391f164d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/dense-tiny/summary.json",
+          "sha256": "88eb7aa3ab84f2f436f2cbcc26bfde6c95780bf872d45c8d7acc3012e1ed02eb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/probe-tiny/summary.json",
+          "sha256": "dac7be3970ad28ce1feb3859d32114a22ad4fb6f731e85f6559c3cb97f284ee9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/query-probe-fixture.log",
+          "sha256": "136ba6ddc7c69b4097ec7ab0107f6b34bb9fe0e9f58b9844f8b0f2198bf5a9b4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/integrated-probe-replay.json",
+          "sha256": "998ce80e389fa76a84ba310b341649fb02c2033d2db0b207f98bc37016295def"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/integrated-probe-replay.log",
+          "sha256": "3920faa53ef3b5900ead46499278da5b112a5a9a8fd5c2cfb778ef34689fd837"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/probe-finalization-failure.log",
+          "sha256": "bcd791cb413037fd2b4e5794356a40a6966b2c4e42a75a0e001c996845d32a24"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/frozen-schedule-16384.json",
+          "sha256": "56e23a79d212f015486d39a0ca04ffbd96513b11b88dbfdf59aeeb11b8eb5e44"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/dense-preflight/candidate-identity.json",
+          "sha256": "defa08d8e428d9f1fa6612b50f14df4810b0ba5f6565a6591812a0b4ad9f3a8e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/probe-preflight/candidate-identity.json",
+          "sha256": "404ec8d5a1b866361bff47520782cc244e22733aa0656f64d3718860575c2090"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/experiment-source-snapshot/tracked-diff.patch",
+          "sha256": "8e4b305e965e2a8788dc7c3b8415176e2ef755360277fd1f86a2fb15fbbdb586"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/experiment-source-snapshot/untracked-source.tar.gz",
+          "sha256": "a356e3ac47706fa36d820afc4b93fc07a54dabf4cd4a53c00d9d50d6de3b231f"
+        }
+      ],
+      "result": "validator passed; dense semantic/MTP passed; probe execution incomplete and stale integrated capture reproduced; experiment not adopted; 105-01e scheduled"
+    }
+  }
+}

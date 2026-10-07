@@ -2372,3 +2372,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01b`
 - Commit at update: `416dda32b`
 - Summary: Implemented bounded diverse coarse K shortlist and exact Turbo4 key reranking; CPU/CUDA selector, mass, and needle oracles passed.
+
+## 2026-10-07T00:48:30+00:00 — 105-01c — done
+
+- Branch: `codex/task-105-01c`
+- Commit at update: `db6145474`
+- Summary: Validated paired dense and incomplete probe findings; retained main and scheduled the stale query-capture lifecycle repair.
