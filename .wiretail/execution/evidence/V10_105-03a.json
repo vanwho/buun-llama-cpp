@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "task": "105-03a",
+  "source_commit": "4e915425751f65fd2c91ea2864277b6cc3e6348d",
+  "checks": {
+    "split_document_query_layout_validation": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/check_105_03a_split_findings.py",
+        "--report",
+        "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/findings.json",
+        "--output-json",
+        "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/validated-paired-layout-findings.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/checker-validation.stdout.json",
+          "sha256": "94df60d8f79ce1451c0d1ea0f0cba34fb0130def301df218d5ef2dd071921425"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/findings.json",
+          "sha256": "d0cc60fe0ff00db30198fd9141a81d2dcd531cf995c24b8d257b97ebc17f20b9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/paired-preflight.json",
+          "sha256": "370097dd79522a2b0247e464c1781902f90e3ebc960acb4b5b56885f2a57bcf2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/validated-paired-layout-findings.json",
+          "sha256": "94df60d8f79ce1451c0d1ea0f0cba34fb0130def301df218d5ef2dd071921425"
+        }
+      ],
+      "checker_sha256": "321d70473e44f0a0598ee93049e24a2d887fe92da1fd608f80ea9f44eb2b48e5",
+      "scope_execution_status": "complete",
+      "matched_source_and_candidate": true,
+      "post_load_canonical": {
+        "status": "unmeasured",
+        "reason": "harness_reserve_preflight",
+        "overall_full_completion_claim": false
+      },
+      "physical_probe_telemetry": "unknown_or_optional",
+      "interpretation": {
+        "A2_legacy": "correct; natural EOS; printed <ff fe>; invalid_utf8 true",
+        "A2_split": "correct; natural EOS; printed <ff fe>; invalid_utf8 true",
+        "length_capped_rows": ["legacy/B", "split/A1", "split/B"],
+        "length_cap_treatment": "400-token configured ceiling; recorded as output_capped, not transport failure or automatic semantic miss"
+      },
+      "paired_B_metrics": {
+        "legacy": {
+          "prompt_tokens_usage": 9610,
+          "cached_tokens": 4257,
+          "fresh_tokens": 5353,
+          "timing_prompt_tokens": 10695,
+          "prompt_ms": 7612.341,
+          "server_processed_prompt_tokens_per_second": 1404.9554532567577,
+          "fresh_tokens_per_prompt_second": 703.2002376141584,
+          "mtp_accepted_over_draft": "230/338",
+          "mtp_acceptance_percent": 68.04733727810651,
+          "completion_tokens": 400,
+          "finish_reason": "length"
+        },
+        "split": {
+          "prompt_tokens_usage": 9651,
+          "cached_tokens": 4293,
+          "fresh_tokens": 5358,
+          "timing_prompt_tokens": 5455,
+          "prompt_ms": 4332.828,
+          "server_processed_prompt_tokens_per_second": 1258.9929717957878,
+          "fresh_tokens_per_prompt_second": 1236.6057457161926,
+          "mtp_accepted_over_draft": "237/321",
+          "mtp_acceptance_percent": 73.83177570093459,
+          "completion_tokens": 400,
+          "finish_reason": "length"
+        }
+      }
+    },
+    "supporting_synthetic_tests": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/test_check_105_03a_split_findings.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03a/attempt-01/checker-synthetic-tests.stdout.txt",
+          "sha256": "0d6653413f55f7cf64dbfab59b6b29c640ade8e63585414ab2a44a0892a5ed0a"
+        }
+      ],
+      "test_source_sha256": "48f2f8721f4d41015964e19d20757e5d5e31b31a5f8468e5aa0da9a69ae3f23b"
+    }
+  }
+}

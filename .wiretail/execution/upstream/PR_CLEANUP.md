@@ -78,6 +78,19 @@ Its paths are:
 - `tools/server/bench/repo_context.py`;
 - `tools/server/bench/test_occupancy_frontier.py`.
 
+Also exclude `4e9154257` (`bench(fork): isolate query replay and budget real
+response tokens`). It contains the optional split-document/question workload,
+correct output-token and canonical-branch reserves, durable incomplete-run
+finalization, and their fixtures in:
+
+- `tools/server/bench/repo_context.py`;
+- `tools/server/bench/run-occupancy-frontier.py`;
+- `tools/server/bench/test_occupancy_frontier.py`;
+- `tools/server/bench/test_pager_benchmark_adapter.py`.
+
+Production attention/router/MTP fixes, including structural CPU graph-arena
+capacity commit `a079452f5`, remain separate from these fork-only workloads.
+
 These changes preserve frozen source/question identity and byte-exact prompt
 replay, and distinguish measured goal misses from incomplete executions. They
 are useful locally but are not proposed production llama.cpp API changes.

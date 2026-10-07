@@ -8,16 +8,16 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Finish105-01g main integration without restarting it. Then105-02 production-shape attention/generation proof and targeted repair,105-02a small matched recall/canonical MTP/speed,105-03 scale,105-04/05 summary/review. Read only current packet/cluster, task-specific compact engineering note and immediate handoff.105-01a/b/c/d are historical;d no-adoption. No raw transcripts/old patches. Turbo4 target/full-L GPU MTP,B1024/U256, once-per-user-turn GPU ranking/promotion/replay and frozen common history. Completion response timing counts outrank resettable slot diagnostics.105-01f measured9.89% MTP, not zero; slash filler remains goal_miss. Its2:1 materialized oracle is not actual Qwen6:1 generation parity. Source-only October7 consumer/reporting edits await105-02 build/proof. No per-token rerank/readback or diagnostic kernel changes. A repeated small coherence/semantic failure inserts its specific implementation before scale, never unchanged retries or false success. Preserve usage/raw history.",
+  "context_policy": "Finish105-01g main integration without restarting it. Then105-02 production-shape attention/generation proof and targeted repair,105-02a small matched recall/canonical MTP/speed,105-03 executed large trajectory and primary fact,105-03a split-layout validation,105-03b novel post-layout capability/canonical evidence,105-04/05 summary/review. Read only current packet/cluster, task-specific compact engineering note and immediate handoff.105-01a/b/c/d are historical;d no-adoption. No raw transcripts/old patches. Turbo4 target/full-L GPU MTP,B1024/U256, once-per-user-turn GPU ranking/promotion/replay and frozen common history. Completion response timing counts outrank resettable slot diagnostics.105-01f measured9.89% MTP, not zero; slash filler remains goal_miss. Its2:1 materialized oracle is not actual Qwen6:1 generation parity. Source-only October7 consumer/reporting edits await105-02 build/proof. No per-token rerank/readback or diagnostic kernel changes. A repeated small coherence/semantic failure inserts its specific implementation before scale, never unchanged retries or false success. Preserve usage/raw history.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "105",
-  "current_task": "105-03",
-  "last_updated_utc": "2026-10-07T20:35:22+00:00",
+  "current_task": "105-03b",
+  "last_updated_utc": "2026-10-07T21:52:11+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-01 deferred;a/b/c/d historical,d no-adoption;e/f capture/numerical findings;105-01g in-flight integration;105-02 generation contract repair/proof;105-02a small paired recall/canonical MTP;105-03 scale only after coherent small behavior;105-04/05 summary/review. Use compact selected-generation-contract for105-02 onward. No historical retries/transcripts.",
+    "active_scope": "105-01 deferred;a/b/c/d historical,d no-adoption;e/f capture/numerical findings;105-01g in-flight integration;105-02 generation contract repair/proof;105-02a small paired recall/canonical MTP;105-03 large trajectory/primary fact executed with occupancy proof and canonical 0/12;105-03a validate existing split-document layout;105-03b novel scale, two extra recalls, and 12-row canonical;105-04 summary;105-05 review. Use compact selected-generation-contract and task-specific fresh clusters. No historical retries/transcripts.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -57,7 +57,7 @@
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
     "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
-    "scale_policy": "Finish source repairs and coherent small paired retrieval/MTP proof first. 105-03 then owns one L262144/H51200/C~250000 occupancy trajectory with B1024/U256 and full-L GPU Turbo4 MTP; preserve per-request uncached prefill speed, cached input, decode, draft/accept counts and measured used/free VRAM as a compact curve. Actual fresh-process allocation accounting, not hypothetical duplicate reserve, governs admission. No smaller-H substitution, concurrent Qwen, forced route, per-token host retrieval or premature full-context diagnostic campaign. Missing optional telemetry is unknown. True execution failures get an ordered owner-specific repair; completed semantic/speed misses are findings, not unchanged retry loops. Fixed batch, <=16K fresh repo chunks and >=4096-token final reserve prevent context shift/compaction.",
+    "scale_policy": "Finish source repairs and coherent small paired retrieval/MTP proof first. The 105-03 L262144/H51200 trajectory and primary fact are executed, with occupancy-only proof and canonical 0/12. 105-03a validates split-document layout at L16384/H8192; 105-03b owns novel large scale, two additional recalls, and fresh canonical rows. Preserve per-request uncached prefill speed, cached input, decode, draft/accept counts and measured used/free VRAM as a compact curve. Actual fresh-process allocation accounting, not hypothetical duplicate reserve, governs admission. No smaller-H substitution for large proof, concurrent Qwen, forced route, per-token host retrieval or premature full-context diagnostic campaign. Missing optional telemetry is unknown. True execution failures get an ordered owner-specific repair; completed semantic/speed misses are findings, not unchanged retry loops. Fixed batch, <=16K fresh repo chunks and >=4096-token final reserve prevent context shift/compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
     "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication",
@@ -36587,7 +36587,7 @@
       "cluster": "forward105-large-recall",
       "title": "Reassess minimum canonical forward capabilities",
       "packet": ".wiretail/execution/tasks/105-03.md",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36602,7 +36602,7 @@
       "depends_on": [
         "105-02a"
       ],
-      "commit": null,
+      "commit": "4e915425751f65fd2c91ea2864277b6cc3e6348d",
       "context_files": [
         ".wiretail/execution/clusters/forward105-large-recall.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
@@ -36618,9 +36618,82 @@
       ]
     },
     {
+      "id": "105-03a",
+      "phase": "105",
+      "cluster": "forward105-split-layout",
+      "title": "Validate split-document final-question layout",
+      "packet": ".wiretail/execution/tasks/105-03a.md",
+      "status": "done",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "split_document_query_layout_validation"
+      ],
+      "depends_on": [
+        "105-03"
+      ],
+      "commit": "4e915425751f65fd2c91ea2864277b6cc3e6348d",
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-split-layout.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-03.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-03a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-03a.json"
+      ]
+    },
+    {
+      "id": "105-03b",
+      "phase": "105",
+      "cluster": "forward105-post-layout-capability",
+      "title": "Run novel post-layout capability and canonical evidence",
+      "packet": ".wiretail/execution/tasks/105-03b.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "post_layout_forward_capability_and_canonical"
+      ],
+      "depends_on": [
+        "105-03a"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-post-layout-capability.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-03a.md",
+        ".wiretail/execution/handoffs/105-03.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-03b",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-03b.json"
+      ]
+    },
+    {
       "id": "105-04",
       "phase": "105",
-      "cluster": "forward105-large-recall",
+      "cluster": "forward105-post-layout-capability",
       "title": "Refresh the compact forward goal summary",
       "packet": ".wiretail/execution/tasks/105-04.md",
       "status": "todo",
@@ -36636,11 +36709,12 @@
         "refreshed_forward_goal_summary"
       ],
       "depends_on": [
-        "105-03"
+        "105-03b"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-large-recall.md",
+        ".wiretail/execution/clusters/forward105-post-layout-capability.md",
+        ".wiretail/execution/handoffs/105-03a.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-03.md"
       ],
@@ -36656,7 +36730,7 @@
     {
       "id": "105-05",
       "phase": "105",
-      "cluster": "forward105-large-recall",
+      "cluster": "forward105-post-layout-capability",
       "title": "Review forward goals and schedule bounded follow-up",
       "packet": ".wiretail/execution/tasks/105-05.md",
       "status": "todo",
@@ -36676,7 +36750,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-large-recall.md",
+        ".wiretail/execution/clusters/forward105-post-layout-capability.md",
+        ".wiretail/execution/handoffs/105-03a.md",
+        ".wiretail/execution/handoffs/105-03b.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-04.md"
       ],

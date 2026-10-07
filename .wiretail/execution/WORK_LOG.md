@@ -2447,3 +2447,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-02`
 - Commit at update: `a4c2d7025`
 - Summary: Task started
+
+## 2026-10-07T21:35:14+00:00 — 105-03 — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `4e9154257`
+- Summary: Recorded 23 executed 256K/50K-hot requests and correct earlier-file recall with GPU Turbo4 MTP; canonical probes explicitly deferred after harness reserve refusal, with split-query optimization and targeted follow-up scheduled.
+
+## 2026-10-07T21:36:29+00:00 — 105-03a — in_progress
+
+- Branch: `codex/task-105-02`
+- Commit at update: `4e9154257`
+- Summary: Task started
+
+## 2026-10-07T21:52:11+00:00 — 105-03a — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `4e9154257`
+- Summary: Validated six matched requests: both layouts recall the earlier source fact; split messages reduce B prompt time from 7.61s to 4.33s and raise fresh ingest from 703 to 1237 tok/s, with normal output caps labeled and physical telemetry unknown.

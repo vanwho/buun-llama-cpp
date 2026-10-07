@@ -205,6 +205,148 @@ class FindingsCheckerTests(unittest.TestCase):
             with self.assertRaisesRegex(checker.FindingsError, "all 12 post-load canonical requests"):
                 checker.validate_report(report, root)
 
+    def make_checkpoint(self, root: Path) -> dict:
+        report = self.make_report(root, answer="It prints <fffe> and sets invalid_utf8=true.")
+        identity = report["candidate_identity"]
+        fingerprint = report["identity_fingerprint"]
+        question = ("In tools/tokenize/tokenize.cpp, when write_utf8_cstr_to_stdout "
+                    "receives invalid UTF-8 bytes ff fe while stdout is a Windows console, "
+                    "what does it print, and how does it set invalid_utf8? Answer in ordinary prose.")
+        source_bytes = b"int main() { return 0; }\n"
+        source_text = source_bytes.decode("utf-8")
+        source_hash = sha256(source_bytes)
+        stages = ["A1", "B"] + [f"repo_continuation_{i}" for i in range(2, 22)] + ["A2"]
+        schedule = [{"stage": stage, "user": (question if stage == "A2" else
+                    f"--- BEGIN FILE: tools/tokenize/tokenize.cpp ---\n{source_text}"
+                    "--- END FILE: tools/tokenize/tokenize.cpp ---" if i == 0 else
+                    f"source payload {i}"),
+                    **({"planned_fresh_tokens": 15000} if 0 < i < len(stages) - 1 else {})}
+                    for i, stage in enumerate(stages)]
+        records, history = [], []
+        frontier = 0
+        alias = "test-model"
+        for index, item in enumerate(schedule):
+            fresh, completion = 15000, 1
+            after = frontier + fresh + completion
+            request = {"model": alias, "n_ctx": 262144, "max_tokens": 400,
+                       "messages": [{"role": "user", "content": item["user"]}]}
+            request_ref = self._save_json(root, f"checkpoint-request-{index}.json", request)
+            response_ref = self._save_raw(root, f"checkpoint-response-{index}.sse")
+            draft, accepted = 3, 1
+            counters_before = {"llamacpp:spec_decode_num_draft_tokens_total": index * draft,
+                               "llamacpp:spec_decode_num_accepted_tokens_total": index * accepted}
+            counters_after = {key: value + (draft if "draft" in key else accepted)
+                              for key, value in counters_before.items()}
+            row = {
+                "request_index": index, "stage": item["stage"], "status": "pass",
+                "committed": True, "within_fresh_limit": True, "http_status": 200,
+                "identity_fingerprint": fingerprint, "candidate_identity": identity,
+                "request_path": request_ref["path"], "request_sha256": request_ref["sha256"],
+                "raw_path": response_ref["path"], "raw_sha256": response_ref["sha256"],
+                "artifacts": {"request": request_ref, "response": response_ref},
+                "fresh_tokens": fresh, "cached_rows": frontier,
+                "frontier_delta_tokens": fresh + completion,
+                "frontier_accounting_delta_tokens": 0,
+                "response_prompt_tokens": frontier + fresh,
+                "response_completion_tokens": completion,
+                "usage": {"prompt_tokens": frontier + fresh, "completion_tokens": completion},
+                "timings": {"prompt_n": frontier + fresh, "prompt_ms": 1000.0},
+                "mtp": {"status": "measured", "mode": "native", "draft_tokens": draft,
+                        "accepted_tokens": accepted},
+                "mtp_counters": {"before": counters_before, "after": counters_after,
+                                 "delta": {key: (draft if "draft" in key else accepted)
+                                           for key in counters_before}, "errors": []},
+                "mtp_history_ready": True, "mtp_source": "prometheus_counter_delta",
+                "response": {"content": "It prints <fffe> and sets invalid_utf8=true."},
+            }
+            records.append(row)
+            history.append({"request_index": index, "status": "pass",
+                            "within_fresh_limit": True, "occupied_before_tokens": frontier,
+                            "occupied_after_tokens": after, "fresh_tokens": fresh})
+            frontier = after
+
+        frozen = {
+            "status": "pass", "source_identity": {"commit": "a" * 40,
+                                                      "dirty_fingerprint": "c" * 64},
+            "inventory": [{"path": "tools/tokenize/tokenize.cpp",
+                           "byte_length": len(source_bytes), "sha256": source_hash}],
+            "selected_ranges": [{"path": "tools/tokenize/tokenize.cpp", "start_byte": 0,
+                                 "end_byte": len(source_bytes), "sha256": source_hash}],
+            "recall_question": {"text": question, "sha256": sha256(question.encode())},
+            "schedule": schedule, "projected_A2_prompt_tokens": 330000,
+            "planned_final_occupied_frontier_tokens": 330001,
+        }
+        (root / "driver-console.log").write_text(
+            "ResumeStateError: canonical branch 0 violates L/output/replay/MTP reserve\n",
+            encoding="utf-8")
+        return {
+            "schema_version": 2, "model": alias, "geometry": {
+                **checker.EXPECTED, "target_tokens": 250000,
+                "completion_threshold_tokens": 249744,
+                "recall_question_sha256": sha256(question.encode()),
+            },
+            "effective_geometry": {"context": 262144, "hot_pages": 200,
+                                   "page_size_tokens": 256, "batch": 1024, "ubatch": 256},
+            "candidate_identity": identity, "identity_fingerprint": fingerprint,
+            "repo_preflight": frozen, "schedule": schedule, "records": records,
+            "history": history, "frontier": {"occupied_tokens": frontier,
+                                               "live_occupied_tokens": frontier},
+            "next_request_index": len(records), "next_turn_index": len(records),
+            "post_load_probes": {"completed": [], "records": []},
+        }
+
+    def _save_json(self, root: Path, name: str, value: object) -> dict[str, str]:
+        path = root / name
+        data = json.dumps(value, sort_keys=True).encode("utf-8")
+        path.write_bytes(data)
+        return {"path": str(path), "sha256": sha256(data)}
+
+    def _save_raw(self, root: Path, name: str) -> dict[str, str]:
+        path = root / name
+        data = b"data: synthetic-http-200\n\n"
+        path.write_bytes(data)
+        return {"path": str(path), "sha256": sha256(data)}
+
+    def test_checkpoint_scope_records_canonical_as_unmeasured(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = self.make_checkpoint(root)
+            result = checker.validate_occupancy_checkpoint(checkpoint, root)
+            self.assertEqual("complete", result["scope_execution_status"])
+            self.assertFalse(result["overall_full_completion_claim"])
+            self.assertEqual("unmeasured", result["post_load_canonical"]["status"])
+            self.assertEqual("harness_reserve_preflight", result["post_load_canonical"]["reason"])
+            self.assertEqual(23, len(result["occupancy_curve"]))
+            self.assertTrue(result["factual_recall"]["fffe_marker_observed"])
+            self.assertEqual(22 * 15000, result["planner_drift"]["actual_fresh_tokens_after_A1"])
+
+    def test_checkpoint_scope_rejects_missing_a2(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = self.make_checkpoint(root)
+            checkpoint["schedule"][-1]["stage"] = "repo_continuation_21"
+            checkpoint["repo_preflight"]["schedule"] = checkpoint["schedule"]
+            with self.assertRaisesRegex(checker.FindingsError, "end in the exact A2"):
+                checker.validate_occupancy_checkpoint(checkpoint, root)
+
+    def test_checkpoint_scope_rejects_missing_artifact_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = self.make_checkpoint(root)
+            checkpoint["records"][0]["artifacts"]["request"].pop("sha256")
+            with self.assertRaisesRegex(checker.FindingsError, "invalid artifact SHA-256"):
+                checker.validate_occupancy_checkpoint(checkpoint, root)
+
+    def test_checkpoint_scope_rejects_mixed_candidate_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = self.make_checkpoint(root)
+            mixed = dict(checkpoint["records"][3]["candidate_identity"])
+            mixed["binary_sha256"] = "e" * 64
+            checkpoint["records"][3]["candidate_identity"] = mixed
+            with self.assertRaisesRegex(checker.FindingsError, "candidate identity is mixed"):
+                checker.validate_occupancy_checkpoint(checkpoint, root)
+
 
 if __name__ == "__main__":
     unittest.main()

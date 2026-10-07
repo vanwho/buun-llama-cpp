@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "task": "105-03",
+  "source_commit": "a079452f56788049109cbef6404f233a41f75e08",
+  "checks": {
+    "minimum_canonical_forward_capability_reassessment": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/check_105_03_findings.py",
+        "--scope",
+        "occupancy",
+        "--checkpoint",
+        "/srv/ai/paged-kv/results/forward/105-03/attempt-02/incremental-state.json",
+        "--output-json",
+        "/srv/ai/paged-kv/results/forward/105-03/attempt-02/checked-occupancy-findings.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03/attempt-02/checker-occupancy.stdout.json",
+          "sha256": "40ef952b1b78780d0d4932959f144e121351ccc4058895ccf707991c704511db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03/attempt-02/incremental-state.json",
+          "sha256": "5b223dd33d9a7b6d84b2815bbb0752a5c28c62e4ff430b9af03bb11657d205b2"
+        }
+      ],
+      "findings": "/srv/ai/paged-kv/results/forward/105-03/attempt-02/checked-occupancy-findings.json",
+      "scope_execution_status": "complete",
+      "post_load_canonical": {
+        "status": "unmeasured",
+        "reason": "harness_reserve_preflight",
+        "request_count": 0,
+        "required_requests_deferred": 12
+      },
+      "overall_full_completion_claim": false,
+      "planner_drift": {
+        "planned_fresh_tokens_after_A1": 245904,
+        "actual_fresh_tokens_after_A1": 245961,
+        "actual_prior_assistant_completion_tokens": 7471,
+        "planned_A2_prompt_tokens": 249990,
+        "actual_A2_prompt_tokens": 257312,
+        "actual_A2_prompt_minus_plan_tokens": 7322,
+        "planned_final_C_tokens": 250389,
+        "actual_final_C_tokens": 257445,
+        "remaining_logical_context_tokens": 4699,
+        "final_chunk_planned_fresh_tokens": 8218,
+        "final_chunk_actual_fresh_tokens": 8218,
+        "final_chunk_actual_start_C_tokens": 248771
+      }
+    },
+    "supporting_synthetic_tests": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/test_check_105_03_findings.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-03/attempt-02/checker-synthetic-tests.stdout.txt",
+          "sha256": "092f3ef0c082b5e2a61888b77b1f68ffbd0afb7284e19601ea6250cb7141c478"
+        }
+      ]
+    }
+  }
+}
