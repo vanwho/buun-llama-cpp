@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "task": "105-01d",
+  "source_commit": "f071883b8c0cb88241e4557c5ae9430fc9f254d4",
+  "checks": {
+    "reviewed_ranking_integration_or_ordered_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-forward105-adoption-decision.py",
+        "--root",
+        "/srv/repos/vanwho/buun-llama-cpp",
+        "--attempt-105-01c",
+        "/srv/ai/paged-kv/results/forward/105-01c/attempt-01",
+        "--attempt-105-01d",
+        "/srv/ai/paged-kv/results/forward/105-01d/attempt-01",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/decision-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/integration-decision.json",
+          "sha256": "ff12a54ab137597b7fb962e9ab8a7144a07fc1efbdb8675b1e0bd9acf60208e6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/candidate-identities.json",
+          "sha256": "bd5c26ae0d5cf2a9ebf25b1bdf056272ec41dff07b3932de61f706679cc3ebd5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/main-source-diff.patch",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/main-source-status.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/decision-validation.json",
+          "sha256": "f4bab614945b4856c7d2a386cc595e8cf15aff905e5c0f9e7c7a29956963c989"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01d/attempt-01/decision-validation.log",
+          "sha256": "f4bab614945b4856c7d2a386cc595e8cf15aff905e5c0f9e7c7a29956963c989"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/findings-validation.json",
+          "sha256": "e55db0384eda701a77ace08e327f36bed23cbbe99aa1961707972169e65d6e06"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/integrated-probe-replay.json",
+          "sha256": "998ce80e389fa76a84ba310b341649fb02c2033d2db0b207f98bc37016295def"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/integrated-probe-replay.log",
+          "sha256": "3920faa53ef3b5900ead46499278da5b112a5a9a8fd5c2cfb778ef34689fd837"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/probe-rerank/campaign-summary.json",
+          "sha256": "d7da0b5da2a1e55810abdd8cb6e5990b7258412eb2018af6755cb3eb391f164d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/experiment-source-snapshot/tracked-diff.patch",
+          "sha256": "8e4b305e965e2a8788dc7c3b8415176e2ef755360277fd1f86a2fb15fbbdb586"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01c/attempt-01/experiment-source-snapshot/untracked-source.tar.gz",
+          "sha256": "a356e3ac47706fa36d820afc4b93fc07a54dabf4cd4a53c00d9d50d6de3b231f"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_105-01c.json",
+          "sha256": "ab9b202fcc5d0394734abb8320c0a42b90dcbf421d27d99363ea55895571bc33"
+        }
+      ],
+      "result": "reviewed no-adoption decision validated; main source retained unchanged; 105-01e owns the reproduced query-capture invariant and precedes 105-02"
+    }
+  }
+}

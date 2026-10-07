@@ -2378,3 +2378,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01c`
 - Commit at update: `db6145474`
 - Summary: Validated paired dense and incomplete probe findings; retained main and scheduled the stale query-capture lifecycle repair.
+
+## 2026-10-07T00:53:43+00:00 — 105-01d — done
+
+- Branch: `codex/task-105-01d`
+- Commit at update: `f071883b8`
+- Summary: Validated no-adoption integration decision; retained main and ordered the specific stale query-capture repair before 105-02.
