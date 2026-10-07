@@ -7,6 +7,7 @@
 #include "ggml-threading.h"
 #include "ggml-cpu.h"
 #include "ggml.h"
+#include "ggml-kv-query-probes.h"
 
 // FIXME: required here for quantization functions
 #include "ggml-quants.h"
@@ -6161,6 +6162,23 @@ struct ggml_tensor * ggml_kv_query_probes_indexed(
         const int32_t rows[4]) {
     return ggml_kv_query_probes_impl(ctx, q, NULL, probes, validity,
             generation, query_start, query_end, rows);
+}
+
+// Spread capture preserves the same four-probe owner/storage and op size.
+// Its position policy is immutable, so graph replay has no sideband upload.
+struct ggml_tensor * ggml_kv_query_probes_spread(
+        struct ggml_context * ctx, struct ggml_tensor * q,
+        struct ggml_tensor * probes, struct ggml_tensor * validity,
+        int64_t generation, int64_t query_start, int64_t query_end,
+        const int32_t rows[4]) {
+    GGML_ASSERT(query_start >= 0 && query_end > query_start);
+    struct ggml_tensor * result = ggml_kv_query_probes_impl(ctx, q, NULL,
+            probes, validity, generation, query_start, query_end, rows);
+    struct ggml_kv_query_probe_params params;
+    memcpy(&params, result->op_params, sizeof(params));
+    params.indexed = GGML_KV_QUERY_PROBES_SPREAD;
+    memcpy(result->op_params, &params, sizeof(params));
+    return result;
 }
 
 // ggml_kv_page_summary

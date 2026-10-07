@@ -4,6 +4,7 @@
 #include "llama-context.h"
 #include "llama-kv-residency.h"
 #include "llama-kv-router-job.h"
+#include "llama-kv-pager.h"
 #include "speculative.h"
 
 #include <algorithm>
@@ -548,6 +549,7 @@ bool run(const options & opts) {
         return reservation_owner_survived;
     }
     const uint64_t turn_id = 1010;
+    bool cold_catalogue_authoritative = false;
     target->begin_kv_pager_turn(0, turn_id, query_begin, query_begin + 1);
     std::vector<llama_kv_pager_selected_history> final_history;
     std::vector<llama_kv_pager_selected_history> committed_history;
@@ -576,6 +578,32 @@ bool run(const options & opts) {
                     final_history = committed_history;
                     selection_installed = !final_history.empty();
                     if (!selection_installed) return false;
+                    // Exercise the production transaction, not only the
+                    // residency repair helper. Removed GPU pages remain
+                    // canonical cold objects and cannot keep a reused slot.
+                    const auto * pager = target->get_kv_pager_owner_for_test();
+                    if (pager == nullptr) return false;
+                    const auto snapshot = pager->residency(0);
+                    size_t cold_count = 0;
+                    const auto normalized = [&](const auto & records) {
+                        for (const auto & record : records) {
+                            const bool resident = std::any_of(snapshot.pages().begin(),
+                                    snapshot.pages().end(), [&](const auto & current) {
+                                return current.id == record.id;
+                            });
+                            if (resident) continue;
+                            ++cold_count;
+                            if (record.physical_slot != UINT32_MAX ||
+                                    record.state != llama_kv_page_state::host_clean ||
+                                    record.dirty || record.pin_count != 0 ||
+                                    record.consumer_events != 0) return false;
+                        }
+                        return true;
+                    };
+                    cold_catalogue_authoritative = normalized(pager->exact_page_records(0)) &&
+                        normalized(target->get_kv_pager_metrics(draft).page_inventory) &&
+                        cold_count > 0;
+                    if (!cold_catalogue_authoritative) return false;
                     router_execution_observed =
                         target->get_kv_pager_router_execution_for_test(router_stage,
                             resident_rerank_graphs, cold_reader_graphs, reader_events,
@@ -731,7 +759,8 @@ bool run(const options & opts) {
         fixture.history_changed && fixture.restored && fixture.replay_decode_succeeded &&
         fixture.control_restored && fixture.control_decode_succeeded && selection_installed &&
         !final_history.empty() && !committed_history.empty() && replay_map_exact &&
-        (opts.router != "probe-rerank" || router_execution_observed) &&
+        (opts.router != "probe-rerank" ||
+            (router_execution_observed && cold_catalogue_authoritative)) &&
         control_map_exact && mtp_cycle && mtp_proposals > 0 &&
         cancel1.captured && cancel1.provisional_decode_succeeded && cancel1.restored &&
         cancel1.recovery_decode_succeeded && cancel2.captured &&
@@ -786,6 +815,8 @@ bool run(const options & opts) {
         << ",\"reader_events\":" << reader_events
         << ",\"mass_graphs\":" << mass_graphs
         << ",\"router_output_records\":" << router_output_records
+        << ",\"cold_catalogue_authoritative\":"
+        << (cold_catalogue_authoritative ? "true" : "false")
         << ",\"reservation_owner_survived\":"
         << (reservation_owner_survived ? "true" : "false")
         << ",\"captured\":" << (fixture.captured ? "true" : "false")

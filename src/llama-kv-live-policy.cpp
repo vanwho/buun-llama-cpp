@@ -383,7 +383,18 @@ bool llama_kv_live_policy_prepare_query_target(
         target.reserve(ordered.size());
         for (const auto * page : ordered) {
             auto record = page->record;
-            if (record.physical_slot == UINT32_MAX) {
+            if (record.physical_slot != UINT32_MAX) {
+                // Admission/ranking attributes may reflect a newer host seal,
+                // but retaining a resident is not a lifecycle transition.
+                // The identity/slot/version were checked above; preserve the
+                // authoritative state, pins and reader leases byte-for-byte.
+                // Actual eviction/promotion still uses transaction safety.
+                const auto resident = std::find_if(boundary.snapshot.pages().begin(),
+                        boundary.snapshot.pages().end(), [&](const auto & current) {
+                    return current.id == record.id;
+                });
+                record = *resident;
+            } else {
                 if (!record.host_valid) return reject("missing_host_backing");
                 uint32_t slot = UINT32_MAX;
                 for (uint32_t i = 0; i < used.size(); ++i) if (!used[i]) { slot = i; break; }

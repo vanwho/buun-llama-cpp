@@ -371,6 +371,7 @@ llama_kv_attention_dense_view_eligibility llama_kv_attention_dense_view_check(
     result.eligible = true;
     result.source_row_begin = uint32_t(physical_row_begin);
     result.row_count = uint32_t(rows);
+    result.padded_row_count = uint32_t(GGML_PAD(rows, VBR_GENERATION_PAGE_CELLS));
     result.reason = "contiguous native and physical Turbo4 rows";
     return result;
 }

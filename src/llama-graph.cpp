@@ -861,7 +861,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             if (ubatch->pos != nullptr) {
                 direct_query_positions_host.resize(ubatch->n_tokens);
                 for (uint32_t token = 0; token < ubatch->n_tokens; ++token) {
-                    direct_query_positions_host[token] = ubatch->pos[token * ubatch->n_pos];
+                    direct_query_positions_host[token] = ubatch->pos0(token);
                 }
                 set_direct_tensor(direct_query_positions, direct_query_positions_host.data(), 0,
                         direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
@@ -1255,7 +1255,9 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     if (!direct) {
         res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
                 selected ? (packed ? packed_row_capacity
-                                   : params.kv_attention_metadata.get_n_kv()) : 0);
+                                   : (dense ? uint32_t(GGML_PAD(params.kv_attention_metadata.get_n_kv(),
+                                               VBR_GENERATION_PAGE_CELLS))
+                                            : params.kv_attention_metadata.get_n_kv())) : 0);
     }
     if (selected && !direct && !dense && !packed) {
         res &= self_selected_idxs != nullptr;
@@ -1287,8 +1289,10 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     if (direct) {
         res &= direct_pages != nullptr && direct_native_positions != nullptr &&
             direct_native_mask != nullptr && direct_query_positions != nullptr;
-        res &= direct_split_kv_scratch != nullptr && direct_split_kv_partition_capacity != 0 &&
-            direct_split_kv_page_count != 0;
+        const bool diagnostic_scratch = diagnostic_page_mass_enabled() && direct_page_capacity <= 64 &&
+            params.ubatch.n_seq_tokens == 1 && params.kv_attention_telemetry != nullptr &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off;
+        res &= (direct_split_kv_scratch != nullptr) == diagnostic_scratch;
         res &= direct_page_capacity >= params.kv_attention_metadata.page_table().size();
         res &= direct_row_capacity >= params.kv_attention_metadata.get_n_kv();
         res &= direct_pages->ne[0] == int64_t(
@@ -1305,7 +1309,7 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         const bool telemetry_layer_valid = telemetry_ordinal < direct_layer_ids.size();
         const uint32_t telemetry_model_layer = telemetry_layer_valid
             ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
-        const bool telemetry_enabled = diagnostic_page_mass_enabled() &&
+        const bool telemetry_enabled = diagnostic_scratch &&
             params.kv_attention_telemetry != nullptr &&
             params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
             params.ubatch.n_seq_tokens == 1 &&
@@ -4657,6 +4661,12 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
 
+            // Production MMA/direct attention has no page-mass observer.
+            // Do not reserve O(query * heads * logical-pages) diagnostic
+            // scratch unless the bounded diagnostic consumer can run.
+            if (diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+                    ubatch.n_seq_tokens == 1 && kv_attention_telemetry != nullptr &&
+                    kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off) {
             // Reserve a bounded flat scratch arena once per reusable graph.
             // The CUDA dispatcher chooses the active partition count at
             // submission time; the arena is sized from the selected rows and
@@ -4690,6 +4700,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             ggml_set_input(inp->direct_split_kv_scratch);
             ggml_set_name(inp->direct_split_kv_scratch, "kv_direct_split_kv_scratch");
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_split_kv_scratch, direct_backend);
+            }
 
             // The CUDA reduction writes one F32 vector per query head. Keep a
             // single configured layer and the resolved logical-page bound so
@@ -4701,7 +4712,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             const bool telemetry_layer_valid = telemetry_ordinal < inp->direct_layer_ids.size();
             const uint32_t telemetry_model_layer = telemetry_layer_valid
                 ? inp->direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
-            if (kv_attention_telemetry != nullptr &&
+            if (diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+                kv_attention_telemetry != nullptr &&
                 kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
                 ubatch.n_seq_tokens == 1 &&
                 telemetry_layer_valid &&
@@ -4897,7 +4909,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         inp->direct_native_mask_host.assign(inp->exact_n_rows, 1);
         inp->direct_query_positions_host.reserve(ubatch.n_tokens);
         for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
-            inp->direct_query_positions_host.push_back(ubatch.pos[token * ubatch.n_pos]);
+            inp->direct_query_positions_host.push_back(ubatch.pos0(token));
         }
 
         uint32_t total_compact_row_begin = 0;
@@ -5006,11 +5018,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 inp->self_v_idxs_by_layer.push_back(
                         mctx_cur->build_input_v_idxs(ctx0, ubatch, layer_id));
             }
-            // The per-layer maps are consumed by CUDA SET_ROWS during the
-            // direct cache transaction.  Bind every graph input explicitly to
-            // the same device as the pager slab before graph allocation; the
-            // scheduler otherwise may place a later layer's input in a
-            // transient/aliased buffer, leaving its device index map stale.
+            // Per-layer direct cache maps share the pager slab backend.
             if (inp->direct_backend != nullptr) {
                 for (ggml_tensor * tensor : inp->self_k_idxs_by_layer) {
                     ggml_backend_sched_set_tensor_backend(sched, tensor, inp->direct_backend);
@@ -5025,7 +5033,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams,
                     inp->selected_attention
                         ? (inp->packed_attention ? inp->packed_row_capacity
-                                                  : selected_metadata->get_n_kv())
+                                                  : (inp->dense_attention
+                                                      ? uint32_t(GGML_PAD(selected_metadata->get_n_kv(),
+                                                              VBR_GENERATION_PAGE_CELLS))
+                                                      : selected_metadata->get_n_kv()))
                         : 0);
         }
         inp->self_kq_mask_cnv = inp->self_kq_mask;
@@ -5171,10 +5182,16 @@ ggml_tensor * llm_graph_context::build_attn(
                 v->nb[2] != ggml_row_size(v->type, v->ne[0]) * size_t(v->ne[1])) {
             throw std::runtime_error("selected dense view lost contiguous row eligibility");
         }
-        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1], eligibility.row_count, 1,
+        // Match the ordinary cache's FA padding contract. The ncols2>1 MMA
+        // kernel loads whole KV tiles without a final-tile bounds branch;
+        // exposing the exact partial tail also gives each query an unaligned
+        // mask stride and can read the next query's mask as this query's tail.
+        // No copy/allocation is needed: this is the already-owned final page.
+        // set_input's native mask marks every padded row -INFINITY.
+        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1], eligibility.padded_row_count, 1,
                 k->nb[1], k->nb[2], k->nb[3],
                 uint64_t(eligibility.source_row_begin) * k->nb[2]);
-        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1], eligibility.row_count, 1,
+        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1], eligibility.padded_row_count, 1,
                 v->nb[1], v->nb[2], v->nb[3],
                 uint64_t(eligibility.source_row_begin) * v->nb[2]);
         v_for_unrotate = v;

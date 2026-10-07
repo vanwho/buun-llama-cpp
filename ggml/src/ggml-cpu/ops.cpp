@@ -6,6 +6,7 @@
 #include "binary-ops.h"
 #include "simd-gemm.h"
 #include "ggml.h"
+#include "ggml-kv-query-probes.h"
 #include "unary-ops.h"
 #include "vec.h"
 
@@ -9169,17 +9170,18 @@ void ggml_compute_forward_kv_query_probes(
     const int64_t generation = controls.generation;
     const int64_t query_start = controls.query_start;
     const int64_t query_end = controls.query_end;
-    static const int64_t offsets[4] = { 1, 2, 4, 8 };
 
     if (metadata[0] != generation) {
         metadata[0] = generation;
         for (int slot = 0; slot < 4; ++slot) {
-            metadata[1 + slot] = query_end - offsets[slot];
+            metadata[1 + slot] = ggml_kv_query_probe_target(
+                    query_start, query_end, slot, controls.indexed);
             metadata[5 + slot] = 0;
         }
     }
     for (int slot = 0; slot < 4; ++slot) {
-        const int64_t target = query_end - offsets[slot];
+        const int64_t target = ggml_kv_query_probe_target(
+                query_start, query_end, slot, controls.indexed);
         if (target < query_start) continue;
         int64_t row = controls.indexed ? controls.rows[slot] : -1;
         if (!controls.indexed) {

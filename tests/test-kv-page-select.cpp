@@ -3,6 +3,8 @@
 #include "ggml-cpu.h"
 #include "ggml-cuda.h"
 #include "llama-kv-prefetch.h"
+#include "llama-batch.h"
+#include "ggml-kv-query-probes.h"
 
 #ifdef NDEBUG
 #undef NDEBUG
@@ -364,6 +366,10 @@ static void test_split_query_probe_capture(ggml_backend_t backend) {
 // graphs while the sequence/layer capture remains persistent. Direct backend
 // fixtures alone do not cover scheduler input storage or graph replacement.
 static void test_indexed_probe_scheduler(ggml_backend_t backend) {
+    assert(ggml_kv_query_probe_target(100, 101, 0, GGML_KV_QUERY_PROBES_SPREAD) == 100);
+    for (int slot = 1; slot < 4; ++slot) {
+        assert(ggml_kv_query_probe_target(100, 101, slot, GGML_KV_QUERY_PROBES_SPREAD) == -1);
+    }
     ggml_init_params owner_init = { 4096, nullptr, true };
     auto * owner = ggml_init(owner_init);
     assert(owner != nullptr);
@@ -389,7 +395,7 @@ static void test_indexed_probe_scheduler(ggml_backend_t backend) {
         assert(ctx != nullptr);
         auto * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 2, 1, rows);
         ggml_set_input(q);
-        auto * capture = ggml_kv_query_probes_indexed(ctx, q, probes, validity,
+        auto * capture = ggml_kv_query_probes_spread(ctx, q, probes, validity,
                 generation, 0, end, indices.data());
         assert(capture->src[1] == nullptr);
         ggml_set_output(capture);
@@ -411,7 +417,8 @@ static void test_indexed_probe_scheduler(ggml_backend_t backend) {
             for (size_t slot = 0; slot < indices.size(); ++slot) {
                 if (indices[slot] >= 0) {
                     assert(identity[5 + slot] == 1);
-                    assert(identity[1 + slot] == end - (int64_t(1) << slot));
+                    assert(identity[1 + slot] == ggml_kv_query_probe_target(
+                            0, end, int(slot), GGML_KV_QUERY_PROBES_SPREAD));
                     assert(output[2 * slot] == value && output[2 * slot + 1] == value);
                 }
             }
@@ -419,8 +426,8 @@ static void test_indexed_probe_scheduler(ggml_backend_t backend) {
         ggml_backend_sched_reset(sched);
         ggml_free(ctx);
     };
-    run(256, 11, 293, { -1, -1, -1, -1 }, 1.0f);
-    run(37, 11, 293, { 36, 35, 33, 29 }, 2.0f);
+    run(256, 11, 293, { -1, 73, 146, 219 }, 1.0f);
+    run(37, 11, 293, { 36, -1, -1, -1 }, 2.0f);
     run(1, 12, 4609, { 0, -1, -1, -1 }, 3.0f);
     run(1, 13, 4610, { 0, -1, -1, -1 }, 4.0f);
     int64_t identity[9] = {};
@@ -738,7 +745,28 @@ static void test_large_page_rank_cuda(ggml_backend_t cuda_backend) {
     ggml_backend_free(cpu);
 }
 
+static void test_section_major_native_positions() {
+    // Match llama_batch_allocr: coordinates are separate planes, even for
+    // ordinary Qwen text. Interleaved indexing used to scramble causal masks,
+    // miss the final user row and associate MTP hidden rows with wrong tokens.
+    constexpr uint32_t rows = 9;
+    std::array<llama_pos, rows * 4> positions{};
+    for (uint32_t section = 0; section < 4; ++section) {
+        for (uint32_t row = 0; row < rows; ++row) {
+            positions[section * rows + row] = llama_pos(1000 * section + 200 + row);
+        }
+    }
+    llama_ubatch ubatch{};
+    ubatch.n_tokens = rows;
+    ubatch.n_pos = 4;
+    ubatch.pos = positions.data();
+    for (uint32_t row = 0; row < rows; ++row) assert(ubatch.pos0(row) == llama_pos(200 + row));
+    assert(ubatch.pos0(rows - 1) == 208);
+    assert(positions[(rows - 1) * ubatch.n_pos] != ubatch.pos0(rows - 1));
+}
+
 int main() {
+    test_section_major_native_positions();
     ggml_backend_load_all();
     ggml_backend_t backend = nullptr;
     const char * cuda_test = std::getenv("LLAMA_TEST_KV_PAGE_SELECT_CUDA");

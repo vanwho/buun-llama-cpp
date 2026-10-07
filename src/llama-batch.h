@@ -29,6 +29,15 @@ struct llama_ubatch {
         return n_pos >= 3;
     }
 
+    // llama_batch_allocr::ubatch uses SECTION-MAJOR positions:
+    // pos[section * n_tokens + row], not pos[row * n_pos + section].
+    // Cache identity, causal attention, query routing and MTP handoff use
+    // section zero (temporal/native position), including text M-RoPE batches.
+    llama_pos pos0(uint32_t row) const {
+        GGML_ASSERT(pos != nullptr && row < n_tokens);
+        return pos[row];
+    }
+
     uint32_t b_equal_seqs; // note: this is a boolean, but we use an int32_t for alignment
                            //       otherwise address sanitizer complains
     // TODO: whole_seqs for embeddings?

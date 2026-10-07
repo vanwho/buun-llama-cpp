@@ -1,6 +1,7 @@
 #include "kv-page-select.cuh"
 
 #include "ggml-impl.h"
+#include "ggml-kv-query-probes.h"
 
 #include <algorithm>
 #include <cfloat>
@@ -78,16 +79,15 @@ __global__ void query_probes_capture(
         const int64_t * positions, size_t pos_nb0,
         float * probes, size_t probes_nb0, size_t probes_nb1, size_t probes_nb2,
         int64_t * validity, int64_t generation, int64_t query_start, int64_t query_end,
-        int4 probe_rows, bool indexed,
+        int4 probe_rows, int indexed,
         float * out, size_t out_nb0, size_t out_nb1, size_t out_nb2,
         int d, int heads, int rows) {
     if (threadIdx.x == 0 && validity[0] != generation) {
         validity[0] = generation;
-        validity[1] = query_end - 1;
-        validity[2] = query_end - 2;
-        validity[3] = query_end - 4;
-        validity[4] = query_end - 8;
-        for (int slot = 0; slot < 4; ++slot) validity[5 + slot] = 0;
+        for (int slot = 0; slot < 4; ++slot) {
+            validity[1 + slot] = ggml_kv_query_probe_target(query_start, query_end, slot, indexed);
+            validity[5 + slot] = 0;
+        }
     }
     __syncthreads();
     const int64_t total = int64_t(d) * heads * 4;
@@ -95,7 +95,7 @@ __global__ void query_probes_capture(
         const int slot = i / (int64_t(d) * heads);
         const int head = (i / d) % heads;
         const int coord = i % d;
-        const int64_t target = query_end - (int64_t(1) << slot);
+        const int64_t target = ggml_kv_query_probe_target(query_start, query_end, slot, indexed);
         if (target >= query_start) {
             const int indexed_rows[4] = { probe_rows.x, probe_rows.y, probe_rows.z, probe_rows.w };
             int matched_row = indexed ? indexed_rows[slot] : -1;
@@ -115,7 +115,7 @@ __global__ void query_probes_capture(
     __syncthreads();
     if (threadIdx.x == 0) {
         for (int slot = 0; slot < 4; ++slot) {
-            const int64_t target = query_end - (int64_t(1) << slot);
+            const int64_t target = ggml_kv_query_probe_target(query_start, query_end, slot, indexed);
             if (target < query_start) continue;
             const int indexed_rows[4] = { probe_rows.x, probe_rows.y, probe_rows.z, probe_rows.w };
             if (indexed) {
@@ -949,7 +949,7 @@ void ggml_cuda_op_kv_query_probes(ggml_backend_cuda_context & ctx, ggml_tensor *
             positions != nullptr ? positions->nb[0] : sizeof(int64_t),
             (float *) probes->data, probes->nb[0], probes->nb[1], probes->nb[2],
             (int64_t *) validity->data, controls.generation, controls.query_start, controls.query_end,
-            make_int4(controls.rows[0], controls.rows[1], controls.rows[2], controls.rows[3]), controls.indexed != 0,
+            make_int4(controls.rows[0], controls.rows[1], controls.rows[2], controls.rows[3]), controls.indexed,
             (float *) dst->data, dst->nb[0], dst->nb[1], dst->nb[2],
             int(q->ne[0]), int(q->ne[1]), int(q->ne[2]));
     CUDA_CHECK(cudaGetLastError());

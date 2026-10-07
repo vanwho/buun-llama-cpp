@@ -21,6 +21,7 @@
 #include "llama-vram-ledger.h"
 #include "ggml-turbo-meansub.h"
 #include "ggml-alloc.h"
+#include "ggml-kv-query-probes.h"
 
 #include <algorithm>
 #include <atomic>
@@ -3178,7 +3179,7 @@ void llama_kv_cache::capture_kv_routing_query(
                     std::numeric_limits<size_t>::max() / ubatch.n_pos) {
             for (size_t row = 0; row < ubatch.n_tokens; ++row) {
                 final_user_row_present = final_user_row_present ||
-                    ubatch.pos[row * ubatch.n_pos] == turn.query_end - 1;
+                    ubatch.pos0(uint32_t(row)) == turn.query_end - 1;
             }
         }
         // Keep partial prompt graphs on the existing selector/cache state.
@@ -3251,7 +3252,7 @@ void llama_kv_cache::capture_kv_routing_query(
     value.sequence_id = sequence_id;
     value.query_generation = pager_query_generation_;
     value.table_epoch = snapshot.epoch();
-    const llama_pos position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
+    const llama_pos position = ubatch.pos0(ubatch.n_tokens - 1);
     if (position < 0) return;
     value.query_position = turn.phase == llama_kv_pager_turn_phase::query_provisional &&
             turn.query_end > 0
@@ -5020,8 +5021,12 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
             llama_kv_live_policy_page page;
             page.record = record;
             const auto host = has_host(record.id);
-            page.record.host_valid = host;
             if (page.record.physical_slot == UINT32_MAX) {
+                // The catalog authenticates cold transfer sources. A retained
+                // resident's lifecycle flags belong to the published table:
+                // discovering a sealed host object must not mutate a pinned
+                // current page into a replacement during query publication.
+                page.record.host_valid = host;
                 page.record.state = llama_kv_page_state::host_clean;
                 page.record.dirty = false;
             }
@@ -5177,6 +5182,12 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
         }
         if (!policy_target_bound && boundary.query_commit.enabled) {
             pager_policy_dirty_ = true;
+            // Failure-only: this predicate used to be hidden unless a
+            // selector trace was enabled, leaving HTTP 500 without its cause.
+            LLAMA_LOG_ERROR("query target rejected reason=%s selected=%zu budgets=%u+%u hot=%u\n",
+                    query_target_failure != nullptr ? query_target_failure : "target_binding",
+                    boundary.query_commit.selected.size(), boundary.query_commit.retrieval_budget,
+                    boundary.query_commit.generation_budget, boundary.hot_capacity);
             if (selector_trace.enabled && selector_trace.target_logical_page >= 0) {
                 selector_trace.policy_decision_evaluated = true;
                 selector_trace.outcome = llama_kv_pager_selector_trace_outcome::query_commit_capacity_refusal;
@@ -5549,6 +5560,12 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                 publication.generation = result.published
                     ? result.published_epoch : result.base_epoch;
                 publication.complete = publication.generation != 0;
+            }
+            if (!publication.complete) {
+                LLAMA_LOG_ERROR("query publication rejected status=%s failure_stage=%u target=%zu winners=%zu published=%d base_epoch=%" PRIu64 "\n",
+                        llama_kv_live_policy_status_name(result.status), result.failure_stage,
+                        result.target_pages.size(), pager_prepared_history_winners_.size(),
+                        result.published ? 1 : 0, result.base_epoch);
             }
         }
         if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
@@ -19589,21 +19606,23 @@ void llama_kv_cache_context::note_kv_page_select_gate(
     if (ubatch.pos != nullptr && ubatch.n_tokens > 0 && ubatch.n_pos > 0 &&
             size_t(ubatch.n_tokens - 1) <=
                 std::numeric_limits<size_t>::max() / ubatch.n_pos) {
-        trace.graph_last_position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
+        trace.graph_last_position = ubatch.pos0(ubatch.n_tokens - 1);
     }
 }
 
-// Batch positions are CPU-owned integers. Resolve the four tiny gather indices
-// here, rather than uploading positions to each layer and asking a captured
-// CUDA graph to follow a mutable scheduler-owned pointer. Q stays on the GPU.
+// Batch positions are section-major CPU integers. Resolve four gather indices
+// spanning the user query (not only generic trailing answer instructions).
+// Earlier batches retain their probe slots; the last row closes the capture.
+// Q stays on GPU; no layer uploads or mutable position pointer is required.
 static std::array<int32_t, 4> pager_query_probe_rows(
         const llama_ubatch & ubatch, int64_t query_start, int64_t query_end) {
     std::array<int32_t, 4> result = { -1, -1, -1, -1 };
     for (uint32_t row = 0; row < ubatch.n_tokens; ++row) {
-        const int64_t position = ubatch.pos[size_t(row) * ubatch.n_pos];
+        const int64_t position = ubatch.pos0(row);
         if (position < query_start || position >= query_end) continue;
         for (size_t slot = 0; slot < result.size(); ++slot) {
-            if (position == query_end - (int64_t(1) << slot)) result[slot] = int32_t(row);
+            if (position == ggml_kv_query_probe_target(query_start, query_end,
+                    int(slot), GGML_KV_QUERY_PROBES_SPREAD)) result[slot] = int32_t(row);
         }
     }
     return result;
@@ -19694,7 +19713,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     bool has_final_user_row = false;
     bool has_user_rows = false;
     for (size_t row = 0; row < ubatch.n_tokens; ++row) {
-        const llama_pos position = ubatch.pos[row * ubatch.n_pos];
+        const llama_pos position = ubatch.pos0(uint32_t(row));
         if (position >= turn.query_start && position < turn.query_end) {
             has_user_rows = true;
             has_final_user_row = has_final_user_row || position == turn.query_end - 1;
@@ -19785,7 +19804,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     ggml_tensor * probes_op = nullptr;
     if (routing_q != nullptr && state_it->probes != nullptr && state_it->probe_validity != nullptr) {
         const auto rows = pager_query_probe_rows(ubatch, turn.query_start, turn.query_end);
-        probes_op = ggml_kv_query_probes_indexed(ctx, routing_q,
+        probes_op = ggml_kv_query_probes_spread(ctx, routing_q,
                 state_it->probes, state_it->probe_validity,
                 int64_t(kv->pager_query_accumulator_generation_),
                 turn.query_start, turn.query_end, rows.data());
@@ -19940,7 +19959,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const uint32_t dim = uint32_t(bounds->ne[0]);
     const uint32_t capacity = pager.snapshot().logical_page_count;
     const size_t query_row = size_t(ubatch.n_tokens - 1);
-    const llama_pos position = ubatch.pos[query_row * ubatch.n_pos];
+    const llama_pos position = ubatch.pos0(uint32_t(query_row));
     if (position < 0) return false;
     const auto turn = pager.turn_state(ubatch.seq_id[0][0]);
     const bool query_provisional =
@@ -20136,7 +20155,7 @@ bool llama_kv_cache_context::set_kv_query_accumulate_inputs(
             ubatch.seq_id[0] == nullptr || ubatch.seq_id[0][0] < 0) return false;
     std::vector<int64_t> positions(ubatch.n_tokens);
     for (size_t row = 0; row < ubatch.n_tokens; ++row) {
-        positions[row] = ubatch.pos[row * ubatch.n_pos];
+        positions[row] = ubatch.pos0(uint32_t(row));
     }
     const auto turn = kv->get_kv_pager()->turn_state(ubatch.seq_id[0][0]);
     if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
@@ -20179,7 +20198,7 @@ bool llama_kv_cache_context::set_kv_query_probe_inputs(
     if (probes->src[1] == nullptr || probes->src[1]->buffer == nullptr ||
             probes->src[1]->ne[0] != ubatch.n_tokens) return false;
     std::vector<int64_t> positions(ubatch.n_tokens);
-    for (size_t row = 0; row < ubatch.n_tokens; ++row) positions[row] = ubatch.pos[row * ubatch.n_pos];
+    for (size_t row = 0; row < ubatch.n_tokens; ++row) positions[row] = ubatch.pos0(uint32_t(row));
     ggml_backend_tensor_set(probes->src[1], positions.data(), 0, positions.size() * sizeof(positions[0]));
     return true;
 }
@@ -20215,7 +20234,7 @@ bool llama_kv_cache_context::can_reuse_kv_query_capture(
     bool has_user_row = false;
     bool has_final_row = false;
     for (size_t row = 0; row < ubatch.n_tokens; ++row) {
-        const llama_pos position = ubatch.pos[row * ubatch.n_pos];
+        const llama_pos position = ubatch.pos0(uint32_t(row));
         if (position >= turn.query_start && position < turn.query_end) {
             has_user_row = true;
             has_final_row = has_final_row || position == turn.query_end - 1;

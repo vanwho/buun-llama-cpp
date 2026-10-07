@@ -581,6 +581,7 @@ static void test_query_commit_authoritative_admission() {
     auto initial = table.begin();
     auto mutable_page = live_resident(0, 0);
     mutable_page.content_version = 4;
+    mutable_page.pin_count = 1;
     assert(table.replace(initial, mutable_page) == llama_kv_residency_status::ok);
     auto prior_resident = live_resident(2, 1);
     prior_resident.content_version = 9;
@@ -601,6 +602,12 @@ static void test_query_commit_authoritative_admission() {
     assert(boundary.pages[0].current && boundary.pages[0].structural);
     boundary.pages[1].record.content_version = 7;
     boundary.pages[2].record.content_version = 9;
+    // The catalog can report different sealing/lifecycle metadata for the
+    // current pinned page. Query admission must retain the published record,
+    // not turn that observation into a forbidden pinned-page replacement.
+    boundary.pages[0].record.host_valid = false;
+    boundary.pages[0].record.state = llama_kv_page_state::gpu_dirty;
+    boundary.pages[0].record.dirty = true;
     boundary.query_commit.enabled = true;
     boundary.query_commit.turn_id = 2;
     boundary.query_commit.retrieval_epoch = 1;
@@ -630,6 +637,10 @@ static void test_query_commit_authoritative_admission() {
     assert(llama_kv_live_policy_prepare_query_target(boundary, prepared));
     assert(prepared.size() == 2);
     assert(prepared[0].id == live_page_id(0));
+    assert(prepared[0].host_valid == mutable_page.host_valid &&
+           prepared[0].state == mutable_page.state &&
+           prepared[0].dirty == mutable_page.dirty &&
+           prepared[0].pin_count == mutable_page.pin_count);
     assert(prepared[1].id == live_page_id(1));
     assert(prepared[1].physical_slot == 1);
 
