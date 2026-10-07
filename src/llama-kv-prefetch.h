@@ -250,9 +250,9 @@ bool llama_kv_prefetch_expand_selector_segments(
         llama_kv_prefetch_candidate * records,
         uint32_t & written) noexcept;
 
-// Shared by graph output construction and startup mailbox sizing. Keep this
-// aligned with the bounded eight-page promotion transaction: a five-page
-// shortlist can exclude an eligible history page before bundle scoring.
+// Bounded diagnostic-ID prefix and full-K/V promotion limit. This is NOT
+// the K-only coarse rank width: that independent shortlist can retain up to
+// 64 cold pages for exact reranking before the smaller transfer admission.
 constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 8;
 constexpr uint32_t llama_kv_query_cold_rank_width(uint32_t cold_pages) noexcept {
     // Coarse K-only candidates are NOT the full-K/V promotion budget.

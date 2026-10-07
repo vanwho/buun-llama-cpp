@@ -1,159 +1,149 @@
-# Selected generation: source/evidence correction, October 7
+# Selected generation: current source and measured findings
 
-Revision: hotpath-v10-20260914. Current for105-02 onward. No test, build or
-service change was performed for these source-only edits.
+Revision: hotpath-v10-20260914. Updated October7 for105-02 onward.
+Current summary, not an attempt diary. Raw runs remain external.105-02 is
+in_progress; no cold-recall success or complete numerical-parity proof.
 
-## 105-01f facts
+## Architecture and preserved repairs
 
-Selected request-03/record.json under
-/srv/ai/paged-kv/results/forward/105-01f/selected/cases/probe-rerank/PY_MERGE_03/
-reports374 drafts /37 accepted (9.893%),400 output tokens,38.002 decode tok/s.
-Zero /slots counters do not prove MTP absent. The coherent opening becomes
-slash filler: not useful speed/recall. A1/B bulk prompt processing was about
-1316.6/1398.0tok/s. Cached83-token A2 at130.52tok/s is not bulk prefill.
-Requested fact page8 was resident; unrelated page5 promotion stays separate.
+GPU Turbo4 hot target K/V, canonical Turbo4 host storage, full-L GPU Turbo4
+MTP. GPU coarse shortlist -> exact encoded-key rerank -> bounded common R ->
+atomic promotion -> query-only replay -> frozen generation. CPU RAM stores
+pages, not historical attention computation. B1024/U256, automatic fast
+routes, one retrieval decision per user query. No per-token rerank/H2D,
+F16 draft, global reference route or expected-answer injection.
 
-parity-cuda.log maxima: direct-packed0.002927, direct-oracle0.000016,
-packed-oracle0.002934. Only direct matches oracle within0.000016. The2:1 GQA
-materialized control disables fused Turbo MMA. Actual Qwen6:1 production
-dispatch/current writes/graph reuse/speculative rollback need105-02 proof.
-Do not loosen0.003 or claim a kernel fixture certifies natural retrieval.
+- `52d04942c`, `src/llama-graph.cpp::build_attn`: packed copies consume the
+  completed layer SET_ROWS result. ggml nested offsets are absolute in the
+  slab; rebase relative to the write result and preserve owner/bounds/type.
+  Zero encoded K AND V padding once per shared-slab execution.519/768 leaves
+  249 rows;4089/4096 leaves7. Negative-infinity masks cannot sanitize NaN
+  norms/V. CUDA uses stream-ordered captured memset, not F16 history/fences.
+  Reuse compares flattened allocation owners and absolute offsets.
+- `538b32727`, `common/speculative.cpp::common_speculative_rollback_dft`:
+  successful paired accepted-prefix replay retains authenticated carry and
+  its idempotent guard. The old target_restored_without_draft event cleared
+  the full draft prefix on the next process. Real unpaired restores still
+  invalidate carry. Accept precedes target/draft rollback.
+- `230a366fb`, `llama_kv_cache::apply_pager_live_policy`: reusable streaming
+  chunk staging is not entire-transaction storage. Keep hot/history/slot,
+  eight-page/event/max-transfer admission; do not cap by ring_bytes/page_bytes.
+- `06e6b9473`, `llm_graph_input_mem_hybrid::can_reuse`: run the recurrent
+  child's existing identity/binding guard. Do not copy an unconditional
+  false can_reuse implementation or globally disable CUDA graphs.
+- `llama_context::prepare_kv_attention_graph` consumes ALL admitted frozen
+  R pages plus required query/current/resident-output rows. Nomination is
+  provenance, not another filter. No additional all-layer union allocation.
 
-## Consumer and accounting edits
+## Confirmed I32 -> I64 position defect
 
-apply_pager_live_policy stores nominating-layer provenance, but
-llama_kv_attention_committed_pages already appended ALL frozen R members.
-prepare_kv_attention_graph builds a common selected view. No evidence of R dropped
-because a layer did not nominate it; do not invent another union repair.
+`include/llama.h` defines llama_pos=int32_t; direct CUDA query/native tensors
+are GGML_TYPE_I64 and the paged kernel reads int64_t. Four ordinary direct/
+exact-wave uploads sent sizeof(llama_pos), not the tensor element size.
+Actual device query0 became4344+(4345<<32)=18661632905464. Only7 of14 I64
+positions were filled; query7..13 used zero/stale bytes. Correct host masks
+hid this from host-only snapshots and synthetic attention fixtures.
+The old first mismatch at row7 was the halfway point of the malformed
+upload, NOT evidence of a4351/4352 page-boundary kernel bug.
 
-October7 src/llama-context.cpp::prepare_kv_attention_graph removes redundant layer
-copies/union/intersection from replay/decode/verify, consuming frozen R
-directly with identical ID/version/residency checks. Current query/tail and
-resident Q/output stay visible. Provisional prefill retains old routing.
-No new transfer/workspace/rerank/fence; reduced H-bounded host work, not a
-claimed semantic cure or measured speedup.105-02 must build/verify it.
+Root correction in `src/llama-graph.h/.cpp`:
 
-MAIN run-pager-promotion.py records validated completion-local
-draft_n/draft_n_accepted pairs. Missing/invalid pairs stay unknown; drafted0
-has undefined acceptance. Slot snapshots are diagnostics, not cross-request
-delta evidence. Generation proposal proof uses the final response. Native
-sampler/acceptance is unchanged.
+- direct_query_positions_host/direct_native_positions_host are persistent
+  vector<int64_t>, widened from metadata/ubatch positions before upload.
+- ordinary direct query/native and exact-wave query/native paths send8bytes
+  perposition. Host *_uploaded vectors remain I32 comparison keys only.
+- No new kernel, full-H/L copy, fence, F16 representation or diagnostic work
+  is introduced into generation. Ordinary direct uploads only its Q vector.
 
-## Invariants and ordered owners
+The built comparison reads exactly4344..4357, maps all14 current rows and
+captures7392bytes each of K/V, byte-equal across replay/control. SAME-question
+logits/hidden and all emitted layer taps are exact0/0. This producer failure
+is fixed, not bypassed. Compiled libllama SHA256:
+`a78b2e0924374e43c0a4c8da9260f56c44d2d4e8b60c25803e741533e71c42a1`.
 
-Sparse target may legitimately disagree with full-L draft, but SAME-MAP
-scalar target vs batched verification must agree within numerical bounds.
-Replay/rollback/carry must share one committed frontier. Verify those before
-retuning ranking. If they pass and sparse generation still degenerates, fix
-bounded structural/query/history membership at the turn boundary, not
-counters/transport/per-token retrieval. Fact matches cannot rescue slash tails.
+## Post-fix measurements
 
-105-01g integration remains unchanged.105-02 builds/proves edits, actual-Qwen
-numerics and generation state;105-02a paired recall/canonical MTP/speed precedes
-105-03 scale. Misses insert targeted implementation before scale.105-04/05
-review current measurements. Load this note/current packet/immediate handoff,
-not transcripts; preserve raw history/hashes.
+Exact original prompts, one40-token warmup and three400-output-token maxima
+each, temperature0/reasoning off. All12HTTP200, coherent, fresh slot and
+cache_prompt=false/cached input0. Normal EOS below400 is valid.
 
-## October7 setup repair and immediate longer row
+| Prompt | Median decode tok/s | Median request MTP | Aggregate accepted/proposed |
+| --- | ---: | ---: | ---: |
+| Python sorted merge/docstring |104.88|91.86%|712/772|
+| mmap vs read paragraph |82.32|61.04%|283/460|
+| Bash watcher |102.28|86.59%|426/492|
 
-Wiretail already used --yolo; root-owned mode700 result directories caused
-the Permission denied errors, not a Codex sandbox. Both named hotpath29
-directories now have a ninja-only read/traverse ACL (including inherited
-read access), retaining private other-user permissions. Protected authorized
-reads use scoped sudo -n; do not recursively ingest historical results.
-Tool launches now spell out --dangerously-bypass-approvals-and-sandbox in
-assessment/fresh/resume paths. This does not elevate the Unix user.
-`/srv/wiretail` is not a Git worktree; its live tool, README and regression
-are updated in place. The portable runtime patch is archived under
-`.wiretail/execution/tooling-fixes/wiretail-permissions-20261007.patch`, outside
-normal task startup context. No Git commands were run against `/srv`.
+Inputs30/27/28; outputs365/171/225. These tiny prompts are NOT bulk-prefill
+measurements. Do not relabel prior candidates' benchmarks or claim an
+isolated patch speedup without an old/new ablation.
 
-Main promotion driver previously hardcoded L8192 despite105-02's explicit
-L16384 command. CLI --context/--hot-pages now bind all identity, prompt-sizing
-and allocator checks; --print-server-command emits matching argv without
-launch. Tracing is optional. Validate the repository fixture manifest before
-service access; /srv/ai/paged-kv/fixtures is not this fixture root.
+One post-fix PY_MERGE_03 A/B/A completed3HTTP200. Requested page5 was cold,
+host-backed/summary-ready and not promoted. Final400-token output repeated
+the wrong Bash comment, accepting258/282drafts(91.49%). High acceptance is
+not correct retrieval or useful speed. Page6 completed a real promotion/use
+chain; it is not page5 proof. Current trace was OFF, so default zeros and
+cumulative rejection counters do not localize the page5 miss. An older
+query104 shortlist[6,7,8] must not be attributed to the current query.
 
-Latest105-02 handoff: production direct24/4 Q1/Q3/Q256 numerical errors are
-0.000010/0/0 vs oracle. The materialized ordinary-FA control atQ256 differs
-by0.003883 vs oracle; it is NOT proof that the selected packed production
-dispatcher passes. Tokenizer-derived generation parity is still pending.
-No source sampler repair or new coherent selected/MTP proof is established.
-The completed selected recall remains slash filler,374/37 proposals/accepts.
-Preserve the active fixture work; do not repeat its failed patch anchors.
+## Remaining numerical boundary and exact next seam
 
-105-02a starts with one32K/H16K repository occupancy+recall row toC~26000,
-before the small paired canonical matrix. Its completed goal_miss is useful
-ranking/speed evidence, not a reason for an unchanged retry.105-03 retains
-L262144/H51200 after any demonstrated correctness repair. Existing ordering
-is unchanged; no active task/status reset or server action is needed here.
+CPU prefetch/residency/speculative-state and production-shape/padding CUDA
+checks pass. CUDA covers actual24-Q/4-KV, Q1/Q3/Q256, causal gaps/noncontiguous
+slots, generation roll and repeated NaN-poisoned padding. Cancellation,
+native frontiers, frozen map and next-MTP2/2 pass. Full teacher-forced
+scalar-packed vs width3-direct continuation parity still fails over12rows:
+max logits6.82667/hidden8.40555. This is separate from fixed question inputs.
 
-Validation of this setup repair:20 offline promotion-harness tests pass;
-Wiretail shell syntax, unrestricted-launch regression, task-state structure
-and active-plan validation pass. No model/build/service action was run.
-The broader Wiretail options suite has five stale model-policy test failures
-(removed family resolver/old assessment signature/default assignments); these
-are separate from this passing launch regression, not new runtime evidence.
-Benchmark-only harness/README changes are isolated in commit d6f6f7c55 and
-must remain excluded from an upstream product-code PR alongside other local
-tools/server/bench campaign tooling. The next runner owns the unfinished
-105-02 CUDA/replay fixture changes and its live proof/receipt; do not stage
-those partial edits as completed proof during this planning checkpoint.
+First continuation layer0-2 and layer3 normalized Q/K agree. First layer3
+attention delta0.00167859 is inside the existing0.003 CUDA route bound;
+layer4 differences are downstream. Full-softmax row0 KL(scalar||batch)
+0.000472/TV0.01044 with same top1; row3 (next width3 group) increases to
+KL0.1017/TV0.1629. First top1 mismatchrow5; maxKL0.9742/TV0.5029 atrow7.
+Do not dismiss late drift as rare-logit roundoff or assume a kernel bug.
+Source audits found no confirmed stale second-group upload/row-ticket or
+recurrent-plane indexing defect. No speculative production edit follows.
 
-## October7 first-row producer and MTP rollback source repairs
+`tests/test-server-query-replay.cpp` now has OPTIONAL fixture-only captures
+of layers0/4 current recurrent+conv planes at scalar token3 vs width3 group1
+endpoint (position4360, plane0), and scalar token4 vs width3 group2 first
+snapshot (position4361, planeK-1). Read actual hybrid recurrent owner rows,
+checked tensor strides, missing reasons, byte hashes and numeric differences
+before draft catch-up; the draft decode does not write target state.
+Optional scalar token4/second-group taps expose device positions/current K/V
+and first changed layer. Captures default off, capped24MiB/branch, outside
+production. Rebuild passed; the new capture has NOT been model-run yet.
+The earlier sidecar's object-closing/comma serialization defects are fixed;
+original raw artifacts are retained, not silently overwritten as valid JSON.
 
-The new short model fixture reports nonfinite target logits immediately after
-`llama_decode`, before speculative processing/publication/restore: initially
-three selected pages/519 rows, later the first provisional query token with
-4089 causally visible rows. Neither a nonempty mask nor the passing direct
-kernel fixture proves the production packed producer is safe.
+## Cold ranking: avoid false bottlenecks
 
-Code review found three independent defects:
+`llama_kv_query_cold_rank_width` is min(cold_pages,64). L16K/H4K has coarse
+cold width48, not eight. `retain_pager_coarse_shortlist` retains those records
+and `prepare_router_query_layers` processes the full authenticated list.
+Eight is a separate later full-K/V H2D transaction limit. Default encoded
+query/key domains agree by source audit; no compensating transform needed.
 
-1. Packed copies read raw cache views with no graph dependency on this
-   layer's `GGML_SET_ROWS` write. The active task's dependency patch is retained.
-   Nested ggml views flatten to the allocation owner and absolute `view_offs`.
-   The copy's view of the write result must use a relative layer offset;
-   the repair checks common owner/base/type and byte bounds. It does not
-   change selected membership, row IDs, promotion or route policy.
-2. Packed staging copies only valid rows into a page-rounded tensor. The
-   ordinary Turbo4 MMA loader reads every capacity row, including padding,
-   before masking, unlike the direct-paged loader's invalid-row zero path.
-   519/768 leaves249 uninitialized rows;4089/4096 leaves7. Arbitrary half
-   norms may be NaN, and a -inf mask cannot sanitize them (or NaN V operands
-   multiplied by zero). The shared slab's tail is now zero-filled once per
-   graph execution, not once per layer or across all H rows. CPU/CUDA
-   `GGML_FILL` now supports only Turbo4 zero via encoded norm-zero blocks;
-   CUDA uses captured stream-ordered memset, without a host fence or expanded
-   F16 cache. All layer copies preserve the initialized padding.
-   `refresh_selected_data` also wrongly compared nested views' flattened
-   owners with intermediate views, rejecting graph reuse. It now checks
-   actual allocation owners and exact absolute byte offsets while retaining
-   physical/layout/row-count compatibility checks.
-3. After `replay_accepted_prefix` repaired the draft's sampled+accepted rows,
-   `common_speculative_rollback_dft` sent `target_restored_without_draft`.
-   `sequence_transition` invalidated pending carry AND reset the applied
-   rollback guard; the following `process` took its target-only path and
-   cleared the ENTIRE draft sequence. This is not rejected-suffix cleanup.
-   Successful paired repair now retains accepted carry and idempotence;
-   native accepted frontier/hidden-buffer sizes are checked before replay.
-   Genuine unpaired checkpoint restores continue to invalidate carry.
+Use current sequence/query/generation-bound existing opt-in selector trace
+to distinguish page descriptor eligibility -> coarse shortlist -> exact-mass
+rank -> admission -> transfer/publication -> target use. Current page5 cause
+is unknown. Trace retains only a bounded raw-ID prefix; absence from that
+prefix is not absence from a48-page coarse list. Do not widen imaginary
+budgets, invent zero scores or special-case a fixture/expected answer.
 
-These are source-confirmed defects; their individual contributions to the
-observed model failure and acceptance are not yet measured. The repeated
-37/374 is response-local data (9.893%), not a hardcoded acceptance count.
-The frozen deterministic temperature0 workload repeats the same poor token
-trajectory. The erroneous carry reset additionally creates no-draft recovery
-cycles and loses draft attention history; corrupt target rows can independently
-poison hidden handoff and verification. Do not retune ranking or fabricate
-acceptance as a repair for either defect. Sparse target/full-history draft
-disagreement may still limit acceptance after finite/state parity is restored.
+## Artifacts and continuation
 
-105-02 owns the short real-production finite/parity and two-transaction
-partial-rejection check before its one saved live outcome.105-02a then runs
-the bounded32K finding and matched canonical prompts. Stop only genuine
-execution failures; coherent semantic/MTP misses are findings for a measured
-producer repair, not repeated unchanged large campaigns. Keep diagnostics
-fixture-only and preserve full-L GPU Turbo4 draft, B1024/U256, automatic
-production routes and once-per-turn retrieval. No task state was reset by
-this review; unfinished active fixture edits are retained separately.
+Compact hashes/findings: `evidence/PRODUCER105_02_FINDINGS.json`, not a V10
+success receipt. External raw root:
+`/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/`.
+Relevant runs: `generation-parity-int64-current-kv-20261007T183000/`,
+`continuation-first-capture-20261007T193000/`,
+`canonical-mtp-matrix-corrected-int64-fresh-20261007T190000/`,
+`promotion-corrected-int64-20261007T184000/`. Do not load whole transcripts.
+
+Keep single Qwen under lifecycle lock; exact argv/next fixture in105-02.
+Immich ML remains operator-stopped; stop only that authorized worker if it
+returns. Never restart it automatically, never8092; leave8091 unchanged.
+105-02a owns ONE32K/H16K trajectory and bulk-prefill curve, then only missing
+matched controls. No unchanged400-token campaign retries or blind250K fill.
+Benchmark tooling/compact execution metadata are excluded from upstream PR;
+raw tensors/binaries stay external and uncommitted.

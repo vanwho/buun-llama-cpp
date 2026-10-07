@@ -4508,9 +4508,9 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
         boundary.policy = llama_kv_policy_release_defaults(boundary.hot_capacity);
         boundary.transaction.staging_capacity = pager_->upload_ring()
             ? pager_->upload_ring()->capacity_bytes() : 0;
-        // Keep a refresh bounded even when the policy target contains many
-        // cold pages. The selector surfaces five ranked candidates; the
-        // atomic transaction allows eight pages for the complete query target.
+        // Coarse K-only ranking can surface up to 64 cold candidates. Bound
+        // the later complete K/V transaction independently to eight pages;
+        // shortlist size must not be mistaken for transfer capacity.
         boundary.transaction.max_h2d_pages = query_cold_promotion_pages;
         boundary.previous_target.reserve(snapshot.pages().size());
         for (const auto & page : snapshot.pages()) {

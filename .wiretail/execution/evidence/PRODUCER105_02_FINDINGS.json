@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "task": "105-02",
+  "status": "partial_findings_not_completion_receipt",
+  "source_base_commit": "bec26afe3384d2ea12498fc9f2ce78512365bdaf",
+  "source_identity": {
+    "src/llama-graph.cpp": "a932abc44a4faabdb885e1a3755832dae83fb472a68b942624c6038b87ae2f42",
+    "src/llama-graph.h": "134b74bb2d5fe19c3b9b31f36d9888f693f5b089ca0327b143d1d62334664a88",
+    "note": "Compiled graph fixes were uncommitted at capture; exact source hashes, not Git HEAD alone, identify the tested code."
+  },
+  "candidate": {
+    "server_sha256": "9ad3b3adf654e8435b479a9089579c5c6f9a638df54636688570c376a3b21214",
+    "libllama_sha256": "a78b2e0924374e43c0a4c8da9260f56c44d2d4e8b60c25803e741533e71c42a1",
+    "cuda_dso_sha256": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "geometry": {
+    "live_context_tokens": 16384,
+    "live_hot_tokens": 4096,
+    "fixture_context_tokens": 8192,
+    "fixture_hot_tokens": 4096,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "turbo4 GPU hot pages with canonical Turbo4 host backing",
+    "draft_kv": "full-L turbo4 GPU",
+    "mtp_depth": 2,
+    "router": "probe-rerank",
+    "reasoning": "off",
+    "temperature": 0
+  },
+  "position_upload_repair": {
+    "cause": "I32 llama_pos buffers uploaded into I64 CUDA position inputs at half the required byte count",
+    "correction": "Persistent int64_t staging for ordinary direct and exact-wave query/native positions",
+    "device_query_positions": "4344..4357, all 14 correct",
+    "current_K_bytes": 7392,
+    "current_V_bytes": 7392,
+    "replay_control_current_KV_byte_equal": true,
+    "same_question_logits_max_error": 0,
+    "same_question_hidden_max_error": 0,
+    "same_question_emitted_layer_taps_equal": true
+  },
+  "focused_checks": {
+    "cpu_prefetch": "pass",
+    "cpu_residency": "pass",
+    "cpu_speculative_state": "pass",
+    "cuda_production_shape_and_padding": "pass",
+    "replay_cancellation": "pass",
+    "next_mtp_cycle": {"proposed": 2, "accepted": 2},
+    "overall_teacher_forced_generation_parity": false,
+    "remaining_comparison": {
+      "scalar_route": "selected packed",
+      "width3_route": "selected direct",
+      "first_position": 4358,
+      "first_logits_max_error": 0.250314,
+      "first_hidden_max_error": 0.430863,
+      "all_rows_logits_max_error": 6.82667,
+      "all_rows_hidden_max_error": 8.40555,
+      "status": "unresolved, distinct from repaired question-input defect",
+      "first_attention_layer": 3,
+      "first_attention_max_error": 0.00167859,
+      "existing_cuda_route_bound": 0.003,
+      "row_0_kl_scalar_batch": 0.000472,
+      "row_0_total_variation": 0.01044,
+      "row_3_kl_scalar_batch": 0.1017,
+      "row_3_total_variation": 0.1629,
+      "first_top1_mismatch_row": 5,
+      "maximum_kl_scalar_batch": 0.9742,
+      "maximum_total_variation": 0.5029,
+      "next_comparison": "matching post-token-4360 recurrent/conv state and first second-group row 4361, before draft catch-up"
+    }
+  },
+  "canonical_matrix": {
+    "http_200_requests": 12,
+    "warmup_per_prompt": 1,
+    "warmup_max_output_tokens": 40,
+    "measured_per_prompt": 3,
+    "measured_max_output_tokens": 400,
+    "slot_erased_before_each_request": true,
+    "cache_prompt": false,
+    "measured_cached_tokens": 0,
+    "all_answers_coherent": true,
+    "bulk_prefill_measured": false,
+    "prompt_1": {
+      "prompt": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "input_tokens": 30,
+      "output_tokens_each": 365,
+      "median_decode_tok_s": 104.88,
+      "median_request_mtp_percent": 91.86,
+      "aggregate_accepted": 712,
+      "aggregate_proposed": 772
+    },
+    "prompt_2": {
+      "prompt": "explain the difference between mmap and read for loading large files, one paragraph.",
+      "input_tokens": 27,
+      "output_tokens_each": 171,
+      "median_decode_tok_s": 82.32,
+      "median_request_mtp_percent": 61.04,
+      "aggregate_accepted": 283,
+      "aggregate_proposed": 460
+    },
+    "prompt_3": {
+      "prompt": "write a bash script that watches a directory and prints new files as they appear.",
+      "input_tokens": 28,
+      "output_tokens_each": 225,
+      "median_decode_tok_s": 102.28,
+      "median_request_mtp_percent": 86.59,
+      "aggregate_accepted": 426,
+      "aggregate_proposed": 492
+    }
+  },
+  "natural_recall": {
+    "fixture": "PY_MERGE_03",
+    "http_200_requests": 3,
+    "requested_answer_page": 5,
+    "requested_page_cold_before_recall": true,
+    "requested_page_promoted": false,
+    "loss_stage_localized": false,
+    "coarse_cold_rank_width": 48,
+    "maximum_full_kv_cold_promotion_pages": 8,
+    "semantic_answer_matched": false,
+    "final_output_tokens": 400,
+    "final_accepted": 258,
+    "final_proposed": 282,
+    "classification": "goal_miss: wrong Bash-comment repetition, not useful retrieval evidence",
+    "do_not_repeat_unchanged": true
+  },
+  "artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/generation-parity-int64-current-kv-20261007T183000/generation-parity.json",
+      "sha256": "c02fbab5db5a68e1b76af254044c5fd435bcb11e6846c405462b04b140f16523"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/canonical-mtp-matrix-corrected-int64-fresh-20261007T190000/records.json",
+      "sha256": "c7d5fccaa297dc0b67b4f53b79dbc07bcec206587f8abf944284f1735a2c6269"
+    }
+  ],
+  "next_fixture": {
+    "source_sha256": "d5facd1dbb6da13f00e8334056d449e635794b5839c343655b3a5a0530209c4c",
+    "executable_sha256": "0f21e662997ae079c15969bbfe46aca30c56d929c80e40420904be137a99cbaf",
+    "incremental_build": "pass, parallel 16",
+    "matched_frontier_captures": "scalar token3/4 versus width3 group1 current/group2 first-row recurrent and convolution planes, optional second-group tensors",
+    "model_run_performed": false,
+    "production_diagnostics_added": false,
+    "note": "Fixture-only follow-up, not evidence of a new runtime repair or successful numerical parity."
+  },
+  "current_session_limitations": {
+    "git_staging": "blocked: .git/index.lock is on a read-only filesystem",
+    "localhost_health": "blocked: failed to open socket, Operation not permitted",
+    "gpu_access": "driver inaccessible from this session; not evidence of a candidate CUDA regression",
+    "commit_push_completed": false
+  },
+  "raw_evidence_root": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/",
+  "publication": "Local execution metadata, exclude from upstream PR. No raw binaries or tensors are committed."
+}

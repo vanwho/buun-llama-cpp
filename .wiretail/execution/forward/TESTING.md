@@ -26,6 +26,13 @@ DSO hashes, model SHA, endpoint owner PID/start time, effective argv, L/H/G/A,
 B/U, codecs and MTP placement. Reuse the managed 8080 service only when these
 match; otherwise reload through the current managed lifecycle. One Qwen process
 at a time. Never touch 8092 or use `pgrep | head` to choose identity.
+Before launch, inspect actual CUDA owners under the lifecycle lock. The
+operator authorizes stopping the exact Immich ML Docker worker if it consumes
+VRAM; resolve its name/image/PID and stop only it. Do not restart an already
+operator-stopped worker or touch unrelated containers. Stop managed Qwen
+before a standalone model fixture and wait for its allocation to disappear;
+restore the matching managed candidate afterward. Competing allocations are
+setup issues, not paging/admission failures.
 
 Known local bindings: `CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh`,
 `LLAMA_API_KEY_FILE=/srv/ai/config/llama/api-keys`, model resolved from

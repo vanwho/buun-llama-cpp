@@ -969,16 +969,22 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             // row positions are derived in the kernel from page_start + row.
             const auto & queries = selected_metadata.query_positions();
             if (direct_query_positions_uploaded != queries) {
-                set_direct_tensor(direct_query_positions, queries.data(), 0,
-                        queries.size() * sizeof(queries[0]));
+                // llama_pos is I32, but the paged CUDA consumer reads I64.
+                // Uploading the original vector concatenated pairs of
+                // positions and left the second half of the device input
+                // unwritten, breaking causal masks and MTP verification.
+                direct_query_positions_host.assign(queries.begin(), queries.end());
+                set_direct_tensor(direct_query_positions, direct_query_positions_host.data(), 0,
+                        direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
                 direct_query_positions_uploaded = queries;
             }
             if (direct_explicit_native_metadata) {
                 const auto & positions = selected_metadata.native_positions();
                 const auto & valid = selected_metadata.native_mask();
                 if (direct_native_positions_uploaded != positions) {
-                    set_direct_tensor(direct_native_positions, positions.data(), 0,
-                            positions.size() * sizeof(positions[0]));
+                    direct_native_positions_host.assign(positions.begin(), positions.end());
+                    set_direct_tensor(direct_native_positions, direct_native_positions_host.data(), 0,
+                            direct_native_positions_host.size() * sizeof(direct_native_positions_host[0]));
                     direct_native_positions_uploaded = positions;
                 }
                 if (direct_native_mask_uploaded != valid) {
@@ -4953,7 +4959,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
         ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
         ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
-        inp->direct_native_positions_host = std::move(exact_positions);
+        inp->direct_native_positions_host.assign(exact_positions.begin(), exact_positions.end());
         inp->direct_native_mask_host.assign(inp->exact_n_rows, 1);
         inp->direct_query_positions_host.reserve(ubatch.n_tokens);
         for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {

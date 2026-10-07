@@ -20,6 +20,18 @@ Preserve B1024/U256, Turbo4 target/draft,
 frozen GPU history and inclusive host storage. Never run two Qwen models or
 change the production kernel for diagnostic counters. Preserve historical
 usage/raw artifacts without treating old failed oracles as release evidence.
+Before model-backed testing, take `/tmp/ai-pager-benchmark.lock`, verify the
+managed Qwen slot is idle, and inspect GPU compute owners with
+`nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv`.
+The operator authorizes stopping the Immich machine-learning Docker worker
+when it competes for GPU space. Resolve its exact container from Docker's
+name/image and PID before `docker stop`; do not stop unrelated containers.
+Do not restart a worker the operator already stopped. Stop the one managed
+Qwen owner before a standalone model fixture, wait until its CUDA allocation
+is gone, then run only one Qwen process. Restore the matching managed argv
+and verify actual port8080 health afterward. A leftover external GPU owner
+or second model is a setup issue, not permission to alter paging routes,
+quantization, batch sizes or admitted-H calculations.
 Main adoption is a reviewed source slice, never a blanket dirty-worktree merge.
 Unstarted93-12/93-13 are removed from the runnable graph;
 their old packets are archived for provenance. Forward tasks supersede the
@@ -97,6 +109,10 @@ external benchmark tooling) during final cleanup:
 - `tools/server/bench/test-gpu101-release.py`
 - `tools/server/bench/validate-gpu101-release.py`
 - `tools/server/bench/verify-gpu101-retake.py`
+- October7 promotion-harness-only commits, including `cae9cc06e` and the
+  subsequent query/page attribution repair: `run-pager-promotion.py` and
+  `test_pager_promotion.py`. Keep these local campaign fixes separate from
+  portable attention/MTP/kernel/residency changes when selecting upstream code.
 
 Also remove or rewrite references to these assets/helpers in phase-102
 packets, clusters, overview, testing plan, and evidence before preparing the

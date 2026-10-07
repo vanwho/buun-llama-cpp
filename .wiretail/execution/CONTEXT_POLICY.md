@@ -17,12 +17,25 @@ product code. Use `--clean-first` only when the task requires a clean candidate;
 it is not a general speed setting. If an active packet still specifies another
 job count, correct its command to `--parallel 16` before building.
 
+## GPU test ownership
+
+Before model tests, hold `/tmp/ai-pager-benchmark.lock` and inspect actual
+CUDA compute owners. The operator authorizes stopping the exact Immich
+machine-learning Docker container if it competes for VRAM. Resolve its
+name/image/PID first, stop only that worker, and do not restart one the
+operator already stopped. Keep unrelated containers and8091 unchanged;
+never touch8092. Stop managed Qwen and wait for its allocation to disappear
+before a standalone Qwen fixture; never load a second Qwen. Restore the
+matching managed candidate and health afterward. External allocations are
+setup issues, not reasons to change H accounting, routes, codecs or B/U.
+
 ## Current phase-105 source-directed override
 
-Order105-01e/f/g ->105-02/03/04/05.105-01a/b/c/d are historical; d decided
+Order105-01e/f/g ->105-02 ->105-02a ->105-03/04/05.105-01a/b/c/d are historical; d decided
 no-adoption.105-01 is deferred, not passed. Start from
 WORK_STATE current task, its packet/cluster, the compact
-engineering-notes/ranking-query-repair.md and immediate relevant handoff.
+engineering-notes/selected-generation-contract.md for105-02 onward, and
+the immediate relevant handoff.
 104/103/older retry plans are historical, not startup directions. Preserve
 working storage/transport/replay code; do not load whole recovery documents,
 WORK_LOG/WORK_STATE, source files or raw JSONL into agent context. Source
@@ -40,8 +53,10 @@ not a wholesale experiment merge or a historical104 approval.
 GPU Turbo4 target/full-L GPU Turbo4 MTP, B1024/U256. Capture independent Q
 probes at the final-user boundary; diverse coarse K candidates precede exact
 GPU key rerank. Eight full-page promotions are separate from coarse width.
-Production probes use immutable authoritative row indices; no mutable device
-position inputs or per-layer input readbacks. Indexed source repair is supplied.
+Selector probes use immutable authoritative row indices, not captured
+temporary position pointers or per-layer input readbacks. Attention itself
+has mutable query-position inputs: direct/exact I64 tensors require owned
+int64_t staging even though llama_pos is I32; never upload4bytes into them.
 Four production probes cover the user span, not just its last8 generic tokens.
 Native temporal positions use ubatch.pos0 (section-major M-RoPE plane0).
 Publish/replay once and freeze historical attention during generation. Host

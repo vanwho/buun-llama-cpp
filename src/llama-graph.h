@@ -579,11 +579,14 @@ public:
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_uploaded;
     std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> direct_row_lookup_host;
     std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> direct_row_lookup_uploaded;
-    std::vector<llama_pos> direct_native_positions_host;
+    // Device position inputs are GGML_TYPE_I64 even though llama_pos is
+    // int32_t. Keep widened staging alive until the asynchronous upload has
+    // been consumed; the *_uploaded vectors below are only host cache keys.
+    std::vector<int64_t> direct_native_positions_host;
     std::vector<llama_pos> direct_native_positions_uploaded;
     std::vector<uint8_t> direct_native_mask_host;
     std::vector<uint8_t> direct_native_mask_uploaded;
-    std::vector<llama_pos> direct_query_positions_host;
+    std::vector<int64_t> direct_query_positions_host;
     std::vector<llama_pos> direct_query_positions_uploaded;
     struct exact_wave_input {
         ggml_tensor * pages = nullptr;
