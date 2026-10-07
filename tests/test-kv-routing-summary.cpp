@@ -466,5 +466,38 @@ int main() {
             codec_table.snapshot(), codec_inputs, mean_config, status);
     assert(status == llama_kv_routing_summary_status::ok && codec_store.valid());
     assert(codec_store.content_hash() != means.content_hash());
+
+    // Summary readiness is a complete layer/head grid, never a partial set of
+    // successful insertions. Failed validation leaves the existing index
+    // byte-for-byte represented by the same store hashes.
+    auto head0_config = ranges_config;
+    head0_config.layer_index = 0;
+    head0_config.head_index = 0;
+    auto head1_config = head0_config;
+    head1_config.head_index = 1;
+    const auto head0_store = llama_kv_routing_summary_store::build(
+            snap, inputs, head0_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && head0_store.valid());
+    const auto head1_store = llama_kv_routing_summary_store::build(
+            snap, inputs, head1_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && head1_store.valid());
+    llama_kv_routing_summary_index summary_index;
+    std::vector<llama_kv_routing_summary_store> incomplete_grid;
+    incomplete_grid.push_back(head0_store);
+    assert(!summary_index.set_all(std::move(incomplete_grid), 1, 2));
+    assert(summary_index.table_count() == 0);
+    std::vector<llama_kv_routing_summary_store> complete_grid;
+    complete_grid.push_back(head0_store);
+    complete_grid.push_back(head1_store);
+    assert(summary_index.set_all(std::move(complete_grid), 1, 2));
+    assert(summary_index.table_count() == 2);
+    const uint64_t head0_hash = summary_index.find(0, 0)->content_hash();
+    std::vector<llama_kv_routing_summary_store> duplicate_grid;
+    duplicate_grid.push_back(head0_store);
+    duplicate_grid.push_back(head0_store);
+    assert(!summary_index.set_all(std::move(duplicate_grid), 1, 2));
+    assert(summary_index.table_count() == 2);
+    assert(summary_index.find(0, 0)->content_hash() == head0_hash);
+    assert(!summary_index.set(llama_kv_routing_summary_store{}));
     return 0;
 }

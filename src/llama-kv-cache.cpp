@@ -2365,6 +2365,16 @@ void llama_kv_cache::retain_pager_coarse_shortlist(
         const auto turn = pager_->turn_state(sequence_id);
         if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
                 turn.turn_id == 0) return;
+        const auto & trace = pager_->selector_trace();
+        if (trace.enabled && trace.target_logical_page >= 0) {
+            const auto target = std::find_if(selected.begin(), selected.end(), [&](const auto & item) {
+                return item.identity.logical_page == uint32_t(trace.target_logical_page);
+            });
+            LLAMA_LOG_INFO("selector_target_coarse query=%" PRIu64 " turn=%" PRIu64
+                    " layer=%u page=%" PRId64 " count=%zu present=%d\n",
+                    query_generation, turn.turn_id, layer, trace.target_logical_page,
+                    selected.size(), int(target != selected.end()));
+        }
         llama_kv_router_query_identity identity;
         identity.sequence_id = sequence_id;
         identity.session_generation = session_generation;
@@ -3374,6 +3384,21 @@ void llama_kv_cache::capture_kv_routing_query(
                         selector_trace.target_host_backed = catalog->find_page(bundle_id, host_view);
                     }
                 }
+                const auto trace_turn = pager_->turn_state(value.sequence_id);
+                const int64_t target_begin = target->id.position_begin >= 0
+                    ? target->id.position_begin
+                    : int64_t(target->id.logical_page) * pager_->snapshot().geometry.page_tokens;
+                const int64_t target_end = target->id.position_end >= target_begin
+                    ? target->id.position_end : target_begin + target->valid_length;
+                // Match prepare_router_query_layers()'s exact descriptor
+                // protections. A cold overlap/tail/pinned page is excluded
+                // before scoring, so tracing must not label it ranked out.
+                // This work runs only when the bounded selector trace is on.
+                const bool descriptor_eligible =
+                    llama_kv_page_id_valid(target->id, llama_kv_page_id_is_tail(target->id)) &&
+                    !llama_kv_page_id_is_tail(target->id) && target->pin_count == 0 &&
+                    trace_turn.phase == llama_kv_pager_turn_phase::query_provisional &&
+                    target_end <= trace_turn.query_start;
                 const bool causal = selector_trace.target_position_begin >= 0 &&
                     uint64_t(selector_trace.target_position_begin) < value.query_position &&
                     selector_trace.target_valid_length > 0 &&
@@ -3381,6 +3406,7 @@ void llama_kv_cache::capture_kv_routing_query(
                     selector_trace.target_valid_length <= value.query_position -
                         uint64_t(selector_trace.target_position_begin);
                 selector_trace.target_eligible = !selector_trace.target_resident && causal &&
+                    descriptor_eligible &&
                     selector_trace.target_sequence_generation == value.sequence_generation &&
                     selector_trace.target_page_generation > 0 &&
                     selector_trace.target_page_generation <= value.rollback_generation &&
@@ -19881,6 +19907,17 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     ggml_set_name(metadata, "kv_routing_page_metadata");
     ggml_set_name(membership, "kv_routing_resident_membership");
     ggml_set_name(query, "kv_routing_query_metadata");
+    // This is a newly constructed graph, not graph reuse. Tensor/context and
+    // allocator addresses can be recycled after a rebuild, so pointer equality
+    // cannot authenticate the previous graph's uploaded catalogue. Drop only
+    // this sequence/layer's host dirty map; unchanged graph executions retain
+    // their incremental uploads, and an older graph revisited later rehydrates
+    // its own inputs on first use.
+    kv->pager_selector_inputs_.erase(std::remove_if(
+            kv->pager_selector_inputs_.begin(), kv->pager_selector_inputs_.end(),
+            [&](const auto & input) {
+                return input.sequence_id == sequence_id && input.layer == uint32_t(layer);
+            }), kv->pager_selector_inputs_.end());
     // The catalogue is the persistent mutable input.  The summary node owns
     // the device-side refreshed view and copies cold/unchanged pages through
     // from that catalogue, so eviction never destroys a previously sealed
@@ -20019,6 +20056,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             uint64_t(membership->ne[0]) != capacity) return false;
 
     llama_kv_cache::pager_selector_input_state * state = nullptr;
+    bool initialize_catalogue = false;
     try {
         auto it = std::find_if(kv->pager_selector_inputs_.begin(),
                 kv->pager_selector_inputs_.end(), [&](const auto & value) {
@@ -20034,6 +20072,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             it->layer = uint32_t(layer);
             it->capacity = capacity;
             it->pages.resize(capacity);
+            initialize_catalogue = true;
         }
         state = &*it;
         if (state->metadata != metadata || state->membership != membership ||
@@ -20046,6 +20085,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             state->capacity = capacity;
             state->pages.assign(capacity, {});
             state->active_page_indices.clear();
+            initialize_catalogue = true;
         }
     } catch (...) {
         return false;
@@ -20055,7 +20095,15 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const uint64_t bounds_values = uint64_t(dim) * 3 * kv_heads;
     if (bounds_values > std::numeric_limits<uint64_t>::max() / sizeof(ggml_fp16_t) ||
             bounds_page_bytes < bounds_values * sizeof(ggml_fp16_t) ||
-            metadata->ne[0] < 8 || metadata->nb[1] < 8 * sizeof(int64_t)) return false;
+            metadata->ne[0] < 9 || metadata->nb[1] < 9 * sizeof(int64_t)) return false;
+    if (initialize_catalogue) {
+        // Sparse logical inventories leave holes. A fresh allocator buffer is
+        // not zero initialized: poison in an unused descriptor must never look
+        // like an eligible cold page. Bounds for holes are never read because
+        // zero valid_length/summary_ready excludes them before scoring.
+        ggml_backend_tensor_memset(metadata, 0, 0, ggml_nbytes(metadata));
+        ggml_backend_tensor_memset(membership, 0, 0, ggml_nbytes(membership));
+    }
     for (const auto & record : inventory) {
         if (record.id.logical_page >= capacity) return false;
         const uint32_t page_index = record.id.logical_page;
@@ -20084,15 +20132,20 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             int64_t(summary_ready), int64_t(summary_update),
             int64_t(record.content_version) };
         std::vector<ggml_fp16_t> bound_data;
+        bool bounds_complete = true;
         if (summary_changed) {
             bound_data.assign(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
             for (uint32_t head = 0; head < kv_heads; ++head) {
                 const auto * summary = pager.routing_summary_index().find(layer_ordinal, head);
                 const auto * lower = summary != nullptr ? summary->range_min(record.id) : nullptr;
                 const auto * upper = summary != nullptr ? summary->range_max(record.id) : nullptr;
+                const auto * mean = summary != nullptr ? summary->mean_k(record.id) : nullptr;
                 if (lower == nullptr || upper == nullptr || lower->size() < dim ||
-                        upper->size() < dim) {
+                        lower->size() % dim != 0 || upper->size() != lower->size() ||
+                        mean == nullptr || mean->size() != dim ||
+                        summary->content_version(record.id) != record.content_version) {
                     page_data[1] = 0;
+                    bounds_complete = false;
                     continue;
                 }
                 const size_t blocks = lower->size() / dim;
@@ -20106,10 +20159,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
                     const size_t base = d + size_t(dim) * 3 * head;
                     bound_data[base] = ggml_fp32_to_fp16(fp16_outward_lower(lo));
                     bound_data[base + dim] = ggml_fp32_to_fp16(fp16_outward_upper(hi));
-                    const auto * mean = summary->mean_k(record.id);
-                    if (mean != nullptr && mean->size() >= dim) {
-                        bound_data[base + 2 * dim] = ggml_fp32_to_fp16((*mean)[d]);
-                    }
+                    bound_data[base + 2 * dim] = ggml_fp32_to_fp16((*mean)[d]);
                 }
             }
         }
@@ -20128,7 +20178,20 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         previous.summary_version = summary_version;
         previous.resident = resident;
         previous.query_safe = query_safe;
-        previous.valid = true;
+        // Global summary content tags do not certify that this layer/head's
+        // ranges are present. An incomplete upload is fail-closed but retryable
+        // even if the eventual summary arrives under the same content version.
+        previous.valid = bounds_complete;
+        const auto & trace = pager.selector_trace();
+        if (trace.enabled && trace.target_logical_page == int64_t(page_index)) {
+            LLAMA_LOG_INFO("selector_target_input query=%" PRIu64 " layer=%d page=%u "
+                    "begin=%" PRId64 " valid=%" PRId64 " seq=%" PRId64 " page_gen=%" PRId64
+                    " slot=%" PRId64 " summary_ready=%" PRId64 " content=%" PRId64
+                    " resident=%d bounds_complete=%d query_safe=%d\n",
+                    kv->pager_query_generation_, layer, page_index, page_data[0], page_data[1],
+                    page_data[2], page_data[3], page_data[4], page_data[6], page_data[8],
+                    int(resident), int(bounds_complete), int(query_safe));
+        }
     }
     // Retire only IDs that were active in the previous descriptor. The old
     // capacity-wide sweep made an unchanged decode proportional to logical L.

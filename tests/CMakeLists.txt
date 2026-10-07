@@ -241,7 +241,7 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     llama_build_and_test(test-kv-prefetch.cpp)
     target_include_directories(test-kv-prefetch PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
-    llama_build_and_test(test-kv-router-job.cpp)
+    llama_build_and_test(test-kv-router-job.cpp ARGS --cpu-only)
     target_include_directories(test-kv-router-job PRIVATE ${PROJECT_SOURCE_DIR}/src)
     target_include_directories(test-kv-router-job PRIVATE ${PROJECT_SOURCE_DIR}/ggml/src)
     target_link_libraries(test-kv-router-job PRIVATE llama)

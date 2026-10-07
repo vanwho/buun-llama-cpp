@@ -387,7 +387,15 @@ public:
             uint32_t layer_index, uint32_t head_index) const noexcept;
     llama_kv_routing_summary_store * find(
             uint32_t layer_index, uint32_t head_index) noexcept;
-    void set(llama_kv_routing_summary_store store) noexcept;
+    // Publish one store only when the index can retain it. Failed insertions
+    // leave the logical contents unchanged.
+    bool set(llama_kv_routing_summary_store store) noexcept;
+    // Publish a complete layer/head grid as one owner transaction. A missing
+    // or duplicate coordinate, or allocation failure, leaves the index
+    // unchanged. Existing coordinates are replaced in place after capacity
+    // for every insertion has been secured.
+    bool set_all(std::vector<llama_kv_routing_summary_store> stores,
+            uint32_t layer_count, uint32_t head_count) noexcept;
     uint64_t charged_bytes() const noexcept;
     uint32_t table_count() const noexcept { return uint32_t(entries_.size()); }
 

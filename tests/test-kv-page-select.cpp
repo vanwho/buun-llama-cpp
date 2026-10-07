@@ -624,6 +624,88 @@ static void test_query_score_rank(ggml_backend_t backend) {
     ggml_free(ctx);
 }
 
+static void test_page_rank_summary_retry(ggml_backend_t backend) {
+    constexpr int64_t dim = 1, heads = 1, probes_n = 4, pages = 6;
+    constexpr int64_t page_size = 4;
+    ggml_init_params init = { 1024 * 1024, nullptr, true };
+    ggml_context * ctx = ggml_init(init);
+    assert(ctx && backend);
+    auto * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, dim, heads, 1);
+    auto * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, dim, 3, heads, pages);
+    auto * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 9, pages);
+    auto * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, pages);
+    auto * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+    auto * probes = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, dim, heads, probes_n);
+    auto * validity = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 9);
+    ggml_tensor * ranked[probes_n] = {};
+    for (int probe = 0; probe < probes_n; ++probe) {
+        ranked[probe] = ggml_kv_page_rank(ctx, q, bounds, metadata, membership, query,
+                probes, validity, 0, 4, page_size, -1, 1u << probe, 1.0f);
+        assert(ranked[probe] && ranked[probe]->ne[1] == 4);
+        ggml_set_output(ranked[probe]);
+    }
+    auto * graph = ggml_new_graph_custom(ctx, 32, false);
+    for (auto * result : ranked) ggml_build_forward_expand(graph, result);
+    auto * buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer);
+
+    const float q_data[heads] = {0};
+    const float probe_data[probes_n] = {1, 1, 1, 1};
+    const int64_t query_data[4] = {100, 7, 10, 1};
+    const int64_t validity_data[9] = {7, 96, 97, 98, 99, 1, 1, 1, 1};
+    std::vector<ggml_fp16_t> bound_data(size_t(3 * pages));
+    std::vector<int64_t> page_data(size_t(9 * pages), 0);
+    const int32_t cold_membership[pages] = {0, 0, 0, 0, 0, 0};
+    for (int64_t page = 0; page < pages; ++page) {
+        int64_t * meta = page_data.data() + 9 * page;
+        const bool hole = page == 0 || page == 2;
+        if (!hole) {
+            meta[0] = page * page_size;
+            meta[1] = page_size;
+            meta[2] = 7;
+            meta[3] = page == 5 ? 10 : page + 1; // fixed content generation across retry
+            meta[6] = page == 5 ? 0 : 1;         // page 5 summary is initially incomplete
+        }
+        const float poison = hole ? 10000.0f : float(page);
+        bound_data[size_t(3 * page + 0)] = ggml_fp32_to_fp16(-poison);
+        bound_data[size_t(3 * page + 1)] = ggml_fp32_to_fp16(poison);
+        bound_data[size_t(3 * page + 2)] = ggml_fp32_to_fp16(poison);
+    }
+    ggml_backend_tensor_set(q, q_data, 0, ggml_nbytes(q));
+    ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+    ggml_backend_tensor_set(metadata, page_data.data(), 0, ggml_nbytes(metadata));
+    ggml_backend_tensor_set(membership, cold_membership, 0, ggml_nbytes(membership));
+    ggml_backend_tensor_set(query, query_data, 0, sizeof(query_data));
+    ggml_backend_tensor_set(probes, probe_data, 0, ggml_nbytes(probes));
+    ggml_backend_tensor_set(validity, validity_data, 0, sizeof(validity_data));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    for (auto * result : ranked) {
+        ggml_kv_page_rank_record output[4]{};
+        ggml_backend_tensor_get(result, output, 0, ggml_nbytes(result));
+        for (const auto & record : output) {
+            assert(record.logical_page != 0 && record.logical_page != 2 && record.logical_page != 5);
+        }
+    }
+
+    // A summary-complete retry makes page 5 rankable without changing its
+    // content generation. Each probe independently gets the cold candidate.
+    page_data[size_t(9 * 5 + 6)] = 1;
+    ggml_backend_tensor_set(metadata, page_data.data(), 0, ggml_nbytes(metadata));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    for (auto * result : ranked) {
+        ggml_kv_page_rank_record output[4]{};
+        ggml_backend_tensor_get(result, output, 0, ggml_nbytes(result));
+        bool saw_page5 = false;
+        for (const auto & record : output) {
+            assert(record.logical_page != 0 && record.logical_page != 2);
+            saw_page5 |= record.logical_page == 5 && record.validity_flags == 1;
+        }
+        assert(saw_page5);
+    }
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+}
+
 static std::vector<ggml_kv_page_rank_record> run_large_page_rank(
         ggml_backend_t backend, int64_t heads, int64_t pages) {
     constexpr int64_t dim = 8, probes_n = 4;
@@ -875,6 +957,7 @@ int main() {
     assert(backend != nullptr);
     std::fprintf(stderr, "kv page selector test backend=%s\n", ggml_backend_name(backend));
     test_query_score_rank(backend);
+    test_page_rank_summary_retry(backend);
     if (!tiny_cuda && std::strncmp(ggml_backend_name(backend), "CUDA", 4) == 0) {
         test_large_page_rank_cuda(backend);
     }

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <type_traits>
 #include <map>
 #include <new>
 #include <set>
@@ -1225,23 +1226,75 @@ llama_kv_routing_summary_store * llama_kv_routing_summary_index::find(
     return it == entries_.end() ? nullptr : &it->store;
 }
 
-void llama_kv_routing_summary_index::set(
+bool llama_kv_routing_summary_index::set(
         llama_kv_routing_summary_store store) noexcept {
     const uint32_t layer = store.layer_index();
     const uint32_t head = store.head_index();
+    if (!store.valid()) return false;
     try {
         auto it = std::find_if(entries_.begin(), entries_.end(),
                 [&](const auto & entry) {
             return entry.layer_index == layer && entry.head_index == head;
         });
         if (it == entries_.end()) {
+            static_assert(std::is_nothrow_move_constructible<entry>::value,
+                    "summary index entries must move without throwing");
+            entries_.reserve(entries_.size() + 1);
             entries_.push_back({ layer, head, std::move(store) });
         } else {
+            static_assert(std::is_nothrow_move_assignable<llama_kv_routing_summary_store>::value,
+                    "summary stores must replace without throwing");
             it->store = std::move(store);
         }
+        return true;
     } catch (...) {
-        // The index is an observability/cache layer. The owning pager retains
-        // the previous table when an accounting update cannot be published.
+        return false;
+    }
+}
+
+bool llama_kv_routing_summary_index::set_all(
+        std::vector<llama_kv_routing_summary_store> stores,
+        uint32_t layer_count, uint32_t head_count) noexcept {
+    if (layer_count == 0 || head_count == 0 ||
+            uint64_t(layer_count) * head_count != stores.size()) return false;
+    try {
+        for (size_t i = 0; i < stores.size(); ++i) {
+            const auto & store = stores[i];
+            if (!store.valid() || store.layer_index() >= layer_count ||
+                    store.head_index() >= head_count) return false;
+            for (size_t j = 0; j < i; ++j) {
+                if (stores[j].layer_index() == store.layer_index() &&
+                        stores[j].head_index() == store.head_index()) return false;
+            }
+        }
+
+        size_t additions = 0;
+        for (const auto & store : stores) {
+            if (find(store.layer_index(), store.head_index()) == nullptr) ++additions;
+        }
+        if (additions > entries_.max_size() - entries_.size()) return false;
+        static_assert(std::is_nothrow_move_constructible<entry>::value &&
+                std::is_nothrow_move_assignable<llama_kv_routing_summary_store>::value,
+                "summary index publication must not throw after reserve");
+        entries_.reserve(entries_.size() + additions);
+
+        // All operations below are non-throwing: the old grid remains intact
+        // if validation or allocation above failed.
+        for (auto & store : stores) {
+            auto it = std::find_if(entries_.begin(), entries_.end(),
+                    [&](const auto & entry) {
+                return entry.layer_index == store.layer_index() &&
+                        entry.head_index == store.head_index();
+            });
+            if (it == entries_.end()) {
+                entries_.push_back({ store.layer_index(), store.head_index(), std::move(store) });
+            } else {
+                it->store = std::move(store);
+            }
+        }
+        return true;
+    } catch (...) {
+        return false;
     }
 }
 

@@ -2838,6 +2838,14 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
             changed.push_back({ page_index, needs_summary, true });
         }
 
+        // An empty configuration list can mean the grid allocation failed.
+        // It must not be interpreted as a vacuously complete summary.
+        if (routing_summary_provider_.build != nullptr && configs.empty()) {
+            for (auto & item : changed) {
+                if (item.needs_summary) item.summary_ok = false;
+            }
+        }
+
         if (routing_summary_provider_.build != nullptr && !changed.empty()) {
             struct pending_group {
                 std::vector<llama_kv_routing_page_input> inputs;
@@ -2933,18 +2941,72 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                     }
                     staged.push_back({ config_index, std::move(next) });
                 }
+                // A page is globally ready only if every configured
+                // layer/head store contains its exact sealed content version.
+                // Checking this before the index transaction prevents a
+                // partially populated grid from being advertised as ready.
+                if (!publication_failed && staged.size() != configs.size()) {
+                    publication_failed = true;
+                }
+                if (!publication_failed) {
+                    for (const auto & item : changed) {
+                        if (!item.needs_summary || !item.summary_ok) continue;
+                        const auto & page = pages_[item.index];
+                        for (const auto & entry : staged) {
+                            const auto & store = entry.store;
+                            if (store.content_version(page.record.id) != page.content_version) {
+                                publication_failed = true;
+                                break;
+                            }
+                            if (store.form() == llama_kv_routing_summary_form::minmax_ranges) {
+                                const auto * range_min = store.range_min(page.record.id);
+                                const auto * range_max = store.range_max(page.record.id);
+                                const size_t expected = size_t(store.subblock_count(
+                                        page.record.id.logical_page)) * configs[entry.config_index].vector_dim;
+                                if (range_min == nullptr || range_max == nullptr ||
+                                        range_min->size() != expected || range_max->size() != expected) {
+                                    publication_failed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (publication_failed) break;
+                    }
+                }
+                if (!publication_failed) {
+                    std::vector<llama_kv_routing_summary_store> stores;
+                    stores.reserve(staged.size());
+                    // Preserve the historical compatibility view (the last
+                    // layer-zero head) before mutating the indexed grid, so
+                    // allocation failure cannot leave the two views split.
+                    llama_kv_routing_summary_store compatibility;
+                    bool have_compatibility = false;
+                    for (const auto & entry : staged) {
+                        if (configs[entry.config_index].layer_index == 0) {
+                            compatibility = entry.store;
+                            have_compatibility = true;
+                        }
+                    }
+                    if (!have_compatibility) publication_failed = true;
+                    if (!publication_failed) {
+                        for (auto & entry : staged) stores.push_back(std::move(entry.store));
+                        const uint32_t layers = snapshot_.geometry.attention_layers == 0
+                            ? 1 : snapshot_.geometry.attention_layers;
+                        const uint32_t heads = snapshot_.geometry.kv_heads == 0
+                            ? 1 : snapshot_.geometry.kv_heads;
+                        if (!routing_summary_index_.set_all(std::move(stores), layers, heads)) {
+                            publication_failed = true;
+                        } else {
+                            routing_summaries_ = std::move(compatibility);
+                            store_copy_count_ += staged.size();
+                        }
+                    }
+                }
                 if (publication_failed) {
                     // Stores are staged locally, so discard the whole seal
                     // wave and leave every changed page queued for retry.
                     for (auto & item : changed) {
                         if (item.needs_summary) item.summary_ok = false;
-                    }
-                } else {
-                    for (auto & entry : staged) {
-                        const auto & config = configs[entry.config_index];
-                        if (config.layer_index == 0) routing_summaries_ = entry.store;
-                        routing_summary_index_.set(std::move(entry.store));
-                        ++store_copy_count_;
                     }
                 }
             }
