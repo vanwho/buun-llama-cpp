@@ -1958,7 +1958,7 @@ static bool prefill_page_wave_boundary(
     }
     llama_pos previous_position = current.pos[0];
     for (uint32_t token = 1; token < current.n_tokens; ++token) {
-        const llama_pos position = current.pos[token * current.n_pos];
+        const llama_pos position = current.pos0(token);
         const uint64_t page = prefill_page_number(position, page_tokens);
         if (page == UINT64_MAX || page != previous_page ||
             position != previous_position + 1) {
@@ -3014,7 +3014,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 op_params.causal = cparams.causal_attn;
                 op_params.query_positions.reserve(ubatch.n_tokens);
                 for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
-                    op_params.query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
+                    op_params.query_positions.push_back(ubatch.pos0(token));
                 }
 
                 llama_kv_attention_operator_status op_status;
@@ -3184,7 +3184,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         query_positions.clear();
         query_positions.reserve(ubatch.n_tokens);
         for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
-            query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
+            query_positions.push_back(ubatch.pos0(token));
         }
         auto & query_pages = kv_attention_query_pages_scratch_;
         if (!llama_kv_attention_query_page_ids(query_positions,
@@ -7157,7 +7157,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         const llama_pos first_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
             ? ubatch.pos[0] : -1;
         const llama_pos last_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
-            ? ubatch.pos[size_t(ubatch.n_tokens - 1) * std::max<uint32_t>(1, ubatch.n_pos)] : -1;
+            ? ubatch.pos0(ubatch.n_tokens - 1) : -1;
         LLAMA_LOG_INFO("hotpath stage=context_ubatch phase=%s route=%s query_tokens=%u "
                 "tokens=%u first_pos=%" PRId64
                 " last_pos=%" PRId64 " graph_reuse=%d apply_us=%" PRId64
@@ -8173,7 +8173,7 @@ int llama_context::decode(const llama_batch & batch_inp) {
                         for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
                             const int32_t row = (int32_t) n_tokens_prev + i;
                             embeddings_nextn_device_positions[row] =
-                                    ubatch.pos[(size_t) i * ubatch.n_pos];
+                                    ubatch.pos0(i);
                             embeddings_nextn_device_sequences[row] =
                                     ubatch.n_seq_id[i] == 1 ? ubatch.seq_id[i][0] : -1;
                         }

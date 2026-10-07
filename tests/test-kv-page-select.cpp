@@ -3,11 +3,13 @@
 #include "ggml-cpu.h"
 #include "ggml-cuda.h"
 #include "llama-kv-prefetch.h"
+#include "llama-batch.h"
 
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -364,7 +366,26 @@ static void test_query_probes(ggml_backend_t backend) {
     ggml_free(ctx);
 }
 
+static void test_section_major_native_positions() {
+    // Match llama_batch_allocr: M-RoPE coordinates are separate planes.
+    constexpr uint32_t rows = 9;
+    std::array<llama_pos, rows * 4> positions{};
+    for (uint32_t section = 0; section < 4; ++section) {
+        for (uint32_t row = 0; row < rows; ++row) {
+            positions[section * rows + row] = llama_pos(1000 * section + 200 + row);
+        }
+    }
+    llama_ubatch ubatch{};
+    ubatch.n_tokens = rows;
+    ubatch.n_pos = 4;
+    ubatch.pos = positions.data();
+    for (uint32_t row = 0; row < rows; ++row) assert(ubatch.pos0(row) == llama_pos(200 + row));
+    assert(ubatch.pos0(rows - 1) == 208);
+    assert(positions[(rows - 1) * ubatch.n_pos] != ubatch.pos0(rows - 1));
+}
+
 int main() {
+    test_section_major_native_positions();
     ggml_backend_load_all();
     ggml_backend_t backend = nullptr;
     ggml_backend_reg_t cuda_reg = ggml_backend_reg_by_name(GGML_CUDA_NAME);

@@ -866,7 +866,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             if (ubatch->pos != nullptr) {
                 direct_query_positions_host.resize(ubatch->n_tokens);
                 for (uint32_t token = 0; token < ubatch->n_tokens; ++token) {
-                    direct_query_positions_host[token] = ubatch->pos[token * ubatch->n_pos];
+                    direct_query_positions_host[token] = ubatch->pos0(token);
                 }
                 set_direct_tensor(direct_query_positions, direct_query_positions_host.data(), 0,
                         direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
@@ -1263,7 +1263,9 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     if (!direct) {
         res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
                 selected ? (packed ? packed_row_capacity
-                                   : params.kv_attention_metadata.get_n_kv()) : 0);
+                                   : (dense ? uint32_t(GGML_PAD(params.kv_attention_metadata.get_n_kv(),
+                                               VBR_GENERATION_PAGE_CELLS))
+                                            : params.kv_attention_metadata.get_n_kv())) : 0);
     }
     if (selected && !direct && !dense && !packed) {
         res &= self_selected_idxs != nullptr;
@@ -4848,7 +4850,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         inp->direct_native_mask_host.assign(inp->exact_n_rows, 1);
         inp->direct_query_positions_host.reserve(ubatch.n_tokens);
         for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
-            inp->direct_query_positions_host.push_back(ubatch.pos[token * ubatch.n_pos]);
+            inp->direct_query_positions_host.push_back(ubatch.pos0(token));
         }
 
         uint32_t total_compact_row_begin = 0;
@@ -4976,7 +4978,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams,
                     inp->selected_attention
                         ? (inp->packed_attention ? inp->packed_row_capacity
-                                                  : selected_metadata->get_n_kv())
+                                                  : (inp->dense_attention
+                                                      ? uint32_t(GGML_PAD(selected_metadata->get_n_kv(),
+                                                              VBR_GENERATION_PAGE_CELLS))
+                                                      : selected_metadata->get_n_kv()))
                         : 0);
         }
         inp->self_kq_mask_cnv = inp->self_kq_mask;
@@ -5122,10 +5127,13 @@ ggml_tensor * llm_graph_context::build_attn(
                 v->nb[2] != ggml_row_size(v->type, v->ne[0]) * size_t(v->ne[1])) {
             throw std::runtime_error("selected dense view lost contiguous row eligibility");
         }
-        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1], eligibility.row_count, 1,
+        // Keep the mature CUDA FA tile contract: K/V and mask extents must
+        // include the already-owned final page. Padding is always -INFINITY
+        // in set_input's native-position mask; no copy/allocation is needed.
+        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1], eligibility.padded_row_count, 1,
                 k->nb[1], k->nb[2], k->nb[3],
                 uint64_t(eligibility.source_row_begin) * k->nb[2]);
-        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1], eligibility.row_count, 1,
+        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1], eligibility.padded_row_count, 1,
                 v->nb[1], v->nb[2], v->nb[3],
                 uint64_t(eligibility.source_row_begin) * v->nb[2]);
         v_for_unrotate = v;

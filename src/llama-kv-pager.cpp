@@ -1104,7 +1104,17 @@ std::vector<llama_kv_page_record> llama_kv_pager::exact_page_records(
             if (resident_keys.find(entry.first) != resident_keys.end()) {
                 continue;
             }
-            output.push_back(logical);
+            // The catalogue retains canonical bytes after a live transaction
+            // drops GPU residency. Its old physical slot is NOT ownership:
+            // it may now hold another page. Normalize every nonresident at
+            // this authority boundary, before selectors or rerank read it.
+            auto cold = logical;
+            cold.physical_slot = UINT32_MAX;
+            cold.state = llama_kv_page_state::host_clean;
+            cold.dirty = false;
+            cold.pin_count = 0;
+            cold.consumer_events = 0;
+            output.push_back(cold);
         }
         std::sort(output.begin(), output.end(),
                 [](const llama_kv_page_record & lhs,
@@ -2286,7 +2296,15 @@ llama_kv_routing_page_inventory llama_kv_pager::routing_inventory() const noexce
         for (const auto & entry : logical_catalogue_) {
             // Catalogue keys are unique; only the bounded resident set needs
             // a membership check, not the growing resident+cold output.
-            if (resident_keys.find(entry.first) == resident_keys.end()) output.push_back(entry.second);
+            if (resident_keys.find(entry.first) == resident_keys.end()) {
+                auto cold = entry.second;
+                cold.physical_slot = UINT32_MAX;
+                cold.state = llama_kv_page_state::host_clean;
+                cold.dirty = false;
+                cold.pin_count = 0;
+                cold.consumer_events = 0;
+                output.push_back(cold);
+            }
         }
         std::sort(output.begin(), output.end(), [](const auto & lhs, const auto & rhs) {
             if (lhs.id.sequence_id != rhs.id.sequence_id) {

@@ -2600,7 +2600,7 @@ void llama_kv_cache::capture_kv_routing_query(
                 bool final_query_row_present = false;
                 for (size_t row = 0; row < ubatch.n_tokens; ++row) {
                     final_query_row_present = final_query_row_present ||
-                        ubatch.pos[row * ubatch.n_pos] == final_query_position;
+                        ubatch.pos0(uint32_t(row)) == final_query_position;
                 }
                 if (final_query_row_present) {
                     // The server can announce a query before prompt prefill has
@@ -2635,7 +2635,7 @@ void llama_kv_cache::capture_kv_routing_query(
                     std::numeric_limits<size_t>::max() / ubatch.n_pos) {
             for (size_t row = 0; row < ubatch.n_tokens; ++row) {
                 final_user_row_present = final_user_row_present ||
-                    ubatch.pos[row * ubatch.n_pos] == turn.query_end - 1;
+                    ubatch.pos0(uint32_t(row)) == turn.query_end - 1;
             }
         }
         // Keep partial prompt graphs on the existing selector/cache state.
@@ -2708,7 +2708,7 @@ void llama_kv_cache::capture_kv_routing_query(
     value.sequence_id = sequence_id;
     value.query_generation = pager_query_generation_;
     value.table_epoch = snapshot.epoch();
-    const llama_pos position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
+    const llama_pos position = ubatch.pos0(ubatch.n_tokens - 1);
     if (position < 0) return;
     value.query_position = turn.phase == llama_kv_pager_turn_phase::query_provisional &&
             turn.query_end > 0
@@ -4057,8 +4057,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             llama_kv_live_policy_page page;
             page.record = record;
             const auto host = has_host(record.id);
-            page.record.host_valid = host;
             if (page.record.physical_slot == UINT32_MAX) {
+                // The catalog authenticates cold transfer sources. A retained
+                // resident's lifecycle flags belong to the published table:
+                // discovering a sealed host object must not mutate a pinned
+                // current page into a replacement during query publication.
+                page.record.host_valid = host;
                 page.record.state = llama_kv_page_state::host_clean;
                 page.record.dirty = false;
             }
@@ -18541,7 +18545,7 @@ void llama_kv_cache_context::note_kv_page_select_gate(
     if (ubatch.pos != nullptr && ubatch.n_tokens > 0 && ubatch.n_pos > 0 &&
             size_t(ubatch.n_tokens - 1) <=
                 std::numeric_limits<size_t>::max() / ubatch.n_pos) {
-        trace.graph_last_position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
+        trace.graph_last_position = ubatch.pos0(ubatch.n_tokens - 1);
     }
 }
 
@@ -18621,7 +18625,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     bool has_final_user_row = false;
     bool has_user_rows = false;
     for (size_t row = 0; row < ubatch.n_tokens; ++row) {
-        const llama_pos position = ubatch.pos[row * ubatch.n_pos];
+        const llama_pos position = ubatch.pos0(uint32_t(row));
         if (position >= turn.query_start && position < turn.query_end) {
             has_user_rows = true;
             has_final_user_row = has_final_user_row || position == turn.query_end - 1;
@@ -18833,7 +18837,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const uint32_t dim = uint32_t(bounds->ne[0]);
     const uint32_t capacity = pager.snapshot().logical_page_count;
     const size_t query_row = size_t(ubatch.n_tokens - 1);
-    const llama_pos position = ubatch.pos[query_row * ubatch.n_pos];
+    const llama_pos position = ubatch.pos0(uint32_t(query_row));
     if (position < 0) return false;
     const auto turn = pager.turn_state(ubatch.seq_id[0][0]);
     const bool query_provisional =
@@ -19029,7 +19033,7 @@ bool llama_kv_cache_context::can_reuse_kv_query_capture(
     bool has_user_row = false;
     bool has_final_row = false;
     for (uint32_t row = 0; row < ubatch.n_tokens; ++row) {
-        const auto position = ubatch.pos[size_t(row) * ubatch.n_pos];
+        const auto position = ubatch.pos0(row);
         has_user_row |= position >= turn.query_start && position < turn.query_end;
         has_final_row |= position == turn.query_end - 1;
     }
@@ -19050,7 +19054,7 @@ bool llama_kv_cache_context::set_kv_query_accumulate_inputs(
             ubatch.seq_id[0] == nullptr || ubatch.seq_id[0][0] < 0) return false;
     std::vector<int64_t> positions(ubatch.n_tokens);
     for (size_t row = 0; row < ubatch.n_tokens; ++row) {
-        positions[row] = ubatch.pos[row * ubatch.n_pos];
+        positions[row] = ubatch.pos0(uint32_t(row));
     }
     const auto turn = kv->get_kv_pager()->turn_state(ubatch.seq_id[0][0]);
     if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||

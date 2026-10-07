@@ -146,6 +146,7 @@ static void test_contiguous_prefix_after_reordering() {
     assert(status == llama_kv_attention_operator_status::ok);
     const auto dense = llama_kv_attention_dense_view_check(metadata, 8);
     assert(dense.eligible && dense.source_row_begin == 0 && dense.row_count == 900);
+    assert(dense.padded_row_count == 1024);
     (void) dense;
 }
 
@@ -204,6 +205,8 @@ static void test_operator_contract() {
     const auto tail_dense = llama_kv_attention_dense_view_check(tail_metadata, 8);
     assert(tail_dense.eligible && tail_dense.source_row_begin == 3 * VBR_GENERATION_PAGE_CELLS &&
            tail_dense.row_count == 132);
+    assert(tail_dense.padded_row_count == 256);
+    assert(tail_dense.source_row_begin + tail_dense.padded_row_count <= 8 * VBR_GENERATION_PAGE_CELLS);
     (void) tail_dense;
     assert(llama_kv_attention_operator_check_backend(
                 GGML_BACKEND_DEVICE_TYPE_CPU, metadata) ==

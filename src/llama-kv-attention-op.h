@@ -70,6 +70,9 @@ struct llama_kv_attention_dense_view_eligibility {
     bool eligible = false;
     uint32_t source_row_begin = 0;
     uint32_t row_count = 0;
+    // Mature GPU FA reads complete KV tiles. Padding stays inside the last
+    // physical page and is ALWAYS excluded by the native-position mask.
+    uint32_t padded_row_count = 0;
     const char * reason = "invalid metadata";
 };
 
