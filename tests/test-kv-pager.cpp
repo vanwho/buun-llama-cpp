@@ -1388,6 +1388,199 @@ static void test_pager_host_mutation() {
     std::cout << "h4096_warmup_erase_reservation=pass P=256 H=4096 C=4352 "
                  "routing_summary=ready atomic_batch=256\n";
 
+    // Recreate the production long-context append edge without replaying the
+    // full 114K-token prefix: three sealed history pages occupy three slots,
+    // while the fourth slot holds the 255-row mutable tail at logical page
+    // 447. The next 256-row graph completes that tail and opens page 448.
+    // This preserves the real page identities/positions and exercises the
+    // same public reservation/pin/seal transitions as the live cache.
+    host_page_fixture partial_boundary_fixture;
+    partial_boundary_fixture.initialize(1024);
+    partial_boundary_fixture.use_requested_page_identity = true;
+    auto partial_boundary_resources = resources(640, 128);
+    partial_boundary_resources.host_capture_enabled = true;
+    partial_boundary_resources.host_source_namespace = host_page_fixture::source_namespace;
+    partial_boundary_resources.host_child_id = 0;
+    partial_boundary_resources.host_stream_index = 0;
+    partial_boundary_resources.host_lanes = { { nullptr, nullptr, true } };
+    partial_boundary_resources.host_ring_bytes = 128;
+    partial_boundary_resources.host_chunk_bytes = 64;
+    partial_boundary_resources.host_budget.host.pageable_cap = 1u << 20;
+    partial_boundary_resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    partial_boundary_resources.host_budget.host.pinned_cap = 128;
+    partial_boundary_resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
+    partial_boundary_resources.host_budget.host.total_cap = 1u << 20;
+    partial_boundary_resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+    llama_kv_pager_config partial_boundary_config = config;
+    partial_boundary_config.hot_pages.automatic = false;
+    partial_boundary_config.hot_pages.value = 4;
+    auto partial_boundary_pager = llama_kv_pager::create(
+            partial_boundary_config, geometry(262144), partial_boundary_resources,
+            backend, status);
+    assert(partial_boundary_pager && status == llama_kv_pager_status::ok);
+    assert(partial_boundary_pager->snapshot().physical_page_count == 4);
+    partial_boundary_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    partial_boundary_pager->set_host_provider(
+            { &partial_boundary_fixture, host_page_fixture::prepare });
+    partial_boundary_pager->set_routing_summary_provider(
+            { nullptr, build_routing_summary });
+    for (uint32_t logical = 444; logical <= 446; ++logical) {
+        const llama_pos begin = llama_pos(logical) * 256;
+        std::vector<llama_pos> page_positions;
+        page_positions.reserve(256);
+        for (llama_pos position = begin; position < begin + 256; ++position) {
+            page_positions.push_back(position);
+        }
+        assert(partial_boundary_pager->begin_write_batch(0, 1, page_positions,
+                batch_boundary_tickets) == llama_kv_pager_write_status::ok);
+        assert(batch_boundary_tickets.size() == page_positions.size());
+        for (const auto & page_ticket : batch_boundary_tickets) {
+            assert(page_ticket.logical_page == logical);
+            assert(partial_boundary_pager->complete_write(page_ticket, 32, true) ==
+                    llama_kv_pager_write_status::ok);
+        }
+    }
+    std::vector<llama_pos> old_tail_positions;
+    old_tail_positions.reserve(255);
+    for (llama_pos position = 114432; position < 114687; ++position) {
+        old_tail_positions.push_back(position);
+    }
+    assert(partial_boundary_pager->begin_write_batch(0, 1, old_tail_positions,
+            batch_boundary_tickets) == llama_kv_pager_write_status::ok);
+    assert(batch_boundary_tickets.size() == old_tail_positions.size());
+    for (const auto & page_ticket : batch_boundary_tickets) {
+        assert(page_ticket.logical_page == 447);
+        assert(partial_boundary_pager->complete_write(page_ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    auto partial_resident = partial_boundary_pager->residency().pages();
+    assert(partial_resident.size() == 4);
+    const auto old_tail = std::find_if(partial_resident.begin(), partial_resident.end(),
+            [](const auto & page) { return page.id.logical_page == 447; });
+    assert(old_tail != partial_resident.end());
+    assert(old_tail->id.position_begin == 114432 &&
+            old_tail->id.position_end == 114687 && old_tail->pin_count == 1);
+    const uint32_t old_tail_slot = old_tail->physical_slot;
+    const llama_kv_page_id old_tail_identity = old_tail->id;
+    assert(partial_boundary_pager->seal_ready_pages() == 3);
+    const auto before_boundary_turn = partial_boundary_pager->residency().pages();
+    const auto committed_tail = std::find_if(before_boundary_turn.begin(),
+            before_boundary_turn.end(), [](const auto & page) {
+                return page.id.logical_page == 447;
+            });
+    assert(committed_tail != before_boundary_turn.end());
+    assert(!committed_tail->host_valid && committed_tail->pin_count == 1);
+    assert(partial_boundary_pager->transition_turn(0, 1, 0,
+            llama_kv_pager_turn_phase::query_provisional, 114432, 114687,
+            committed_tail->id, 0) == llama_kv_pager_turn_status::ok);
+    assert(partial_boundary_pager->clear_turn_state(0, 1, 0) ==
+            llama_kv_pager_turn_status::ok);
+    (void) partial_boundary_pager->seal_ready_pages(true);
+    const auto sealed_resident = partial_boundary_pager->residency().pages();
+    const auto sealed_tail = std::find_if(sealed_resident.begin(), sealed_resident.end(),
+            [](const auto & page) { return page.id.logical_page == 447; });
+    assert(sealed_tail != sealed_resident.end());
+    assert(sealed_tail->id == old_tail_identity && sealed_tail->host_valid &&
+            !sealed_tail->dirty && sealed_tail->pin_count == 0 &&
+            sealed_tail->id.position_end == 114687);
+    assert(!partial_boundary_pager->catalogue_maintenance_pending());
+    const auto sealed_host_pages = partial_boundary_pager->host_catalog()->pages();
+    assert(sealed_host_pages.size() == 4);
+    const auto sealed_tail_view = std::find_if(sealed_host_pages.begin(),
+            sealed_host_pages.end(), [&](const auto & page) {
+                return page.page.identity == old_tail_identity;
+            });
+    assert(sealed_tail_view != sealed_host_pages.end());
+    uint8_t canonical_tail_byte = 0;
+    assert(sealed_tail_view->page.units[0].bytes->read(
+            0, &canonical_tail_byte, sizeof(canonical_tail_byte)));
+    const auto sealed_tail_keepalive = *sealed_tail_view;
+    assert(partial_boundary_pager->transition_turn(0, 2, 0,
+            llama_kv_pager_turn_phase::query_provisional, 114687, 114943,
+            sealed_tail->id, 0) == llama_kv_pager_turn_status::ok);
+
+    std::vector<llama_pos> crossing_positions;
+    crossing_positions.reserve(256);
+    for (llama_pos position = 114687; position < 114943; ++position) {
+        crossing_positions.push_back(position);
+    }
+    assert(partial_boundary_pager->begin_write_batch(0, 1, crossing_positions,
+            batch_boundary_tickets) == llama_kv_pager_write_status::ok);
+    assert(batch_boundary_tickets.size() == crossing_positions.size());
+    const auto host_pages_after_rewrite = partial_boundary_pager->host_catalog()->pages();
+    assert(std::none_of(host_pages_after_rewrite.begin(), host_pages_after_rewrite.end(),
+            [&](const auto & page) { return page.page.identity == old_tail_identity; }));
+    uint8_t retained_canonical_tail_byte = 0;
+    assert(sealed_tail_keepalive.page.units[0].bytes->read(
+            0, &retained_canonical_tail_byte, sizeof(retained_canonical_tail_byte)));
+    assert(retained_canonical_tail_byte == canonical_tail_byte);
+    for (size_t i = 0; i < batch_boundary_tickets.size(); ++i) {
+        const auto & page_ticket = batch_boundary_tickets[i];
+        const llama_pos position = crossing_positions[i];
+        const uint32_t expected_logical = uint32_t(position / 256);
+        assert(page_ticket.position == position &&
+                page_ticket.logical_page == expected_logical);
+        assert(page_ticket.physical_row ==
+                page_ticket.physical_slot * 256 + uint32_t(position % 256));
+        if (i == 0) {
+            assert(page_ticket.logical_page == 447 &&
+                    page_ticket.physical_slot == old_tail_slot);
+        } else {
+            assert(page_ticket.logical_page == 448);
+        }
+    }
+    for (const auto & page_ticket : batch_boundary_tickets) {
+        assert(partial_boundary_pager->complete_write(page_ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    partial_resident = partial_boundary_pager->residency().pages();
+    assert(partial_resident.size() == 4);
+    const auto completed_old_tail = std::find_if(partial_resident.begin(),
+            partial_resident.end(), [](const auto & page) {
+                return page.id.logical_page == 447;
+            });
+    const auto new_tail = std::find_if(partial_resident.begin(),
+            partial_resident.end(), [](const auto & page) {
+                return page.id.logical_page == 448;
+            });
+    assert(completed_old_tail != partial_resident.end() &&
+            completed_old_tail->id.position_end == 114688 &&
+            completed_old_tail->valid_length == 256);
+    assert(new_tail != partial_resident.end() &&
+            new_tail->id.position_begin == 114688 &&
+            new_tail->id.position_end == 114943 && new_tail->valid_length == 255);
+    const auto exact_after_boundary = partial_boundary_pager->exact_page_records(0);
+    const auto cold_oldest = std::find_if(exact_after_boundary.begin(),
+            exact_after_boundary.end(), [](const auto & page) {
+                return page.id.logical_page == 444;
+            });
+    assert(cold_oldest != exact_after_boundary.end());
+    assert(cold_oldest->physical_slot == UINT32_MAX && cold_oldest->host_valid &&
+            cold_oldest->state == llama_kv_page_state::host_clean);
+
+    // A cancelled continuation must remove only its speculative row and keep
+    // the newly-created partial tail's committed 255-row extent intact.
+    assert(partial_boundary_pager->begin_write(0, 1, 114943, ticket) ==
+            llama_kv_pager_write_status::ok);
+    assert(partial_boundary_pager->complete_write(ticket, 32, false) ==
+            llama_kv_pager_write_status::ok);
+    const auto after_boundary_cancel = partial_boundary_pager->residency().pages();
+    const auto canceled_tail = std::find_if(after_boundary_cancel.begin(),
+            after_boundary_cancel.end(), [](const auto & page) {
+                return page.id.logical_page == 448;
+            });
+    assert(canceled_tail != after_boundary_cancel.end() &&
+            canceled_tail->id.position_end == 114943 &&
+            canceled_tail->valid_length == 255);
+    uint32_t canceled_row = UINT32_MAX;
+    assert(!partial_boundary_pager->physical_row(0, 114943, canceled_row));
+    std::cout << "partial_tail_batch_boundary=pass P=256 H=4 C=262144 "
+                 "positions=114687..114942 sealed_tail_host_invalidation=pass "
+                 "victim=oldest_host_clean phase=query_provisional\n";
+
     // A completed tail is sealed with only its committed rows. It must be
     // readable from the canonical catalog without turning padding into valid
     // positions, and a clean replacement must leave that host page alive.

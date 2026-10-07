@@ -3125,8 +3125,16 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
     if (result == llama_kv_residency_status::not_found) {
         result = residency_.replace(tx, page.record);
     }
-    if (result != llama_kv_residency_status::ok ||
-        residency_.publish(tx) != llama_kv_residency_status::ok) {
+    const auto publication = result == llama_kv_residency_status::ok
+        ? residency_.publish(tx) : result;
+    if (publication != llama_kv_residency_status::ok) {
+        // Failure-only evidence: successful writes do not scan, time, or log
+        // anything extra. Retain the producing status before rollback.
+        std::fprintf(stderr, "KV pager publish failure result=%u publish=%u seq=%d page=%u slot=%u begin=%d end=%d pins=%u\n",
+                unsigned(result), unsigned(publication), page.record.id.sequence_id,
+                page.record.id.logical_page, page.record.physical_slot,
+                page.record.id.position_begin, page.record.id.position_end,
+                page.record.pin_count);
         residency_.rollback(tx);
         return llama_kv_pager_write_status::transaction;
     }
@@ -3287,6 +3295,24 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
     }
     const uint32_t logical = uint32_t(logical64);
     const uint32_t offset = uint32_t(offset64);
+    const auto transaction_failure = [&](const char * stage, const page_state * failed) {
+        // Bounded on errors only; never a per-token success diagnostic or a
+        // cold-catalogue dump. This distinguishes a stale host tail from a
+        // planned-victim conflict without changing admission semantics.
+        std::fprintf(stderr, "KV pager write transaction stage=%s seq=%d position=%d logical=%u planned_slot=%u page=%u slot=%u state=%u pins=%u host=%u dirty=%u inflight=%u content=%llu host_content=%llu summary_content=%llu\n",
+                stage, sequence_id, position, logical, planned_slot,
+                failed ? failed->record.id.logical_page : UINT32_MAX,
+                failed ? failed->record.physical_slot : UINT32_MAX,
+                failed ? unsigned(failed->record.state) : 0,
+                failed ? failed->record.pin_count : 0,
+                failed ? unsigned(failed->record.host_valid) : 0,
+                failed ? unsigned(failed->record.dirty) : 0,
+                failed ? unsigned(failed->host_inflight) : 0,
+                failed ? (unsigned long long) failed->content_version : 0,
+                failed ? (unsigned long long) failed->host_content_version : 0,
+                failed ? (unsigned long long) failed->summary_content_version : 0);
+        return llama_kv_pager_write_status::transaction;
+    };
     const auto turn = turn_states_.find(sequence_id);
     const bool generation_active = turn != turn_states_.end() &&
         turn->second.phase == llama_kv_pager_turn_phase::generating;
@@ -3302,6 +3328,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
         for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
             page_state * candidate = find_slot(i);
             if (candidate && !frozen_history_page(candidate) && !candidate->host_inflight &&
+                    !candidate->record.dirty &&
                     candidate->record.pin_count == 0 && candidate->record.host_valid &&
                     candidate->host_content_version == candidate->content_version &&
                     candidate->record.content_version == candidate->content_version &&
@@ -3335,7 +3362,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
             }
         }
         if (page->host_inflight) {
-            return llama_kv_pager_write_status::transaction;
+            return transaction_failure("tail_host_inflight", page);
         }
     }
     const uint64_t content_version_before = page != nullptr ? page->content_version : 0;
@@ -3350,7 +3377,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
         // resident marker, so also check its complete retained identity.
         if (page->summary_content_version != 0 || routing_summaries_.contains(previous_id)) {
             if (!invalidate_routing_summaries({ previous_id })) {
-                return llama_kv_pager_write_status::transaction;
+                return transaction_failure("tail_summary_invalidation", page);
             }
         }
         page->content_version = advance_content_version(page->content_version);
@@ -3362,7 +3389,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
         page->content_version = content_version_before;
         page->host_content_version = page->content_version;
         page->summary_content_version = 0;
-        return llama_kv_pager_write_status::transaction;
+        return transaction_failure("tail_host_invalidation", page);
     }
     if (page != nullptr && page->record.host_valid) {
         page->record.host_valid = false;
@@ -3388,7 +3415,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
         uint32_t slot = UINT32_MAX;
         if (planned_slot != UINT32_MAX) {
             slot = planned_slot;
-            if (slot >= slot_pages_.size()) return llama_kv_pager_write_status::transaction;
+            if (slot >= slot_pages_.size()) return transaction_failure("planned_slot_range", page);
             if (planned_victim != nullptr) {
                 page_state * candidate = find_slot(slot);
                 if (candidate == nullptr || candidate->record.id != *planned_victim ||
@@ -3402,7 +3429,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
                          candidate->summary_content_version != candidate->content_version) ||
                         (candidate->record.state != llama_kv_page_state::host_clean &&
                          candidate->record.state != llama_kv_page_state::gpu_host_clean)) {
-                    return llama_kv_pager_write_status::transaction;
+                    return transaction_failure("planned_victim_revalidation", candidate);
                 }
                 const auto turn_state = turn_states_.find(sequence_id);
                 if (turn_state != turn_states_.end() &&
@@ -3412,14 +3439,14 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
                     const auto * history_victim = oldest_unselected_history_victim(
                         sequence_id, turn_state->second, {});
                     if (generation_victim != candidate && history_victim != candidate) {
-                        return llama_kv_pager_write_status::transaction;
+                        return transaction_failure("planned_generation_victim", candidate);
                     }
                 }
                 if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
-                    return llama_kv_pager_write_status::transaction;
+                    return transaction_failure("planned_victim_erase", candidate);
                 }
             } else if (slot_pages_[slot] >= 0) {
-                return llama_kv_pager_write_status::transaction;
+                return transaction_failure("planned_slot_occupied", find_slot(slot));
             }
         } else {
             for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
@@ -3436,7 +3463,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
             if (candidate != nullptr) {
                 slot = candidate->record.physical_slot;
                 if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
-                    return llama_kv_pager_write_status::transaction;
+                    return transaction_failure("victim_erase", candidate);
                 }
             }
         }
@@ -3457,7 +3484,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
                 if (candidate != nullptr) {
                     slot = candidate->record.physical_slot;
                     if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
-                        return llama_kv_pager_write_status::transaction;
+                        return transaction_failure("async_victim_erase", candidate);
                     }
                 }
             }
@@ -3533,7 +3560,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
             slot_pages_[page->record.physical_slot] = -1;
             *page = {};
         }
-        return llama_kv_pager_write_status::transaction;
+        return transaction_failure("write_publication", page);
     }
     page->owner = generation_active
         ? page_owner::current_turn_generation : page_owner::prior_turn_history;
@@ -3680,7 +3707,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                     if (page == nullptr || (page->record.id.sequence_id == sequence_id &&
                             std::find(written_logical_pages.begin(), written_logical_pages.end(),
                                 page->record.id.logical_page) != written_logical_pages.end())) continue;
-                    if (!frozen_history_page(page) && !page->host_inflight &&
+                    if (!frozen_history_page(page) && !page->host_inflight && !page->record.dirty &&
                             page->record.pin_count == 0 && page->record.host_valid &&
                             page->host_content_version == page->content_version &&
                             page->record.content_version == page->content_version &&
