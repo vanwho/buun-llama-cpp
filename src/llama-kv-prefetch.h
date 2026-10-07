@@ -13,6 +13,14 @@
 
 struct ggml_kv_page_rank_record;
 
+// H2D streams each page/unit through reusable bounded chunks. The pinned
+// ring bounds in-flight bytes, not the total bytes/pages in a transaction.
+// Slot, event, history and transfer-byte admission remain the owner's limits.
+inline size_t llama_kv_prefetch_streaming_page_budget(
+        uint64_t staging_capacity, size_t hot_capacity, size_t max_h2d_pages) noexcept {
+    return staging_capacity == 0 ? 0 : std::min(hot_capacity, max_h2d_pages);
+}
+
 // The scheduler is deliberately a small owner-side seam.  It does not know
 // about a backend stream or a residency table; those are supplied by these
 // callbacks so CPU replay and a device implementation use identical queue,

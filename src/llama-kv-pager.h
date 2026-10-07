@@ -383,6 +383,8 @@ struct llama_kv_pager_turn_state {
 // is diagnostic state only: it is populated after the normal policy boundary
 // commits a candidate and never participates in selection or residency.
 struct llama_kv_pager_natural_proof {
+    int32_t sequence_id = -1;
+    uint64_t sequence_generation = 0;
     uint64_t query_generation = 0;
     uint64_t query_position = 0;
     uint64_t catalogue_epoch = 0;

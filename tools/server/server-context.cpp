@@ -5194,6 +5194,8 @@ public:
                         pager.test_forced_host_checksum != 0 &&
                         pager.test_forced_host_checksum == pager.test_forced_device_checksum},
                     {"natural_proof", {
+                        {"sequence_id", pager.natural_proof.sequence_id},
+                        {"sequence_generation", pager.natural_proof.sequence_generation},
                         {"query_generation", pager.natural_proof.query_generation},
                         {"query_position", pager.natural_proof.query_position},
                         {"catalogue_epoch", pager.natural_proof.catalogue_epoch},

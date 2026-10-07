@@ -1134,10 +1134,13 @@ static void test_multi_page_h2d_uses_plan_local_page_indices() {
     assert(upload.runs[0].page_index == 0 && upload.runs[1].page_index == 1);
 
     llama_kv_residency_transfer_claim claim;
-    assert(pool->reserve(upload, 32, {}, claim) ==
+    assert(pool->reserve(upload, 8, {}, claim) ==
             llama_kv_residency_pool_status::ok);
     vbr_h2d_status ring_status;
-    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    // Two eight-byte pages exceed this ring's total capacity. Reuse its
+    // four-byte chunks while keeping both destination slots reserved until
+    // the complete transaction has finished.
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 8, 4, ring_status);
     assert(ring && ring_status == vbr_h2d_status::ok);
     llama_kv_residency_transfer_transport transport;
     transport.upload_ring = ring.get();
@@ -1147,6 +1150,7 @@ static void test_multi_page_h2d_uses_plan_local_page_indices() {
     const auto result = llama_kv_residency_execute_transfer(
             *pool, upload, claim, backend, transport);
     assert(result.status == llama_kv_residency_pool_status::ok);
+    assert(result.counters.copied_useful_bytes == 16);
     for (size_t i = 0; i < 8; ++i) {
         assert(fake.slots[0][i] == uint8_t(i + 1));
         assert(fake.slots[1][i] == uint8_t(i + 33));

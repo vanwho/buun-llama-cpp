@@ -409,6 +409,12 @@ static void test_mixed_selector_segments() {
 }
 
 int main() {
+    // A small reusable pinned ring must not cap a whole H2D transaction to
+    // ring_bytes/page_bytes; the transport streams it a chunk at a time.
+    assert(llama_kv_prefetch_streaming_page_budget(8, 16, 8) == 8);
+    assert(llama_kv_prefetch_streaming_page_budget(8, 3, 8) == 3);
+    assert(llama_kv_prefetch_streaming_page_budget(8, 16, 0) == 0);
+    assert(llama_kv_prefetch_streaming_page_budget(0, 16, 8) == 0);
     llama_kv_prefetch_predictor predictor(2);
     assert(predictor.observe(41, 3, 100,
             { intent(10, 1), intent(11, 4), intent(12, 2) }));

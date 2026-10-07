@@ -4797,10 +4797,15 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                 active_turn.query_start, active_turn.query_end,
                 pager_snapshot.geometry.page_tokens)
             : boundary.hot_capacity;
-        const uint64_t page_bytes = pager_snapshot.geometry.page_bytes;
-        const size_t staging_page_budget = page_bytes == 0 ? 0
-            : size_t(std::min<uint64_t>(SIZE_MAX,
-                boundary.transaction.staging_capacity / page_bytes));
+        // The upload ring is a reusable chunk stream, not an allocation for
+        // every promoted page. Dividing its capacity by full-bundle bytes
+        // incorrectly limited a valid multi-page transaction to one page (or
+        // none). execute_transfer streams runs and waits before publication;
+        // existing slot/event/max-transfer/history checks still admit the
+        // bounded transaction. No ring growth or extra GPU scratch is needed.
+        const size_t staging_page_budget = llama_kv_prefetch_streaming_page_budget(
+            boundary.transaction.staging_capacity, boundary.hot_capacity,
+            boundary.transaction.max_h2d_pages);
         if (rerank_mode) {
             std::vector<llama_kv_prefetch_common_history_bundle> ranked_history;
             if (!llama_kv_prefetch_rank_common_history(exact_history_records,
@@ -5749,6 +5754,8 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                     continue;
                 }
                 llama_kv_pager_natural_proof proof;
+                proof.sequence_id = after->id.sequence_id;
+                proof.sequence_generation = after->id.sequence_generation;
                 proof.query_generation = candidate.generation;
                 proof.query_position = candidate.query_position;
                 proof.catalogue_epoch = candidate.table_epoch;
@@ -5837,8 +5844,13 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                         }
 
                         llama_kv_pager_natural_proof proof;
+                        proof.sequence_id = after->id.sequence_id;
+                        proof.sequence_generation = after->id.sequence_generation;
                         proof.query_generation = pager_query_generation_;
-                        proof.query_position = transfer_page.page.position_begin;
+                        // A page's address is not the query that retrieved it.
+                        // Keep the fallback receipt bound to the authenticated
+                        // query commit, just like the candidate-backed receipt.
+                        proof.query_position = boundary.query_commit.query_position;
                         proof.catalogue_epoch = transfer_page.table_epoch;
                         proof.published_epoch = result.published_epoch;
                         proof.page_generation = after->id.page_generation;
