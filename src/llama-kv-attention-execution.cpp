@@ -48,6 +48,33 @@ bool production_direct_shape(
 
 } // namespace
 
+bool llama_kv_attention_graph_capacity(uint32_t base_capacity,
+        uint32_t physical_pages, uint32_t attention_layers,
+        uint32_t & capacity) noexcept {
+    if (physical_pages == 0 || attention_layers == 0) {
+        capacity = base_capacity;
+        return true;
+    }
+
+    // build_attn_inp_kv_impl creates four page views; build_attn creates
+    // two cache-write-dependent views and two copy tensors per page/layer.
+    // All eight consume arena objects, even though only six enter the graph.
+    // The fixed layer allowance covers cache/staging aliases, selector/probe
+    // sidebands and masks. Shared staging/padding/input objects have their own
+    // fixed allowance. One upper bound serves both the scheduler node array
+    // and llm_graph_result's tensor arena: this adds CPU metadata only, not
+    // target KV, packed numerical buffers or CUDA scratch bytes.
+    constexpr uint32_t shared_objects = 32;
+    constexpr uint32_t layer_objects = 32;
+    constexpr uint32_t page_layer_objects = 8;
+    const uint64_t remaining = uint64_t(UINT32_MAX) - base_capacity;
+    const uint64_t per_layer = uint64_t(physical_pages) * page_layer_objects + layer_objects;
+    if (remaining < shared_objects ||
+            attention_layers > (remaining - shared_objects) / per_layer) return false;
+    capacity = base_capacity + shared_objects + uint32_t(per_layer * attention_layers);
+    return true;
+}
+
 bool llama_kv_attention_committed_pages(
         const std::vector<std::vector<uint32_t>> & layer_pages,
         const std::vector<uint32_t> & committed_pages,

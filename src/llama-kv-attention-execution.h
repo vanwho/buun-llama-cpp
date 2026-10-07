@@ -12,6 +12,13 @@
 
 struct llama_kv_attention_execution_metrics;
 
+// A graph arena holds tensor objects as well as executable nodes. Packed
+// selected attention creates page-copy views outside the model's dense graph.
+// Budget those objects from admitted physical pages, never logical context L.
+bool llama_kv_attention_graph_capacity(uint32_t base_capacity,
+        uint32_t physical_pages, uint32_t attention_layers,
+        uint32_t & capacity) noexcept;
+
 // Serialize the exact selected view descriptors and causal visibility used by
 // an attention graph. This is only consumed by opt-in diagnostics.
 std::string llama_kv_attention_visibility_snapshot_json(

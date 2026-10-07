@@ -160,6 +160,67 @@ static void test_prefill_admission() {
     assert(large_decision.route == llama_kv_attention_execution_route::selected_packed);
 }
 
+static void test_graph_capacity_budget() {
+    const uint32_t base = 1024;
+    uint32_t capacity = 0;
+
+    assert(llama_kv_attention_graph_capacity(base, 0, 16, capacity));
+    assert(capacity == base);
+    assert(llama_kv_attention_graph_capacity(base, 200, 0, capacity));
+    assert(capacity == base);
+
+    assert(llama_kv_attention_graph_capacity(base, 200, 16, capacity));
+    const uint32_t budget_200x16 = capacity;
+    assert(uint64_t(budget_200x16) > uint64_t(base) + 8 * 200 * 16);
+    uint32_t fewer_pages = 0;
+    uint32_t more_pages = 0;
+    assert(llama_kv_attention_graph_capacity(base, 199, 16, fewer_pages));
+    assert(llama_kv_attention_graph_capacity(base, 201, 16, more_pages));
+    assert(fewer_pages < budget_200x16 && budget_200x16 < more_pages);
+
+    // A rejected capacity calculation must leave its output untouched.
+    capacity = 0x12345678;
+    assert(!llama_kv_attention_graph_capacity(UINT32_MAX - 10, 1, 1, capacity));
+    assert(capacity == 0x12345678);
+
+    // Exercise the actual no-allocation graph-result arena with all per-page
+    // tensor objects, including plan-only views that are never expanded into
+    // executable nodes, plus the two cache-write views and copy nodes.
+    constexpr uint32_t pages = 200;
+    constexpr uint32_t layers = 16;
+    constexpr uint32_t model_only_budget = 1024;
+    uint32_t arena_capacity = 0;
+    assert(llama_kv_attention_graph_capacity(
+            model_only_budget, pages, layers, arena_capacity));
+    const uint64_t planned_objects = uint64_t(pages) * layers * 8;
+    assert(planned_objects > model_only_budget);
+    assert(planned_objects + 1 <= arena_capacity);
+
+    llm_graph_result result(arena_capacity);
+    ggml_context * ctx = result.get_ctx();
+    auto * storage = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 1);
+    for (uint32_t layer = 0; layer < layers; ++layer) {
+        for (uint32_t page_id = 0; page_id < pages; ++page_id) {
+            // Four immutable-plan views plus two updated cache-write views.
+            auto * planned0 = ggml_view_1d(ctx, storage, 1, 0);
+            auto * planned1 = ggml_view_1d(ctx, storage, 1, 0);
+            auto * planned2 = ggml_view_1d(ctx, storage, 1, 0);
+            auto * planned3 = ggml_view_1d(ctx, storage, 1, 0);
+            auto * write0 = ggml_view_1d(ctx, storage, 1, 0);
+            auto * write1 = ggml_view_1d(ctx, storage, 1, 0);
+            assert(planned0 && planned1 && planned2 && planned3 && write0 && write1);
+            // Keep plan-only tensors alive in the arena without making them
+            // graph nodes; only the two copy results are executable nodes.
+            auto * copy0 = ggml_cpy(ctx, write0, storage);
+            auto * copy1 = ggml_cpy(ctx, write1, storage);
+            assert(copy0 && copy1);
+            ggml_build_forward_expand(result.get_gf(), copy0);
+            ggml_build_forward_expand(result.get_gf(), copy1);
+        }
+    }
+    assert(ggml_graph_n_nodes(result.get_gf()) > 0);
+}
+
 static void test_graph_thread_config_cache() {
     llama_context_graph_thread_config_cache cache;
     auto pool_a = reinterpret_cast<ggml_threadpool_t>(uintptr_t(1));
@@ -1311,6 +1372,7 @@ static void test_committed_layer_union() {
 
 int main() {
     test_prefill_admission();
+    test_graph_capacity_budget();
     test_graph_thread_config_cache();
     test_query_pages_cover_cross_page_ubatch();
     test_routes_epochs_and_fences();
