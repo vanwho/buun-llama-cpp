@@ -53,3 +53,49 @@ numerics and generation state;105-02a paired recall/canonical MTP/speed precedes
 105-03 scale. Misses insert targeted implementation before scale.105-04/05
 review current measurements. Load this note/current packet/immediate handoff,
 not transcripts; preserve raw history/hashes.
+
+## October7 setup repair and immediate longer row
+
+Wiretail already used --yolo; root-owned mode700 result directories caused
+the Permission denied errors, not a Codex sandbox. Both named hotpath29
+directories now have a ninja-only read/traverse ACL (including inherited
+read access), retaining private other-user permissions. Protected authorized
+reads use scoped sudo -n; do not recursively ingest historical results.
+Tool launches now spell out --dangerously-bypass-approvals-and-sandbox in
+assessment/fresh/resume paths. This does not elevate the Unix user.
+`/srv/wiretail` is not a Git worktree; its live tool, README and regression
+are updated in place. The portable runtime patch is archived under
+`.wiretail/execution/tooling-fixes/wiretail-permissions-20261007.patch`, outside
+normal task startup context. No Git commands were run against `/srv`.
+
+Main promotion driver previously hardcoded L8192 despite105-02's explicit
+L16384 command. CLI --context/--hot-pages now bind all identity, prompt-sizing
+and allocator checks; --print-server-command emits matching argv without
+launch. Tracing is optional. Validate the repository fixture manifest before
+service access; /srv/ai/paged-kv/fixtures is not this fixture root.
+
+Latest105-02 handoff: production direct24/4 Q1/Q3/Q256 numerical errors are
+0.000010/0/0 vs oracle. The materialized ordinary-FA control atQ256 differs
+by0.003883 vs oracle; it is NOT proof that the selected packed production
+dispatcher passes. Tokenizer-derived generation parity is still pending.
+No source sampler repair or new coherent selected/MTP proof is established.
+The completed selected recall remains slash filler,374/37 proposals/accepts.
+Preserve the active fixture work; do not repeat its failed patch anchors.
+
+105-02a starts with one32K/H16K repository occupancy+recall row toC~26000,
+before the small paired canonical matrix. Its completed goal_miss is useful
+ranking/speed evidence, not a reason for an unchanged retry.105-03 retains
+L262144/H51200 after any demonstrated correctness repair. Existing ordering
+is unchanged; no active task/status reset or server action is needed here.
+
+Validation of this setup repair:20 offline promotion-harness tests pass;
+Wiretail shell syntax, unrestricted-launch regression, task-state structure
+and active-plan validation pass. No model/build/service action was run.
+The broader Wiretail options suite has five stale model-policy test failures
+(removed family resolver/old assessment signature/default assignments); these
+are separate from this passing launch regression, not new runtime evidence.
+Benchmark-only harness/README changes are isolated in commit d6f6f7c55 and
+must remain excluded from an upstream product-code PR alongside other local
+tools/server/bench campaign tooling. The next runner owns the unfinished
+105-02 CUDA/replay fixture changes and its live proof/receipt; do not stage
+those partial edits as completed proof during this planning checkpoint.

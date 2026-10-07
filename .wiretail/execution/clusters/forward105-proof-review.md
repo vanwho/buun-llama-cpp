@@ -1,7 +1,8 @@
 # Cluster forward105-proof-review
 
 Revision: `hotpath-v10-20260914`.
-Order105-02 production-shape generation repair/proof,105-02a small paired
+Order105-02 production-shape generation repair/proof,105-02a ONE32K/H16K
+repo-content trajectory FIRST, then small paired
 recall/canonical MTP/speed,105-03 scale findings,105-04 summary,105-05 review.
 Read current packet, selected-generation-contract note and immediate compact
 handoff only.105-01 is deferred;

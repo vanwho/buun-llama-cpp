@@ -5,7 +5,8 @@ Revision: `hotpath-v10-20260914`. Amendment: `ranking-query-repair-20261006`.
 This is the architecture contract. The current execution amendment is
 `ranking-query-repair-20261006`, detailed in
 [ranking-query-repair](../engineering-notes/ranking-query-repair.md).
-Order105-01e/f/g ->105-02 generation contract ->105-02a paired small recall/MTP
+Order105-01e/f/g ->105-02 generation contract ->105-02a32K/H16K finding
+followed by paired small recall/MTP
 ->105-03 scale ->105-04/05 review;105-01 is deferred, not passed.
 For105-02 onward the compact
 [selected-generation contract](../engineering-notes/selected-generation-contract.md)

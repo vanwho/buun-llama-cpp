@@ -1,0 +1,37 @@
+--- a/wiretail.sh
++++ b/wiretail.sh
+@@ -31,6 +31,7 @@
+ #   retry budget and blocks the task.
+ # - The configured task default is the fallback for unmapped recommendations.
+-# - Unrestricted access (--yolo)
++# - Unrestricted Codex access (--dangerously-bypass-approvals-and-sandbox).
++#   Unix permissions still apply; scoped privileged operations use sudo -n.
+ #
+ # Platform policy on Ubuntu:
+ # - Run Linux-capable Dart, Flutter, backend, Android compile/APK/AAB tests.
+@@ -1992,4 +1993,10 @@
+   the preflight result, not as a hardware blocker.
++- Codex sandbox bypass does not change Unix file ownership. For a permission
++  error on an authorized artifact, retry the exact bounded read with sudo -n
++  (for example sudo -n rg against that file). Do not abandon the task, run
++  Codex as root, make private data world-readable, or recursively load old
++  result directories. Pre-create result directories as the invoking user;
++  privileged writers must preserve that user's access to their artifacts.
+ 
+ EXTERNAL DEPENDENCIES
+ 
+@@ -2131,3 +2132,3 @@
+   codex exec \
+-    --yolo \
++    --dangerously-bypass-approvals-and-sandbox \
+     --model "$assessment_model" \
+@@ -2444,3 +2445,3 @@
+       codex exec
+-      --yolo
++      --dangerously-bypass-approvals-and-sandbox
+       --model "$EFFECTIVE_MODEL"
+@@ -2456,3 +2457,3 @@
+       codex exec
+-      --yolo
++      --dangerously-bypass-approvals-and-sandbox
+       --model "$EFFECTIVE_MODEL"
