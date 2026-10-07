@@ -36114,7 +36114,7 @@
       "depends_on": [
         "105-01a"
       ],
-      "commit": "416dda32b34d1846d3294218038bf40fa677c6b3",
+      "commit": "c3b1287da447945593f44a41aa78cb35f4653971",
       "context_files": [
         ".wiretail/execution/clusters/forward105-key-ranking.md",
         ".wiretail/execution/engineering-notes/ranking-query-repair.md",
