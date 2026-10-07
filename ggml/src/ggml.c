@@ -7,6 +7,7 @@
 #include "ggml-threading.h"
 #include "ggml-cpu.h"
 #include "ggml.h"
+#include "ggml-kv-query-probes.h"
 
 // FIXME: required here for quantization functions
 #include "ggml-quants.h"
@@ -1454,11 +1455,15 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
 
     "GLU",
     "KV_PAGE_SELECT",
+    "KV_PAGE_RANK",
+    "KV_PAGE_RERANK",
+    "KV_PAGE_MASS",
     "KV_QUERY_ACCUMULATE",
+    "KV_QUERY_PROBES",
     "KV_PAGE_SUMMARY",
 };
 
-static_assert(GGML_OP_COUNT == 109, "GGML_OP_COUNT != 109");
+static_assert(GGML_OP_COUNT == 113, "GGML_OP_COUNT != 113");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1577,11 +1582,15 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
 
     "glu(x)",
     "kv_page_select(q, bounds, metadata, resident, query)",
+    "kv_page_rank(q, bounds, metadata, resident, query, probes, validity)",
+    "kv_page_rerank(probes, keys, descriptors, identity, validity, state)",
+    "kv_page_mass(state, descriptors, identity, validity)",
     "kv_query_accumulate(q, positions, sum, count, control)",
+    "kv_query_probes(q, positions, probes, validity, control)",
     "kv_page_summary(k, metadata, catalogue)",
 };
 
-static_assert(GGML_OP_COUNT == 109, "GGML_OP_COUNT != 109");
+static_assert(GGML_OP_COUNT == 113, "GGML_OP_COUNT != 113");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -5979,6 +5988,102 @@ struct ggml_tensor * ggml_kv_page_select(
     return result;
 }
 
+struct ggml_tensor * ggml_kv_page_rank(
+        struct ggml_context * ctx, struct ggml_tensor * q,
+        struct ggml_tensor * bounds, struct ggml_tensor * page_metadata,
+        struct ggml_tensor * resident_membership, struct ggml_tensor * query_metadata,
+        struct ggml_tensor * probes, struct ggml_tensor * probe_validity,
+        int k_resident, int k_cold, int page_size, int query_row,
+        uint32_t probe_mask, float attention_scale) {
+    GGML_ASSERT(q && bounds && page_metadata && resident_membership && query_metadata && probes && probe_validity);
+    GGML_ASSERT(q->type == GGML_TYPE_F32 && bounds->type == GGML_TYPE_F16);
+    GGML_ASSERT(probes->type == GGML_TYPE_F32 && probes->ne[0] == q->ne[0] && probes->ne[1] == q->ne[1]);
+    GGML_ASSERT(q->ne[3] == 1 && probes->ne[2] > 0 && probes->ne[2] <= 4 && probes->ne[3] == 1);
+    GGML_ASSERT(probe_validity->type == GGML_TYPE_I64 && probe_validity->ne[0] == 9);
+    GGML_ASSERT(bounds->ne[0] == q->ne[0] && bounds->ne[1] >= 3 && bounds->ne[2] > 0 && bounds->ne[3] > 0);
+    GGML_ASSERT(bounds->ne[3] <= INT32_MAX);
+    GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] >= 7 && page_metadata->ne[1] == bounds->ne[3]);
+    GGML_ASSERT(resident_membership->type == GGML_TYPE_I32 && resident_membership->ne[0] == bounds->ne[3]);
+    GGML_ASSERT(query_metadata->type == GGML_TYPE_I64 && query_metadata->ne[0] == 4 &&
+                query_metadata->ne[1] == 1 && query_metadata->ne[2] == 1 && query_metadata->ne[3] == 1);
+    GGML_ASSERT(q->ne[1] % bounds->ne[2] == 0 && k_resident >= 0 && k_cold >= 0 &&
+                (int64_t) k_resident + k_cold > 0 && (int64_t) k_resident + k_cold <= INT32_MAX);
+    GGML_ASSERT(page_size > 0 && query_row >= -1 && query_row < q->ne[2] && isfinite(attention_scale));
+    GGML_ASSERT(probe_mask == 0 || (probe_mask >> probes->ne[2]) == 0);
+    struct ggml_tensor * result = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 2, k_resident + k_cold);
+    result->op = GGML_OP_KV_PAGE_RANK;
+    result->src[0] = q; result->src[1] = bounds; result->src[2] = page_metadata;
+    result->src[3] = resident_membership; result->src[4] = query_metadata;
+    result->src[5] = probes; result->src[6] = probe_validity;
+    ggml_set_op_params_i32(result, 0, k_resident);
+    ggml_set_op_params_i32(result, 1, k_cold);
+    ggml_set_op_params_i32(result, 2, page_size);
+    ggml_set_op_params_i32(result, 3, query_row);
+    ggml_set_op_params_i32(result, 4, (int32_t) probe_mask);
+    ggml_set_op_params_f32(result, 5, attention_scale);
+    return result;
+}
+
+struct ggml_tensor * ggml_kv_page_rerank(
+        struct ggml_context * ctx, struct ggml_tensor * probes,
+        struct ggml_tensor * resident_keys, struct ggml_tensor * staged_cold_keys,
+        struct ggml_tensor * descriptors,
+        struct ggml_tensor * identity, struct ggml_tensor * validity,
+        struct ggml_tensor * state, float attention_scale, float logit_softcap) {
+    GGML_ASSERT(ctx && probes && resident_keys && staged_cold_keys && descriptors && identity && validity && state);
+    GGML_ASSERT(probes->type == GGML_TYPE_F32 && probes->ne[0] > 0 && probes->ne[1] > 0 &&
+                probes->ne[2] > 0 && probes->ne[2] <= 4 && probes->ne[3] == 1);
+    GGML_ASSERT(resident_keys->type == GGML_TYPE_TURBO4_0 && resident_keys->ne[0] % probes->ne[0] == 0);
+    const int64_t kv_heads = resident_keys->ne[0] / probes->ne[0];
+    GGML_ASSERT(kv_heads > 0 && probes->ne[1] % kv_heads == 0);
+    GGML_ASSERT(probes->ne[0] <= 256 && probes->ne[0] % 32 == 0 &&
+                (probes->ne[1] / kv_heads) * probes->ne[2] <= 64);
+    GGML_ASSERT(resident_keys->ne[1] > 0 && resident_keys->ne[2] > 0);
+    GGML_ASSERT(staged_cold_keys->type == GGML_TYPE_TURBO4_0 &&
+                staged_cold_keys->ne[0] == resident_keys->ne[0] &&
+                staged_cold_keys->ne[1] > 0 && staged_cold_keys->ne[2] > 0);
+    const size_t packed_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, resident_keys->ne[0]);
+    GGML_ASSERT(resident_keys->nb[1] >= packed_row_bytes && staged_cold_keys->nb[1] >= packed_row_bytes);
+    GGML_ASSERT(resident_keys->nb[2] >= resident_keys->nb[1] * resident_keys->ne[1] &&
+                staged_cold_keys->nb[2] >= staged_cold_keys->nb[1] * staged_cold_keys->ne[1]);
+    GGML_ASSERT(descriptors->nb[0] == sizeof(int64_t) && identity->nb[0] == sizeof(int64_t) &&
+                identity->nb[1] == 2 * sizeof(int64_t));
+    GGML_ASSERT(descriptors->type == GGML_TYPE_I64 && descriptors->ne[0] == 10 && descriptors->ne[1] > 0);
+    GGML_ASSERT(identity->type == GGML_TYPE_I64 && identity->ne[0] == 2 &&
+                identity->ne[1] == descriptors->ne[1] + 1);
+    GGML_ASSERT(validity->type == GGML_TYPE_I64 && validity->ne[0] == 9);
+    GGML_ASSERT(state->type == GGML_TYPE_F32 && state->ne[0] == 2 && state->ne[1] == descriptors->ne[1] &&
+                state->ne[2] == probes->ne[1] && state->ne[3] == probes->ne[2]);
+    GGML_ASSERT(isfinite(attention_scale) && isfinite(logit_softcap) && logit_softcap >= 0.0f);
+    struct ggml_tensor * result = ggml_new_tensor_3d(ctx, GGML_TYPE_F32,
+            descriptors->ne[1], probes->ne[1], probes->ne[2]);
+    result->op = GGML_OP_KV_PAGE_RERANK;
+    result->src[0] = probes; result->src[1] = resident_keys; result->src[2] = staged_cold_keys;
+    result->src[3] = descriptors; result->src[4] = identity; result->src[5] = validity; result->src[6] = state;
+    ggml_set_op_params_f32(result, 0, attention_scale);
+    ggml_set_op_params_f32(result, 1, logit_softcap);
+    return result;
+}
+
+struct ggml_tensor * ggml_kv_page_mass(
+        struct ggml_context * ctx, struct ggml_tensor * state,
+        struct ggml_tensor * descriptors, struct ggml_tensor * identity,
+        struct ggml_tensor * validity) {
+    GGML_ASSERT(ctx && state && descriptors && identity && validity);
+    GGML_ASSERT(state->type == GGML_TYPE_F32 && state->ne[0] == 2 && state->ne[1] > 0 &&
+                state->ne[2] > 0 && state->ne[3] > 0 && state->ne[3] <= 4);
+    GGML_ASSERT(descriptors->type == GGML_TYPE_I64 && descriptors->ne[0] == 10 &&
+                descriptors->ne[1] == state->ne[1]);
+    GGML_ASSERT(identity->type == GGML_TYPE_I64 && identity->ne[0] == 2 &&
+                identity->ne[1] == state->ne[1] + 1);
+    GGML_ASSERT(validity->type == GGML_TYPE_I64 && validity->ne[0] == 9);
+    struct ggml_tensor * result = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 2, state->ne[1]);
+    result->op = GGML_OP_KV_PAGE_MASS;
+    result->src[0] = state; result->src[1] = descriptors;
+    result->src[2] = identity; result->src[3] = validity;
+    return result;
+}
+
 struct ggml_tensor * ggml_kv_query_accumulate(
         struct ggml_context * ctx,
         struct ggml_tensor  * q,
@@ -6002,6 +6107,79 @@ struct ggml_tensor * ggml_kv_query_accumulate(
     result->src[2] = sum;
     result->src[3] = count;
     result->src[4] = control;
+    return result;
+}
+
+static struct ggml_tensor * ggml_kv_query_probes_impl(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * q,
+        struct ggml_tensor  * positions,
+        struct ggml_tensor  * probes,
+        struct ggml_tensor  * validity,
+        int64_t               generation,
+        int64_t               query_start,
+        int64_t               query_end,
+        const int32_t         rows[4]) {
+    GGML_ASSERT(q != NULL && probes != NULL && validity != NULL);
+    GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0 && q->ne[2] > 0 && q->ne[3] == 1);
+    GGML_ASSERT(positions != NULL || rows != NULL);
+    GGML_ASSERT(positions == NULL || (positions->type == GGML_TYPE_I64 && positions->ne[0] == q->ne[2]));
+    GGML_ASSERT(probes->type == GGML_TYPE_F32 && probes->ne[0] == q->ne[0] &&
+            probes->ne[1] == q->ne[1] && probes->ne[2] == 4);
+    GGML_ASSERT(validity->type == GGML_TYPE_I64 && ggml_nelements(validity) == 9);
+
+    struct ggml_tensor * result = ggml_new_tensor_3d(ctx, GGML_TYPE_F32,
+            probes->ne[0], probes->ne[1], probes->ne[2]);
+    struct ggml_kv_query_probe_params params = {0};
+    params.generation = generation;
+    params.query_start = query_start;
+    params.query_end = query_end;
+    params.indexed = rows != NULL;
+    for (int slot = 0; slot < 4; ++slot) {
+        params.rows[slot] = rows != NULL ? rows[slot] : -1;
+        GGML_ASSERT(rows == NULL || (rows[slot] >= -1 && rows[slot] < q->ne[2]));
+    }
+    GGML_ASSERT(sizeof(params) <= sizeof(result->op_params));
+    memcpy(result->op_params, &params, sizeof(params));
+    result->op = GGML_OP_KV_QUERY_PROBES;
+    result->src[0] = q;
+    result->src[1] = positions;
+    result->src[2] = probes;
+    result->src[3] = validity;
+    return result;
+}
+
+struct ggml_tensor * ggml_kv_query_probes(
+        struct ggml_context * ctx, struct ggml_tensor * q, struct ggml_tensor * positions,
+        struct ggml_tensor * probes, struct ggml_tensor * validity,
+        int64_t generation, int64_t query_start, int64_t query_end) {
+    return ggml_kv_query_probes_impl(ctx, q, positions, probes, validity,
+            generation, query_start, query_end, NULL);
+}
+
+struct ggml_tensor * ggml_kv_query_probes_indexed(
+        struct ggml_context * ctx, struct ggml_tensor * q,
+        struct ggml_tensor * probes, struct ggml_tensor * validity,
+        int64_t generation, int64_t query_start, int64_t query_end,
+        const int32_t rows[4]) {
+    return ggml_kv_query_probes_impl(ctx, q, NULL, probes, validity,
+            generation, query_start, query_end, rows);
+}
+
+// Spread capture preserves the same four-probe owner/storage and op size.
+// Its position policy is immutable, so graph replay has no sideband upload.
+struct ggml_tensor * ggml_kv_query_probes_spread(
+        struct ggml_context * ctx, struct ggml_tensor * q,
+        struct ggml_tensor * probes, struct ggml_tensor * validity,
+        int64_t generation, int64_t query_start, int64_t query_end,
+        const int32_t rows[4]) {
+    GGML_ASSERT(query_start >= 0 && query_end > query_start);
+    struct ggml_tensor * result = ggml_kv_query_probes_impl(ctx, q, NULL,
+            probes, validity, generation, query_start, query_end, rows);
+    struct ggml_kv_query_probe_params params;
+    memcpy(&params, result->op_params, sizeof(params));
+    params.indexed = GGML_KV_QUERY_PROBES_SPREAD;
+    memcpy(result->op_params, &params, sizeof(params));
     return result;
 }
 

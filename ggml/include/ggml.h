@@ -497,6 +497,25 @@ extern "C" {
         GGML_TYPE_COUNT   = 92,
     };
 
+    // Compact query-ranking record shared by backend kernels and host decoders.
+    // GGML_TYPE_I64 tensors of shape [2,count] carry these records via memcpy;
+    // negative logical_page means unused. Producers must emit finite
+    // probabilities for live records. Page identity remains owned by llama.
+    struct ggml_kv_page_probability_record {
+        int32_t logical_page;
+        uint32_t validity_flags;
+        float peak_probability;
+        float mean_probability;
+    };
+
+#ifdef __cplusplus
+    static_assert(sizeof(ggml_kv_page_probability_record) == 16,
+            "ggml_kv_page_probability_record must remain 16 bytes");
+#else
+    _Static_assert(sizeof(struct ggml_kv_page_probability_record) == 16,
+            "ggml_kv_page_probability_record must remain 16 bytes");
+#endif
+
     // EXL3 helpers: the type encodes the bit width and the codebook.
     // GGML_TYPE_EXL3_* = mul1 (codebook 2), EXL3M_* = mcg (1), EXL3T_* = 3inst (0)
     static inline bool ggml_type_is_exl3(enum ggml_type type) {
@@ -754,9 +773,23 @@ extern "C" {
         // resident membership, and the query/snapshot metadata respectively.
         GGML_OP_KV_PAGE_SELECT,
 
+        // Independent multi-probe ranker. Output is [2,count] I64 carrying
+        // ggml_kv_page_rank_record byte records; legacy IDs are unchanged.
+        GGML_OP_KV_PAGE_RANK,
+
+        // Exact key-only log-mass over checked Turbo4 page descriptors.
+        GGML_OP_KV_PAGE_RERANK,
+
+        // Normalize final exact-key state over the complete candidate pool.
+        GGML_OP_KV_PAGE_MASS,
+
         // Accumulate transformed query rows within the turn's user span,
         // updating persistent sum/count sidebands.
         GGML_OP_KV_QUERY_ACCUMULATE,
+
+        // Retain transformed query rows at four absolute positions in the
+        // current user span, updating persistent probe/validity sidebands.
+        GGML_OP_KV_QUERY_PROBES,
 
         // Incrementally update a min/max catalogue from packed Turbo4 K.
         GGML_OP_KV_PAGE_SUMMARY,
@@ -2690,6 +2723,63 @@ extern "C" {
     // 32-token query tail (first, middle, last). The result has the same shape:
     // mean, tail-first, tail-middle, final. Score those probes independently;
     // averaging them would reintroduce cancellation in the RoPE domain.
+    // Accumulate transformed query rows whose absolute positions are in
+    // [query_start, query_end), resetting persistent sum/count on turn change.
+    // Coarse ranking and exact key reranking share a compact 16-byte record
+    // that remains separate from the legacy page-selection output.
+    struct ggml_kv_page_rank_record {
+        int32_t logical_page;
+        uint32_t validity_flags;
+        float peak_probability;
+        float mean_probability;
+    };
+#ifdef __cplusplus
+    static_assert(sizeof(ggml_kv_page_rank_record) == 16,
+            "KV rank record must be 16 bytes");
+#else
+    _Static_assert(sizeof(struct ggml_kv_page_rank_record) == 16,
+            "KV rank record must be 16 bytes");
+#endif
+
+    // Rank compact logical pages from stored-space bounds and independent
+    // query probes. The probe tensor is [D,Qheads,probe_capacity].
+    GGML_API struct ggml_tensor * ggml_kv_page_rank(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * bounds,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * resident_membership,
+            struct ggml_tensor  * query_metadata,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * probe_validity,
+            int                   k_resident,
+            int                   k_cold,
+            int                   page_size,
+            int                   query_row,
+            uint32_t              probe_mask,
+            float                 attention_scale);
+
+    // Score valid probes against encoded Turbo4 keys using caller-owned
+    // running max/sum state and authenticated page identity sidebands.
+    GGML_API struct ggml_tensor * ggml_kv_page_rerank(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * resident_keys,
+            struct ggml_tensor  * staged_cold_keys,
+            struct ggml_tensor  * descriptors,
+            struct ggml_tensor  * identity,
+            struct ggml_tensor  * validity,
+            struct ggml_tensor  * state,
+            float                 attention_scale,
+            float                 logit_softcap);
+
+    GGML_API struct ggml_tensor * ggml_kv_page_mass(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * state,
+            struct ggml_tensor  * descriptors,
+            struct ggml_tensor  * identity,
+            struct ggml_tensor  * validity);
+
     GGML_API struct ggml_tensor * ggml_kv_query_accumulate(
             struct ggml_context * ctx,
             struct ggml_tensor  * q,
@@ -2697,6 +2787,38 @@ extern "C" {
             struct ggml_tensor  * sum,
             struct ggml_tensor  * count,
             struct ggml_tensor  * control);
+
+    // Capture Q rows at query_end - {1, 2, 4, 8}. The production owner already
+    // knows their row indices from the CPU batch, so indexed capture avoids a
+    // mutable device position sideband and its CUDA graph allocation lifetime.
+    struct ggml_kv_query_probe_params {
+        int64_t generation;
+        int64_t query_start;
+        int64_t query_end;
+        int32_t rows[4]; // -1 means this batch contains no row for that probe
+        int32_t indexed;
+    };
+
+    // Dynamic positions retained for standalone/reference users.
+    GGML_API struct ggml_tensor * ggml_kv_query_probes(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * positions,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * validity,
+            int64_t               generation,
+            int64_t               query_start,
+            int64_t               query_end);
+
+    GGML_API struct ggml_tensor * ggml_kv_query_probes_indexed(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * validity,
+            int64_t               generation,
+            int64_t               query_start,
+            int64_t               query_end,
+            const int32_t         rows[4]);
 
     // Metadata fields are [position, valid length, sequence generation,
     // page generation, physical slot, stream, ready, update]. A page is

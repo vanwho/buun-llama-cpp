@@ -1,4 +1,5 @@
 #include "llama-kv-routing-summary.h"
+#include "llama-kv-router-ranking.h"
 
 #include <algorithm>
 #include <cassert>
@@ -66,6 +67,18 @@ static llama_kv_residency_snapshot many_pages(uint32_t count,
 }
 
 int main() {
+    static_assert(sizeof(llama_kv_router_page_probability) == 16,
+            "ranking probability record layout is shared with GGML");
+    llama_kv_router_owner_state owner;
+    assert(owner.stage == llama_kv_router_owner_stage::idle);
+    assert(owner.probes.positions.empty() && owner.shortlist.pages.empty());
+    llama_kv_router_page_probability probability = { 4, 1, 0.75f, 0.25f };
+    assert(llama_kv_router_probability_record_valid(probability));
+    probability.mean_probability = std::numeric_limits<float>::quiet_NaN();
+    assert(!llama_kv_router_probability_record_valid(probability));
+    probability.logical_page = -1;
+    assert(llama_kv_router_probability_record_valid(probability));
+
     const auto snap = snapshot();
     std::vector<llama_kv_routing_page_input> inputs;
     for (const auto & page : snap.pages()) inputs.push_back(input(page, float(page.id.logical_page + 1)));
@@ -186,6 +199,48 @@ int main() {
     assert(layout.bytes == 10ull * 16 * 4 * 4 * 256 * 2 * sizeof(uint16_t));
     const auto catalogue = llama_kv_routing_catalogue_layout::make(10, 4, 256);
     assert(catalogue.bytes == 10ull * 4 * 256 * 3 * sizeof(uint16_t));
+
+    // Probe/rerank storage is explicit and derived from encoded K row bytes.
+    llama_kv_router_budget_config budget_config;
+    budget_config.attention_layers = 16;
+    budget_config.valid_probe_capacity = 3;
+    budget_config.query_heads = 8;
+    budget_config.head_dim = 256;
+    budget_config.key_ne0 = 256;
+    budget_config.key_type = GGML_TYPE_F16;
+    budget_config.page_tokens = 256;
+    budget_config.score_workspace_required_bytes = 3ull * 1024 * 1024;
+    budget_config.tensor_overhead_bytes = 128;
+    budget_config.allocator_alignment_bytes = 64;
+    budget_config.cuda_temporary_bytes = 512;
+    budget_config.event_bytes = 32;
+    const auto budget = llama_kv_router_make_budget(budget_config);
+    assert(budget.status == llama_kv_router_budget_status::ok);
+    assert(budget.key_row_bytes == 512);
+    assert(budget.key_page_bytes == 256ull * 512);
+    assert(budget.key_rows_per_chunk == 256);
+    assert(budget.ledger.probe_bytes == 16ull * 3 * 8 * 256 * sizeof(float));
+    assert(budget.ledger.score_workspace_bytes == 2ull * 1024 * 1024);
+    assert(budget.ledger.gpu_key_staging_bytes == 8ull * 1024 * 1024);
+    assert(budget.ledger.pinned_key_staging_bytes == 8ull * 1024 * 1024);
+    assert(budget.ledger.total_bytes == budget.ledger.probe_bytes +
+            budget.ledger.score_workspace_bytes + budget.ledger.gpu_key_staging_bytes +
+            budget.ledger.pinned_key_staging_bytes + 128 + 64 + 512 + 32);
+    auto row_overflow = budget_config;
+    row_overflow.key_type = GGML_TYPE_F32;
+    row_overflow.head_dim = 2 * 1024 * 1024;
+    row_overflow.key_ne0 = row_overflow.head_dim;
+    assert(llama_kv_router_make_budget(row_overflow).status ==
+            llama_kv_router_budget_status::key_row_exceeds_slot);
+    auto geometry_overflow = budget_config;
+    geometry_overflow.attention_layers = UINT32_MAX;
+    geometry_overflow.valid_probe_capacity = UINT32_MAX;
+    assert(llama_kv_router_make_budget(geometry_overflow).status ==
+            llama_kv_router_budget_status::overflow);
+    auto invalid_geometry = budget_config;
+    invalid_geometry.key_ne0 = 128;
+    assert(llama_kv_router_make_budget(invalid_geometry).status ==
+            llama_kv_router_budget_status::invalid_geometry);
     assert(llama_kv_routing_summary_device_layout::make(
             10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 16, sizeof(uint16_t)).bytes ==
             10ull * 16 * 4 * 16 * 256 * 2 * sizeof(uint16_t));

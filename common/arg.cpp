@@ -598,6 +598,12 @@ static void common_kv_pager_set_mode(common_params & params, const std::string &
     }
 }
 
+static void common_kv_router_set_mode(common_params & params, const std::string & value) {
+    if (!llama_kv_router_parse_mode(value, params.kv_pager.router)) {
+        throw std::invalid_argument("invalid --kv-router mode (expected legacy or probe-rerank)");
+    }
+}
+
 static void common_kv_pager_set_size(llama_kv_pager_auto_size & target, const std::string & value, const char * name) {
     if (!llama_kv_pager_parse_size(value, target)) {
         throw std::invalid_argument(string_format("invalid %s size: %s", name, value.c_str()));
@@ -2321,6 +2327,11 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         "experimental attention-aware KV pager mode (default: off)",
         [](common_params & params, const std::string & value) { common_kv_pager_set_mode(params, value); }
     ).set_env("LLAMA_KV_PAGER"));
+    add_opt(common_arg(
+        {"--kv-router"}, "legacy|probe-rerank",
+        "KV pager ranking mode (default: legacy)",
+        [](common_params & params, const std::string & value) { common_kv_router_set_mode(params, value); }
+    ).set_env("LLAMA_KV_ROUTER"));
     add_opt(common_arg(
         {"--kv-page-size"}, "N",
         "experimental pager logical page size in tokens (default: 256)",
