@@ -5,7 +5,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <array>
+#include <algorithm>
+#include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
 struct ggml_kv_page_rank_record;
@@ -92,6 +95,92 @@ inline bool llama_kv_prefetch_ranked_bundle_better(
     return lhs.logical_page < rhs.logical_page;
 }
 
+struct llama_kv_prefetch_common_history_bundle {
+    llama_kv_prefetch_candidate representative;
+    float peak_probability = 0.0f;
+    float mean_probability_sum = 0.0f;
+    uint32_t supporting_layers = 0;
+    bool cold = false;
+    std::vector<uint32_t> nominated_layers;
+};
+
+// Aggregate exact per-layer masses without rewarding a bundle that was only
+// nominated in one layer. Missing layers contribute zero to the mean.
+inline bool llama_kv_prefetch_rank_common_history(
+        const std::vector<llama_kv_prefetch_candidate> & candidates,
+        uint32_t participating_layers,
+        std::vector<llama_kv_prefetch_common_history_bundle> & output) {
+    output.clear();
+    if (participating_layers == 0) return candidates.empty();
+    for (const auto & candidate : candidates) {
+        if (candidate.provenance != llama_kv_prefetch_candidate::score_kind::exact_mass ||
+                !std::isfinite(candidate.peak_probability) ||
+                !std::isfinite(candidate.mean_probability) ||
+                candidate.peak_probability < 0.0f || candidate.mean_probability < 0.0f)
+            continue;
+        auto id = candidate.identity;
+        id.attention_layer = UINT32_MAX;
+        auto found = std::find_if(output.begin(), output.end(), [&](const auto & bundle) {
+            auto old = bundle.representative.identity;
+            old.attention_layer = UINT32_MAX;
+            return old == id;
+        });
+        if (found == output.end()) {
+            llama_kv_prefetch_common_history_bundle bundle;
+            bundle.representative = candidate;
+            bundle.representative.identity = id;
+            bundle.peak_probability = candidate.peak_probability;
+            bundle.mean_probability_sum = candidate.mean_probability;
+            bundle.supporting_layers = candidate.peak_probability > 0.0f ||
+                candidate.mean_probability > 0.0f ? 1u : 0u;
+            bundle.cold = candidate.cold;
+            bundle.nominated_layers.push_back(candidate.attention_layer);
+            output.push_back(std::move(bundle));
+            continue;
+        }
+        if (found->representative.content_version != candidate.content_version ||
+                found->representative.summary_version != candidate.summary_version ||
+                found->representative.identity.page_generation != candidate.identity.page_generation)
+            continue;
+        if (std::find(found->nominated_layers.begin(), found->nominated_layers.end(),
+                candidate.attention_layer) != found->nominated_layers.end()) continue;
+        found->nominated_layers.push_back(candidate.attention_layer);
+        found->peak_probability = std::max(found->peak_probability, candidate.peak_probability);
+        found->mean_probability_sum += candidate.mean_probability;
+        found->supporting_layers += candidate.peak_probability > 0.0f ||
+            candidate.mean_probability > 0.0f ? 1u : 0u;
+        found->cold = found->cold || candidate.cold;
+        found->representative.cold = found->cold;
+    }
+    std::sort(output.begin(), output.end(), [&](const auto & lhs, const auto & rhs) {
+        return llama_kv_prefetch_ranked_bundle_better(
+            { lhs.peak_probability, lhs.mean_probability_sum / participating_layers,
+                lhs.supporting_layers, lhs.representative.identity.logical_page },
+            { rhs.peak_probability, rhs.mean_probability_sum / participating_layers,
+                rhs.supporting_layers, rhs.representative.identity.logical_page });
+    });
+    return true;
+}
+
+inline std::vector<llama_kv_prefetch_common_history_bundle>
+llama_kv_prefetch_select_common_history(
+        const std::vector<llama_kv_prefetch_common_history_bundle> & ranked,
+        size_t capacity, size_t cold_budget, bool * budget_limited = nullptr) {
+    std::vector<llama_kv_prefetch_common_history_bundle> output;
+    size_t cold_count = 0;
+    if (budget_limited != nullptr) *budget_limited = false;
+    for (const auto & bundle : ranked) {
+        if (output.size() >= capacity) break;
+        if (bundle.cold && cold_count >= cold_budget) {
+            if (budget_limited != nullptr) *budget_limited = true;
+            continue;
+        }
+        output.push_back(bundle);
+        cold_count += bundle.cold ? 1u : 0u;
+    }
+    return output;
+}
+
 struct llama_kv_prefetch_page_descriptor {
     llama_kv_page_id identity;
     uint64_t content_version = 0;
@@ -157,9 +246,9 @@ bool llama_kv_prefetch_expand_selector_segments(
 // the cold ranking width must not silently exceed readback storage.
 constexpr uint32_t LLAMA_KV_QUERY_COLD_SELECTOR_PAGES = 5;
 constexpr uint32_t llama_kv_query_cold_rank_width(uint32_t cold_pages) noexcept {
-    const uint32_t quarter = cold_pages / 4u + (cold_pages % 4u != 0u);
-    const uint32_t target = quarter < 8u ? 8u : (quarter > 32u ? 32u : quarter);
-    return cold_pages < target ? cold_pages : target;
+    // Coarse K-only candidates are NOT the full-K/V promotion budget.
+    // Admit a bounded diverse key pool before exact rerank chooses winners.
+    return cold_pages < 64u ? cold_pages : 64u;
 }
 
 enum class llama_kv_prefetch_mailbox_poll : uint8_t {

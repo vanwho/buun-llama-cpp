@@ -399,6 +399,13 @@ bool llama_memory_hybrid_iswa_context::set_kv_query_probe_inputs(
     return get_attn() != nullptr && get_attn()->set_kv_query_probe_inputs(probes, ubatch);
 }
 
+bool llama_memory_hybrid_iswa_context::can_reuse_kv_query_capture(
+        const ggml_tensor * query_op, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) const {
+    return get_attn() != nullptr && get_attn()->can_reuse_kv_query_capture(
+            query_op, ubatch, sequence_id, final_batch);
+}
+
 bool llama_memory_hybrid_iswa_context::set_kv_page_select_inputs(
         ggml_tensor * bounds, ggml_tensor * metadata,
         ggml_tensor * membership, ggml_tensor * query, int layer,

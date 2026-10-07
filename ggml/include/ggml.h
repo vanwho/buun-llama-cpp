@@ -2747,7 +2747,7 @@ extern "C" {
     // Mutates caller-owned [2,n_pages,Qheads,probes] running (max,sum) state.
     // [10,n_pages]: logical id, physical slot, valid rows, stream, page size,
     // generation, content version, eligible, first absolute row, key set (0 resident/1 staged).
-    // Identity is I64[2,P+1]: column 0 is query generation/job serial and
+    // Identity is I64[2,P+1]: column 0 is probe capture generation/job serial
     // columns 1..P contain page generation/content version pairs. State is
     // [2,P,Qheads,probes] containing running max and sum.
     GGML_API struct ggml_tensor * ggml_kv_page_rerank(
@@ -2781,14 +2781,37 @@ extern "C" {
             struct ggml_tensor  * count,
             struct ggml_tensor  * control);
 
-    // Capture Q rows at query_end - {1, 2, 4, 8}; validity is generation-checked.
+    // Capture Q rows at query_end - {1, 2, 4, 8}. The production owner already
+    // knows their row indices from the CPU batch, so indexed capture avoids a
+    // mutable device position sideband and its CUDA graph allocation lifetime.
+    struct ggml_kv_query_probe_params {
+        int64_t generation;
+        int64_t query_start;
+        int64_t query_end;
+        int32_t rows[4]; // -1 means this batch contains no row for that probe
+        int32_t indexed;
+    };
+
+    // Dynamic positions retained for standalone/reference users.
     GGML_API struct ggml_tensor * ggml_kv_query_probes(
             struct ggml_context * ctx,
             struct ggml_tensor  * q,
             struct ggml_tensor  * positions,
             struct ggml_tensor  * probes,
             struct ggml_tensor  * validity,
-            struct ggml_tensor  * control);
+            int64_t               generation,
+            int64_t               query_start,
+            int64_t               query_end);
+
+    GGML_API struct ggml_tensor * ggml_kv_query_probes_indexed(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * validity,
+            int64_t               generation,
+            int64_t               query_start,
+            int64_t               query_end,
+            const int32_t         rows[4]);
 
     // Metadata fields are [position, valid length, sequence generation,
     // page generation, physical slot, stream, ready, update]. A page is

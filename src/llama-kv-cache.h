@@ -4,6 +4,7 @@
 #include "llama-graph.h"
 #include "llama-kv-cells.h"
 #include "llama-kv-pager.h"
+#include "llama-kv-router-job.h"
 #include "llama-memory.h"
 #include "llama-vbr-generation.h"
 #include "llama-vbr-hard-seal.h"
@@ -34,6 +35,8 @@ struct llama_cparams;
 struct llama_hparams;
 struct llama_model;
 class llama_kv_router_job;
+struct llama_kv_router_layer_plan;
+enum class llama_kv_router_plan_error : uint8_t;
 struct llama_context;
 class vbr_unit_build;
 class vbr_pinned_chunk_ring;
@@ -203,6 +206,9 @@ public:
     void note_kv_pager_accepted_tokens(uint32_t count) override;
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
             int64_t query_start, int64_t query_end) override;
+    bool prepare_router_query_layers(int32_t sequence_id, uint64_t turn_id,
+            std::vector<llama_kv_router_layer_plan> & plans,
+            llama_kv_router_plan_error & error) noexcept;
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) override;
     bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
@@ -214,6 +220,10 @@ public:
             const std::vector<llama_kv_pager_selected_history> & history) override;
     bool get_kv_pager_history_for_test(int32_t sequence_id,
             std::vector<llama_kv_pager_selected_history> & history) const override;
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const override;
     int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const override;
     void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
@@ -758,7 +768,7 @@ private:
     static void pager_host_snapshot_release(
         void * context,
         const vbr_selected_page_capture_snapshot & snapshot) noexcept;
-    void apply_pager_live_policy() noexcept;
+    void apply_pager_live_policy(bool drain_selector_only = false) noexcept;
     bool vbr_capture_stability_matches(
         const vbr_capture_stability_token & token) const noexcept;
     bool vbr_capture_generation_record(
@@ -1603,6 +1613,7 @@ private:
     // separate from apply_ubatch: graph construction/allocation may still fail.
     llama_kv_pager * pager_ = nullptr;
     std::unique_ptr<llama_kv_router_job> pager_router_job_;
+    llama_kv_router_query_executor pager_query_executor_;
     llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
     uint64_t pager_query_generation_ = 0;
@@ -1612,6 +1623,8 @@ private:
     uint64_t pager_query_accepted_tokens_ = 0;
     uint64_t pager_query_refresh_watermark_ = 0;
     uint64_t pager_query_refresh_turn_id_ = 0;
+    // Query capture ownership outlives the one-shot refresh notification.
+    uint64_t pager_query_capture_turn_id_ = 0;
     bool pager_query_refresh_enabled_ = true;
     // A policy boundary is needed after page maintenance or a ready routing
     // candidate, not after every unchanged write-frontier publication.
@@ -1677,6 +1690,33 @@ private:
     };
     std::vector<pager_coarse_shortlist> pager_coarse_shortlists_;
     std::vector<llama_kv_prefetch_candidate> pager_exact_rerank_candidates_;
+    struct pager_prepared_history_winner {
+        llama_kv_page_id identity;
+        uint64_t content_version = 0;
+        uint64_t summary_version = 0;
+        uint64_t transaction_id = 0;
+        bool requires_publication = false;
+    };
+    std::vector<pager_prepared_history_winner> pager_prepared_history_winners_;
+    uint64_t pager_policy_transaction_id_ = 1;
+    struct pager_query_publication {
+        int32_t sequence_id = -1;
+        uint64_t turn_id = 0;
+        uint64_t transaction_id = 0;
+        uint64_t generation = 0;
+        bool complete = false;
+    };
+    pager_query_publication pager_query_publication_;
+    struct pager_router_query_completion {
+        llama_kv_router_execution_status status = llama_kv_router_execution_status::pending;
+        llama_kv_router_plan_error plan_error = llama_kv_router_plan_error::none;
+        llama_kv_router_owner_stage stage = llama_kv_router_owner_stage::idle;
+        int32_t sequence_id = -1;
+        uint64_t turn_id = 0;
+        uint32_t layer = UINT32_MAX;
+        std::vector<llama_kv_router_exact_page_record> records;
+        bool ready() const noexcept { return status == llama_kv_router_execution_status::ready; }
+    } pager_router_completion_;
     struct pager_selector_submission {
         struct segment {
             pager_routing_output output;
@@ -1691,9 +1731,22 @@ private:
         std::vector<segment> segments;
     };
     std::array<pager_selector_submission, 2> pager_selector_submissions_;
-    bool complete_router_query_job(int32_t sequence_id, uint64_t turn_id) noexcept;
+    const pager_router_query_completion & complete_router_query_job(
+            int32_t sequence_id, uint64_t turn_id) noexcept;
+    static llama_kv_router_execution_status execute_router_job_adapter(void * context,
+            const llama_kv_router_query_identity & identity,
+            const std::vector<llama_kv_router_layer_plan> & plans,
+            std::vector<llama_kv_router_exact_page_record> & records) noexcept;
+    static bool prepare_router_query_adapter(void * context, int32_t sequence_id,
+            uint64_t turn_id, std::vector<llama_kv_router_layer_plan> & plans,
+            llama_kv_router_plan_error & error) noexcept;
+    static void adopt_router_query_adapter(void * context,
+            llama_kv_router_execution_status status,
+            const std::vector<llama_kv_router_exact_page_record> & records) noexcept;
     void retain_pager_coarse_shortlist(uint64_t query_generation,
             uint64_t table_epoch, uint32_t layer,
+            int32_t sequence_id, uint64_t session_generation,
+            uint64_t rollback_generation,
             const llama_kv_prefetch_candidate * records, uint32_t count) noexcept;
     struct pager_selector_page_state {
         llama_kv_page_id identity;
@@ -2109,6 +2162,9 @@ public:
             ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
     bool set_kv_query_probe_inputs(
             ggml_tensor * probes, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * query_op, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
     bool can_reuse_kv_page_select(
             const ggml_tensor * bounds, int layer,
             const llama_ubatch & ubatch) const override;

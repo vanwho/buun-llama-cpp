@@ -265,6 +265,10 @@ struct llama_memory_context_i {
         return false;
     }
 
+    virtual bool can_reuse_kv_query_capture(
+            const ggml_tensor * /* query_op */, const llama_ubatch & /* ubatch */,
+            llama_seq_id /* sequence_id */, bool /* final_batch */) const { return false; }
+
     // Selector graph reuse is valid only when the logical catalogue shape and
     // sequence identity still match the captured node.
     virtual bool can_reuse_kv_page_select(
@@ -388,6 +392,12 @@ struct llama_memory_i {
     }
     virtual bool get_kv_pager_history_for_test(int32_t /* sequence_id */,
             std::vector<llama_kv_pager_selected_history> & /* history */) const {
+        return false;
+    }
+    virtual bool get_kv_pager_router_execution_for_test(
+            uint32_t & /* stage */, uint32_t & /* resident_rerank_graphs */,
+            uint32_t & /* cold_reader_graphs */, uint32_t & /* reader_events */,
+            uint32_t & /* mass_graphs */, uint32_t & /* output_records */) const {
         return false;
     }
     virtual int32_t get_kv_pager_turn_phase_for_test(int32_t /* sequence_id */) const {

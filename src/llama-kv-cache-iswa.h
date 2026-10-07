@@ -316,6 +316,9 @@ public:
             ggml_tensor ** probe_capture = nullptr) const override;
     bool set_kv_query_probe_inputs(
             ggml_tensor * probes, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * query_op, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
     bool set_kv_page_select_inputs(
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,

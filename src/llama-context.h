@@ -509,6 +509,14 @@ struct llama_context {
             std::vector<llama_kv_pager_selected_history> & history) const {
         return memory && memory->get_kv_pager_history_for_test(sequence_id, history);
     }
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const {
+        return memory && memory->get_kv_pager_router_execution_for_test(stage,
+                resident_rerank_graphs, cold_reader_graphs, reader_events,
+                mass_graphs, output_records);
+    }
     llama_kv_pager * get_kv_pager_owner_for_test() const noexcept {
         return kv_pager_owner.get();
     }

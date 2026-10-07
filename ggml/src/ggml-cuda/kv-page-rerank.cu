@@ -96,13 +96,26 @@ __global__ void kv_page_mass_emit(const float * state,size_t nb0,size_t nb1,size
         const float m=*(const float *)((const char *)state+page*nb1+h*nb2+q*nb3);
         const float z=*(const float *)((const char *)state+nb0+page*nb1+h*nb2+q*nb3);
         const float x=probs[page+pages*channel];
-        if(z>0&&isfinite(z)&&isfinite(m)){const float bounded=fminf(1.0f,fmaxf(0.0f,x));pmax=fmaxf(pmax,bounded);psum+=bounded;++n;}
+        // The mean denominator is the set of globally valid channels, not only
+        // channels for which this page had a causal row. A missing contribution
+        // is zero but still participates in the mean. If no channel has a
+        // finite denominator anywhere, all means stay zero and owner validation
+        // fails the layer normalization check.
+        if(valid[5+q]){
+            ++n;
+            if(z>0&&isfinite(z)&&isfinite(m)){
+                const float bounded=fminf(1.0f,fmaxf(0.0f,x));
+                pmax=fmaxf(pmax,bounded);
+                psum+=bounded;
+            }
+        }
     }
     peak[tid]=pmax;sum[tid]=psum;count[tid]=n;__syncthreads();
     for(int step=128;step>0;step>>=1){if(tid<step){peak[tid]=fmaxf(peak[tid],peak[tid+step]);sum[tid]+=sum[tid+step];count[tid]+=count[tid+step];}__syncthreads();}
     if(tid==0){
         const int64_t * d=(const int64_t *)(desc+page*desc_nb1);
-        if(mass_eligible(page,desc,desc_nb1,ids,valid)&&count[0]>0)output[page]={int32_t(d[0]),1u,peak[0],sum[0]/count[0]};
+        if(mass_eligible(page,desc,desc_nb1,ids,valid)&&count[0]>0)
+            output[page]={int32_t(d[0]),1u,peak[0],sum[0]/count[0]};
         else output[page]={-1,0u,0.0f,0.0f};
     }
 }

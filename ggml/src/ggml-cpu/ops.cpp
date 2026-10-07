@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstring>
 
 // ggml_compute_forward_dup
 
@@ -8854,7 +8855,7 @@ void ggml_compute_forward_kv_page_rank(const ggml_compute_params * params, ggml_
                         bool good = true;
                         for (int64_t d = 0; d < bounds->ne[0]; ++d) {
                             const double qi = double(tensor_f32(probes, d, head, probe)) * scale;
-                            if (std::isnan(qi)) { good = false; break; }
+                            if (!std::isfinite(qi)) { good = false; break; }
                             if (qi == 0.0) continue; // Avoid 0 * +/-infinity.
                             if (source == 0) {
                                 const double lo = tensor_f16(bounds, d, 0, kv_head, page);
@@ -8903,8 +8904,23 @@ void ggml_compute_forward_kv_page_rank(const ggml_compute_params * params, ggml_
         }
     }
     struct page_score { int32_t id; float peak; float mean; };
+    const auto usable_channels_for = [&](int region, int source) {
+        int usable = 0;
+        for (int64_t head = 0; head < heads; ++head) for (int64_t probe = 0; probe < n_probes; ++probe) {
+            if (!(probe_mask & (1u << probe)) || !valid[5 + probe]) continue;
+            const int64_t context = (source*heads + head)*n_probes + probe;
+            bool seen = false;
+            for (int64_t page = 0; page < n_pages; ++page) {
+                const size_t index = size_t(context*n_pages + page);
+                seen = seen || (eligible[size_t(region*n_pages + page)] && !std::isnan(logits[index]));
+            }
+            usable += seen;
+        }
+        return usable;
+    };
     const auto scores_for = [&](int region, int source) {
         std::vector<page_score> out;
+        const int usable_channels = usable_channels_for(region, source);
         for (int64_t page = 0; page < n_pages; ++page) {
             if (!eligible[size_t(region*n_pages + page)]) continue;
             double peak = 0.0, sum = 0.0; int seen = 0;
@@ -8913,7 +8929,7 @@ void ggml_compute_forward_kv_page_rank(const ggml_compute_params * params, ggml_
                 const size_t index = size_t(context*n_pages + page);
                 if (!std::isnan(logits[index])) { peak = std::max(peak, probs[index]); sum += probs[index]; ++seen; }
             }
-            if (seen) out.push_back({int32_t(page), float(peak), float(sum/seen)});
+            if (seen && usable_channels > 0) out.push_back({int32_t(page), float(peak), float(sum/usable_channels)});
         }
         std::stable_sort(out.begin(), out.end(), [](const auto & a, const auto & b) {
             if (a.peak != b.peak) return a.peak > b.peak;
@@ -8930,27 +8946,58 @@ void ggml_compute_forward_kv_page_rank(const ggml_compute_params * params, ggml_
         const int64_t cold_available = region == 1
             ? std::count(eligible.begin() + region*n_pages,
                          eligible.begin() + (region+1)*n_pages, uint8_t(1)) : 0;
-        const int64_t quarter = cold_available / 4 + (cold_available % 4 != 0);
-        const int limit = region == 1
-            ? int(std::min<int64_t>(width, std::min<int64_t>(cold_available,
-                    std::max<int64_t>(8, std::min<int64_t>(32, quarter)))))
-            : width;
+        const int limit = region == 1 ? int(std::min<int64_t>(width, cold_available)) : width;
         std::vector<page_score> merged;
+        const auto better = [](const auto & x, const auto & y) {
+            if (x.peak != y.peak) return x.peak > y.peak;
+            if (x.mean != y.mean) return x.mean > y.mean;
+            return x.id < y.id;
+        };
+        const auto add_unique = [&](const page_score & score) {
+            if (std::none_of(merged.begin(), merged.end(), [&](const auto & x) { return x.id == score.id; })) {
+                merged.push_back(score);
+            }
+        };
+        // Reserve one representative for every usable head/probe and score
+        // source before filling the remaining bounded pool from global lists.
+        if (region == 1) {
+            for (int source = 0; source < 2; ++source) {
+                const auto & list = source == 0 ? a : b;
+                for (int64_t head = 0; head < heads; ++head) for (int64_t probe = 0; probe < n_probes; ++probe) {
+                    if (!(probe_mask & (1u << probe)) || !valid[5 + probe]) continue;
+                    const int64_t context = (source*heads + head)*n_probes + probe;
+                    int32_t best_page = -1;
+                    double best_probability = -1.0;
+                    for (int64_t page = 0; page < n_pages; ++page) {
+                        const size_t index = size_t(context*n_pages + page);
+                        const double probability = probs[index];
+                        if (!eligible[size_t(region*n_pages + page)] || std::isnan(logits[index])) continue;
+                        if (best_page < 0 || probability > best_probability ||
+                                (probability == best_probability && page < best_page)) {
+                            best_page = int32_t(page);
+                            best_probability = probability;
+                        }
+                    }
+                    if (best_page >= 0) {
+                        const auto found = std::find_if(list.begin(), list.end(), [&](const auto & x) { return x.id == best_page; });
+                        if (found != list.end()) add_unique(*found);
+                    }
+                }
+            }
+        }
+        std::stable_sort(merged.begin(), merged.end(), better);
+        if (int(merged.size()) > limit) merged.resize(size_t(limit));
         const int seed = (limit + 1) / 2;
-        for (int i = 0; i < seed && i < int(a.size()); ++i) merged.push_back(a[size_t(i)]);
-        for (int i = 0; i < seed && i < int(b.size()); ++i) if (std::none_of(merged.begin(), merged.end(), [&](auto x){return x.id == b[size_t(i)].id;})) merged.push_back(b[size_t(i)]);
+        for (int i = 0; i < seed && i < int(a.size()) && int(merged.size()) < limit; ++i) add_unique(a[size_t(i)]);
+        for (int i = 0; i < seed && i < int(b.size()) && int(merged.size()) < limit; ++i) add_unique(b[size_t(i)]);
         size_t ai = size_t(std::min<int>(seed, int(a.size()))), bi = size_t(std::min<int>(seed, int(b.size())));
         bool take_a = true;
         while (int(merged.size()) < limit && (ai < a.size() || bi < b.size())) {
             auto & list = take_a ? a : b; auto & cursor = take_a ? ai : bi;
-            if (cursor < list.size() && std::none_of(merged.begin(), merged.end(), [&](auto x){return x.id == list[cursor].id;})) merged.push_back(list[cursor]);
+            if (cursor < list.size()) add_unique(list[cursor]);
             ++cursor; take_a = !take_a;
         }
-        std::stable_sort(merged.begin(), merged.end(), [](const auto & x, const auto & y) {
-            if (x.peak != y.peak) return x.peak > y.peak;
-            if (x.mean != y.mean) return x.mean > y.mean;
-            return x.id < y.id;
-        });
+        std::stable_sort(merged.begin(), merged.end(), better);
         if (int(merged.size()) > width) merged.resize(size_t(width));
         chosen.insert(chosen.end(), merged.begin(), merged.end());
     }
@@ -9055,7 +9102,9 @@ void ggml_compute_forward_kv_page_mass(const ggml_compute_params * params, ggml_
         for(int64_t q=0;q<probes;++q)if(valid[5+q])for(int64_t h=0;h<heads;++h){
             const float m=*(const float *)((const char *)state->data+p*state->nb[1]+h*state->nb[2]+q*state->nb[3]);
             const float z=*(const float *)((const char *)state->data+state->nb[0]+p*state->nb[1]+h*state->nb[2]+q*state->nb[3]);
-            double x=probs[size_t(p+pages*(h+heads*q))];if(eligible[size_t(p)]&&valid[5+q]&&z>0&&std::isfinite(m)&&std::isfinite(z)){peak=std::max(peak,x);total+=x;++count;}
+            double x=probs[size_t(p+pages*(h+heads*q))];
+            ++count;
+            if(eligible[size_t(p)]&&z>0&&std::isfinite(m)&&std::isfinite(z)){peak=std::max(peak,x);total+=x;}
         }
         if(eligible[size_t(p)]&&count){
             const int64_t * d=(const int64_t *)((const char *)descriptors->data+p*descriptors->nb[1]);
@@ -9114,12 +9163,12 @@ void ggml_compute_forward_kv_query_probes(
     const ggml_tensor * positions = dst->src[1];
     ggml_tensor * probes = dst->src[2];
     ggml_tensor * validity = dst->src[3];
-    const ggml_tensor * control = dst->src[4];
-    const int64_t * controls = (const int64_t *) control->data;
+    ggml_kv_query_probe_params controls{};
+    memcpy(&controls, dst->op_params, sizeof(controls));
     int64_t * metadata = (int64_t *) validity->data;
-    const int64_t generation = controls[0];
-    const int64_t query_start = controls[1];
-    const int64_t query_end = controls[2];
+    const int64_t generation = controls.generation;
+    const int64_t query_start = controls.query_start;
+    const int64_t query_end = controls.query_end;
     static const int64_t offsets[4] = { 1, 2, 4, 8 };
 
     if (metadata[0] != generation) {
@@ -9129,12 +9178,18 @@ void ggml_compute_forward_kv_query_probes(
             metadata[5 + slot] = 0;
         }
     }
-    for (int64_t row = 0; row < q->ne[2]; ++row) {
-        const int64_t position = *(const int64_t *) ((const char *) positions->data + row * positions->nb[0]);
-        if (position < query_start || position >= query_end) continue;
-        for (int slot = 0; slot < 4; ++slot) {
-            const int64_t target = query_end - offsets[slot];
-            if (target < query_start || position != target) continue;
+    for (int slot = 0; slot < 4; ++slot) {
+        const int64_t target = query_end - offsets[slot];
+        if (target < query_start) continue;
+        int64_t row = controls.indexed ? controls.rows[slot] : -1;
+        if (!controls.indexed) {
+            GGML_ASSERT(positions != nullptr);
+            for (int64_t candidate = 0; candidate < q->ne[2]; ++candidate) {
+                const int64_t position = *(const int64_t *) ((const char *) positions->data + candidate * positions->nb[0]);
+                if (position == target) row = candidate;
+            }
+        }
+        if (row >= 0 && row < q->ne[2]) {
             for (int64_t head = 0; head < q->ne[1]; ++head) {
                 for (int64_t d = 0; d < q->ne[0]; ++d) {
                     const char * src = (const char *) q->data + d * q->nb[0] +

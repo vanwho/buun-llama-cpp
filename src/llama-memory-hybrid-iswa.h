@@ -87,6 +87,14 @@ public:
         return mem_attn->kv_pager_history_matches(
                 sequence_id, turn_id, frozen_history_generation);
     }
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const override {
+        return mem_attn->get_kv_pager_router_execution_for_test(stage,
+                resident_rerank_graphs, cold_reader_graphs, reader_events,
+                mass_graphs, output_records);
+    }
     void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override {
         mem_attn->end_kv_pager_turn(sequence_id, turn_id);
     }
@@ -267,6 +275,9 @@ public:
             ggml_tensor ** probe_capture = nullptr) const override;
     bool set_kv_query_probe_inputs(
             ggml_tensor * probes, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * query_op, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
     bool set_kv_page_select_inputs(
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,

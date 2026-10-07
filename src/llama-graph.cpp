@@ -20,6 +20,7 @@
 #include "llama-memory-recurrent.h"
 
 #include <chrono>
+#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 
@@ -39,6 +40,11 @@ llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
 #include <numeric>
 #include <limits>
 #include <sstream>
+
+static bool diagnostic_page_mass_enabled() {
+    const char * value = std::getenv("LLAMA_KV_PAGER_DIAGNOSTIC_PAGE_MASS");
+    return value != nullptr && std::strcmp(value, "1") == 0;
+}
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
@@ -1101,7 +1107,7 @@ ggml_tensor * llm_graph_input_attn_kv::get_v_idxs(int32_t il) const {
 
 void llm_graph_input_attn_kv::refresh_direct_telemetry(
         const llama_ubatch * ubatch) noexcept {
-    if (!direct_attention ||
+    if (!direct_attention || !diagnostic_page_mass_enabled() || direct_page_mass == nullptr ||
         kv_attention_telemetry == nullptr || mctx == nullptr) {
         return;
     }
@@ -1299,7 +1305,8 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         const bool telemetry_layer_valid = telemetry_ordinal < direct_layer_ids.size();
         const uint32_t telemetry_model_layer = telemetry_layer_valid
             ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
-        const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
+        const bool telemetry_enabled = diagnostic_page_mass_enabled() &&
+            params.kv_attention_telemetry != nullptr &&
             params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
             params.ubatch.n_seq_tokens == 1 &&
             telemetry_layer_valid &&
@@ -2546,10 +2553,10 @@ bool graph_selector_trace_enabled() {
     return enabled;
 }
 
-// The selector's Q is part of the model graph, while its catalogue and
-// generation sidebands are mutable boundary inputs. Keep the latter in the
-// normal graph-input lifecycle so graph reuse never leaves a pointer to a
-// temporary llama_memory_context.
+// The selector's Q is part of the model graph. Its positions are graph-shape
+// inputs, while generation control and query probes are owned by the KV cache.
+// Refresh them through the graph-input lifecycle on both graph builds and
+// reuse; no input object keeps a temporary llama_memory_context pointer.
 class llm_graph_input_kv_page_select final : public llm_graph_input_i {
 public:
     llm_graph_input_kv_page_select(
@@ -2565,12 +2572,20 @@ public:
     }
 
     void set_input(const llama_ubatch * ubatch) override {
+        const bool probe = selected_ != nullptr && selected_->op == GGML_OP_KV_PAGE_RANK;
+        const auto * query_op = selected_ != nullptr
+            ? (probe ? selected_->src[5] : selected_->src[0]) : nullptr;
+        const bool accumulate = query_op != nullptr && query_op->op == GGML_OP_KV_QUERY_ACCUMULATE;
+        const bool query_shape = query_op != nullptr && query_op->src[0] != nullptr &&
+                query_op->src[0]->ne[2] > 0 && query_op->src[0]->ne[3] == 1 &&
+                uint64_t(query_op->src[0]->ne[2]) == (ubatch != nullptr ? ubatch->n_tokens : 0);
+        const bool query_inputs_ready = probe
+            ? mctx_ != nullptr && ubatch != nullptr &&
+                mctx_->set_kv_query_probe_inputs(const_cast<ggml_tensor *>(query_op), *ubatch)
+            : accumulate && mctx_ != nullptr && ubatch != nullptr &&
+                mctx_->set_kv_query_accumulate_inputs(const_cast<ggml_tensor *>(query_op), *ubatch);
         if (mctx_ == nullptr || ubatch == nullptr || selected_ == nullptr ||
-                selected_->src[0] == nullptr || selected_->src[0]->op != GGML_OP_KV_QUERY_ACCUMULATE ||
-                selected_->src[0]->src[0] == nullptr || selected_->src[0]->src[0]->ne[2] <= 0 ||
-                selected_->src[0]->src[0]->ne[3] != 1 ||
-                uint64_t(selected_->src[0]->src[0]->ne[2]) != ubatch->n_tokens ||
-                !mctx_->set_kv_query_accumulate_inputs(selected_->src[0], *ubatch) ||
+                !query_shape || !query_inputs_ready ||
                 !mctx_->set_kv_page_select_inputs(
                     bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
             if (graph_selector_trace_enabled() && mctx_ != nullptr && ubatch != nullptr) {
@@ -2596,16 +2611,26 @@ public:
 
     bool can_reuse(const llm_graph_params & params) override {
         mctx_ = params.mctx;
+        const bool probe = selected_ != nullptr && selected_->op == GGML_OP_KV_PAGE_RANK;
+        const auto * query_op = selected_ != nullptr
+            ? (probe ? selected_->src[5] : selected_->src[0]) : nullptr;
+        const bool supported_query = query_op != nullptr &&
+                (query_op->op == GGML_OP_KV_QUERY_ACCUMULATE ||
+                 query_op->op == GGML_OP_KV_QUERY_PROBES);
         const bool valid = params.ubatch.n_tokens > 0 && selected_ != nullptr && selected_->src[0] != nullptr &&
-                selected_->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE &&
-                selected_->src[0]->src[0] != nullptr && selected_->src[0]->src[0]->ne[2] > 0 &&
-                selected_->src[0]->src[0]->ne[3] == 1 &&
-                uint64_t(selected_->src[0]->src[0]->ne[2]) == params.ubatch.n_tokens &&
+                supported_query && query_op->src[0] != nullptr && query_op->src[0]->ne[2] > 0 &&
+                query_op->src[0]->ne[3] == 1 &&
+                uint64_t(query_op->src[0]->ne[2]) == params.ubatch.n_tokens &&
                 params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
                 size_t(params.ubatch.n_tokens - 1) <=
                     std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
                 mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
-                bounds_, layer_, params.ubatch);
+                bounds_, layer_, params.ubatch) &&
+                params.ubatch.n_seqs_unq == 1 && params.ubatch.n_seq_id != nullptr &&
+                params.ubatch.n_seq_id[0] == 1 && params.ubatch.seq_id != nullptr &&
+                params.ubatch.seq_id[0] != nullptr &&
+                mctx_->can_reuse_kv_query_capture(query_op, params.ubatch,
+                        params.ubatch.seq_id[0][0], true);
         if (!valid && graph_selector_trace_enabled() && mctx_ != nullptr) {
             mctx_->note_kv_page_select_gate(
                 llama_kv_pager_selector_gate::graph_input_rejected_reuse,
@@ -2666,7 +2691,10 @@ public:
 
     bool can_reuse(const llm_graph_params & params) override {
         mctx_ = params.mctx;
-        return false;
+        if (mctx_ == nullptr || probes_ == nullptr || params.ubatch.n_seqs_unq != 1 ||
+                params.ubatch.seq_id == nullptr || params.ubatch.seq_id[0] == nullptr) return false;
+        return mctx_->can_reuse_kv_query_capture(probes_, params.ubatch,
+                params.ubatch.seq_id[0][0], false);
     }
 
 private:
@@ -2679,6 +2707,16 @@ private:
 void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
     if (cb_func) {
         cb_func(ubatch, cur, name, il);
+    }
+
+    if (graph_selector_trace_enabled() && name != nullptr &&
+            (std::strcmp(name, "Qcur") == 0 || std::strcmp(name, "Qcur_routing") == 0 ||
+             std::strcmp(name, "Qcur_rope") == 0 || std::strcmp(name, "Qcur_normed") == 0)) {
+        std::fprintf(stderr, "selector Q callback name=%s layer=%d shape=[%" PRId64 ",%" PRId64
+                ",%" PRId64 ",%" PRId64 "] tokens=%u mctx=%d\n", name, il,
+                cur != nullptr ? cur->ne[0] : 0, cur != nullptr ? cur->ne[1] : 0,
+                cur != nullptr ? cur->ne[2] : 0, cur != nullptr ? cur->ne[3] : 0,
+                ubatch.n_tokens, mctx != nullptr);
     }
 
     if (graph_selector_trace_enabled() && mctx != nullptr && name != nullptr && strcmp(name, "Qcur_routing") != 0) {
@@ -2698,6 +2736,13 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             : llama_kv_pager_selector_q_shape_gate(cur->ne[3] == 1 ? 3 : 4,
                     cur->ne[0], cur->ne[1],
                     cur->ne[2], cur->ne[3], ubatch.n_tokens);
+        if (graph_selector_trace_enabled()) {
+            std::fprintf(stderr, "selector graph callback layer=%d tensor=%s shape=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "] tokens=%u gate=%u mctx=%d\n",
+                    il, cur != nullptr ? cur->name : "null",
+                    cur != nullptr ? cur->ne[0] : 0, cur != nullptr ? cur->ne[1] : 0,
+                    cur != nullptr ? cur->ne[2] : 0, cur != nullptr ? cur->ne[3] : 0,
+                    ubatch.n_tokens, uint32_t(query_gate), mctx != nullptr);
+        }
         if (query_gate != llama_kv_pager_selector_gate::callback_matched) {
             mctx->note_kv_page_select_gate(
                 query_gate,
@@ -2720,23 +2765,26 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         ggml_tensor * probe_capture = nullptr;
         ggml_tensor * selected = mctx->build_kv_page_select(
                 ctx0, cur, il, ubatch, query_row, &probe_capture);
+        if (graph_selector_trace_enabled()) {
+            std::fprintf(stderr, "selector graph capture layer=%d probe=%d selected=%d\n",
+                    il, probe_capture != nullptr,
+                    selected != nullptr ? int(selected->op) : -1);
+        }
         if (probe_capture != nullptr) {
+            // Keep the query capture's generation/position sideband in the
+            // graph-input lifecycle even when the selector also owns it.
+            // Its can_reuse() deliberately rejects a final-user graph, so a
+            // CUDA graph captured for an earlier query cannot retain a stale
+            // probe control tensor across the final-user transition.
             res->add_input(std::make_unique<llm_graph_input_kv_query_probes>(
                     mctx, probe_capture));
             ggml_set_output(probe_capture);
             ggml_build_forward_expand(gf, probe_capture);
         }
         if (selected != nullptr) {
-            ggml_tensor * accumulator = selected->op == GGML_OP_KV_QUERY_ACCUMULATE
-                ? selected
-                : (selected->src[0] != nullptr &&
-                   selected->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE
-                    ? selected->src[0] : nullptr);
-            if (accumulator != nullptr) {
-                res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
-                        mctx, accumulator));
-            }
             if (selected->op == GGML_OP_KV_QUERY_ACCUMULATE) {
+                res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
+                        mctx, selected));
                 ggml_set_output(selected);
                 ggml_build_forward_expand(gf, selected);
                 return;
@@ -2748,7 +2796,8 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             // recycle it before the pager reads the completed Q sample.
             ggml_set_output(selected);
             ggml_build_forward_expand(gf, selected);
-            mctx->capture_kv_routing_query(selected, il, ubatch);
+            // Upload and register only from set_input(), after graph allocation.
+            // Construction-time tensor_set sees graph-owned null buffers.
             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
                     mctx, selected->src[1]->src[2], selected->src[2], selected->src[3],
                     selected->src[4], selected, il));
@@ -4667,7 +4716,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                     ? available_heads : std::min(requested_heads, available_heads);
                 const uint64_t telemetry_token_index = ubatch.pos != nullptr
                     ? uint64_t(std::max<llama_pos>(0, ubatch.pos[0])) : 0;
-                if (sampled_heads != 0 && pager->snapshot().logical_page_count != 0 &&
+                if (diagnostic_page_mass_enabled() && sampled_heads != 0 &&
+                        pager->snapshot().logical_page_count != 0 &&
                     kv_attention_telemetry->cadence_due(telemetry_token_index)) {
                     const llama_seq_id sequence_id = ubatch.n_seq_id != nullptr &&
                         ubatch.n_seq_id[0] != 0 && ubatch.seq_id != nullptr &&

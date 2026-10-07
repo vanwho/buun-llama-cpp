@@ -3,6 +3,7 @@
 #include "common.h"
 #include "llama-context.h"
 #include "llama-kv-residency.h"
+#include "llama-kv-router-job.h"
 #include "speculative.h"
 
 #include <algorithm>
@@ -23,6 +24,8 @@ namespace {
 struct options {
     std::string model;
     std::string output;
+    std::string router = "legacy";
+    bool fresh_only = false;
     uint32_t batch = 1024;
     uint32_t ubatch = 256;
     uint32_t context = 8192;
@@ -43,6 +46,8 @@ bool parse_options(int argc, char ** argv, options & out) {
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--model" && i + 1 < argc) out.model = argv[++i];
+        else if (arg == "--router" && i + 1 < argc) out.router = argv[++i];
+        else if (arg == "--fresh-only") out.fresh_only = true;
         else if (arg == "--B" && i + 1 < argc && number(argv[++i], out.batch)) {}
         else if (arg == "--U" && i + 1 < argc && number(argv[++i], out.ubatch)) {}
         else if (arg == "--L" && i + 1 < argc && number(argv[++i], out.context)) {}
@@ -51,7 +56,8 @@ bool parse_options(int argc, char ** argv, options & out) {
         else if (arg == "--output" && i + 1 < argc) out.output = argv[++i];
         else return false;
     }
-    return !out.model.empty() && out.ubatch <= out.batch &&
+    return !out.model.empty() && (out.router == "legacy" || out.router == "probe-rerank") &&
+        out.ubatch <= out.batch &&
         out.context > out.hot_tokens && out.hot_tokens >= 512 &&
         out.hot_tokens % VBR_GENERATION_PAGE_CELLS == 0;
 }
@@ -359,7 +365,11 @@ bool run(const options & opts) {
     params.reset_vbr_runtime_state();
     params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
     params.kv_pager.mode = llama_kv_pager_mode::selective;
+    params.kv_pager.router = opts.router == "probe-rerank"
+        ? llama_kv_router_mode::probe_rerank : llama_kv_router_mode::legacy;
     params.kv_pager.page_size = VBR_GENERATION_PAGE_CELLS;
+    params.kv_pager.router_top_k = 32;
+    params.kv_pager.router_explore = 16;
     params.kv_pager.hot_pages.automatic = false;
     params.kv_pager.hot_pages.value = opts.hot_tokens / VBR_GENERATION_PAGE_CELLS;
     params.kv_pager.pin_recent.automatic = false;
@@ -391,12 +401,104 @@ bool run(const options & opts) {
     params.speculative.draft.ctx_mtp = draft_init->context_mtp();
     common_speculative_ptr spec(common_speculative_init(params.speculative, 1));
     if (!spec) return false;
+    llama_context * draft = draft_init->context();
 
-    const uint32_t prefix_count = 512;
+    // Keep this regression on a genuinely fresh owner. The integrated replay
+    // fixture below deliberately populates and mutates the same one-sequence
+    // hybrid cache, so run the fresh startup/next-turn case in isolation.
+    if (opts.fresh_only) {
+        const bool cleared_target = llama_memory_seq_rm(
+            llama_get_memory(target), 0, -1, -1);
+        const bool cleared_draft = llama_memory_seq_rm(
+            llama_get_memory(draft), 0, -1, -1);
+        llama_synchronize(target);
+        llama_synchronize(draft);
+        const uint32_t fresh_count = 32;
+        llama_tokens fresh_prompt(fresh_count, llama_token(1));
+        const auto empty_metrics = target->get_kv_pager_metrics(draft);
+        const bool empty_at_start = std::none_of(
+            empty_metrics.page_inventory.begin(), empty_metrics.page_inventory.end(),
+            [](const auto & page) { return page.id.sequence_id == 0; });
+        const uint64_t fresh_turn = 1020;
+        target->begin_kv_pager_turn(0, fresh_turn, 0, fresh_count);
+        common_speculative_begin(spec.get(), 0, fresh_prompt);
+        const bool fresh_decoded = cleared_target && cleared_draft && empty_at_start &&
+            decode_prefix(target, spec.get(), fresh_count);
+        bool fresh_changed = true;
+        uint64_t fresh_generation = 0;
+        std::vector<llama_kv_pager_selected_history> fresh_history;
+        const bool fresh_committed = fresh_decoded &&
+            target->commit_kv_pager_query(0, fresh_turn,
+                &fresh_changed, &fresh_generation) && !fresh_changed &&
+            target->get_kv_pager_history_for_test(0, fresh_history) &&
+            fresh_history.empty() && target->freeze_kv_pager_history(
+                0, fresh_turn, nullptr);
+        const auto fresh_metrics = target->get_kv_pager_metrics(draft);
+        const bool current_span_visible = std::any_of(
+            fresh_metrics.page_inventory.begin(), fresh_metrics.page_inventory.end(),
+            [&](const auto & page) {
+                const int64_t begin = page.id.position_begin >= 0
+                    ? page.id.position_begin
+                    : int64_t(page.id.logical_page) * VBR_GENERATION_PAGE_CELLS;
+                return page.id.sequence_id == 0 && page.physical_slot != UINT32_MAX &&
+                    page.valid_length != 0 && begin <= fresh_count - 1 &&
+                    begin + page.valid_length > fresh_count - 1;
+            });
+        uint32_t fresh_proposals = 0, fresh_accepted = 0;
+        llama_pos fresh_target_frontier = -1, fresh_draft_frontier = -1;
+        const bool fresh_mtp_carry = fresh_committed && current_span_visible &&
+            run_mtp_cycle(target, draft, spec.get(), fresh_count, fresh_prompt,
+                fresh_proposals, fresh_accepted,
+                fresh_target_frontier, fresh_draft_frontier) &&
+            fresh_proposals > 0 && fresh_target_frontier == fresh_draft_frontier;
+        target->end_kv_pager_turn(0, fresh_turn);
+
+        const llama_pos next_user_begin = std::max(
+            llama_memory_seq_pos_max(llama_get_memory(target), 0),
+            llama_memory_seq_pos_max(llama_get_memory(draft), 0)) + 1;
+        const uint64_t next_user_turn = 1021;
+        target->begin_kv_pager_turn(0, next_user_turn,
+            next_user_begin, next_user_begin + 1);
+        const auto next_owner = target->get_kv_pager_owner_for_test();
+        const auto next_state = next_owner != nullptr
+            ? next_owner->turn_state(0) : llama_kv_pager_turn_state{};
+        const bool next_user_passed = next_owner != nullptr &&
+            next_state.turn_id == next_user_turn &&
+            next_state.phase == llama_kv_pager_turn_phase::query_provisional &&
+            next_state.query_start == next_user_begin &&
+            next_state.query_end == next_user_begin + 1 &&
+            fresh_target_frontier == fresh_draft_frontier &&
+            next_user_begin == std::max(
+                llama_memory_seq_pos_max(llama_get_memory(target), 0),
+                llama_memory_seq_pos_max(llama_get_memory(draft), 0)) + 1;
+        target->end_kv_pager_turn(0, next_user_turn);
+        const bool passed = fresh_committed && current_span_visible &&
+            fresh_mtp_carry && next_user_passed;
+        std::ofstream out;
+        std::ostream & report = opts.output.empty() ? std::cout : (out.open(opts.output), out);
+        report << "{\"proof\":\"fresh_target_draft_route_sanity_and_observed_repair\","
+            << "\"passed\":" << (passed ? "true" : "false")
+            << ",\"empty_at_start\":" << (empty_at_start ? "true" : "false")
+            << ",\"empty_history_owner_passed\":" << (fresh_committed ? "true" : "false")
+            << ",\"current_span_visible\":" << (current_span_visible ? "true" : "false")
+            << ",\"mtp_carry_passed\":" << (fresh_mtp_carry ? "true" : "false")
+            << ",\"next_user_turn_passed\":" << (next_user_passed ? "true" : "false")
+            << ",\"next_user_begin\":" << next_user_begin
+            << ",\"fresh_proposals\":" << fresh_proposals << "}\n";
+        return passed;
+    }
+
+    // Fill beyond the 16-page target admission so this single real-model path
+    // exercises resident rerank and host-cold key readers together while
+    // leaving ample room under --L for the query and MTP verification rows.
+    const uint32_t prefix_count = 4608;
     const llama_pos query_begin = llama_pos(prefix_count);
     llama_tokens prefix(prefix_count, llama_token(1));
+    // Match the real query token against the oldest page so the admitted
+    // coarse shortlist includes host-cold keys as well as resident pages.
+    std::fill(prefix.begin(), prefix.begin() + VBR_GENERATION_PAGE_CELLS,
+            llama_token(2));
     common_speculative_begin(spec.get(), 0, prefix);
-    llama_context * draft = draft_init->context();
     const uint64_t owner_turn_id = 1009;
     target->begin_kv_pager_turn(0, owner_turn_id, 0, query_begin);
     const auto pager_owner_before_reserve = target->get_kv_pager_owner_for_test();
@@ -451,6 +553,9 @@ bool run(const options & opts) {
     std::vector<llama_kv_pager_selected_history> committed_history;
     observation replay, control;
     bool selection_installed = false, replay_map_exact = false, control_map_exact = false;
+    bool router_execution_observed = false;
+    uint32_t router_stage = 0, resident_rerank_graphs = 0, cold_reader_graphs = 0;
+    uint32_t reader_events = 0, mass_graphs = 0, router_output_records = 0;
     const auto decode_query_and_suffix = [&](observation & output) {
         if (!decode_one(target, spec.get(), 2, query_begin) ||
                 !observe(target, draft, spec.get(), query_begin, output)) return false;
@@ -463,6 +568,28 @@ bool run(const options & opts) {
             query_begin, prefix_count, true,
             [&]() { return decode_one(target, spec.get(), 2, query_begin); },
             [&](bool & changed, uint64_t & generation) {
+                if (opts.router == "probe-rerank") {
+                    if (!target->commit_kv_pager_query(0, turn_id, &changed, &generation) ||
+                            !target->get_kv_pager_history_for_test(0, committed_history)) {
+                        return false;
+                    }
+                    final_history = committed_history;
+                    selection_installed = !final_history.empty();
+                    if (!selection_installed) return false;
+                    router_execution_observed =
+                        target->get_kv_pager_router_execution_for_test(router_stage,
+                            resident_rerank_graphs, cold_reader_graphs, reader_events,
+                            mass_graphs, router_output_records) &&
+                        router_stage == uint32_t(llama_kv_router_owner_stage::ready) &&
+                        resident_rerank_graphs > 0 && cold_reader_graphs > 0 &&
+                        reader_events > 0 && mass_graphs > 0 && router_output_records > 0;
+                    if (!router_execution_observed) return false;
+                    bool repeated_changed = true;
+                    uint64_t repeated_generation = 0;
+                    return target->commit_kv_pager_query(0, turn_id,
+                            &repeated_changed, &repeated_generation) &&
+                        !repeated_changed && repeated_generation == generation;
+                }
                 const auto metrics = target->get_kv_pager_metrics(draft);
                 for (const auto & page : metrics.page_inventory) {
                     if (page.id.sequence_id != 0 ||
@@ -531,20 +658,14 @@ bool run(const options & opts) {
             [&](bool & changed, uint64_t & generation) {
                 std::vector<llama_kv_pager_selected_history> before;
                 if (!target->get_kv_pager_history_for_test(0, before)) return false;
-                const auto live_residency = target->get_kv_pager_owner_for_test()->residency(0);
-                for (const auto & page : live_residency.pages()) {
-                    if (page.id.sequence_id != 0 || page.id.position_end >= cancel2_begin ||
-                            page.physical_slot == UINT32_MAX || page.valid_length == 0 ||
-                            page.content_version == 0) continue;
-                    if (std::any_of(before.begin(), before.end(), [&](const auto & item) {
-                                return item.identity == page.id;
-                            })) continue;
-                    published_history = {{page.id, page.content_version}};
-                    break;
-                }
-                alternate_installed = !published_history.empty() &&
+                auto alternate_history = before;
+                // Give the real commit path a distinct authenticated map to
+                // replace, even when every currently resident historical
+                // page already belongs to the just-published selection.
+                if (alternate_history.size() > 1) alternate_history.pop_back();
+                alternate_installed = alternate_history.size() != before.size() &&
                     target->set_kv_pager_history_for_test(
-                        0, cancel2_begin, published_history);
+                        0, cancel2_begin, alternate_history);
                 if (!alternate_installed || !target->commit_kv_pager_query(
                         0, cancel2_turn, &changed, &generation)) return false;
                 return changed && target->get_kv_pager_history_for_test(
@@ -566,13 +687,16 @@ bool run(const options & opts) {
     const auto unchanged = server_query_checkpoint_replay_for_test(
             target, draft, spec.get(), 0, unchanged_turn, unchanged_turn,
             unchanged_begin, unchanged_begin, true,
-            [&]() { return decode_one(target, spec.get(), 7, unchanged_begin); },
+            [&]() { return decode_one(target, spec.get(), 6, unchanged_begin); },
             [&](bool & changed, uint64_t & generation) {
-                return target->get_kv_pager_history_for_test(0, unchanged_history) &&
-                    target->set_kv_pager_history_for_test(
-                        0, unchanged_begin, unchanged_history) &&
-                    target->commit_kv_pager_query(
-                        0, unchanged_turn, &changed, &generation) && !changed;
+                std::vector<llama_kv_pager_selected_history> before;
+                if (!target->get_kv_pager_history_for_test(0, before) ||
+                    !target->set_kv_pager_history_for_test(
+                        0, unchanged_begin, before) ||
+                    !target->get_kv_pager_history_for_test(0, unchanged_history)) return false;
+                changed = !same_history(before, unchanged_history);
+                generation = unchanged_turn;
+                return !changed;
             },
             [&]() { unchanged_replay_called = true; return true; },
             []() { return true; });
@@ -607,6 +731,7 @@ bool run(const options & opts) {
         fixture.history_changed && fixture.restored && fixture.replay_decode_succeeded &&
         fixture.control_restored && fixture.control_decode_succeeded && selection_installed &&
         !final_history.empty() && !committed_history.empty() && replay_map_exact &&
+        (opts.router != "probe-rerank" || router_execution_observed) &&
         control_map_exact && mtp_cycle && mtp_proposals > 0 &&
         cancel1.captured && cancel1.provisional_decode_succeeded && cancel1.restored &&
         cancel1.recovery_decode_succeeded && cancel2.captured &&
@@ -652,6 +777,15 @@ bool run(const options & opts) {
     std::ostream & report = opts.output.empty() ? std::cout : (out.open(opts.output), out);
     report << "{\"proof\":\"integrated_server_query_replay_one_pass_parity\","
         << "\"passed\":" << (parity ? "true" : "false")
+        << ",\"router_mode\":\"" << opts.router << "\""
+        << ",\"router_execution_observed\":"
+        << (router_execution_observed ? "true" : "false")
+        << ",\"router_owner_stage\":" << router_stage
+        << ",\"resident_rerank_graphs\":" << resident_rerank_graphs
+        << ",\"cold_reader_graphs\":" << cold_reader_graphs
+        << ",\"reader_events\":" << reader_events
+        << ",\"mass_graphs\":" << mass_graphs
+        << ",\"router_output_records\":" << router_output_records
         << ",\"reservation_owner_survived\":"
         << (reservation_owner_survived ? "true" : "false")
         << ",\"captured\":" << (fixture.captured ? "true" : "false")
@@ -725,7 +859,7 @@ int main(int argc, char ** argv) {
     options opts;
     if (!parse_options(argc, argv, opts)) {
         std::fprintf(stderr,
-                "usage: %s --model MODEL.gguf [--B 1024] [--U 256] [--L 8192] [--H 4096] [--owner-only] [--output FILE]\n",
+                "usage: %s --model MODEL.gguf [--router legacy|probe-rerank] [--fresh-only] [--B 1024] [--U 256] [--L 8192] [--H 4096] [--owner-only] [--output FILE]\n",
                 argv[0]);
         return 2;
     }

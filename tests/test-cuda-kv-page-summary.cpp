@@ -8,6 +8,7 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -442,17 +443,29 @@ std::vector<float> run_rerank(ggml_backend_t backend, const fixture & f,
             if (std::isfinite(value)) reference_probabilities[size_t(page + kPages * (h + query_heads * p))] = std::exp(value - maximum) / denom;
         }
     }
+    int global_channels = 0;
+    for (int64_t p = 0; p < probes_count; ++p) for (int64_t h = 0; h < query_heads; ++h) {
+        bool has_mass = false;
+        for (int64_t page = 0; page < kPages; ++page) {
+            has_mass = has_mass || reference_probabilities[
+                    size_t(page + kPages * (h + query_heads * p))] > 0.0;
+        }
+        if (has_mass) ++global_channels;
+    }
     for (int64_t page = 0; page < kPages; ++page) {
-        double peak = 0.0, total = 0.0; int channels = 0;
+        double peak = 0.0, total = 0.0;
         for (int64_t p = 0; p < probes_count; ++p) for (int64_t h = 0; h < query_heads; ++h) {
             const double value = reference_probabilities[size_t(page + kPages * (h + query_heads * p))];
-            if (value > 0.0) { peak = std::max(peak, value); total += value; ++channels; }
+            peak = std::max(peak, value);
+            total += value;
         }
-        if (channels == 0) assert(mass_output[size_t(page)].logical_page == -1);
+        const bool page_eligible = page != 1; // page one deliberately has a stale descriptor
+        if (global_channels == 0 || !page_eligible)
+            assert(mass_output[size_t(page)].logical_page == -1);
         else {
             assert(mass_output[size_t(page)].logical_page == page);
             assert(std::fabs(mass_output[size_t(page)].peak_probability - peak) < 2e-4);
-            assert(std::fabs(mass_output[size_t(page)].mean_probability - total / channels) < 2e-4);
+            assert(std::fabs(mass_output[size_t(page)].mean_probability - total / global_channels) < 2e-4);
             assert(mass_output[size_t(page)].mean_probability <= mass_output[size_t(page)].peak_probability);
         }
     }
@@ -500,6 +513,138 @@ std::vector<float> run_rerank(ggml_backend_t backend, const fixture & f,
     return output;
 }
 
+void run_exact_mass_candidate_sweep(ggml_backend_t backend, int64_t candidate_count) {
+    constexpr int64_t query_heads = 2;
+    constexpr int64_t probes_count = 1;
+    constexpr int64_t query_generation = 17;
+    assert(candidate_count == 64 || candidate_count == 256 || candidate_count == 1024);
+    const int64_t resident_count = candidate_count / 2;
+    const size_t row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, kDim * kHeads);
+    ggml_init_params params = { 32 * 1024 * 1024, nullptr, true };
+    ggml_context * ctx = ggml_init(params);
+    assert(ctx != nullptr);
+    ggml_tensor * probes = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, kDim, query_heads, probes_count);
+    ggml_tensor * resident = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0,
+            kDim * kHeads, candidate_count, 1);
+    ggml_tensor * staged = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0,
+            kDim * kHeads, candidate_count, 1);
+    ggml_tensor * descriptors = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 10, candidate_count);
+    ggml_tensor * identity = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 2, candidate_count + 1);
+    ggml_tensor * validity = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 9);
+    ggml_tensor * state = ggml_new_tensor_4d(ctx, GGML_TYPE_F32,
+            2, candidate_count, query_heads, probes_count);
+    ggml_tensor * result = ggml_kv_page_rerank(ctx, probes, resident, staged,
+            descriptors, identity, validity, state, 0.25f, 1.3f);
+    ggml_tensor * mass = ggml_kv_page_mass(ctx, state, descriptors,
+            identity, validity);
+    assert(probes && resident && staged && descriptors && identity && validity && state && result && mass);
+    ggml_set_output(result);
+    ggml_set_output(mass);
+    ggml_cgraph * graph = ggml_new_graph_custom(ctx, 32, false);
+    ggml_build_forward_expand(graph, result);
+    ggml_build_forward_expand(graph, mass);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer != nullptr);
+
+    std::vector<uint8_t> encoded(size_t(candidate_count) * row_bytes);
+    std::vector<float> row(size_t(kDim * kHeads));
+    for (int64_t page = 0; page < candidate_count; ++page) {
+        for (int64_t i = 0; i < kDim * kHeads; ++i) {
+            row[size_t(i)] = std::sin(float(19 + page * 7 + i * 3) * 0.013f) +
+                    0.001f * float(page % 31);
+        }
+        quantize_row_turbo4_0_ref(row.data(),
+                reinterpret_cast<block_turbo4_0 *>(encoded.data() + size_t(page) * row_bytes),
+                kDim * kHeads);
+    }
+    std::vector<float> q(size_t(kDim * query_heads));
+    for (int64_t head = 0; head < query_heads; ++head) for (int64_t d = 0; d < kDim; ++d) {
+        q[size_t(d + kDim * head)] = std::sin(float(41 + head * 5 + d) * 0.021f);
+    }
+    std::vector<int64_t> desc(size_t(10 * candidate_count), 0);
+    std::vector<int64_t> ids(size_t(2 * (candidate_count + 1)), 0);
+    ids[0] = query_generation;
+    ids[1] = 9101;
+    for (int64_t page = 0; page < candidate_count; ++page) {
+        int64_t * d = desc.data() + size_t(10 * page);
+        d[0] = page; d[1] = page; d[2] = 1; d[3] = 0; d[4] = 1;
+        d[5] = 5; d[6] = page + 1; d[7] = 1; d[8] = page; d[9] = page >= resident_count ? 1 : 0;
+        ids[size_t(2 * (page + 1))] = 5;
+        ids[size_t(2 * (page + 1) + 1)] = page + 1;
+    }
+    int64_t probe_state[9] = { query_generation, candidate_count, 0, 0, 0, 1, 0, 0, 0 };
+    std::vector<float> initial(size_t(2 * candidate_count * query_heads), 0.0f);
+    for (size_t i = 0; i < initial.size(); i += 2) initial[i] = -INFINITY;
+    ggml_backend_tensor_set(probes, q.data(), 0, q.size() * sizeof(float));
+    ggml_backend_tensor_set(resident, encoded.data(), 0, encoded.size());
+    ggml_backend_tensor_set(staged, encoded.data(), 0, encoded.size());
+    ggml_backend_tensor_set(descriptors, desc.data(), 0, desc.size() * sizeof(int64_t));
+    ggml_backend_tensor_set(identity, ids.data(), 0, ids.size() * sizeof(int64_t));
+    ggml_backend_tensor_set(validity, probe_state, 0, sizeof(probe_state));
+    ggml_backend_tensor_set(state, initial.data(), 0, initial.size() * sizeof(float));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+
+    std::vector<ggml_kv_page_rank_record> actual(static_cast<size_t>(candidate_count));
+    ggml_backend_tensor_get(mass, actual.data(), 0, ggml_nbytes(mass));
+    std::vector<float> decoded(size_t(kDim * kHeads));
+    std::vector<double> logits(size_t(candidate_count * query_heads));
+    std::vector<double> expected_peak(size_t(candidate_count), 0.0);
+    std::vector<double> expected_mean(size_t(candidate_count), 0.0);
+    double mean_sum = 0.0;
+    for (int64_t head = 0; head < query_heads; ++head) {
+        double maximum = -INFINITY;
+        for (int64_t page = 0; page < candidate_count; ++page) {
+            dequantize_row_turbo4_0(reinterpret_cast<const block_turbo4_0 *>(
+                    encoded.data() + size_t(page) * row_bytes), decoded.data(), kDim * kHeads);
+            double dot = 0.0;
+            for (int64_t d = 0; d < kDim; ++d) {
+                dot += double(q[size_t(d + kDim * head)]) * decoded[size_t(head * kDim + d)];
+            }
+            const double scaled = dot * 0.25;
+            const double value = 1.3 * std::tanh(scaled / 1.3);
+            logits[size_t(page + candidate_count * head)] = value;
+            maximum = std::max(maximum, value);
+        }
+        double denominator = 0.0;
+        for (int64_t page = 0; page < candidate_count; ++page) {
+            denominator += std::exp(logits[size_t(page + candidate_count * head)] - maximum);
+        }
+        for (int64_t page = 0; page < candidate_count; ++page) {
+            const double probability = std::exp(
+                    logits[size_t(page + candidate_count * head)] - maximum) / denominator;
+            expected_peak[size_t(page)] = std::max(expected_peak[size_t(page)], probability);
+            expected_mean[size_t(page)] += probability / double(query_heads);
+            mean_sum += probability / double(query_heads);
+        }
+    }
+    assert(std::fabs(mean_sum - 1.0) < 1e-10);
+    int64_t expected_top = 0;
+    double actual_mean_sum = 0.0;
+    for (int64_t page = 0; page < candidate_count; ++page) {
+        assert(actual[size_t(page)].validity_flags == 1);
+        assert(actual[size_t(page)].logical_page == page);
+        assert(std::isfinite(actual[size_t(page)].peak_probability));
+        assert(std::isfinite(actual[size_t(page)].mean_probability));
+        assert(std::fabs(actual[size_t(page)].peak_probability - expected_peak[size_t(page)]) < 2e-4);
+        assert(std::fabs(actual[size_t(page)].mean_probability - expected_mean[size_t(page)]) < 2e-4);
+        assert(actual[size_t(page)].mean_probability <= actual[size_t(page)].peak_probability);
+        actual_mean_sum += actual[size_t(page)].mean_probability;
+        if (expected_mean[size_t(page)] > expected_mean[size_t(expected_top)]) expected_top = page;
+    }
+    assert(std::fabs(actual_mean_sum - 1.0) < 2e-4);
+    const int64_t actual_top = std::max_element(actual.begin(), actual.end(),
+            [](const auto & a, const auto & b) {
+        return a.mean_probability < b.mean_probability;
+    })->logical_page;
+    assert(actual_top == expected_top);
+    std::fprintf(stderr, "exact_mass_candidate_sweep backend=%s candidates=%" PRId64
+            " resident=%" PRId64 " cold=%" PRId64 " mean_sum=%.9f top=%" PRId64 "\n",
+            ggml_backend_name(backend), candidate_count, resident_count,
+            candidate_count - resident_count, actual_mean_sum, actual_top);
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+}
+
 } // namespace
 
 int main(int argc, char ** argv) {
@@ -510,6 +655,7 @@ int main(int argc, char ** argv) {
     const auto cpu_result = run_summary(cpu, f);
     const auto cpu_rerank_1stream = run_rerank(cpu, f, 1, 1.3f);
     const auto cpu_rerank_3streams = run_rerank(cpu, f, 3, 1.3f);
+    for (int64_t count : {64, 256, 1024}) run_exact_mass_candidate_sweep(cpu, count);
     ggml_backend_free(cpu);
     if (argc > 1 && std::string(argv[1]) == "--cpu-only") {
         assert(!cpu_rerank_1stream.empty() && !cpu_rerank_3streams.empty());
@@ -530,6 +676,7 @@ int main(int argc, char ** argv) {
     const auto cuda_rerank_1stream = run_rerank(cuda, f, 1, 1.3f,
             router_job->encoded_key_slot(owner_slot), router_job.get());
     const auto cuda_rerank_3streams = run_rerank(cuda, f, 3, 1.3f);
+    for (int64_t count : {64, 256, 1024}) run_exact_mass_candidate_sweep(cuda, count);
     router_job->cancel();
     router_job.reset();
     ggml_backend_free(cuda);

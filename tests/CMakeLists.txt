@@ -243,6 +243,7 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
 
     llama_build_and_test(test-kv-router-job.cpp)
     target_include_directories(test-kv-router-job PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    target_include_directories(test-kv-router-job PRIVATE ${PROJECT_SOURCE_DIR}/ggml/src)
     target_link_libraries(test-kv-router-job PRIVATE llama)
     if (MSVC)
         target_compile_options(test-kv-router-job PRIVATE /UNDEBUG)

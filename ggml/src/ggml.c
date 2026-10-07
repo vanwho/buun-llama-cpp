@@ -6107,30 +6107,60 @@ struct ggml_tensor * ggml_kv_query_accumulate(
     return result;
 }
 
-struct ggml_tensor * ggml_kv_query_probes(
+static struct ggml_tensor * ggml_kv_query_probes_impl(
         struct ggml_context * ctx,
         struct ggml_tensor  * q,
         struct ggml_tensor  * positions,
         struct ggml_tensor  * probes,
         struct ggml_tensor  * validity,
-        struct ggml_tensor  * control) {
-    GGML_ASSERT(q != NULL && positions != NULL && probes != NULL && validity != NULL && control != NULL);
+        int64_t               generation,
+        int64_t               query_start,
+        int64_t               query_end,
+        const int32_t         rows[4]) {
+    GGML_ASSERT(q != NULL && probes != NULL && validity != NULL);
     GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0 && q->ne[2] > 0 && q->ne[3] == 1);
-    GGML_ASSERT(positions->type == GGML_TYPE_I64 && positions->ne[0] == q->ne[2]);
+    GGML_ASSERT(positions != NULL || rows != NULL);
+    GGML_ASSERT(positions == NULL || (positions->type == GGML_TYPE_I64 && positions->ne[0] == q->ne[2]));
     GGML_ASSERT(probes->type == GGML_TYPE_F32 && probes->ne[0] == q->ne[0] &&
             probes->ne[1] == q->ne[1] && probes->ne[2] == 4);
     GGML_ASSERT(validity->type == GGML_TYPE_I64 && ggml_nelements(validity) == 9);
-    GGML_ASSERT(control->type == GGML_TYPE_I64 && ggml_nelements(control) == 3);
 
     struct ggml_tensor * result = ggml_new_tensor_3d(ctx, GGML_TYPE_F32,
             probes->ne[0], probes->ne[1], probes->ne[2]);
+    struct ggml_kv_query_probe_params params = {0};
+    params.generation = generation;
+    params.query_start = query_start;
+    params.query_end = query_end;
+    params.indexed = rows != NULL;
+    for (int slot = 0; slot < 4; ++slot) {
+        params.rows[slot] = rows != NULL ? rows[slot] : -1;
+        GGML_ASSERT(rows == NULL || (rows[slot] >= -1 && rows[slot] < q->ne[2]));
+    }
+    GGML_ASSERT(sizeof(params) <= sizeof(result->op_params));
+    memcpy(result->op_params, &params, sizeof(params));
     result->op = GGML_OP_KV_QUERY_PROBES;
     result->src[0] = q;
     result->src[1] = positions;
     result->src[2] = probes;
     result->src[3] = validity;
-    result->src[4] = control;
     return result;
+}
+
+struct ggml_tensor * ggml_kv_query_probes(
+        struct ggml_context * ctx, struct ggml_tensor * q, struct ggml_tensor * positions,
+        struct ggml_tensor * probes, struct ggml_tensor * validity,
+        int64_t generation, int64_t query_start, int64_t query_end) {
+    return ggml_kv_query_probes_impl(ctx, q, positions, probes, validity,
+            generation, query_start, query_end, NULL);
+}
+
+struct ggml_tensor * ggml_kv_query_probes_indexed(
+        struct ggml_context * ctx, struct ggml_tensor * q,
+        struct ggml_tensor * probes, struct ggml_tensor * validity,
+        int64_t generation, int64_t query_start, int64_t query_end,
+        const int32_t rows[4]) {
+    return ggml_kv_query_probes_impl(ctx, q, NULL, probes, validity,
+            generation, query_start, query_end, rows);
 }
 
 // ggml_kv_page_summary

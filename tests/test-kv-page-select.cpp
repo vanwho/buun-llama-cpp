@@ -8,6 +8,7 @@
 #undef NDEBUG
 #endif
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cinttypes>
@@ -273,6 +274,165 @@ static void test_final_user_query_capture(ggml_backend_t backend) {
     ggml_free(ctx);
 }
 
+static void test_split_query_probe_capture(ggml_backend_t backend) {
+    ggml_init_params init = { 2 * 1024 * 1024, nullptr, true };
+    ggml_context * ctx = ggml_init(init);
+    assert(ctx != nullptr);
+    constexpr int64_t d = 1, heads = 1;
+    auto * probes = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, 4);
+    auto * validity = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 9);
+    auto make_capture = [&](int rows, int64_t generation, int64_t start, int64_t end) {
+        struct capture { ggml_tensor * q; ggml_tensor * positions; ggml_tensor * result; } c;
+        c.q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, rows);
+        c.positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, rows);
+        c.result = ggml_kv_query_probes(ctx, c.q, c.positions, probes, validity,
+                generation, start, end);
+        return c;
+    };
+    auto first = make_capture(256, 11, 0, 293);
+    auto final = make_capture(37, 11, 0, 293);
+    auto next_turn = make_capture(1, 12, 0, 293);
+    auto next_final = make_capture(1, 13, 293, 294);
+    assert(probes && validity && first.result && final.result && next_turn.result && next_final.result);
+    ggml_set_output(first.result);
+    ggml_set_output(final.result);
+    ggml_set_output(next_turn.result);
+    ggml_set_output(next_final.result);
+    auto * graph_first = ggml_new_graph_custom(ctx, 16, false);
+    auto * graph_final = ggml_new_graph_custom(ctx, 16, false);
+    auto * graph_next = ggml_new_graph_custom(ctx, 16, false);
+    auto * graph_next_final = ggml_new_graph_custom(ctx, 16, false);
+    ggml_build_forward_expand(graph_first, first.result);
+    ggml_build_forward_expand(graph_final, final.result);
+    ggml_build_forward_expand(graph_next, next_turn.result);
+    ggml_build_forward_expand(graph_next_final, next_final.result);
+    auto * buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer != nullptr);
+    std::vector<float> q_first(256, 1.0f), q_final(37, 2.0f), q_next(1, 3.0f);
+    std::vector<int64_t> pos_first(256), pos_final(37);
+    for (int64_t i = 0; i < 256; ++i) pos_first[size_t(i)] = i;
+    // Keep the first graph's sampled probe at the split boundary while the
+    // last graph supplies the remaining tail probes for this same capture.
+    pos_first.back() = 285;
+    for (int64_t i = 0; i < 37; ++i) pos_final[size_t(i)] = 256 + i;
+    const int64_t initial_validity[9] = { INT64_MIN, -1, -1, -1, -1, 0, 0, 0, 0 };
+    ggml_backend_tensor_set(validity, initial_validity, 0, sizeof(initial_validity));
+    ggml_backend_tensor_set(first.q, q_first.data(), 0, ggml_nbytes(first.q));
+    ggml_backend_tensor_set(first.positions, pos_first.data(), 0, ggml_nbytes(first.positions));
+    assert(ggml_backend_graph_compute(backend, graph_first) == GGML_STATUS_SUCCESS);
+    int64_t captured[9] = {};
+    ggml_backend_tensor_get(validity, captured, 0, sizeof(captured));
+    assert(captured[0] == 11 && captured[4] == 285 && captured[8] == 1);
+    assert(captured[5] == 0 && captured[6] == 0 && captured[7] == 0);
+    ggml_backend_tensor_set(final.q, q_final.data(), 0, ggml_nbytes(final.q));
+    ggml_backend_tensor_set(final.positions, pos_final.data(), 0, ggml_nbytes(final.positions));
+    assert(ggml_backend_graph_compute(backend, graph_final) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(validity, captured, 0, sizeof(captured));
+    assert(captured[0] == 11 && captured[5] == 1 && captured[6] == 1 &&
+            captured[7] == 1 && captured[8] == 1);
+    ggml_backend_tensor_set(next_turn.q, q_next.data(), 0, ggml_nbytes(next_turn.q));
+    const int64_t pos_next = 0;
+    ggml_backend_tensor_set(next_turn.positions, &pos_next, 0, sizeof(pos_next));
+    assert(ggml_backend_graph_compute(backend, graph_next) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(validity, captured, 0, sizeof(captured));
+    assert(captured[0] == 12 && captured[5] == 0 && captured[6] == 0 &&
+            captured[7] == 0 && captured[8] == 0);
+    // Reuse this graph within its generation, then use a fresh graph for the
+    // next generation. Integrated scheduler reuse must reject the old graph
+    // because its immutable op parameters belong to generation 12.
+    const int64_t pos_reused = 292;
+    const float q_reused = 4.0f;
+    ggml_backend_tensor_set(next_turn.q, &q_reused, 0, sizeof(q_reused));
+    ggml_backend_tensor_set(next_turn.positions, &pos_reused, 0, sizeof(pos_reused));
+    assert(ggml_backend_graph_compute(backend, graph_next) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(validity, captured, 0, sizeof(captured));
+    assert(captured[0] == 12 && captured[1] == 292 && captured[5] == 1 &&
+            captured[6] == 0 && captured[7] == 0 && captured[8] == 0);
+    const int64_t pos_final_next = 293;
+    ggml_backend_tensor_set(next_final.q, &q_reused, 0, sizeof(q_reused));
+    ggml_backend_tensor_set(next_final.positions, &pos_final_next, 0, sizeof(pos_final_next));
+    assert(ggml_backend_graph_compute(backend, graph_next_final) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(validity, captured, 0, sizeof(captured));
+    assert(captured[0] == 13 && captured[1] == 293 && captured[5] == 1 &&
+            captured[6] == 0 && captured[7] == 0 && captured[8] == 0);
+    std::fprintf(stderr, "split query probe capture U=256/U=37 and turn reset passed\n");
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+}
+
+// Exercise the allocator/scheduler used by a real model, rebuilding transient
+// graphs while the sequence/layer capture remains persistent. Direct backend
+// fixtures alone do not cover scheduler input storage or graph replacement.
+static void test_indexed_probe_scheduler(ggml_backend_t backend) {
+    ggml_init_params owner_init = { 4096, nullptr, true };
+    auto * owner = ggml_init(owner_init);
+    assert(owner != nullptr);
+    auto * probes = ggml_new_tensor_3d(owner, GGML_TYPE_F32, 2, 1, 4);
+    auto * validity = ggml_new_tensor_1d(owner, GGML_TYPE_I64, 9);
+    auto * buffer = ggml_backend_alloc_ctx_tensors(owner, backend);
+    assert(buffer != nullptr);
+    const int64_t invalid[9] = { INT64_MIN, -1, -1, -1, -1, 0, 0, 0, 0 };
+    ggml_backend_tensor_set(validity, invalid, 0, sizeof(invalid));
+    // The real model scheduler has a CPU fallback. Unallocated graph inputs
+    // start there and are copied to CUDA splits; cover that storage boundary,
+    // not just a graph whose inputs were allocated directly on CUDA.
+    auto * cpu = ggml_backend_cpu_init();
+    assert(cpu != nullptr);
+    const bool gpu = std::strncmp(ggml_backend_name(backend), "CUDA", 4) == 0;
+    ggml_backend_t backends[] = { backend, cpu };
+    auto * sched = ggml_backend_sched_new(backends, nullptr, gpu ? 2 : 1, 128, false, true);
+    assert(sched != nullptr);
+    const auto run = [&](int rows, int64_t generation, int64_t end,
+                         std::array<int32_t, 4> indices, float value) {
+        ggml_init_params graph_init = { 1024 * 1024, nullptr, true };
+        auto * ctx = ggml_init(graph_init);
+        assert(ctx != nullptr);
+        auto * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 2, 1, rows);
+        ggml_set_input(q);
+        auto * capture = ggml_kv_query_probes_indexed(ctx, q, probes, validity,
+                generation, 0, end, indices.data());
+        assert(capture->src[1] == nullptr);
+        ggml_set_output(capture);
+        auto * graph = ggml_new_graph_custom(ctx, 128, false);
+        ggml_build_forward_expand(graph, capture);
+        assert(ggml_backend_sched_alloc_graph(sched, graph));
+        std::vector<float> input(size_t(rows) * 2, value);
+        ggml_backend_tensor_set(q, input.data(), 0, ggml_nbytes(q));
+        // Repeat enough times to execute a captured CUDA graph, not just its
+        // initial uncaptured warmup. Then discard this graph and its inputs.
+        for (int repeat = 0; repeat < 4; ++repeat) {
+            assert(ggml_backend_sched_graph_compute(sched, graph) == GGML_STATUS_SUCCESS);
+            ggml_backend_sched_synchronize(sched);
+            int64_t identity[9] = {};
+            float output[8] = {};
+            ggml_backend_tensor_get(validity, identity, 0, sizeof(identity));
+            ggml_backend_tensor_get(probes, output, 0, sizeof(output));
+            assert(identity[0] == generation);
+            for (size_t slot = 0; slot < indices.size(); ++slot) {
+                if (indices[slot] >= 0) {
+                    assert(identity[5 + slot] == 1);
+                    assert(identity[1 + slot] == end - (int64_t(1) << slot));
+                    assert(output[2 * slot] == value && output[2 * slot + 1] == value);
+                }
+            }
+        }
+        ggml_backend_sched_reset(sched);
+        ggml_free(ctx);
+    };
+    run(256, 11, 293, { -1, -1, -1, -1 }, 1.0f);
+    run(37, 11, 293, { 36, 35, 33, 29 }, 2.0f);
+    run(1, 12, 4609, { 0, -1, -1, -1 }, 3.0f);
+    run(1, 13, 4610, { 0, -1, -1, -1 }, 4.0f);
+    int64_t identity[9] = {};
+    ggml_backend_tensor_get(validity, identity, 0, sizeof(identity));
+    assert(identity[0] == 13 && identity[5] == 1 && identity[6] == 0 && identity[7] == 0 && identity[8] == 0);
+    ggml_backend_sched_free(sched);
+    ggml_backend_free(cpu);
+    ggml_backend_buffer_free(buffer);
+    ggml_free(owner);
+    std::fprintf(stderr, "indexed query probe scheduler: split/rebuild/CUDA replay/generation reset passed\n");
+}
+
 static void test_independent_query_probes(ggml_backend_t backend) {
     assert(backend != nullptr);
     ggml_init_params init = { 2 * 1024 * 1024, nullptr, true };
@@ -284,23 +444,28 @@ static void test_independent_query_probes(ggml_backend_t backend) {
     struct step {
         ggml_tensor * q;
         ggml_tensor * positions;
-        ggml_tensor * control;
         ggml_tensor * output;
         ggml_cgraph * graph;
     };
-    auto make_step = [&](int rows) {
+    auto make_step = [&](int rows, int64_t generation, int64_t start, int64_t end) {
         step s{};
         s.q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, rows);
         s.positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, rows);
-        s.control = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
-        s.output = ggml_kv_query_probes(ctx, s.q, s.positions, probes, validity, s.control);
+        s.output = ggml_kv_query_probes(ctx, s.q, s.positions, probes, validity,
+                generation, start, end);
         s.graph = ggml_new_graph_custom(ctx, 16, false);
         ggml_set_output(s.output);
         ggml_build_forward_expand(s.graph, s.output);
         return s;
     };
     std::vector<step> steps;
-    for (int rows : { 2, 2, 2, 1, 3, 8, 1, 1, 1, 2 }) steps.push_back(make_step(rows));
+    for (const auto & spec : std::vector<std::array<int64_t, 4>> {
+            { 2, 1, 100, 104 }, { 2, 1, 100, 104 }, { 2, 2, 200, 202 },
+            { 1, 3, 300, 301 }, { 3, 4, 400, 403 }, { 8, 5, 500, 508 },
+            { 1, 6, 600, 608 }, { 1, 6, 600, 608 }, { 1, 7, 700, 701 },
+            { 2, 8, 800, 802 } }) {
+        steps.push_back(make_step(int(spec[0]), spec[1], spec[2], spec[3]));
+    }
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     assert(buffer != nullptr);
     const int64_t invalid[9] = { INT64_MIN, -1, -1, -1, -1, 0, 0, 0, 0 };
@@ -314,10 +479,11 @@ static void test_independent_query_probes(ggml_backend_t backend) {
         step & s = steps[which];
         assert(positions.size() == size_t(s.q->ne[2]));
         assert(row_values.size() == positions.size() * size_t(d));
+        int64_t owner[3] = {};
+        std::memcpy(owner, s.output->op_params, sizeof(owner));
+        assert(owner[0] == generation && owner[1] == start && owner[2] == end);
         ggml_backend_tensor_set(s.q, row_values.data(), 0, row_values.size() * sizeof(float));
         ggml_backend_tensor_set(s.positions, positions.data(), 0, positions.size() * sizeof(int64_t));
-        const int64_t control[3] = { generation, start, end };
-        ggml_backend_tensor_set(s.control, control, 0, sizeof(control));
         assert(ggml_backend_graph_compute(backend, s.graph) == GGML_STATUS_SUCCESS);
         ggml_backend_tensor_get(probes, probe_values.data(), 0, ggml_nbytes(probes));
         ggml_backend_tensor_get(validity, meta.data(), 0, ggml_nbytes(validity));
@@ -365,11 +531,10 @@ static void test_independent_query_probes(ggml_backend_t backend) {
     ggml_free(ctx);
 }
 
-static void test_query_score_rank_cpu() {
+static void test_query_score_rank(ggml_backend_t backend) {
     constexpr int64_t d = 1, heads = 2, probes_n = 4, pages = 6;
     ggml_init_params init = { 1024 * 1024, nullptr, true };
     ggml_context * ctx = ggml_init(init);
-    ggml_backend_t backend = ggml_backend_cpu_init();
     assert(ctx && backend);
     auto * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, 1);
     auto * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 3, 1, pages);
@@ -421,6 +586,16 @@ static void test_query_score_rank_cpu() {
                    std::isfinite(record.mean_probability));
         }
     }
+    const float infinite_probes[heads * probes_n] = {
+        INFINITY, INFINITY, INFINITY, INFINITY,
+        INFINITY, INFINITY, INFINITY, INFINITY,
+    };
+    ggml_backend_tensor_set(probes, infinite_probes, 0, ggml_nbytes(probes));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(ranked, output, 0, ggml_nbytes(ranked));
+    for (const auto & record : output) assert(record.logical_page == -1);
+    const float probe_data_finite[heads * probes_n] = {1, 2, 3, 4, 1, 1, 1, 1};
+    ggml_backend_tensor_set(probes, probe_data_finite, 0, ggml_nbytes(probes));
     bounds_data[size_t(2 * 3 + 1)] = ggml_fp32_to_fp16(std::numeric_limits<float>::infinity());
     ggml_backend_tensor_set(bounds, bounds_data.data(), 0, ggml_nbytes(bounds));
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
@@ -439,13 +614,12 @@ static void test_query_score_rank_cpu() {
     ggml_backend_tensor_get(ranked, output, 0, ggml_nbytes(ranked));
     for (const auto & record : output) assert(record.logical_page == -1);
     ggml_backend_buffer_free(buffer);
-    ggml_backend_free(backend);
     ggml_free(ctx);
 }
 
 static std::vector<ggml_kv_page_rank_record> run_large_page_rank(
-        ggml_backend_t backend, int64_t heads) {
-    constexpr int64_t dim = 8, probes_n = 4, pages = 1024;
+        ggml_backend_t backend, int64_t heads, int64_t pages) {
+    constexpr int64_t dim = 8, probes_n = 4;
     constexpr int64_t resident_width = 16, cold_width = 32;
     ggml_init_params init = { 64 * 1024 * 1024, nullptr, true };
     ggml_context * ctx = ggml_init(init);
@@ -526,21 +700,40 @@ static void test_large_page_rank_cuda(ggml_backend_t cuda_backend) {
     assert(std::strncmp(ggml_backend_name(cuda_backend), "CUDA", 4) == 0);
     ggml_backend_t cpu = ggml_backend_cpu_init();
     assert(cpu);
-    for (const int64_t heads : {16, 200}) {
-        const auto expected = run_large_page_rank(cpu, heads);
-        const auto actual = run_large_page_rank(cuda_backend, heads);
-        for (size_t i = 0; i < expected.size(); ++i) {
-            assert(actual[i].logical_page == expected[i].logical_page);
-            assert(actual[i].validity_flags == expected[i].validity_flags);
-            assert(std::fabs(actual[i].peak_probability - expected[i].peak_probability) < 0.02f);
-            assert(std::fabs(actual[i].mean_probability - expected[i].mean_probability) < 0.02f);
+    for (const int64_t pages : {64, 256, 1024}) {
+        for (const int64_t heads : {16, 200}) {
+            const auto expected = run_large_page_rank(cpu, heads, pages);
+            const auto actual = run_large_page_rank(cuda_backend, heads, pages);
+            for (size_t i = 0; i < expected.size(); ++i) {
+                if (actual[i].logical_page != expected[i].logical_page) {
+                    std::fprintf(stderr, "rank mismatch heads=%" PRId64 " pages=%" PRId64
+                            " slot=%zu CPU={%d,%.8f,%.8f} CUDA={%d,%.8f,%.8f}\n",
+                            heads, pages, i, expected[i].logical_page, expected[i].peak_probability,
+                            expected[i].mean_probability, actual[i].logical_page,
+                            actual[i].peak_probability, actual[i].mean_probability);
+                    if (i == resident_width + 2) {
+                        for (size_t rank = resident_width; rank < actual.size(); ++rank) {
+                            std::fprintf(stderr, "cold rank=%zu CPU=%d(%.4f,%.4f) CUDA=%d(%.4f,%.4f)\n",
+                                    rank - resident_width, expected[rank].logical_page,
+                                    expected[rank].peak_probability, expected[rank].mean_probability,
+                                    actual[rank].logical_page, actual[rank].peak_probability,
+                                    actual[rank].mean_probability);
+                        }
+                    }
+                }
+                assert(actual[i].logical_page == expected[i].logical_page);
+                assert(actual[i].validity_flags == expected[i].validity_flags);
+                assert(std::fabs(actual[i].peak_probability - expected[i].peak_probability) < 0.02f);
+                assert(std::fabs(actual[i].mean_probability - expected[i].mean_probability) < 0.02f);
+            }
+            for (int32_t id : {22, 23}) {
+                assert(std::any_of(actual.begin() + resident_width, actual.end(), [id](const auto & record) {
+                    return record.logical_page == id && record.peak_probability > 0.99f;
+                }));
+            }
+            std::fprintf(stderr, "CUDA PAGE_RANK executed heads=%" PRId64 " pages=%" PRId64
+                    " cold_winners=22,23\n", heads, pages);
         }
-        for (int32_t id : {22, 23}) {
-            assert(std::any_of(actual.begin() + resident_width, actual.end(), [id](const auto & record) {
-                return record.logical_page == id && record.peak_probability > 0.99f;
-            }));
-        }
-        std::fprintf(stderr, "CUDA PAGE_RANK executed heads=%" PRId64 " pages=1024 cold_winners=22,23\n", heads);
     }
     ggml_backend_free(cpu);
 }
@@ -549,7 +742,9 @@ int main() {
     ggml_backend_load_all();
     ggml_backend_t backend = nullptr;
     const char * cuda_test = std::getenv("LLAMA_TEST_KV_PAGE_SELECT_CUDA");
-    if (cuda_test != nullptr && std::strcmp(cuda_test, "1") == 0) {
+    const char * cuda_tiny_test = std::getenv("LLAMA_TEST_KV_PAGE_SELECT_CUDA_TINY");
+    const bool tiny_cuda = cuda_tiny_test != nullptr && std::strcmp(cuda_tiny_test, "1") == 0;
+    if ((cuda_test != nullptr && std::strcmp(cuda_test, "1") == 0) || tiny_cuda) {
         ggml_backend_reg_t cuda_reg = ggml_backend_reg_by_name(GGML_CUDA_NAME);
         if (cuda_reg != nullptr && ggml_backend_reg_dev_count(cuda_reg) > 0) {
             backend = ggml_backend_dev_init(ggml_backend_reg_dev_get(cuda_reg, 0), nullptr);
@@ -558,12 +753,18 @@ int main() {
     if (backend == nullptr) backend = ggml_backend_cpu_init();
     assert(backend != nullptr);
     std::fprintf(stderr, "kv page selector test backend=%s\n", ggml_backend_name(backend));
-    test_query_score_rank_cpu();
-    if (std::strncmp(ggml_backend_name(backend), "CUDA", 4) == 0) {
+    test_query_score_rank(backend);
+    if (!tiny_cuda && std::strncmp(ggml_backend_name(backend), "CUDA", 4) == 0) {
         test_large_page_rank_cuda(backend);
     }
     test_independent_query_probes(backend);
     test_final_user_query_capture(backend);
+    test_split_query_probe_capture(backend);
+    test_indexed_probe_scheduler(backend);
+    if (tiny_cuda) {
+        ggml_backend_free(backend);
+        return 0;
+    }
 
     constexpr int64_t d = 128;
     constexpr int64_t n_q_heads = 4;

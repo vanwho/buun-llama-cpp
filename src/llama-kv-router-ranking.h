@@ -57,6 +57,8 @@ enum class llama_kv_router_owner_stage : uint8_t {
     rerank_pending,
     promotion_pending,
     ready,
+    failed,
+    cancelled,
 };
 
 struct llama_kv_router_identity {

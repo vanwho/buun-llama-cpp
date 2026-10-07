@@ -482,9 +482,16 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
     }
 
     if (op->op == GGML_OP_KV_QUERY_PROBES) {
+        ggml_kv_query_probe_params capture{};
+        memcpy(&capture, op->op_params, sizeof(capture));
         return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
-            op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
-            op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;
+            (capture.indexed ? op->src[1] == nullptr :
+                op->src[1] != nullptr && op->src[1]->type == GGML_TYPE_I64 &&
+                op->src[1]->ne[0] == op->src[0]->ne[2]) && op->src[2]->type == GGML_TYPE_F32 &&
+            op->src[3]->type == GGML_TYPE_I64 &&
+            op->src[2]->ne[0] == op->src[0]->ne[0] &&
+            op->src[2]->ne[1] == op->src[0]->ne[1] && op->src[2]->ne[2] == 4 &&
+            ggml_nelements(op->src[3]) == 9;
     }
 
     if (op->op == GGML_OP_KV_PAGE_SUMMARY) {

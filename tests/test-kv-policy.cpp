@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -976,7 +977,85 @@ static bool test_live_lifecycle() {
     return true;
 }
 
+static llama_kv_prefetch_candidate exact_history_candidate(
+        uint32_t logical, uint32_t layer, float peak, float mean, bool cold) {
+    llama_kv_prefetch_candidate candidate;
+    candidate.identity = live_page_id(logical);
+    candidate.identity.page_generation = logical + 1;
+    candidate.attention_layer = layer;
+    candidate.content_version = candidate.summary_version = 1;
+    candidate.provenance = llama_kv_prefetch_candidate::score_kind::exact_mass;
+    candidate.peak_probability = peak;
+    candidate.mean_probability = mean;
+    candidate.cold = cold;
+    return candidate;
+}
+
+static void test_common_history_competition() {
+    std::vector<llama_kv_prefetch_common_history_bundle> ranked;
+    std::vector<llama_kv_prefetch_candidate> candidates {
+        exact_history_candidate(1, 0, 0.4f, 0.4f, false),
+        exact_history_candidate(2, 0, 0.1f, 0.1f, true),
+    };
+    assert(llama_kv_prefetch_rank_common_history(candidates, 1, ranked));
+    auto selected = llama_kv_prefetch_select_common_history(ranked, 1, 1);
+    assert(selected.size() == 1 && selected[0].representative.identity.logical_page == 1);
+
+    candidates[1] = exact_history_candidate(2, 0, 0.8f, 0.8f, true);
+    assert(llama_kv_prefetch_rank_common_history(candidates, 1, ranked));
+    selected = llama_kv_prefetch_select_common_history(ranked, 1, 1);
+    assert(selected.size() == 1 && selected[0].representative.identity.logical_page == 2);
+
+    // Equal score/support uses ascending logical identity. Missing layer mass
+    // contributes zero: page 3's .6 across two nominated layers beats page 4's
+    // .9 from one layer when the participating layer count is two.
+    candidates = {
+        exact_history_candidate(3, 0, 0.7f, 0.6f, false),
+        exact_history_candidate(3, 1, 0.7f, 0.6f, false),
+        exact_history_candidate(4, 0, 0.7f, 0.9f, false),
+    };
+    assert(llama_kv_prefetch_rank_common_history(candidates, 2, ranked));
+    assert(ranked[0].representative.identity.logical_page == 3);
+    assert(std::fabs(ranked[0].mean_probability_sum / 2.0f - 0.6f) < 1e-6f);
+    assert(ranked[0].supporting_layers == 2);
+
+    candidates = {
+        exact_history_candidate(8, 0, 0.9f, 0.9f, true),
+        exact_history_candidate(7, 0, 0.9f, 0.9f, true),
+    };
+    assert(llama_kv_prefetch_rank_common_history(candidates, 1, ranked));
+    assert(ranked[0].representative.identity.logical_page == 7);
+
+    // A blocked cold page is skipped and the next feasible resident refills H.
+    candidates = {
+        exact_history_candidate(10, 0, 0.9f, 0.9f, true),
+        exact_history_candidate(11, 0, 0.8f, 0.8f, true),
+        exact_history_candidate(12, 0, 0.7f, 0.7f, false),
+    };
+    assert(llama_kv_prefetch_rank_common_history(candidates, 1, ranked));
+    bool budget_limited = false;
+    selected = llama_kv_prefetch_select_common_history(ranked, 2, 1, &budget_limited);
+    assert(budget_limited && selected.size() == 2 &&
+            selected[0].representative.identity.logical_page == 10 &&
+            selected[1].representative.identity.logical_page == 12);
+
+    // A pinned incumbent is accounted outside historical capacity and remains
+    // protected while the one available history slot is competed for.
+    const uint32_t pinned_incumbent = 20;
+    candidates = { exact_history_candidate(21, 0, 0.1f, 0.1f, false),
+        exact_history_candidate(22, 0, 0.8f, 0.8f, true) };
+    assert(llama_kv_prefetch_rank_common_history(candidates, 1, ranked));
+    selected = llama_kv_prefetch_select_common_history(ranked, 1, 1);
+    assert(pinned_incumbent == 20 && selected.size() == 1 &&
+            selected[0].representative.identity.logical_page == 22);
+
+    auto legacy = exact_history_candidate(30, 0, 1.0f, 1.0f, true);
+    legacy.provenance = llama_kv_prefetch_candidate::score_kind::legacy_rank;
+    assert(llama_kv_prefetch_rank_common_history({ legacy }, 1, ranked) && ranked.empty());
+}
+
 int main(int argc, char ** argv) {
+    test_common_history_competition();
     if (argc == 2 && std::strcmp(argv[1], "--query-commit-authoritative-admission") == 0) {
         test_residency_snapshot_reconciles_stale_slots();
         test_live_policy_publication();
