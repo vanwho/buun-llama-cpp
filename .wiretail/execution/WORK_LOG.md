@@ -2411,3 +2411,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - 105-01f is next/todo with fresh context, bounded nonuniform-key numerical
   consumer parity and completed recall outcomes;105-01g selective main port;
   105-02 owns residual coherent generation/MTP before scale. Keep raw external.
+
+## 2026-10-07T11:29:33+00:00 — 105-01f — done
+
+- Branch: `codex/task-105-01f`
+- Commit at update: `c015f96ff`
+- Summary: Verified noncontiguous multi-head Turbo4 direct/packed parity and recorded validated dense/selected retrieval outcomes with explicit goal_miss ownership
