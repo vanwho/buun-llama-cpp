@@ -183,9 +183,9 @@ static std::vector<float> cpu_interleaved_turbo4_oracle(
 static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     constexpr uint32_t n_head_q = 24;
     constexpr uint32_t n_head_kv = 4;
-    constexpr uint32_t n_physical_pages = 5;
+    constexpr uint32_t n_physical_pages = 8;
     constexpr uint32_t max_query_tokens = 128;
-    constexpr uint32_t n_rows = 513;
+    constexpr uint32_t n_rows = 515;
     constexpr size_t head_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t row_bytes = n_head_kv * head_bytes;
     constexpr size_t page_stride = 256 * row_bytes;
@@ -195,21 +195,21 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     constexpr size_t output_query_stride = n_head_q * output_head_stride;
 
     const ggml_cuda_fattn_turbo4_page pages[3] = {
-        { 0, 3,   0, 256,   0 },
-        { 1, 0, 256, 256, 256 },
-        { 2, 4, 512,   1, 512 },
+        { 0, 5,   0, 256,   0 },
+        { 1, 1, 256, 256, 256 },
+        { 2, 7, 512,   3, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages, 3, n_rows, 256, n_physical_pages));
     const ggml_cuda_fattn_turbo4_page pages_257[3] = {
-        { 0, 3,   0, 256,   0 },
-        { 1, 0, 256,   1, 256 },
-        { 2, 4, 257, 256, 512 },
+        { 0, 5,   0, 256,   0 },
+        { 1, 1, 256,   1, 256 },
+        { 2, 7, 257, 256, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages_257, 2, 257, 256, n_physical_pages));
     const ggml_cuda_fattn_turbo4_page pages_permuted[3] = {
-        { 0, 0,   0, 256,   0 },
-        { 1, 4, 256, 256, 256 },
-        { 2, 3, 512,   1, 512 },
+        { 0, 1,   0, 256,   0 },
+        { 1, 7, 256, 256, 256 },
+        { 2, 5, 512,   3, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(
         pages_permuted, 3, n_rows, 256, n_physical_pages));
@@ -229,6 +229,13 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
         make_row_lookup(pages, 3, n_rows);
     const std::vector<ggml_cuda_fattn_turbo4_row_lookup> row_lookup_257 =
         make_row_lookup(pages_257, 2, n_rows);
+    const ggml_cuda_fattn_turbo4_page pages_512[3] = {
+        { 0, 5,   0, 256,   0 },
+        { 1, 1, 256, 256, 256 },
+        { 2, 7, 512,   3, 512 },
+    };
+    const std::vector<ggml_cuda_fattn_turbo4_row_lookup> row_lookup_512 =
+        make_row_lookup(pages_512, 2, 512);
 
     std::vector<uint8_t> k_host(size_t(n_physical_pages) * page_stride, 0xff);
     std::vector<uint8_t> v_host(k_host.size(), 0xff);
@@ -421,7 +428,8 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
         cuda_check(cudaMemcpyAsync(output_device, replay_canary.data(),
             replay_canary.size() * sizeof(float), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaMemcpyAsync(pages_device, replay_pages, sizeof(pages), cudaMemcpyHostToDevice, stream), label);
-        const auto & replay_lookup = page_count == 2 ? row_lookup_257 : row_lookup;
+            const auto & replay_lookup = row_count == 257 ? row_lookup_257 :
+                row_count == 512 ? row_lookup_512 : row_lookup;
         cuda_check(cudaMemcpyAsync(row_lookup_device, replay_lookup.data(), replay_lookup.size() * sizeof(replay_lookup[0]), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaMemcpyAsync(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice, stream), label);
@@ -448,6 +456,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
         }
     };
     replay(pages_257, 2, 257, "multigroup graph replay partial");
+    replay(pages_512, 2, 512, "multigroup generation roll at 512");
     replay(pages, 3, n_rows, "multigroup graph replay full");
     // Keep node shapes and all device addresses fixed while changing the
     // selected physical page descriptors. This catches graph captures that
@@ -504,7 +513,8 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
                 replay_canary.size() * sizeof(float), cudaMemcpyHostToDevice, stream), label);
             cuda_check(cudaMemcpyAsync(pages_device, page_table, sizeof(pages),
                 cudaMemcpyHostToDevice, stream), label);
-            const auto & lookup = page_count == 2 ? row_lookup_257 : row_lookup;
+            const auto & lookup = row_count == 257 ? row_lookup_257 :
+                row_count == 512 ? row_lookup_512 : row_lookup;
             cuda_check(cudaMemcpyAsync(row_lookup_device, lookup.data(),
                 lookup.size() * sizeof(lookup[0]), cudaMemcpyHostToDevice, stream), label);
             cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages,
@@ -536,11 +546,12 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
             }
         };
         replay_verify(pages, 3, n_rows, "verify graph replay pages");
+        replay_verify(pages_512, 2, 512, "verify graph generation roll at 512");
         replay_verify(pages_permuted, 3, n_rows, "verify graph replay permuted pages");
         cudaGraphExecDestroy(verify_graph_exec);
         cudaGraphDestroy(verify_graph);
     }
-    assert(verify_capture_count == 3 && verify_launch_count == 6);
+    assert(verify_capture_count == 3 && verify_launch_count == 9);
 
     cudaFree(active_rows_device);
     cudaFree(active_pages_device);
@@ -555,7 +566,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     cudaFree(q_device);
     std::fprintf(stderr, "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,4,16,17,64,128; GQA=24/4; interleaved rows)\n");
     std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (driver captures=4 graph_launches=%llu"
-        " descriptor permutations, tail rows 257 -> 513, sparse causal gaps, Q=1,2,3,16; finite oracle parity)\n",
+        " descriptor permutations, generation rows 512 -> 515, sparse causal gaps, Q=1,2,3,16; finite oracle parity)\n",
         static_cast<unsigned long long>(verify_launch_count + 3));
 }
 
@@ -786,8 +797,10 @@ static float time_dense_fa(
     std::vector<int32_t> index_host;
     if (pack_rows) {
         const uint32_t physical_rows = n_physical_pages * 256;
-        k_source = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, 256, physical_rows, n_head_kv);
-        v_source = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, 256, physical_rows, n_head_kv);
+        k_source = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, 256,
+            size_t(physical_rows) * n_head_kv, 1);
+        v_source = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, 256,
+            size_t(physical_rows) * n_head_kv, 1);
         indices = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, size_t(n_rows) * n_head_kv);
         index_host.resize(size_t(n_rows) * n_head_kv);
         for (uint32_t head = 0; head < n_head_kv; ++head) {
@@ -1502,12 +1515,12 @@ static void run_pager_layer_slot_stride_case(
     // Q=64 case keeps split scratch to cover the separate cooperative path.
     constexpr uint32_t n_head_q = 24;
     constexpr uint32_t n_head_kv = 4;
-    constexpr uint32_t active_pages = 2;
+    const uint32_t active_pages = active_rows > 512 ? 3 : 2;
     // The 8192-token production graph reserves 32 logical pages even while
     // this request has only two selected resident pages.
     constexpr uint32_t page_capacity = 32;
     constexpr uint32_t row_capacity = 8192;
-    constexpr uint32_t physical_slots = 4;
+    constexpr uint32_t physical_slots = 8;
     constexpr size_t head_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t row_bytes = n_head_kv * head_bytes;
     constexpr size_t layer_page_stride = 256 * row_bytes;
@@ -1515,8 +1528,11 @@ static void run_pager_layer_slot_stride_case(
 
     std::vector<ggml_cuda_fattn_turbo4_page> pages(page_capacity,
         { UINT32_MAX, UINT32_MAX, 0, 0, -1 });
-    pages[0] = { 0, 0,   0, 256,   0 };
-    pages[1] = { 1, 1, 256, active_rows - 256, 256 };
+    pages[0] = { 0, 5,   0, 256,   0 };
+    pages[1] = { 1, 1, 256, std::min<uint32_t>(256, active_rows - 256), 256 };
+    if (active_pages == 3) {
+        pages[2] = { 2, 7, 512, active_rows - 512, 512 };
+    }
     assert(ggml_cuda_fattn_turbo4_page_table_valid(
         pages.data(), active_pages, active_rows, 256, physical_slots));
 
@@ -1525,16 +1541,22 @@ static void run_pager_layer_slot_stride_case(
     for (uint32_t row = 0; row < active_rows; ++row) {
         row_lookup[row] = row < 256
             ? ggml_cuda_fattn_turbo4_row_lookup{ 0, row }
-            : ggml_cuda_fattn_turbo4_row_lookup{ 1, row - 256 };
+            : row < 512
+                ? ggml_cuda_fattn_turbo4_row_lookup{ 1, row - 256 }
+                : ggml_cuda_fattn_turbo4_row_lookup{ 2, row - 512 };
     }
     std::vector<uint8_t> k_host(physical_slots * layer_page_stride, 0);
     std::vector<uint8_t> v_host(k_host.size(), 0);
-    fill_interleaved_turbo4_page(k_host, 0, row_bytes, head_bytes, n_head_kv, 3);
+    fill_interleaved_turbo4_page(k_host, 5 * layer_page_stride, row_bytes, head_bytes, n_head_kv, 3);
     fill_interleaved_turbo4_page(k_host, layer_page_stride, row_bytes,
         head_bytes, n_head_kv, 17);
-    fill_interleaved_turbo4_page(v_host, 0, row_bytes, head_bytes, n_head_kv, 11);
+    fill_interleaved_turbo4_page(k_host, 7 * layer_page_stride, row_bytes,
+        head_bytes, n_head_kv, 31);
+    fill_interleaved_turbo4_page(v_host, 5 * layer_page_stride, row_bytes, head_bytes, n_head_kv, 11);
     fill_interleaved_turbo4_page(v_host, layer_page_stride, row_bytes,
         head_bytes, n_head_kv, 23);
+    fill_interleaved_turbo4_page(v_host, 7 * layer_page_stride, row_bytes,
+        head_bytes, n_head_kv, 41);
 
     std::vector<float> q_host(size_t(query_count) * n_head_q * 256, 0.0f);
     for (uint32_t query = 0; query < query_count; ++query) {
@@ -1548,12 +1570,12 @@ static void run_pager_layer_slot_stride_case(
     std::vector<int64_t> native_positions(row_capacity, -1);
     std::vector<uint8_t> native_mask(row_capacity, 0);
     for (uint32_t row = 0; row < active_rows; ++row) {
-        native_positions[row] = row;
+        native_positions[row] = 1000 + int64_t(row * 3 + row % 7);
         native_mask[row] = 1;
     }
     std::vector<int64_t> query_positions(query_count);
     for (uint32_t query = 0; query < query_count; ++query) {
-        query_positions[query] = active_rows - 1 + query;
+        query_positions[query] = native_positions[active_rows - query_count + query];
     }
     std::vector<float> expected = cpu_interleaved_turbo4_oracle(q_host,
         q_head_stride, size_t(n_head_q) * q_head_stride, k_host, v_host,
@@ -1608,7 +1630,8 @@ static void run_pager_layer_slot_stride_case(
     cuda_check(cudaMemcpy(query_positions_device, query_positions.data(), query_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "slot-stride query copy");
     cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice), "slot-stride active pages copy");
     cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice), "slot-stride active rows copy");
-    const uint32_t active_tail = active_rows - 256;
+    const uint32_t active_tail = active_rows > 512
+        ? active_rows - 512 : active_rows - 256;
     constexpr uint64_t selection_generation = 1;
     cuda_check(cudaMemcpy(active_tail_device, &active_tail, sizeof(active_tail), cudaMemcpyHostToDevice), "slot-stride active tail copy");
     cuda_check(cudaMemcpy(selection_generation_device, &selection_generation, sizeof(selection_generation), cudaMemcpyHostToDevice), "slot-stride generation copy");
@@ -1671,13 +1694,101 @@ static void run_pager_layer_slot_stride_case(
     params.explicit_native_metadata = true;
     assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
         ggml_cuda_fattn_turbo4_paged_status::ok);
-    assert(ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() == (query_count == 1));
+    const bool actual_mma_dispatch = ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma();
+    assert(actual_mma_dispatch == (query_count == 1));
     cuda_check(cudaDeviceSynchronize(), "slot-stride attention synchronize");
     std::vector<float> actual(expected.size());
     cuda_check(cudaMemcpy(actual.data(), output_device, actual.size() * sizeof(float), cudaMemcpyDeviceToHost), "slot-stride output readback");
     for (size_t i = 0; i < actual.size(); ++i) {
         assert(std::isfinite(actual[i]));
         assert(std::fabs(actual[i] - expected[i]) < 3.0e-3f);
+    }
+
+    if (active_rows == 515) {
+        constexpr uint32_t production_fa_rows = 768;
+        constexpr size_t fa_page_stride = 256 * head_bytes;
+        std::vector<uint8_t> fa_k_storage(size_t(n_head_kv) * physical_slots * fa_page_stride);
+        std::vector<uint8_t> fa_v_storage(fa_k_storage.size());
+        for (uint32_t head = 0; head < n_head_kv; ++head) {
+            for (uint32_t slot = 0; slot < physical_slots; ++slot) {
+                for (uint32_t row = 0; row < 256; ++row) {
+                    const size_t interleaved = size_t(slot) * layer_page_stride +
+                        size_t(row) * row_bytes + size_t(head) * head_bytes;
+                    const size_t head_major = (size_t(head) * physical_slots + slot) *
+                        fa_page_stride + size_t(row) * head_bytes;
+                    std::memcpy(fa_k_storage.data() + head_major,
+                        k_host.data() + interleaved, head_bytes);
+                    std::memcpy(fa_v_storage.data() + head_major,
+                        v_host.data() + interleaved, head_bytes);
+                }
+            }
+        }
+        const auto packed_k = pack_selected_storage(fa_k_storage, pages.data(), active_pages,
+            production_fa_rows, n_head_kv, physical_slots,
+            fa_page_stride, head_bytes);
+        const auto packed_v = pack_selected_storage(fa_v_storage, pages.data(), active_pages,
+            production_fa_rows, n_head_kv, physical_slots,
+            fa_page_stride, head_bytes);
+        std::vector<int64_t> fa_positions(production_fa_rows, -1);
+        std::vector<uint8_t> fa_valid(production_fa_rows, 0);
+        std::copy(native_positions.begin(), native_positions.begin() + active_rows,
+            fa_positions.begin());
+        std::fill(fa_valid.begin(), fa_valid.begin() + active_rows, uint8_t(1));
+        std::vector<float> causal_mask(size_t(production_fa_rows) * query_count, -INFINITY);
+        for (uint32_t query = 0; query < query_count; ++query) {
+            for (uint32_t row = 0; row < active_rows; ++row) {
+                if (fa_valid[row] && fa_positions[row] <= query_positions[query]) {
+                    causal_mask[size_t(query) * production_fa_rows + row] = 0.0f;
+                }
+            }
+        }
+        const auto padded_oracle = cpu_interleaved_turbo4_oracle(q_host,
+            q_head_stride, size_t(n_head_q) * q_head_stride, k_host, v_host,
+            pages.data(), active_pages, production_fa_rows, fa_positions, fa_valid,
+            query_positions, query_count, n_head_q, n_head_kv, head_bytes,
+            row_bytes, layer_page_stride, 1.0f / std::sqrt(256.0f));
+        std::vector<float> contiguous, gathered;
+        const float contiguous_status = time_dense_fa(backend, q_host, fa_k_storage, fa_v_storage,
+            packed_k, packed_v, pages.data(), active_pages, production_fa_rows,
+            physical_slots, n_head_q, n_head_kv, fa_page_stride, head_bytes,
+            false, &causal_mask, &contiguous, nullptr, true, true);
+        const float gathered_status = time_dense_fa(backend, q_host, fa_k_storage, fa_v_storage,
+            packed_k, packed_v, pages.data(), active_pages, production_fa_rows,
+            physical_slots, n_head_q, n_head_kv, fa_page_stride, head_bytes,
+            true, &causal_mask, &gathered, nullptr, true, true);
+        assert(contiguous_status == 0.0f && gathered_status == 0.0f);
+        float max_direct_contiguous = 0.0f;
+        float max_gathered_contiguous = 0.0f;
+        float max_gathered_oracle = 0.0f;
+        float max_direct_oracle = 0.0f;
+        for (uint32_t query = 0; query < query_count; ++query) {
+            for (uint32_t head = 0; head < n_head_q; ++head) {
+                for (uint32_t d = 0; d < 256; ++d) {
+                    const size_t logical = (size_t(query) * n_head_q + head) * 256 + d;
+                    const size_t materialized = (size_t(head) * query_count + query) * 256 + d;
+                    assert(std::isfinite(contiguous[materialized]));
+                    assert(std::isfinite(gathered[materialized]));
+                    max_direct_oracle = std::max(max_direct_oracle,
+                        std::fabs(actual[logical] - padded_oracle[logical]));
+                    max_direct_contiguous = std::max(max_direct_contiguous,
+                        std::fabs(actual[logical] - contiguous[materialized]));
+                    max_gathered_contiguous = std::max(max_gathered_contiguous,
+                        std::fabs(gathered[materialized] - contiguous[materialized]));
+                    max_gathered_oracle = std::max(max_gathered_oracle,
+                        std::fabs(gathered[materialized] - padded_oracle[logical]));
+                }
+            }
+        }
+        std::fprintf(stderr,
+            "Turbo4 noncontiguous parity: L=515 padded=768 Q=%u "
+            "GQA=24/4 slots=5,1,7 max_direct_oracle=%.6f "
+            "ordinary_fa_control_errors={direct:%.6f,gathered:%.6f,oracle:%.6f} "
+            "tolerance=3e-3 "
+            "actual_dispatch=%s; materialized-control=ordinary-FA\n",
+            query_count, max_direct_oracle, max_direct_contiguous,
+            max_gathered_contiguous, max_gathered_oracle,
+            actual_mma_dispatch ? "direct-MMA" : "paged-non-MMA");
+        assert(max_direct_oracle < 3.0e-3f);
     }
 
     cudaFree(active_rows_device);
@@ -1700,12 +1811,19 @@ static void run_pager_layer_slot_stride_case(
         query_count, active_rows, layer_page_stride, k_host.size());
 }
 
-static void run_pager_layer_slot_stride_regression(ggml_backend_t backend) {
+static void run_noncontiguous_route_parity(ggml_backend_t backend) {
     run_pager_layer_slot_stride_case(backend, 64, 347);
     // Cold B stalls on a one-query decode attention node after a 1,007-row
     // target append. Its direct attention view still carries two selected
     // pages, so exercise the same two-page tail with Q=1 as well.
     run_pager_layer_slot_stride_case(backend, 1, 347);
+    // Production-shape noncontiguous selected rows: 24 Q heads / 4 KV heads,
+    // slots 5/1/7, native causal gaps and a three-row generation tail.
+    // The row lookup has the production 8192-row allocation, while only 515
+    // rows are active; rows 515 onward remain invalid and cannot be attended.
+    for (const uint32_t query_count : { 1u, 3u, 256u }) {
+        run_pager_layer_slot_stride_case(backend, query_count, 515);
+    }
 }
 
 static void run_cuda_prefill_long_context_regression(ggml_backend_t backend) {
@@ -1765,6 +1883,183 @@ static void run_cuda_prefill_long_context_regression(ggml_backend_t backend) {
     std::fprintf(stderr,
         "cuda_prefill_long_context_regression: passed (L=%u,U=%u,GQA=%u:%u)\n",
         kv_rows, query_tokens, query_heads, kv_heads);
+}
+
+static void run_packed_tail_fill_regression_case(
+        ggml_backend_t backend, uint32_t active_rows, uint32_t row_capacity,
+        uint32_t query_count) {
+    constexpr uint32_t n_head_q = 24;
+    constexpr uint32_t n_head_kv = 4;
+    constexpr uint32_t head_dim = 256;
+    const size_t row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, head_dim);
+    const size_t head_bytes = size_t(row_capacity) * row_bytes;
+    const size_t total_bytes = size_t(n_head_kv) * head_bytes;
+    assert(active_rows < row_capacity);
+
+    ggml_init_params init_params = { 64u * 1024u * 1024u, nullptr, true };
+    ggml_context * ctx = ggml_init(init_params);
+    assert(ctx != nullptr);
+    ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, head_dim, query_count, n_head_q);
+    ggml_tensor * k = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0,
+        head_dim, row_capacity, n_head_kv);
+    ggml_tensor * v = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0,
+        head_dim, row_capacity, n_head_kv);
+    ggml_tensor * mask = ggml_new_tensor_2d(ctx, GGML_TYPE_F16, row_capacity, query_count);
+    assert(q != nullptr && k != nullptr && v != nullptr && mask != nullptr);
+
+    std::vector<float> q_host(size_t(query_count) * n_head_q * head_dim);
+    // ggml stores [D, Q, H], while the fixture generators index [Q, H, D].
+    for (uint32_t head = 0; head < n_head_q; ++head) {
+        for (uint32_t query = 0; query < query_count; ++query) {
+            float * dst = q_host.data() + (size_t(head) * query_count + query) * head_dim;
+            for (uint32_t d = 0; d < head_dim; ++d) {
+                dst[d] = 0.03f * std::sin(float((query + 1) * (head + 3) * (d + 5)) * 0.017f);
+            }
+        }
+    }
+
+    const auto make_kv = [&](uint32_t seed, bool poison_tail) {
+        std::vector<uint8_t> bytes(total_bytes, 0);
+        for (uint32_t head = 0; head < n_head_kv; ++head) {
+            for (uint32_t row = 0; row < row_capacity; ++row) {
+                const size_t row_offset = size_t(head) * head_bytes + size_t(row) * row_bytes;
+                for (uint32_t block = 0; block < head_dim / QK_TURBO4; ++block) {
+                    auto * turbo = reinterpret_cast<block_turbo4_0 *>(
+                        bytes.data() + row_offset + size_t(block) * sizeof(block_turbo4_0));
+                    if (row < active_rows) {
+                        *reinterpret_cast<uint16_t *>(&turbo->norm) = 0x3c00; // fp16 1.0
+                        for (uint32_t i = 0; i < sizeof(turbo->qs); ++i) {
+                            const uint8_t lo = uint8_t((seed + row * 3 + head * 5 + block * 19 + i) & 0xf);
+                            const uint8_t hi = uint8_t((seed + row * 7 + head * 3 + block * 11 + i + 1) & 0xf);
+                            turbo->qs[i] = uint8_t(lo | (hi << 4));
+                        }
+                    } else if (poison_tail) {
+                        // The zero-fill must sanitize NaN norms in rows beyond
+                        // the active extent before packed attention reads them.
+                        *reinterpret_cast<uint16_t *>(&turbo->norm) = 0x7e00;
+                        std::memset(turbo->qs, 0xff, sizeof(turbo->qs));
+                    }
+                }
+            }
+        }
+        return bytes;
+    };
+
+    std::vector<uint8_t> k_control = make_kv(3, false);
+    std::vector<uint8_t> v_control = make_kv(11, false);
+    std::vector<ggml_fp16_t> mask_host(size_t(row_capacity) * query_count);
+    for (uint32_t query = 0; query < query_count; ++query) {
+        for (uint32_t row = 0; row < row_capacity; ++row) {
+            mask_host[size_t(query) * row_capacity + row] = row < active_rows
+                ? ggml_fp32_to_fp16(0.0f)
+                : ggml_fp32_to_fp16(-std::numeric_limits<float>::infinity());
+        }
+    }
+
+    ggml_tensor * output = ggml_flash_attn_ext(ctx, q, k, v, mask,
+        1.0f / std::sqrt(float(head_dim)), 0.0f, 0.0f);
+    assert(output != nullptr);
+
+    ggml_cgraph * graph = ggml_new_graph_custom(ctx, 128, false);
+    std::vector<ggml_tensor *> fill_nodes;
+    const size_t tail_bytes = size_t(row_capacity - active_rows) * row_bytes;
+    for (uint32_t head = 0; head < n_head_kv; ++head) {
+        const size_t tail_offset = size_t(head) * head_bytes + size_t(active_rows) * row_bytes;
+        ggml_tensor * k_tail = ggml_view_2d(ctx, k, head_dim,
+            row_capacity - active_rows, k->nb[1], tail_offset);
+        ggml_tensor * v_tail = ggml_view_2d(ctx, v, head_dim,
+            row_capacity - active_rows, v->nb[1], tail_offset);
+        assert(k_tail != nullptr && v_tail != nullptr);
+        assert(ggml_is_contiguous(k_tail) && ggml_is_contiguous(v_tail));
+        assert(ggml_nbytes(k_tail) == tail_bytes && ggml_nbytes(v_tail) == tail_bytes);
+        fill_nodes.push_back(ggml_fill_inplace(ctx, k_tail, 0.0f));
+        fill_nodes.push_back(ggml_fill_inplace(ctx, v_tail, 0.0f));
+        ggml_build_forward_expand(graph, fill_nodes[fill_nodes.size() - 2]);
+        ggml_build_forward_expand(graph, fill_nodes.back());
+    }
+    ggml_build_forward_expand(graph, output);
+    int fill_last = -1;
+    int output_node = -1;
+    for (int i = 0; i < graph->n_nodes; ++i) {
+        if (graph->nodes[i] == fill_nodes.back()) fill_last = i;
+        if (graph->nodes[i] == output) output_node = i;
+    }
+    assert(fill_last >= 0 && output_node > fill_last);
+
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer != nullptr);
+    ggml_backend_tensor_set(q, q_host.data(), 0, q_host.size() * sizeof(q_host[0]));
+    ggml_backend_tensor_set(mask, mask_host.data(), 0, mask_host.size() * sizeof(mask_host[0]));
+
+    const char * previous_fused = std::getenv("GGML_TURBO_MMA_FUSED");
+    const std::string previous_fused_value = previous_fused == nullptr
+        ? std::string() : previous_fused;
+    setenv("GGML_TURBO_MMA_FUSED", "1", 1);
+    const size_t output_count = size_t(head_dim) * query_count * n_head_q;
+    std::vector<float> control(output_count);
+    ggml_backend_tensor_set(k, k_control.data(), 0, k_control.size());
+    ggml_backend_tensor_set(v, v_control.data(), 0, v_control.size());
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    assert(ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+    ggml_backend_tensor_get(output, control.data(), 0, control.size() * sizeof(control[0]));
+    assert(std::all_of(control.begin(), control.end(), [](float value) { return std::isfinite(value); }));
+
+    const auto check_active_rows_unchanged = [&](ggml_tensor * tensor,
+            const std::vector<uint8_t> & expected, const char * label) {
+        std::vector<uint8_t> actual(total_bytes);
+        ggml_backend_tensor_get(tensor, actual.data(), 0, actual.size());
+        for (uint32_t head = 0; head < n_head_kv; ++head) {
+            const size_t offset = size_t(head) * head_bytes;
+            const size_t active_bytes = size_t(active_rows) * row_bytes;
+            assert(std::memcmp(actual.data() + offset, expected.data() + offset, active_bytes) == 0);
+        }
+        GGML_UNUSED(label);
+    };
+    check_active_rows_unchanged(k, k_control, "control K");
+    check_active_rows_unchanged(v, v_control, "control V");
+
+    for (uint32_t replay = 0; replay < 2; ++replay) {
+        const std::vector<uint8_t> k_poison = make_kv(3, true);
+        const std::vector<uint8_t> v_poison = make_kv(11, true);
+        ggml_backend_tensor_set(k, k_poison.data(), 0, k_poison.size());
+        ggml_backend_tensor_set(v, v_poison.data(), 0, v_poison.size());
+        uint16_t k_tail_norm = 0;
+        uint16_t v_tail_norm = 0;
+        const size_t first_tail_offset = size_t(active_rows) * row_bytes;
+        ggml_backend_tensor_get(k, &k_tail_norm, first_tail_offset, sizeof(k_tail_norm));
+        ggml_backend_tensor_get(v, &v_tail_norm, first_tail_offset, sizeof(v_tail_norm));
+        assert(k_tail_norm == 0x7e00 && v_tail_norm == 0x7e00);
+        assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+        assert(ggml_cuda_fattn_turbo4_fused_last_dispatch_was_mma());
+        std::vector<float> actual(output_count);
+        ggml_backend_tensor_get(output, actual.data(), 0, actual.size() * sizeof(actual[0]));
+        assert(std::all_of(actual.begin(), actual.end(), [](float value) { return std::isfinite(value); }));
+        float max_abs = 0.0f;
+        for (size_t i = 0; i < actual.size(); ++i) {
+            max_abs = std::max(max_abs, std::abs(actual[i] - control[i]));
+        }
+        assert(max_abs <= 1e-4f);
+        check_active_rows_unchanged(k, k_poison, "poisoned K");
+        check_active_rows_unchanged(v, v_poison, "poisoned V");
+    }
+
+    if (previous_fused == nullptr) {
+        unsetenv("GGML_TURBO_MMA_FUSED");
+    } else {
+        setenv("GGML_TURBO_MMA_FUSED", previous_fused_value.c_str(), 1);
+    }
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+    std::fprintf(stderr,
+        "packed Turbo4 tail fill: active=%u capacity=%u Q=%u GQA=24:4 finite, unchanged active rows, replay refreshed\n",
+        active_rows, row_capacity, query_count);
+}
+
+static void run_packed_tail_fill_regression(ggml_backend_t backend) {
+    run_packed_tail_fill_regression_case(backend, 519, 768, 1);
+    run_packed_tail_fill_regression_case(backend, 519, 768, 3);
+    run_packed_tail_fill_regression_case(backend, 4089, 4096, 1);
+    run_packed_tail_fill_regression_case(backend, 4089, 4096, 3);
 }
 
 int main(int argc, char ** argv) {
@@ -1828,7 +2123,8 @@ int main(int argc, char ** argv) {
     }
 
     run_multigroup_turbo4_numerics(backend);
-    run_pager_layer_slot_stride_regression(backend);
+    run_packed_tail_fill_regression(backend);
+    run_noncontiguous_route_parity(backend);
     run_split_tail_growth_regression(backend);
 
     // Keep the fixture small enough to coexist with a loaded full-model
