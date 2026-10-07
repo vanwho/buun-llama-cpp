@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "task": "105-01b",
+  "source_commit": "83e5cbfdaa76e57ccc7716131e0f1b2a55202e20",
+  "candidate": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp-ranking-v1",
+    "build_directory": "build-ranking",
+    "cuda_device": "NVIDIA GeForce RTX 4080",
+    "supported_page_geometries": [
+      64,
+      256,
+      1024
+    ],
+    "head_counts": [
+      16,
+      200
+    ],
+    "coarse_cold_width_cap": 64,
+    "full_kv_promotion_cap": 8
+  },
+  "checks": {
+    "bounded_diverse_key_shortlist_and_exact_rerank": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake --build build-ranking --target test-kv-page-select test-kv-router-job test-cuda-kv-page-summary llama-server --parallel 16",
+        "LLAMA_TEST_KV_PAGE_SELECT_CUDA=1 build-ranking/bin/test-kv-page-select",
+        "build-ranking/bin/test-cuda-kv-page-summary",
+        "build-ranking/bin/test-kv-router-job --cache-cuda"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01b/attempt-01/build-final2.log",
+          "sha256": "f47e2451ab23415a7f116a1e97c187cd5738715494a9a3397b1991e178955721"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01b/attempt-01/oracle-cpu-final.log",
+          "sha256": "c2eea09cc46f4ab055263c0077ed535ed38ef9d4c61b3518ed057c4554a1534a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01b/attempt-01/router-cpu-final.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01b/attempt-01/oracle-cuda-final.log",
+          "sha256": "3f30dd1bb64844c27ebe07822651dc5eb2578615fba4d4cce8fcf8b4407f6d40"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01b/attempt-01/encoded-key-oracle-final.log",
+          "sha256": "afd060ac54e655fa5a7937d8bdc537e9a6a180c0dc5afe6184f1898e6dc3c2de"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01b/attempt-01/router-cache-cuda-final.log",
+          "sha256": "068926938b1317b0ee1c1053651df1ee8b4116527a74c17cb43f1f00b7a9eb83"
+        }
+      ],
+      "observations": {
+        "cpu_cuda_page_rank": "Passed at 64, 256, and 1024 pages for 16 and 200 query heads.",
+        "encoded_key_mass": "CPU and CUDA mass sums passed at 64, 256, and 1024 pages.",
+        "needle_case": "256 encoded rows: 255 distractors plus a final-row outlier; four opposing probes; decoded Turbo4 LSE oracle matched; cold mean mass 0.500755.",
+        "cache_contracts": "Reader slot reuse, cancellation, partial-page handling, and nonfinite-Q failure path passed.",
+        "diff_check": "Passed on task-touched experiment paths."
+      }
+    }
+  }
+}
