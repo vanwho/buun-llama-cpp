@@ -1704,6 +1704,8 @@ private:
         ggml_context * ctx = nullptr;
         ggml_backend_buffer_t buffer = nullptr;
         ggml_tensor * sum = nullptr;
+        // sum planes: span mean numerator plus three actual final-user-tail
+        // rows. Only the numerator is divided by count at graph execution.
         ggml_tensor * count = nullptr;
     };
     mutable std::vector<pager_query_accumulator_state> pager_query_accumulators_;
@@ -2082,6 +2084,9 @@ public:
             const llama_ubatch & ubatch) const override;
     bool set_kv_query_accumulate_inputs(
             ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
     bool can_reuse_kv_page_select(
             const ggml_tensor * bounds, int layer,
             const llama_ubatch & ubatch) const override;

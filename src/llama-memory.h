@@ -259,6 +259,10 @@ struct llama_memory_context_i {
         return false;
     }
 
+    virtual bool can_reuse_kv_query_capture(
+            const ggml_tensor * /* accumulator */, const llama_ubatch & /* ubatch */,
+            llama_seq_id /* sequence_id */, bool /* final_batch */) const { return false; }
+
     // Selector graph reuse is valid only when the logical catalogue shape and
     // sequence identity still match the captured node.
     virtual bool can_reuse_kv_page_select(

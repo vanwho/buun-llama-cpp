@@ -1,10 +1,12 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
-Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
+Revision: `hotpath-v10-20260914`. Amendment: `ranking-query-repair-20261006`.
 
-This is the authoritative architecture contract through the current phase-102
-capacity sequence. The current execution amendment is
-`repo-context-scale-20261004`. The current task is always the first unfinished
+This is the architecture contract. The current execution amendment is
+`ranking-query-repair-20261006`, detailed in
+[ranking-query-repair](../engineering-notes/ranking-query-repair.md).
+Order105-01a/b/c/d ->105-02/03/04/05;105-01 is deferred, not passed.
+The current task is always the first unfinished
 entry in `WORK_STATE.json`; older phase numbers and task packets are provenance,
 not startup instructions. The blocked100-04a audit remains deferred, not
 passed; legacy93/95 incomplete proofs remain deferred and must not be reopened
@@ -16,20 +18,18 @@ overridden by this explicit scheduling amendment.
 
 ## Architecture decisions
 
-The current isolated phase104 amendment is
-[RANKING104_LIVE_REPAIR](RANKING104_LIVE_REPAIR.md).104-04e/f/g/h and104-05
-completed actual owner execution and model-backed publication/replay/parity.
-104-06 is deferred for HTTP500 at finalization, not passed; next is104-06a,
-then104-06b/c/d,104-07/08 and103-04/05. Earlier RANKING104_IMPLEMENTATION and
-PIPELINE are source-specific historical design, not whole startup context.
-Use typed rejection evidence before producer fixes, three fresh generation
-controls before recall, one frozen schedule, and completed misses as findings.
+Phase104 is historical experimental evidence, not the current startup plan.
+Preserve its numerical/transport/replay work, but its model-backed paired
+recall was inconclusive or failed. Current source-directed repairs address
+allocation-before-input, probe ownership across batch shapes, query-mean
+cancellation and overly narrow coarse candidates. Use the current packets
+and compact repair note, not whole RANKING104 recovery documents.
 Preserve
 103-03's measured C=254393 separately from its failed final request; do not
 import its unfinished exact-capacity harness into the experimental base.
 Experimental source is developed in a separate worktree/branch from the local
 plan branch; main default routing remains unchanged until an explicit later
-adoption decision/task. For104 only, independent query probes plus GPU
+adoption decision in105-01c and reviewed integration in105-01d. Independent query probes plus GPU
 metadata shortlist/key-only rerank replace the legacy averaged-span Mean-K
 ranking. Storage, prefill/FA routes and full-L GPU Turbo4 MTP are preserved.
 Completed poor experimental results are verdicts, not repeat gates.
@@ -69,9 +69,13 @@ card, service paths or these counts in portable production logic.
 - Compare direct paged Turbo4 and compressed GPU-packed mature FA using the
   same selected IDs, encoded bytes and native positions. Choose by shape and
   total preparation+kernel+append cost; no CPU or F16-history fallback.
-- Summary scoring remains in Turbo4's actual transformed domain. User-span
-  mean Q is the first candidate; final-row is a diagnostic baseline; compare
-  current min/max scoring with Mean-K before choosing a new default.
+- Summary scoring remains in Turbo4's actual transformed domain. Main now
+  retains mean plus actual tail probes, scored independently to avoid signed
+  cancellation. Probe-rerank uses a diverse bounded K-only shortlist then
+  exact encoded-key mass. Coarse width is not full-K/V promotion width.
+  No nonfinite/empty-result false success or per-token reranking is allowed.
+  Page-mass diagnostic kernels/scratch are explicit opt-in, never ordinary
+  performance telemetry. B1024/U256 and Turbo4 target/draft remain unchanged.
 
 ## Execution order
 
@@ -90,7 +94,7 @@ card, service paths or these counts in portable production logic.
 | 103 | 103-01/02a complete;103-02/03 deferred | retain transport/owner fixes and partial capacity findings; no exact-fill gate before ranking |
 | 104 | 04e/f/g/h and05 done;04d/06 deferred;06a/b/c/d then07/08 | typed finalization repair, fresh target/MTP sanity, frozen harness, bounded paired outcomes, speed/cost and adoption verdict |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
-| 105 | 105-01–02 repair;105-03 minimum final proof;105-04–05 summary/review | repair semantic retrieval and occupied-context MTP, then reassess core capabilities; only schedule the full scale curve after acceptance |
+| 105 | 105-01 deferred;105-01a/b source repairs;105-01c small paired proof;105-01d reviewed integration;105-02 MTP;105-03 scale findings;105-04/05 summary/review | coherent small retrieval/replay/MTP before large occupancy; completed misses get concrete source repairs, not unchanged live retry loops |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
 specified in `OPTIONAL_ADVANCEMENTS.md`. Phase104 is now reserved for the
@@ -116,20 +120,14 @@ create source-directed remediation tasks before scaling. A missing measurement
 is not a speed finding. Keep physical promotion, answer quality and MTP
 acceptance as separate fields. No exact filename/YES/NO output-format gates.
 
-The new repair tasks supersede the failed100-02 campaign, not its source work.
-Query-page capacity repair is already committed separately. Do not diagnose
-an absent prefill spill subsystem from the old `no_victim` label: the latest
-run prefills beyond H and fails during generation. Trace query-commit ownership
-and production batch preflight first. A fixed number of valid campaign rows
-is not a lifetime retry budget. Update scheduling/receipts before declaring done.
-
-Phase100 speed remains a goal miss (~212 fresh tok/s in the latest4K row).
-101-10 replaces the missing integrated parity proof;101-11 observes natural
-promotion on that implementation, and101-12 produces GPU101_RELEASE. Do not
-scale until this release actually passes. A measured miss inserts concrete
-101-12a/b... repairs and a renewed speed decision before102-01, never another
-unchanged audit of100-04a. No completed historical task substitutes for this
-current implementation's runtime proof.
+Historical phase100/101 diagnostics and their old scheduling are not current
+instructions. Their ~212 tok/s row predates subsequent GPU-route repairs;
+neither that row nor a faster but incoherent experimental row certifies the
+current candidate. Preserve existing capacity, storage and transport repairs.
+The next work is precisely105-01a/b/c/d, not reopening old release audits.
+Current source integration and coherent small retrieval/MTP evidence precede
+105-03 scale measurements. A reproduced failure inserts a concrete source
+repair, never an unchanged campaign or a speculative route rewrite.
 
 Primary goal remains 256K full logical/host history, bounded H, natural
 promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill

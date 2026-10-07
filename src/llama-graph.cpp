@@ -44,6 +44,17 @@ llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
 #include <unordered_set>
 #include <vector>
 
+// Page-mass observation uses a different CUDA consumer plus auxiliary scratch.
+// It must never silently change a production timing/MTP run just because
+// ordinary telemetry was enabled. Opt in explicitly, only for small diagnostics.
+static bool diagnostic_page_mass_enabled() {
+    static const bool enabled = [] {
+        const char * value = std::getenv("LLAMA_KV_PAGER_DIAGNOSTIC_PAGE_MASS");
+        return value != nullptr && std::strcmp(value, "1") == 0;
+    }();
+    return enabled;
+}
+
 static bool build_paged_row_lookup(
         const std::vector<ggml_flash_attn_ext_paged_turbo4_page> & pages,
         uint32_t active_page_count, uint32_t row_capacity,
@@ -974,7 +985,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 }
             }
             refresh_direct_telemetry(ubatch);
-            if (direct_page_mass == nullptr && kv_attention_telemetry != nullptr &&
+            if (diagnostic_page_mass_enabled() && direct_page_mass == nullptr && kv_attention_telemetry != nullptr &&
                        kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
                        ubatch->pos != nullptr &&
                        !kv_attention_telemetry->cadence_due(uint64_t(
@@ -1101,8 +1112,11 @@ ggml_tensor * llm_graph_input_attn_kv::get_v_idxs(int32_t il) const {
 
 void llm_graph_input_attn_kv::refresh_direct_telemetry(
         const llama_ubatch * ubatch) noexcept {
-    if (!direct_attention ||
+    if (!direct_attention || !diagnostic_page_mass_enabled() || direct_page_mass == nullptr ||
         kv_attention_telemetry == nullptr || mctx == nullptr) {
+        // Ordinary telemetry does not own a page-mass observer. In particular,
+        // do not copy the full logical residency catalogue on every token just
+        // to discard it during publish_kv_attention_telemetry().
         return;
     }
     direct_telemetry_pages.clear();
@@ -1281,8 +1295,10 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     if (direct) {
         res &= direct_pages != nullptr && direct_native_positions != nullptr &&
             direct_native_mask != nullptr && direct_query_positions != nullptr;
-        res &= direct_split_kv_scratch != nullptr && direct_split_kv_partition_capacity != 0 &&
-            direct_split_kv_page_count != 0;
+        const bool diagnostic_scratch = diagnostic_page_mass_enabled() && direct_page_capacity <= 64 &&
+            params.ubatch.n_seq_tokens == 1 && params.kv_attention_telemetry != nullptr &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off;
+        res &= (direct_split_kv_scratch != nullptr) == diagnostic_scratch;
         res &= direct_page_capacity >= params.kv_attention_metadata.page_table().size();
         res &= direct_row_capacity >= params.kv_attention_metadata.get_n_kv();
         res &= direct_pages->ne[0] == int64_t(
@@ -1299,7 +1315,7 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         const bool telemetry_layer_valid = telemetry_ordinal < direct_layer_ids.size();
         const uint32_t telemetry_model_layer = telemetry_layer_valid
             ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
-        const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
+        const bool telemetry_enabled = diagnostic_scratch && params.kv_attention_telemetry != nullptr &&
             params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
             params.ubatch.n_seq_tokens == 1 &&
             telemetry_layer_valid &&
@@ -2550,6 +2566,23 @@ bool graph_selector_trace_enabled() {
 // generation sidebands are mutable boundary inputs. Keep the latter in the
 // normal graph-input lifecycle so graph reuse never leaves a pointer to a
 // temporary llama_memory_context.
+// Graph reuse must preserve both the accumulator's sequence owner and whether
+// this batch closes the user span. Otherwise an equal-sized final ubatch can
+// reuse an intermediate capture graph and never produce a selector result.
+static bool routing_query_batch_matches(const llama_memory_context_i * mctx,
+        const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) {
+    if (mctx == nullptr || accumulator == nullptr || accumulator->src[0] == nullptr ||
+            accumulator->src[1] == nullptr || accumulator->op != GGML_OP_KV_QUERY_ACCUMULATE ||
+            ubatch.n_tokens == 0 || ubatch.n_pos == 0 || ubatch.pos == nullptr ||
+            ubatch.n_seqs_unq != 1 || ubatch.seq_id == nullptr || ubatch.n_seq_id == nullptr ||
+            ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
+            ubatch.seq_id[0][0] != sequence_id ||
+            uint64_t(accumulator->src[0]->ne[2]) != ubatch.n_tokens ||
+            size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) return false;
+    return mctx->can_reuse_kv_query_capture(accumulator, ubatch, sequence_id, final_batch);
+}
+
 class llm_graph_input_kv_page_select final : public llm_graph_input_i {
 public:
     llm_graph_input_kv_page_select(
@@ -2559,9 +2592,9 @@ public:
             ggml_tensor * membership,
             ggml_tensor * query,
             ggml_tensor * selected,
-            int layer) :
+            int layer, llama_seq_id sequence_id) :
         mctx_(mctx), bounds_(bounds), metadata_(metadata),
-        membership_(membership), query_(query), selected_(selected), layer_(layer) {
+        membership_(membership), query_(query), selected_(selected), layer_(layer), sequence_id_(sequence_id) {
     }
 
     void set_input(const llama_ubatch * ubatch) override {
@@ -2604,7 +2637,8 @@ public:
                 params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
                 size_t(params.ubatch.n_tokens - 1) <=
                     std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
-                mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
+                routing_query_batch_matches(mctx_, selected_->src[0], params.ubatch, sequence_id_, true) &&
+                mctx_->can_reuse_kv_page_select(
                 bounds_, layer_, params.ubatch);
         if (!valid && graph_selector_trace_enabled() && mctx_ != nullptr) {
             mctx_->note_kv_page_select_gate(
@@ -2624,13 +2658,14 @@ private:
     ggml_tensor * query_ = nullptr;
     ggml_tensor * selected_ = nullptr;
     int layer_ = -1;
+    llama_seq_id sequence_id_ = -1;
 };
 
 class llm_graph_input_kv_query_accumulate final : public llm_graph_input_i {
 public:
     llm_graph_input_kv_query_accumulate(
-            const llama_memory_context_i * mctx, ggml_tensor * accumulator) :
-        mctx_(mctx), accumulator_(accumulator) {}
+            const llama_memory_context_i * mctx, ggml_tensor * accumulator, llama_seq_id sequence_id) :
+        mctx_(mctx), accumulator_(accumulator), sequence_id_(sequence_id) {}
 
     void set_input(const llama_ubatch * ubatch) override {
         if (mctx_ != nullptr && ubatch != nullptr) {
@@ -2640,16 +2675,15 @@ public:
 
     bool can_reuse(const llm_graph_params & params) override {
         mctx_ = params.mctx;
-        // The accumulator's backing tensors are KV-cache owned, while the
-        // current positions/control tensors belong to this graph build. Force
-        // graph input refresh/rebuild across ubatches and turn boundaries.
-        (void) params;
-        return false;
+        // set_input refreshes positions and generation every execution after
+        // allocation. A stable intermediate shape need not rebuild the graph.
+        return routing_query_batch_matches(mctx_, accumulator_, params.ubatch, sequence_id_, false);
     }
 
 private:
     const llama_memory_context_i * mctx_ = nullptr;
     ggml_tensor * accumulator_ = nullptr;
+    llama_seq_id sequence_id_ = -1;
 };
 
 } // namespace
@@ -2659,11 +2693,8 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         cb_func(ubatch, cur, name, il);
     }
 
-    if (graph_selector_trace_enabled() && mctx != nullptr && name != nullptr && strcmp(name, "Qcur_routing") != 0) {
-        mctx->note_kv_page_select_gate(
-            llama_kv_pager_selector_gate::callback_name_mismatch,
-            cur, il, ubatch, ubatch.n_tokens > 0 ? ubatch.n_tokens - 1 : 0);
-    }
+    // Selector diagnostics concern Qcur_routing only. Recording a mismatch
+    // for every unrelated model tensor adds work and overwrites useful gates.
     if (name != nullptr && strcmp(name, "Qcur_routing") == 0) {
         // This callback is reached from build_attn_mha before its head/query
         // permutation. A configured memory owner may therefore attach one
@@ -2698,16 +2729,9 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         ggml_tensor * selected = mctx->build_kv_page_select(
                 ctx0, cur, il, ubatch, query_row);
         if (selected != nullptr) {
-            ggml_tensor * accumulator = selected->op == GGML_OP_KV_QUERY_ACCUMULATE
-                ? selected
-                : (selected->src[0] != nullptr &&
-                   selected->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE
-                    ? selected->src[0] : nullptr);
-            if (accumulator != nullptr) {
-                res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
-                        mctx, accumulator));
-            }
             if (selected->op == GGML_OP_KV_QUERY_ACCUMULATE) {
+                res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
+                        mctx, selected, ubatch.seq_id[0][0]));
                 ggml_set_output(selected);
                 ggml_build_forward_expand(gf, selected);
                 return;
@@ -2719,14 +2743,12 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             // recycle it before the pager reads the completed Q sample.
             ggml_set_output(selected);
             ggml_build_forward_expand(gf, selected);
-            mctx->capture_kv_routing_query(selected, il, ubatch);
+            // Do not upload or capture sidebands during graph construction.
+            // Their buffers are allocated later; set_input is the sole owner
+            // of uploads and registration on both first dispatch and reuse.
             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
                     mctx, selected->src[1]->src[2], selected->src[2], selected->src[3],
-                    selected->src[4], selected, il));
-            if (graph_selector_trace_enabled()) {
-                mctx->note_kv_page_select_gate(llama_kv_pager_selector_gate::capture_called,
-                        cur, il, ubatch, query_row);
-            }
+                    selected->src[4], selected, il, ubatch.seq_id[0][0]));
         }
     }
 
@@ -4579,6 +4601,12 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
 
+            // Allocate the diagnostic arena ONLY when its consumer can run.
+            // Ordinary direct/MMA attention has no page-mass sidecar and must
+            // not reserve unused O(queries * heads * pages) device scratch.
+            if (diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+                    ubatch.n_seq_tokens == 1 && kv_attention_telemetry != nullptr &&
+                    kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off) {
             // Reserve a bounded flat scratch arena once per reusable graph.
             // The CUDA dispatcher chooses the active partition count at
             // submission time; the arena is sized from the selected rows and
@@ -4612,6 +4640,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             ggml_set_input(inp->direct_split_kv_scratch);
             ggml_set_name(inp->direct_split_kv_scratch, "kv_direct_split_kv_scratch");
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_split_kv_scratch, direct_backend);
+            }
 
             // The CUDA reduction writes one F32 vector per query head. Keep a
             // single configured layer and the resolved logical-page bound so
@@ -4623,7 +4652,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             const bool telemetry_layer_valid = telemetry_ordinal < inp->direct_layer_ids.size();
             const uint32_t telemetry_model_layer = telemetry_layer_valid
                 ? inp->direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
-            if (kv_attention_telemetry != nullptr &&
+            if (diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+                kv_attention_telemetry != nullptr &&
                 kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
                 ubatch.n_seq_tokens == 1 &&
                 telemetry_layer_valid &&
@@ -5257,7 +5287,7 @@ ggml_tensor * llm_graph_context::build_attn(
         ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
             ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
         ggml_tensor * telemetry_page_mass =
-            inp->direct_page_capacity <= 64 &&
+            diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
             inp->selected_metadata.n_query_tokens() == 1 &&
             inp->kv_attention_telemetry != nullptr &&
             inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&

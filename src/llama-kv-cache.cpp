@@ -2349,8 +2349,8 @@ bool llama_kv_cache::pager_selector_complete(
         trace.async_readback_completed = true;
         trace.raw_selector_output_valid = true;
         trace.raw_cold_count = 0;
-        trace.raw_cold_indices = {{-1, -1}};
-        trace.raw_cold_logical_pages = {{-1, -1}};
+        trace.raw_cold_indices.fill(-1);
+        trace.raw_cold_logical_pages.fill(-1);
     }
     // The mailbox releases the slot when decoding fails. Mark the submission
     // complete up front so graph-owned routing descriptors can be reclaimed on
@@ -2395,10 +2395,11 @@ bool llama_kv_cache::pager_selector_complete(
         }
         return false;
     }
+    bool target_selected = false;
     for (const auto & segment : submission.segments) {
         if (trace_current) {
             for (uint32_t rank = segment.output.resident_count;
-                    rank < segment.count && trace.raw_cold_count < trace.raw_cold_indices.size();
+                    rank < segment.count;
                     ++rank) {
                 const int32_t raw_index = copied_ids[segment.raw_offset + rank];
                 if (rank == segment.output.resident_count &&
@@ -2406,11 +2407,19 @@ bool llama_kv_cache::pager_selector_complete(
                     trace.selector_diagnostic_failure = raw_index;
                 }
                 const int32_t index = raw_index < 0 ? -1 : raw_index;
-                const uint32_t out = trace.raw_cold_count++;
-                trace.raw_cold_indices[out] = index;
                 if (index >= 0 && size_t(index) < segment.output.pages.size()) {
-                    trace.raw_cold_logical_pages[out] = int32_t(
-                            segment.output.pages[size_t(index)].identity.logical_page);
+                    const int32_t page = int32_t(segment.output.pages[size_t(index)].identity.logical_page);
+                    target_selected |= page == trace.target_logical_page;
+                }
+                // The display is bounded, but the conclusion must inspect
+                // ALL cold IDs in ALL layer segments, not only the first two.
+                if (trace.raw_cold_count < trace.raw_cold_indices.size()) {
+                    const uint32_t out = trace.raw_cold_count++;
+                    trace.raw_cold_indices[out] = index;
+                    if (index >= 0 && size_t(index) < segment.output.pages.size()) {
+                        trace.raw_cold_logical_pages[out] = int32_t(
+                                segment.output.pages[size_t(index)].identity.logical_page);
+                    }
                 }
             }
         }
@@ -2428,11 +2437,6 @@ bool llama_kv_cache::pager_selector_complete(
     }
     if (trace_current) {
         trace.mailbox_published = true;
-        const bool target_selected = trace.target_logical_page >= 0 &&
-            std::find(trace.raw_cold_logical_pages.begin(),
-                    trace.raw_cold_logical_pages.begin() + trace.raw_cold_count,
-                    trace.target_logical_page) !=
-                trace.raw_cold_logical_pages.begin() + trace.raw_cold_count;
         trace.outcome = target_selected
             ? llama_kv_pager_selector_trace_outcome::selected_pending
             : trace.target_eligible
@@ -3401,8 +3405,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     trace.synchronous_readback_completed = true;
                     trace.raw_selector_output_valid = true;
                     trace.raw_cold_count = 0;
-                    trace.raw_cold_indices = {{-1, -1}};
-                    trace.raw_cold_logical_pages = {{-1, -1}};
+                    trace.raw_cold_indices.fill(-1);
+                    trace.raw_cold_logical_pages.fill(-1);
                     for (uint32_t rank = output.resident_count;
                             rank < count && trace.raw_cold_count < trace.raw_cold_indices.size();
                             ++rank) {
@@ -3414,11 +3418,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                                     output.pages[size_t(index)].identity.logical_page);
                         }
                     }
-                    const bool target_selected = trace.target_logical_page >= 0 &&
+                    const bool target_selected = trace.outcome == llama_kv_pager_selector_trace_outcome::selected_pending ||
+                        (trace.target_logical_page >= 0 &&
                         std::find(trace.raw_cold_logical_pages.begin(),
                                 trace.raw_cold_logical_pages.begin() + trace.raw_cold_count,
                                 trace.target_logical_page) !=
-                            trace.raw_cold_logical_pages.begin() + trace.raw_cold_count;
+                            trace.raw_cold_logical_pages.begin() + trace.raw_cold_count);
                     trace.outcome = target_selected
                         ? llama_kv_pager_selector_trace_outcome::selected_pending
                         : trace.target_eligible
@@ -18653,7 +18658,11 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         ggml_init_params ip = { 4 * ggml_tensor_overhead(), nullptr, true };
         state.ctx = ggml_init(ip);
         if (state.ctx == nullptr) return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
-        state.sum = ggml_new_tensor_2d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1]);
+        // Keep a span mean AND real tail queries. Mean-only Q loses a
+        // retrieval signal when post-RoPE rows cancel, particularly when the
+        // user message contains a large file followed by a short question.
+        // This bounded state is GPU/cache-owned, never a CPU Q readback.
+        state.sum = ggml_new_tensor_3d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1], 4);
         state.count = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 2);
         if (state.sum == nullptr || state.count == nullptr || kv->layers[layer_index].k->buffer == nullptr) {
             ggml_free(state.ctx);
@@ -18723,7 +18732,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     }
     ggml_tensor * selected = ggml_kv_page_select(ctx, accumulated_q, summary, metadata, membership, query,
             k_resident, k_cold, snapshot.geometry.page_tokens, -1,
-            pager.selector_trace().enabled ? 1 : 0, 1);
+            0, 2);
     note_kv_page_select_gate(selected != nullptr
             ? llama_kv_pager_selector_gate::selector_nodes_created
             : llama_kv_pager_selector_gate::tensor_allocation_failed,
@@ -18772,6 +18781,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         const llama_ubatch & ubatch) const {
     if (!can_reuse_kv_page_select(bounds, layer, ubatch) ||
             metadata == nullptr || membership == nullptr || query == nullptr ||
+            metadata->buffer == nullptr || membership->buffer == nullptr || query->buffer == nullptr ||
             ubatch.pos == nullptr || ubatch.n_pos == 0 || ubatch.n_tokens == 0 ||
             size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) return false;
     const bool profile = llama_kv_hotpath_profile_exact();
@@ -19004,11 +19014,34 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     return true;
 }
 
+bool llama_kv_cache_context::can_reuse_kv_query_capture(
+        const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) const {
+    if (kv == nullptr || kv->get_kv_pager() == nullptr || accumulator == nullptr ||
+            ubatch.n_tokens == 0 || ubatch.n_pos == 0 || ubatch.pos == nullptr ||
+            ubatch.n_seqs_unq != 1 || ubatch.seq_id == nullptr || ubatch.n_seq_id == nullptr ||
+            ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
+            ubatch.seq_id[0][0] != sequence_id ||
+            size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) return false;
+    const auto turn = kv->get_kv_pager()->turn_state(sequence_id);
+    if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
+            turn.query_start < 0 || turn.query_end <= turn.query_start) return false;
+    bool has_user_row = false;
+    bool has_final_row = false;
+    for (uint32_t row = 0; row < ubatch.n_tokens; ++row) {
+        const auto position = ubatch.pos[size_t(row) * ubatch.n_pos];
+        has_user_row |= position >= turn.query_start && position < turn.query_end;
+        has_final_row |= position == turn.query_end - 1;
+    }
+    return has_user_row && has_final_row == final_batch;
+}
+
 bool llama_kv_cache_context::set_kv_query_accumulate_inputs(
         ggml_tensor * accumulator, const llama_ubatch & ubatch) const {
     if (kv == nullptr || kv->get_kv_pager() == nullptr || accumulator == nullptr ||
             accumulator->op != GGML_OP_KV_QUERY_ACCUMULATE ||
             accumulator->src[1] == nullptr || accumulator->src[4] == nullptr ||
+            accumulator->src[1]->buffer == nullptr || accumulator->src[4]->buffer == nullptr ||
             ubatch.n_tokens == 0 || ubatch.pos == nullptr || ubatch.n_pos == 0 ||
             ubatch.n_tokens != accumulator->src[1]->ne[0] ||
             size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos ||

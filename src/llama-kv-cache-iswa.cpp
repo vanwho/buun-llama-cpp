@@ -962,6 +962,18 @@ bool llama_kv_cache_iswa_context::set_kv_page_select_inputs(
             bounds, metadata, membership, query, layer, ubatch);
 }
 
+bool llama_kv_cache_iswa_context::set_kv_query_accumulate_inputs(
+        ggml_tensor * accumulator, const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->set_kv_query_accumulate_inputs(accumulator, ubatch);
+}
+
+bool llama_kv_cache_iswa_context::can_reuse_kv_query_capture(
+        const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) const {
+    return ctx_base != nullptr && ctx_base->can_reuse_kv_query_capture(
+            accumulator, ubatch, sequence_id, final_batch);
+}
+
 bool llama_kv_cache_iswa_context::can_reuse_kv_page_select(
         const ggml_tensor * bounds, int layer,
         const llama_ubatch & ubatch) const {

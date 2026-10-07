@@ -13,11 +13,14 @@ using namespace cub;
 
 namespace {
 
-__global__ void query_accumulate_reset(float * sum, size_t n, int64_t * count,
+__global__ void query_accumulate_reset(float * sum, size_t n, size_t plane, int64_t * count,
         const int64_t * control) {
     const int64_t turn_id = control[0];
     if (count[1] != turn_id) {
-        for (size_t i = threadIdx.x; i < n; i += blockDim.x) sum[i] = 0.0f;
+        for (size_t i = threadIdx.x; i < n; i += blockDim.x) {
+            // Unsampled probes must not become artificial zero-score winners.
+            sum[i] = i < plane ? 0.0f : __int_as_float(0x7fffffff);
+        }
         __syncthreads();
         if (threadIdx.x == 0) {
         count[0] = 0;
@@ -28,23 +31,31 @@ __global__ void query_accumulate_reset(float * sum, size_t n, int64_t * count,
 
 __global__ void query_accumulate_rows(const float * q, size_t q_nb0, size_t q_nb1,
         size_t q_nb2, const int64_t * positions, size_t pos_nb0, float * sum,
-        size_t sum_nb0, size_t sum_nb1, int64_t * count,
+        size_t sum_nb0, size_t sum_nb1, size_t sum_nb2, int probes, int64_t * count,
         const int64_t * control, int d, int heads, int rows) {
     const int64_t query_start = control[1];
     const int64_t query_end = control[2];
+    const int64_t tail_length = query_end > query_start ? min(int64_t(32), query_end - query_start) : 0;
+    const int64_t tail_start = query_end - tail_length;
+    const int64_t probe_positions[3] = { tail_start,
+        tail_start + (tail_length - 1) / 2, query_end - 1 };
     const int64_t linear = int64_t(blockIdx.x) * blockDim.x + threadIdx.x;
     const int64_t total = int64_t(d) * heads;
     if (linear < total) {
         const int head = linear / d;
         const int coord = linear % d;
         float value = 0.0f;
-        int64_t added = 0;
         for (int row = 0; row < rows; ++row) {
             const int64_t pos = *(const int64_t *)((const char *) positions + row * pos_nb0);
             if (pos < query_start || pos >= query_end) continue;
             const char * q_row = (const char *) q + head * q_nb1 + row * q_nb2;
-            value += *(const float *)(q_row + coord * q_nb0);
-            added++;
+            const float qi = *(const float *)(q_row + coord * q_nb0);
+            value += qi;
+            for (int probe = 1; probe < probes; ++probe) {
+                if (pos == probe_positions[probe - 1]) {
+                    *(float *)((char *) sum + head * sum_nb1 + probe * sum_nb2 + coord * sum_nb0) = qi;
+                }
+            }
         }
         char * sum_row = (char *) sum + head * sum_nb1;
         *(float *)(sum_row + coord * sum_nb0) += value;
@@ -59,17 +70,19 @@ __global__ void query_accumulate_rows(const float * q, size_t q_nb0, size_t q_nb
     }
 }
 
-__global__ void query_accumulate_mean(const float * sum, size_t sum_nb0, size_t sum_nb1,
-        const int64_t * count, float * out, size_t out_nb0, size_t out_nb1,
-        int d, int heads) {
+__global__ void query_accumulate_mean(const float * sum, size_t sum_nb0, size_t sum_nb1, size_t sum_nb2,
+        const int64_t * count, float * out, size_t out_nb0, size_t out_nb1, size_t out_nb2,
+        int d, int heads, int probes) {
     const int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x;
-    if (i >= int64_t(d) * heads) return;
-    const int head = i / d;
+    if (i >= int64_t(d) * heads * probes) return;
+    const int probe = i / (int64_t(d) * heads);
+    const int head = (i / d) % heads;
     const int coord = i % d;
-    const char * s = (const char *) sum + head * sum_nb1 + coord * sum_nb0;
-    char * o = (char *) out + head * out_nb1 + coord * out_nb0;
+    const char * s = (const char *) sum + head * sum_nb1 + probe * sum_nb2 + coord * sum_nb0;
+    char * o = (char *) out + head * out_nb1 + probe * out_nb2 + coord * out_nb0;
     const int64_t n = count[0];
-    *(float *)o = n > 0 ? *(const float *)s / float(n) : 0.0f;
+    *(float *)o = n > 0 ? *(const float *)s / (probe == 0 ? float(n) : 1.0f)
+        : probes > 1 ? __int_as_float(0x7fffffff) : 0.0f;
 }
 
 __device__ bool page_select_eligible(
@@ -125,14 +138,16 @@ __global__ void page_select_scores(
     const int group = n_q_heads / n_kv_heads;
     for (int kv_head = 0; kv_head < n_kv_heads; ++kv_head) {
         for (int q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
+          const int probes = scorer_mode == 2 && query_row < 0 ? n_q_rows : 1;
+          for (int probe = 0; probe < probes; ++probe) {
             float partial = 0.0f;
             int invalid = 0;
             int positive_inf = 0;
             int negative_inf = 0;
             for (int coord = threadIdx.x; coord < d; coord += blockDim.x) {
                 float qi = 0.0f;
-                const int row_begin = query_row < 0 ? 0 : query_row;
-                const int row_end = query_row < 0 ? n_q_rows : query_row + 1;
+                const int row_begin = scorer_mode == 2 && query_row < 0 ? probe : query_row < 0 ? 0 : query_row;
+                const int row_end = scorer_mode == 2 && query_row < 0 ? probe + 1 : query_row < 0 ? n_q_rows : query_row + 1;
                 for (int row = row_begin; row < row_end; ++row) {
                     const char * q_row = (const char *) q + q_head * q_nb1 + row * q_nb2;
                     qi += *(const float *)(q_row + coord * q_nb0);
@@ -140,9 +155,9 @@ __global__ void page_select_scores(
                 if (query_row < 0) qi /= float(row_end - row_begin);
                 const char * b = (const char *) bounds + coord * bounds_nb0 +
                     kv_head * bounds_nb2 + page * bounds_nb3;
-                if (scorer_mode == 1) {
+                if (scorer_mode == 1 || scorer_mode == 2) {
                     const float mean = __half2float(*(const half *)(b + 2 * bounds_nb1));
-                    if (!isfinite(mean)) invalid = 1;
+                    if (!isfinite(qi) || !isfinite(mean)) invalid = 1;
                     else partial += qi * mean;
                     continue;
                 }
@@ -183,9 +198,10 @@ __global__ void page_select_scores(
                 const float score = positive_unbounded[0]
                     ? __int_as_float(0x7f800000)
                     : negative_unbounded[0] ? -__int_as_float(0x7f800000) : reduction[0];
-                if (!isnan(score)) best = max(best, score);
+                if (scorer_mode == 0 ? !isnan(score) : isfinite(score)) best = max(best, score);
             }
             __syncthreads();
+          }
         }
     }
     if (threadIdx.x == 0) {
@@ -436,17 +452,18 @@ void ggml_cuda_op_kv_query_accumulate(ggml_backend_cuda_context & ctx, ggml_tens
     const int threads = 256;
     const int blocks = int((n + threads - 1) / threads);
     query_accumulate_reset<<<1, threads, 0, stream>>>(
-            (float *) sum->data, size_t(ggml_nelements(sum)),
+            (float *) sum->data, size_t(ggml_nelements(sum)), size_t(n),
             (int64_t *) count->data, (const int64_t *) control->data);
     CUDA_CHECK(cudaGetLastError());
     query_accumulate_rows<<<blocks, threads, 0, stream>>>(
             (const float *) q->data, q->nb[0], q->nb[1], q->nb[2],
             (const int64_t *) positions->data, positions->nb[0],
-            (float *) sum->data, sum->nb[0], sum->nb[1], (int64_t *) count->data,
+            (float *) sum->data, sum->nb[0], sum->nb[1], sum->nb[2], sum->ne[2], (int64_t *) count->data,
             (const int64_t *) control->data, q->ne[0], q->ne[1], q->ne[2]);
     CUDA_CHECK(cudaGetLastError());
-    query_accumulate_mean<<<blocks, threads, 0, stream>>>(
-            (const float *) sum->data, sum->nb[0], sum->nb[1], (const int64_t *) count->data,
-            (float *) dst->data, dst->nb[0], dst->nb[1], q->ne[0], q->ne[1]);
+    const int output_blocks = int((n * sum->ne[2] + threads - 1) / threads);
+    query_accumulate_mean<<<output_blocks, threads, 0, stream>>>(
+            (const float *) sum->data, sum->nb[0], sum->nb[1], sum->nb[2], (const int64_t *) count->data,
+            (float *) dst->data, dst->nb[0], dst->nb[1], dst->nb[2], q->ne[0], q->ne[1], sum->ne[2]);
     CUDA_CHECK(cudaGetLastError());
 }

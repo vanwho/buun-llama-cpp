@@ -554,9 +554,9 @@ public:
     // consume the graph. The synchronous buffer setter uses
     // cudaStreamPerThread, which is not ordered with the scheduler stream.
     ggml_backend_t direct_backend = nullptr;
-    // Flat graph-owned F32 storage for split-KV partition states and optional
-    // per-page states.  CUDA selects a runtime partition count no larger than
-    // direct_split_kv_partition_capacity.
+    // Explicit diagnostic-only graph-owned F32 storage for partition/page
+    // states. Ordinary direct attention leaves this null: no unused arena or
+    // per-token observer may alter the production consumer or its memory budget.
     ggml_tensor * direct_split_kv_scratch = nullptr;
     uint32_t direct_split_kv_partition_capacity = 0;
     uint32_t direct_split_kv_page_count = 0;

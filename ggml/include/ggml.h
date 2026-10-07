@@ -2667,6 +2667,9 @@ extern "C" {
     // unavailable slots are -1. The fifth op parameter enables a bounded
     // failure code in the first empty cold slot for diagnostics: -2 means
     // eligible pages had no rankable score, -3 means no cold page was eligible.
+    // scorer_mode: 0 = min/max upper bound, 1 = mean-Q dot mean-K,
+    // 2 = maximum mean-K response across independent real query probes.
+    // Modes 0/1 retain their legacy query_row=-1 averaging semantics.
     GGML_API struct ggml_tensor * ggml_kv_page_select(
             struct ggml_context * ctx,
             struct ggml_tensor  * q,
@@ -2681,8 +2684,12 @@ extern "C" {
             int                   diagnostic_mode,
             int                   scorer_mode);
 
-    // Accumulate transformed query rows whose absolute positions are in
-    // [query_start, query_end), resetting persistent sum/count on turn change.
+    // Accumulate transformed query rows in [query_start, query_end), resetting
+    // persistent state on turn change. A 2D sum preserves the legacy mean.
+    // A [D,heads,4] sum additionally retains three real Q rows from the final
+    // 32-token query tail (first, middle, last). The result has the same shape:
+    // mean, tail-first, tail-middle, final. Score those probes independently;
+    // averaging them would reintroduce cancellation in the RoPE domain.
     GGML_API struct ggml_tensor * ggml_kv_query_accumulate(
             struct ggml_context * ctx,
             struct ggml_tensor  * q,

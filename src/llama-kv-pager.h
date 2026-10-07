@@ -514,8 +514,10 @@ struct llama_kv_pager_selector_trace {
     bool target_summary_ready = false;
     bool target_host_backed = false;
     bool target_eligible = false;
-    std::array<int32_t, 2> raw_cold_indices{{-1, -1}};
-    std::array<int32_t, 2> raw_cold_logical_pages{{-1, -1}};
+    std::array<int32_t, LLAMA_KV_QUERY_COLD_SELECTOR_PAGES> raw_cold_indices = [] {
+        std::array<int32_t, LLAMA_KV_QUERY_COLD_SELECTOR_PAGES> ids; ids.fill(-1); return ids;
+    }();
+    std::array<int32_t, LLAMA_KV_QUERY_COLD_SELECTOR_PAGES> raw_cold_logical_pages = raw_cold_indices;
     uint32_t raw_cold_count = 0;
     bool raw_selector_output_valid = false;
     int32_t selector_diagnostic_failure = 0;

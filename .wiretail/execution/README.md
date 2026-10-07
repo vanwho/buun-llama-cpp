@@ -6,35 +6,21 @@ Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
-Continue the first unfinished task in WORK_STATE: 104-06a, attempt1 in a new
-cluster.104-04e/f/g/h and104-05 completed real owner/publication/replay work;
-preserve it. Broad104-04d and overloaded104-06 are deferred, not passed.
-Order:104-06a/b/c/d ->104-07/08 ->103-04/05. Read the compact
-[live repair assessment](forward/RANKING104_LIVE_REPAIR.md), current task and
-immediate handoff, not old retry diaries. Before restarting, apply the generic
-[Wiretail literal-prompt patch](tool-fixes/wiretail-prompt-literals.patch);
-the planning session could not write the installed tool or .git.
-Earlier104-03/04 covered partial oracles, not the working CUDA owner path;
-do not repeat old104-05 audit retries.103-03 is deferred
-with C=254393 committed, exact C=L unproven, and its experimental capacity
-helpers archived on codex/task-103-03 rather than merged to plan. Do not resume
-that campaign or make it a gate on ranking work.103-02a transport/owner proof
-is complete, with ranking/semantic misses recorded. Phase104 is defined in
-[RANKING104](forward/RANKING104.md), before103-04/05 main benchmark/review.
-104-01 creates experiment/attention-aware-ranking-v1 from the then-current
-plan branch in /srv/repos/vanwho/buun-llama-cpp-ranking-v1;104-02–05 implement
-GPU probes, a wider scored shortlist, bounded key-only rerank and safe commit;
-104-06a/b isolate finalization and malformed fresh output;104-06c/d and104-07
-test paired recall/speed/memory;104-08 decides without automatic
-adoption. The main runner/state remains here. The unregistered103-02b packet
-is retired;103-02 remains superseded, not passed. Historical phase102 proceeded
-through the new 128K/H=51,200 fresh load (102-05), the 256K/H=51,200 load
-(102-06), then the bounded goal review (102-07). Both higher-context tasks
-require the filled H=51,200 (200-page) hot window. The 128K and 256K tasks use
-the exact effective argv recorded in their packets; any different configuration
-requires stopping the current Qwen process and verifying a fresh matching
-candidate before sending requests. Existing task work and the active service
-owner are preserved.
+Continue the first unfinished task in WORK_STATE:105-01a.105-01 is deferred,
+not passed. Order105-01a/b/c/d ->105-02/03/04/05. Read the compact
+[query/ranking repair](engineering-notes/ranking-query-repair.md), current
+packet/cluster and immediate handoff only. Main query probes/input lifetime/
+diagnostic isolation have source fixes; supplied patches repair the separate
+ranking experiment. No further unchanged256K semantic retry.
+
+105-01a lands supplied owner fixes;105-01b finishes diverse K-only shortlist
+and exact GPU rerank;105-01c makes a small matched recall/MTP decision;
+105-01d integrates ONLY proven product changes. Then occupied MTP, minimal
+scale findings and compact review. Preserve B1024/U256, Turbo4 target/draft,
+frozen GPU history and inclusive host storage. Never run two Qwen models or
+change the production kernel for diagnostic counters. Preserve historical
+usage/raw artifacts without treating old failed oracles as release evidence.
+Main adoption is a reviewed source slice, never a blanket dirty-worktree merge.
 Unstarted93-12/93-13 are removed from the runnable graph;
 their old packets are archived for provenance. Forward tasks supersede the
 old accepted-token historical refresh and universal attention-route preference.

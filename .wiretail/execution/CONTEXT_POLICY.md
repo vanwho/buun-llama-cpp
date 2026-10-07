@@ -17,53 +17,41 @@ product code. Use `--clean-first` only when the task requires a clean candidate;
 it is not a general speed setting. If an active packet still specifies another
 job count, correct its command to `--parallel 16` before building.
 
-## Current phase-103/104 override
+## Current phase-105 source-directed override
 
-103-02a completed transport/owner checks; its compact handoff records ranking
-misses and separate queued-but-unpublished transfers. 103-03 is deferred:
-C=254393 was committed, but exact C=L is unproven after an attention-ubatch
-planning failure. Do not resume its campaign, inherit its exact-fill helper
-archive, or claim that ranking changes solve that capacity boundary.
-104-04e/f/g/h and104-05 are now done: preserve actual owner graphs, fair
-resident/cold competition and the model-backed publication/replay/cancellation
-proof.104-04d and overloaded104-06 are deferred, not passed. Current order:
-104-06a finalization producer repair ->104-06b fresh generation/MTP sanity
-->104-06c frozen harness ->104-06d bounded comparisons ->104-07/08 ->103-04/05.
-Read RANKING104_LIVE_REPAIR, current packet and immediate handoff ONLY.
-RANKING104_PIPELINE/IMPLEMENTATION and full RANKING104 are historical detailed
-design; consult a named source contract only when needed, not whole files at
-startup. Don't load old retry assessments, full usage ledger, raw request
-bodies or JSONL. HTTP500 at query_finalize requires exact rejection evidence;
-don't call it a ranking miss.400 slash output with0/398 accepted drafts is
-also abnormal and gets three fresh controls, not an endless natural campaign.
-Typed authentication remains fail-closed; completed semantic misses and
-missing optional telemetry are findings, not retry gates. New task/cluster
-IDs supply clean attempt1; don't reset/delete historical token usage.
-RANKING104.md and
-the current packet's named sections supersede legacy Mean-Q/Mean-K algorithm
-directions only inside this experiment. Never load old transcripts, full
-request bodies, retired103-02 or unregistered103-02b as active context.
+Order105-01a/b/c/d ->105-02/03/04/05.105-01 is deferred, not passed. Start from
+WORK_STATE current task, its packet/cluster, the compact
+engineering-notes/ranking-query-repair.md and immediate relevant handoff.
+104/103/older retry plans are historical, not startup directions. Preserve
+working storage/transport/replay code; do not load whole recovery documents,
+WORK_LOG/WORK_STATE, source files or raw JSONL into agent context. Source
+paths mean rg-selected symbol regions. New task IDs/clusters avoid old failed
+sessions; retain historical token usage and raw artifacts.
 
-The experiment uses /srv/repos/vanwho/buun-llama-cpp-ranking-v1 and branch
-experiment/attention-aware-ranking-v1 created from the then-current local
-plan branch. Keep the already-created worktree and follow Wiretail's no-Git
-rule; outer-owner snapshots preserve experiment work (426e34562). Lack of an
-agent commit is not an implementation blocker. Main Git remains Wiretail-owned. Do not switch
-the active main worktree, run nested Wiretail, modify the experiment's copied
-state ledger, merge it into plan or change main default routing implicitly.
-Keep GPU Turbo4 full-L MTP, B1024/U256 and frozen history during generation.
-Experiment misses and speed losses become recorded decisions, not endless
-retries. Only the current packet/design slice and immediate compact handoff
-are startup context; source paths identify symbol regions to inspect.
+Main source owns state/receipts. Experiment implementation is in
+/srv/repos/vanwho/buun-llama-cpp-ranking-v1. Keep its dirty source; never edit
+its copied execution ledger, start nested Wiretail or load a second Qwen.
+Supplied source patches may be applied as explicitly directed by the packet;
+that is not a task-agent commit/branch merge. The outer runner owns Git history.
+Main adoption is explicitly105-01c verdict and105-01d reviewed integration,
+not a wholesale experiment merge or a historical104 approval.
 
-Forward OVERVIEW/TESTING remain the main architecture contract. Old93/100
-repair plans, SOURCE_FORWARD_PLAN, retired packets, acceptance diaries and
-whole predecessor gate sets are historical references, not startup context.
-Resume the first unfinished task in WORK_STATE rather than a historical task
-number. Source entries are symbol pointers: use rg and selected regions,
-never ingest all of server-context.cpp, llama-context.cpp or llama-kv-cache.cpp.
-Verify the current packet's receipt before completion; metadata correction
-preserves prior implementation commits and every usage event.
+GPU Turbo4 target/full-L GPU Turbo4 MTP, B1024/U256. Capture independent Q
+probes at the final-user boundary; diverse coarse K candidates precede exact
+GPU key rerank. Eight full-page promotions are separate from coarse width.
+Publish/replay once and freeze historical attention during generation. Host
+stores encoded pages; no CPU attention, per-token reranking or historical
+H2D while generating. No successful-empty masking of nonfinite Q.
+
+Ordinary telemetry must not reserve diagnostic scratch or change kernels.
+Leave forced routes, experimental refresh, selector/page-mass diagnostics and
+profilers unset for speed/MTP comparisons. Diagnostic snapshots are bounded
+and failure-only. Small coherent dense control and one natural cold recall
+precede large occupancy. Correct auth/identity/port/config errors in-run and
+retry the smallest affected request. A completed semantic/performance miss
+creates a specific code repair, not an unchanged large campaign loop. Missing
+optional telemetry is unknown, not failed functionality. Actual execution or
+numerical failures cannot be relabeled ranking misses or successful evidence.
 
 ## Token accounting: what the numbers mean
 

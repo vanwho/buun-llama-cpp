@@ -8988,6 +8988,12 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
             continue;
         }
         input->direct_telemetry_published = true;
+        if (input->direct_page_mass == nullptr && input->direct_split_kv_scratch == nullptr) {
+            // The production consumer intentionally has no page-mass observer.
+            // Do not scan metadata or manufacture per-token "missing output"
+            // drops for an explicitly disabled diagnostic path.
+            continue;
+        }
         if (input->direct_telemetry_skipped) {
             kv_attention_telemetry->record_skipped_sample();
             continue;

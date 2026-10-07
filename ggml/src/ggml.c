@@ -5961,7 +5961,7 @@ struct ggml_tensor * ggml_kv_page_select(
                 query_metadata->ne[1] == 1 && query_metadata->ne[2] == 1 && query_metadata->ne[3] == 1);
     GGML_ASSERT(k_resident >= 0 && k_cold >= 0 && k_resident + k_cold > 0);
     GGML_ASSERT(page_size > 0);
-    GGML_ASSERT(scorer_mode == 0 || scorer_mode == 1);
+    GGML_ASSERT(scorer_mode >= 0 && scorer_mode <= 2);
 
     struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, k_resident + k_cold);
     result->op = GGML_OP_KV_PAGE_SELECT;
@@ -5990,10 +5990,12 @@ struct ggml_tensor * ggml_kv_query_accumulate(
     GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0 && q->ne[2] > 0 && q->ne[3] == 1);
     GGML_ASSERT(positions->type == GGML_TYPE_I64 && positions->ne[0] == q->ne[2]);
     GGML_ASSERT(sum->type == GGML_TYPE_F32 && sum->ne[0] == q->ne[0] && sum->ne[1] == q->ne[1]);
+    GGML_ASSERT((sum->ne[2] == 1 || sum->ne[2] == 4) && sum->ne[3] == 1);
+    GGML_ASSERT(ggml_is_contiguous(sum));
     GGML_ASSERT(count->type == GGML_TYPE_I64 && ggml_nelements(count) == 2);
     GGML_ASSERT(control->type == GGML_TYPE_I64 && ggml_nelements(control) == 3);
 
-    struct ggml_tensor * result = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, q->ne[0], q->ne[1]);
+    struct ggml_tensor * result = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, q->ne[0], q->ne[1], sum->ne[2]);
     result->op = GGML_OP_KV_QUERY_ACCUMULATE;
     result->src[0] = q;
     result->src[1] = positions;

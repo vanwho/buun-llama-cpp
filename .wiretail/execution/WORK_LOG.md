@@ -2353,3 +2353,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01`
 - Commit at update: `894243023`
 - Summary: Attempt 4 exhausted the bounded recovery cycle: semantic acceptance remains unmet after a fresh 256K request ranked target page 720 out and produced no coherent answer; selector score diagnosis and V10 receipt remain required.
+
+## 2026-10-06T14:11:01+00:00 — Planning/source amendment — query ranking repair
+
+- Preserved 105-01 raw evidence and all usage; deferred its failed semantic campaign without claiming success. Current task is fresh 105-01a, followed by 105-01b/c/d and the revised 105-02/03/04/05.
+- Implemented main-source independent final-user Q probes, valid graph reuse/input ownership, complete nomination tracing and explicit-only page-mass diagnostics; removed unused diagnostic scratch and ordinary per-token residency observer copies. Focused CPU oracle passed and modified CUDA selector compiled; NVIDIA driver prevents CUDA execution/live claims here.
+- Supplied two apply-checkable experiment source patches in execution/fixes. Experiment and Git metadata are read-only in this session: patches are not applied there, no branches/services are changed and no commit is claimed.
+- New packets prescribe the owner lifecycle fix, bounded diverse K-only shortlist/exact GPU rerank, one small paired coherent recall/MTP proof and conditional reviewed main integration. Actual numerical/execution failures remain failures; completed semantic misses create specific implementation successors, not unchanged 256K retries. Current startup context is compact; old retry diaries are historical.

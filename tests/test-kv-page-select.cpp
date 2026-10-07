@@ -270,6 +270,100 @@ static void test_final_user_query_capture(ggml_backend_t backend) {
     ggml_free(ctx);
 }
 
+static void test_query_probes(ggml_backend_t backend) {
+    ggml_init_params init = { 1024 * 1024, nullptr, true };
+    ggml_context * ctx = ggml_init(init);
+    assert(ctx != nullptr);
+    constexpr int d = 3, heads = 2;
+    ggml_tensor * sum = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, 4);
+    ggml_tensor * count = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 2);
+    ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, 2);
+    ggml_tensor * positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 2);
+    ggml_tensor * control = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
+    ggml_tensor * probes = ggml_kv_query_accumulate(ctx, q, positions, sum, count, control);
+    ggml_set_output(probes);
+    ggml_cgraph * capture = ggml_new_graph_custom(ctx, 16, false);
+    ggml_build_forward_expand(capture, probes);
+    ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 3, 1, 2);
+    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 8, 2);
+    ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 2);
+    ggml_tensor * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+    // Use a separate selector graph so it cannot accumulate the final batch twice.
+    ggml_tensor * frozen = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, heads, 4);
+    ggml_tensor * selected = ggml_kv_page_select(ctx, frozen, bounds, metadata,
+            membership, query, 0, 1, 4, -1, 0, 2);
+    ggml_tensor * averaged = ggml_kv_page_select(ctx, frozen, bounds, metadata,
+            membership, query, 0, 1, 4, 0, 0, 1);
+    ggml_set_output(selected);
+    ggml_set_output(averaged);
+    ggml_cgraph * rank = ggml_new_graph_custom(ctx, 16, false);
+    ggml_build_forward_expand(rank, selected);
+    ggml_build_forward_expand(rank, averaged);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer != nullptr);
+    const int64_t sentinel[2] = { 0, INT64_MIN };
+    ggml_backend_tensor_set(count, sentinel, 0, sizeof(sentinel));
+    const auto step = [&](int64_t generation, int64_t start, int64_t end,
+                          int64_t position, float first, float second) {
+        const int64_t controls[3] = { generation, start, end };
+        const int64_t pos[2] = { position, position + 1 };
+        std::vector<float> values(d * heads * 2);
+        std::fill(values.begin(), values.begin() + d * heads, first);
+        std::fill(values.begin() + d * heads, values.end(), second);
+        ggml_backend_tensor_set(q, values.data(), 0, ggml_nbytes(q));
+        ggml_backend_tensor_set(positions, pos, 0, sizeof(pos));
+        ggml_backend_tensor_set(control, controls, 0, sizeof(controls));
+        assert(ggml_backend_graph_compute(backend, capture) == GGML_STATUS_SUCCESS);
+    };
+    step(1, 10, 14, 10, -3, -1);
+    step(1, 10, 14, 12, 1, 3);
+    std::vector<float> values(d * heads * 4);
+    ggml_backend_tensor_get(probes, values.data(), 0, ggml_nbytes(probes));
+    const float expected[4] = { 0, -3, -1, 3 };
+    for (int p = 0; p < 4; ++p) {
+        for (int i = 0; i < d * heads; ++i) assert(values[p * d * heads + i] == expected[p]);
+    }
+    ggml_backend_tensor_set(frozen, values.data(), 0, ggml_nbytes(frozen));
+    std::vector<ggml_fp16_t> catalogue(d * 3 * 2, ggml_fp32_to_fp16(0));
+    for (int page = 0; page < 2; ++page) {
+        for (int i = 0; i < d; ++i) catalogue[page * d * 3 + 2 * d + i] =
+                ggml_fp32_to_fp16(page == 0 ? -1.0f : 2.0f);
+    }
+    const int64_t page_metadata[16] = { 0, 4, 1, 1, -1, 0, 1, 0, 4, 4, 1, 1, -1, 0, 1, 0 };
+    const int32_t memberships[2] = { 0, 0 };
+    const int64_t query_metadata[4] = { 20, 1, 1, 1 };
+    ggml_backend_tensor_set(bounds, catalogue.data(), 0, ggml_nbytes(bounds));
+    ggml_backend_tensor_set(metadata, page_metadata, 0, sizeof(page_metadata));
+    ggml_backend_tensor_set(membership, memberships, 0, sizeof(memberships));
+    ggml_backend_tensor_set(query, query_metadata, 0, sizeof(query_metadata));
+    assert(ggml_backend_graph_compute(backend, rank) == GGML_STATUS_SUCCESS);
+    int32_t chosen = -1, old_choice = -1;
+    ggml_backend_tensor_get(selected, &chosen, 0, sizeof(chosen));
+    ggml_backend_tensor_get(averaged, &old_choice, 0, sizeof(old_choice));
+    assert(chosen == 1 && old_choice == 0); // mean Q cancels and ties; real Q does not
+    std::fill(values.begin(), values.end(), std::numeric_limits<float>::quiet_NaN());
+    ggml_backend_tensor_set(frozen, values.data(), 0, ggml_nbytes(frozen));
+    assert(ggml_backend_graph_compute(backend, rank) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(selected, &chosen, 0, sizeof(chosen));
+    assert(chosen == -1); // invalid Q is never an authenticated score
+    step(2, 20, 22, 20, 2, 4);
+    ggml_backend_tensor_get(probes, values.data(), 0, ggml_nbytes(probes));
+    const float next_expected[4] = { 3, 2, 2, 4 };
+    for (int p = 0; p < 4; ++p) {
+        for (int i = 0; i < d * heads; ++i) assert(values[p * d * heads + i] == next_expected[p]);
+    }
+    step(3, 0, 40, 38, 2, 4); // cached prefix: only final probe was observed
+    ggml_backend_tensor_get(probes, values.data(), 0, ggml_nbytes(probes));
+    assert(values[0] == 3 && std::isnan(values[d * heads]) &&
+            std::isnan(values[2 * d * heads]) && values[3 * d * heads] == 4);
+    step(4, 50, 60, 0, 2, 4); // no user row: no measured zero-valued probe
+    ggml_backend_tensor_get(probes, values.data(), 0, ggml_nbytes(probes));
+    for (const float value : values) assert(std::isnan(value));
+    std::fprintf(stderr, "query-probe oracle: split/reset/cancellation/missing/nonfinite passed\n");
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+}
+
 int main() {
     ggml_backend_load_all();
     ggml_backend_t backend = nullptr;
@@ -281,6 +375,7 @@ int main() {
     assert(backend != nullptr);
     std::fprintf(stderr, "kv page selector test backend=%s\n", ggml_backend_name(backend));
     test_final_user_query_capture(backend);
+    test_query_probes(backend);
 
     constexpr int64_t d = 128;
     constexpr int64_t n_q_heads = 4;

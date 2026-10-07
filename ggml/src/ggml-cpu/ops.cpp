@@ -8687,12 +8687,14 @@ static float ggml_kv_page_select_score(
     const int64_t group = q->ne[1] / bounds->ne[2];
     for (int64_t kv_head = 0; kv_head < bounds->ne[2]; ++kv_head) {
         for (int64_t q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
+          const int64_t probes = scorer_mode == 2 && query_row < 0 ? q->ne[2] : 1;
+          for (int64_t probe = 0; probe < probes; ++probe) {
             float score = 0.0f;
             bool valid = true;
             for (int64_t d = 0; d < q->ne[0]; ++d) {
                 float qi = 0.0f;
-                const int64_t row_begin = query_row < 0 ? 0 : query_row;
-                const int64_t row_end = query_row < 0 ? q->ne[2] : query_row + 1;
+                const int64_t row_begin = scorer_mode == 2 && query_row < 0 ? probe : query_row < 0 ? 0 : query_row;
+                const int64_t row_end = scorer_mode == 2 && query_row < 0 ? probe + 1 : query_row < 0 ? q->ne[2] : query_row + 1;
                 for (int64_t row = row_begin; row < row_end; ++row) {
                     const char * q_data = (const char *) q->data + q_head * q->nb[1] + row * q->nb[2];
                     qi += *(const float *)(q_data + d * q->nb[0]);
@@ -8700,7 +8702,7 @@ static float ggml_kv_page_select_score(
                 if (query_row < 0) qi /= float(row_end - row_begin);
                 const char * b = (const char *) bounds->data + d * bounds->nb[0] +
                     kv_head * bounds->nb[2] + page * bounds->nb[3];
-                if (scorer_mode == 1) {
+                if (scorer_mode == 1 || scorer_mode == 2) {
                     const float mean = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b + 2 * bounds->nb[1]));
                     if (!std::isfinite(qi) || !std::isfinite(mean)) {
                         valid = false;
@@ -8719,6 +8721,7 @@ static float ggml_kv_page_select_score(
                 score += qi >= 0.0f ? qi * hi : qi * lo;
             }
             if (valid && std::isfinite(score)) best = std::max(best, score);
+          }
         }
     }
     return std::isfinite(best) ? best : -INFINITY;
@@ -8824,9 +8827,21 @@ void ggml_compute_forward_kv_query_accumulate(
     const int64_t turn_id = ((const int64_t *) control->data)[0];
     const int64_t query_start = ((const int64_t *) control->data)[1];
     const int64_t query_end = ((const int64_t *) control->data)[2];
+    // Fixed real-row probes survive ubatch splits; they are not coordinatewise
+    // maxima or synthetic Q vectors. A short query may repeat a probe.
+    const int64_t tail_start = query_end - std::min<int64_t>(32, std::max<int64_t>(0, query_end - query_start));
+    const int64_t probe_positions[3] = { tail_start,
+        tail_start + (query_end - tail_start - 1) / 2, query_end - 1 };
     int64_t * counts = (int64_t *) count->data;
     if (counts[1] != turn_id) {
         memset(sum->data, 0, ggml_nbytes(sum));
+        if (sum->ne[2] > 1) {
+            // Missing/cached probe rows are not zero-valued measured Q. NaN
+            // excludes them from ranking until their actual row is captured.
+            std::fill_n((float *) ((char *) sum->data + sum->nb[2]),
+                    size_t(sum->ne[0] * sum->ne[1] * (sum->ne[2] - 1)),
+                    std::numeric_limits<float>::quiet_NaN());
+        }
         counts[0] = 0;
         counts[1] = turn_id;
     }
@@ -8839,18 +8854,27 @@ void ggml_compute_forward_kv_query_accumulate(
             for (int64_t d = 0; d < q->ne[0]; ++d) {
                 *(float *) (sum_row + d * sum->nb[0]) +=
                     *(const float *) (q_row + d * q->nb[0]);
+                for (int64_t probe = 1; probe < sum->ne[2]; ++probe) {
+                    if (position == probe_positions[probe - 1]) {
+                        *(float *) (sum_row + probe * sum->nb[2] + d * sum->nb[0]) =
+                            *(const float *) (q_row + d * q->nb[0]);
+                    }
+                }
             }
         }
         counts[0]++;
     }
     const float divisor = counts[0] > 0 ? float(counts[0]) : 1.0f;
-    for (int64_t head = 0; head < sum->ne[1]; ++head) {
-        const char * sum_row = (const char *) sum->data + head * sum->nb[1];
-        char * out_row = (char *) dst->data + head * dst->nb[1];
+    for (int64_t probe = 0; probe < sum->ne[2]; ++probe) {
+      for (int64_t head = 0; head < sum->ne[1]; ++head) {
+        const char * sum_row = (const char *) sum->data + head * sum->nb[1] + probe * sum->nb[2];
+        char * out_row = (char *) dst->data + head * dst->nb[1] + probe * dst->nb[2];
         for (int64_t d = 0; d < sum->ne[0]; ++d) {
-            *(float *) (out_row + d * dst->nb[0]) =
-                *(const float *) (sum_row + d * sum->nb[0]) / divisor;
+            *(float *) (out_row + d * dst->nb[0]) = counts[0] == 0 && sum->ne[2] > 1
+                ? std::numeric_limits<float>::quiet_NaN()
+                : *(const float *) (sum_row + d * sum->nb[0]) / (probe == 0 ? divisor : 1.0f);
         }
+      }
     }
 }
 

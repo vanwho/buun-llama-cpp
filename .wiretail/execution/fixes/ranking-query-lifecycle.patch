@@ -1,0 +1,234 @@
+diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
+--- a/src/llama-graph.cpp
++++ b/src/llama-graph.cpp
+@@ -2757,22 +2757,19 @@
+                     selected != nullptr ? int(selected->op) : -1);
+         }
+         if (probe_capture != nullptr) {
+-            res->add_input(std::make_unique<llm_graph_input_kv_query_probes>(
+-                    mctx, probe_capture));
++            const bool final_probe_selector = selected != nullptr &&
++                    selected->op == GGML_OP_KV_PAGE_RANK && selected->src[5] == probe_capture;
++            if (!final_probe_selector) {
++                res->add_input(std::make_unique<llm_graph_input_kv_query_probes>(
++                        mctx, probe_capture));
++            }
+             ggml_set_output(probe_capture);
+             ggml_build_forward_expand(gf, probe_capture);
+         }
+         if (selected != nullptr) {
+-            ggml_tensor * accumulator = selected->op == GGML_OP_KV_QUERY_ACCUMULATE
+-                ? selected
+-                : (selected->src[0] != nullptr &&
+-                   selected->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE
+-                    ? selected->src[0] : nullptr);
+-            if (accumulator != nullptr) {
++            if (selected->op == GGML_OP_KV_QUERY_ACCUMULATE) {
+                 res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
+-                        mctx, accumulator));
+-            }
+-            if (selected->op == GGML_OP_KV_QUERY_ACCUMULATE) {
++                        mctx, selected));
+                 ggml_set_output(selected);
+                 ggml_build_forward_expand(gf, selected);
+                 return;
+@@ -2784,26 +2781,8 @@
+             // recycle it before the pager reads the completed Q sample.
+             ggml_set_output(selected);
+             ggml_build_forward_expand(gf, selected);
+-            // Graph inputs are refreshed on reuse, but a newly built graph
+-            // must receive the page catalogue and query sidebands before its
+-            // first dispatch as well.
+-            const bool probe_query = selected->op == GGML_OP_KV_PAGE_RANK &&
+-                    selected->src[5] != nullptr && selected->src[5]->op == GGML_OP_KV_QUERY_PROBES;
+-            const bool accumulate_query = selected->src[0] != nullptr &&
+-                    selected->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE;
+-            const bool query_ready = probe_query
+-                ? mctx->set_kv_query_probe_inputs(selected->src[5], ubatch)
+-                : accumulate_query && mctx->set_kv_query_accumulate_inputs(selected->src[0], ubatch);
+-            if (!query_ready || !mctx->set_kv_page_select_inputs(
+-                    selected->src[1]->src[2], selected->src[2], selected->src[3],
+-                    selected->src[4], il, ubatch)) {
+-                if (graph_selector_trace_enabled()) {
+-                    mctx->note_kv_page_select_gate(
+-                        llama_kv_pager_selector_gate::sideband_inputs_rejected,
+-                        cur, il, ubatch, query_row);
+-                }
+-            }
+-            mctx->capture_kv_routing_query(selected, il, ubatch);
++            // Upload and register only from set_input(), after graph allocation.
++            // Construction-time tensor_set sees graph-owned null buffers.
+             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
+                     mctx, selected->src[1]->src[2], selected->src[2], selected->src[3],
+                     selected->src[4], selected, il));
+diff --git a/src/llama-kv-cache.cpp b/src/llama-kv-cache.cpp
+--- a/src/llama-kv-cache.cpp
++++ b/src/llama-kv-cache.cpp
+@@ -19709,64 +19709,59 @@
+     auto state_it = std::find_if(kv->pager_query_accumulators_.begin(),
+             kv->pager_query_accumulators_.end(), [&](const auto & state) {
+         return state.sequence_id == sequence_id && state.layer == uint32_t(layer) &&
+-            state.dim == q->ne[0] && state.heads == q->ne[1] && state.rows == q->ne[2];
+-    });
+-    if (state_it == kv->pager_query_accumulators_.end()) {
+-        llama_kv_cache::pager_query_accumulator_state state;
+-        state.sequence_id = sequence_id;
+-        state.layer = uint32_t(layer);
+-        state.dim = q->ne[0];
+-        state.heads = q->ne[1];
+-        state.rows = q->ne[2];
+-        ggml_init_params ip = { 8 * ggml_tensor_overhead(), nullptr, true };
+-        state.ctx = ggml_init(ip);
+-        if (state.ctx == nullptr) return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+-        state.sum = ggml_new_tensor_2d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1]);
+-        state.count = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 2);
+-        const bool capture_probes = pager.router_mode() == llama_kv_router_mode::probe_rerank;
+-        if (capture_probes) {
+-            state.probes = ggml_new_tensor_3d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1], 4);
+-            state.probe_validity = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 9);
+-            state.probe_positions = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, q->ne[2]);
+-            state.probe_control = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 3);
+-        }
+-        if (state.sum == nullptr || state.count == nullptr ||
+-                (capture_probes && (state.probes == nullptr || state.probe_validity == nullptr ||
+-                 state.probe_positions == nullptr || state.probe_control == nullptr)) ||
+-                kv->layers[layer_index].k->buffer == nullptr) {
+-            ggml_free(state.ctx);
+-            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+-        }
+-        state.buffer = ggml_backend_alloc_ctx_tensors_from_buft(state.ctx,
+-                ggml_backend_buffer_get_type(kv->layers[layer_index].k->buffer));
+-        if (state.buffer == nullptr) {
+-            ggml_free(state.ctx);
+-            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+-        }
+-        const int64_t init_count[2] = { 0, INT64_MIN };
+-        ggml_backend_tensor_set(state.count, init_count, 0, sizeof(init_count));
+-        if (state.probe_validity != nullptr) {
+-            int64_t init_validity[9] = { INT64_MIN, -1, -1, -1, -1, 0, 0, 0, 0 };
+-            ggml_backend_tensor_set(state.probe_validity, init_validity, 0, sizeof(init_validity));
+-        }
+-        try {
+-            kv->pager_query_accumulators_.push_back(state);
+-        } catch (...) {
+-            ggml_backend_buffer_free(state.buffer);
+-            ggml_free(state.ctx);
+-            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+-        }
+-        state_it = kv->pager_query_accumulators_.end() - 1;
+-    }
+-    ggml_tensor * positions = probe_router ? state_it->probe_positions
+-        : ggml_new_tensor_1d(ctx, GGML_TYPE_I64, ubatch.n_tokens);
+-    ggml_tensor * control = probe_router ? state_it->probe_control
+-        : ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
+-    if (positions == nullptr || control == nullptr) return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+-    if (!probe_router) {
+-        ggml_set_input(positions);
+-        ggml_set_input(control);
+-    }
++            state.dim == q->ne[0] && state.heads == q->ne[1];
++    });
++    if (state_it == kv->pager_query_accumulators_.end()) {
++        llama_kv_cache::pager_query_accumulator_state state;
++        state.sequence_id = sequence_id;
++        state.layer = uint32_t(layer);
++        state.dim = q->ne[0];
++        state.heads = q->ne[1];
++        state.rows = q->ne[2];
++        ggml_init_params ip = { 8 * ggml_tensor_overhead(), nullptr, true };
++        state.ctx = ggml_init(ip);
++        if (state.ctx == nullptr) return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
++        state.sum = ggml_new_tensor_2d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1]);
++        state.count = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 2);
++        const bool capture_probes = pager.router_mode() == llama_kv_router_mode::probe_rerank;
++        if (capture_probes) {
++            state.probes = ggml_new_tensor_3d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1], 4);
++            state.probe_validity = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 9);
++        }
++        if (state.sum == nullptr || state.count == nullptr ||
++                (capture_probes && (state.probes == nullptr || state.probe_validity == nullptr)) ||
++                kv->layers[layer_index].k->buffer == nullptr) {
++            ggml_free(state.ctx);
++            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
++        }
++        state.buffer = ggml_backend_alloc_ctx_tensors_from_buft(state.ctx,
++                ggml_backend_buffer_get_type(kv->layers[layer_index].k->buffer));
++        if (state.buffer == nullptr) {
++            ggml_free(state.ctx);
++            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
++        }
++        const int64_t init_count[2] = { 0, INT64_MIN };
++        ggml_backend_tensor_set(state.count, init_count, 0, sizeof(init_count));
++        if (state.probe_validity != nullptr) {
++            int64_t init_validity[9] = { INT64_MIN, -1, -1, -1, -1, 0, 0, 0, 0 };
++            ggml_backend_tensor_set(state.probe_validity, init_validity, 0, sizeof(init_validity));
++        }
++        try {
++            kv->pager_query_accumulators_.push_back(state);
++        } catch (...) {
++            ggml_backend_buffer_free(state.buffer);
++            ggml_free(state.ctx);
++            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
++        }
++        state_it = kv->pager_query_accumulators_.end() - 1;
++    }
++    ggml_tensor * positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, ubatch.n_tokens);
++    ggml_tensor * control = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
++    if (positions == nullptr || control == nullptr) return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
++    // Probe contents/validity belong to the sequence/layer, not U. Mutable
++    // positions/control belong to each graph shape and are uploaded after allocation.
++    ggml_set_input(positions);
++    ggml_set_input(control);
+     ggml_set_name(positions, "kv_routing_query_positions");
+     ggml_set_name(control, "kv_routing_query_span");
+     ggml_tensor * routing_q = ggml_turbo_wht(ctx, ggml_cont(ctx, q), 2);
+diff --git a/src/llama-kv-router-job.cpp b/src/llama-kv-router-job.cpp
+--- a/src/llama-kv-router-job.cpp
++++ b/src/llama-kv-router-job.cpp
+@@ -901,17 +901,8 @@
+         if (invalid_probe_layer != mass_snapshots.end()) {
+-            // There is no exact distribution to finalize when an entire layer's
+-            // captured Q probes are non-finite. Complete the owner transaction
+-            // with an empty exact batch so cache policy keeps its committed
+-            // selection; never promote zero-mass records to exact_mass.
+-            std::vector<llama_kv_router_exact_page_record> no_exact_records;
+-            if (!complete_query(identity, true, no_exact_records)) return fail();
+-            completed_records_.clear();
+-            completed_turn_id_ = identity.turn_id;
+-            records.clear();
+-            std::fprintf(stderr, "router exact rerank skipped reason=nonfinite_query_probe"
+-                    " compact=%u model=%u nonfinite=%u\n",
+-                    invalid_probe_layer->compact_layer, invalid_probe_layer->model_layer,
+-                    invalid_probe_layer->probe_nonfinite_count);
+-            return llama_kv_router_execution_status::ready;
++            // Non-finite model Q is execution failure, never an authenticated
++            // empty retrieval result. Preserve the diagnostic and abort without
++            // publishing a new selection or advancing a successful-turn cache.
++            failure_phase = "nonfinite_query_probe";
++            return fail();
+         }
+         if (!complete_query(identity, true, completed)) {
+diff --git a/ggml/src/ggml-cuda/kv-page-select.cu b/ggml/src/ggml-cuda/kv-page-select.cu
+--- a/ggml/src/ggml-cuda/kv-page-select.cu
++++ b/ggml/src/ggml-cuda/kv-page-select.cu
+@@ -504,7 +504,7 @@
+     for (int d = 0; d < dim; ++d) {
+         const float q = *(const float *) ((const char *) probes +
+                 d * probe_nb0 + head * probe_nb1 + probe * probe_nb2) * scale;
+-        if (isnan(q)) return nanf("");
++        if (!isfinite(q)) return nanf("");
+         if (q == 0.0f) continue;
+         const int bound_index = source == 0 ? (q > 0.0f ? 1 : 0) : 2;
+         const float value = __half2float(*(const half *) ((const char *) bounds +
+diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
+--- a/ggml/src/ggml-cpu/ops.cpp
++++ b/ggml/src/ggml-cpu/ops.cpp
+@@ -8854,7 +8854,7 @@
+                         bool good = true;
+                         for (int64_t d = 0; d < bounds->ne[0]; ++d) {
+                             const double qi = double(tensor_f32(probes, d, head, probe)) * scale;
+-                            if (std::isnan(qi)) { good = false; break; }
++                            if (!std::isfinite(qi)) { good = false; break; }
+                             if (qi == 0.0) continue; // Avoid 0 * +/-infinity.
+                             if (source == 0) {
+                                 const double lo = tensor_f16(bounds, d, 0, kv_head, page);

@@ -2402,3 +2402,22 @@ You can specify default preferences for the web UI using `--ui-config <JSON conf
 > **Note:** The old flags `--webui-config` and `--webui-config-file` are deprecated but still work as aliases.
 
 You may find available preferences in [settings-keys.ts](../ui/src/lib/constants/settings-keys.ts).
+
+### Selective KV ranking and diagnostic isolation
+
+Selective Turbo4 retrieval captures target queries on GPU at the final-user
+boundary, publishes a valid selected history and replays the query when that
+history changes. Historical selection is frozen during generation/MTP; the
+host is encoded KV storage, not a per-token CPU attention engine.
+
+The current mean-key selector preserves a span mean plus actual query-tail
+probes and scores probes independently; a page-mean shortlist is still an
+approximation, not exact attention mass. Exact encoded-key reranking is being
+validated separately. Do not interpret physical promotion as answer correctness.
+
+`LLAMA_KV_PAGER_DIAGNOSTIC_PAGE_MASS=1` explicitly enables the small direct-route
+page-mass observer when attention telemetry is also enabled. That observer
+uses auxiliary scratch and a different CUDA consumer. Leave it unset for
+ordinary inference and performance/MTP comparisons. Ordinary telemetry alone
+must not allocate that scratch or change the production attention consumer.
+Selector tracing observes candidates only; it must not change their scores.

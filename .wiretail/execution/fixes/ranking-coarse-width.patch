@@ -1,0 +1,45 @@
+diff --git a/src/llama-kv-prefetch.h b/src/llama-kv-prefetch.h
+--- a/src/llama-kv-prefetch.h
++++ b/src/llama-kv-prefetch.h
+@@ -248,5 +248,5 @@
+ constexpr uint32_t llama_kv_query_cold_rank_width(uint32_t cold_pages) noexcept {
+-    const uint32_t quarter = cold_pages / 4u + (cold_pages % 4u != 0u);
+-    const uint32_t target = quarter < 8u ? 8u : (quarter > 32u ? 32u : quarter);
+-    return cold_pages < target ? cold_pages : target;
++    // Coarse K-only candidates are NOT the full-K/V promotion budget.
++    // Admit a bounded diverse key pool before exact rerank chooses winners.
++    return cold_pages < 64u ? cold_pages : 64u;
+ }
+diff --git a/ggml/src/ggml-cuda/kv-page-select.cu b/ggml/src/ggml-cuda/kv-page-select.cu
+--- a/ggml/src/ggml-cuda/kv-page-select.cu
++++ b/ggml/src/ggml-cuda/kv-page-select.cu
+@@ -658,12 +658,6 @@
+         }
+-        int limit = width;
+-        if (region == 1) {
+-            const int bound = max(8, min(32, (eligible + 3) / 4));
+-            limit = min(width, min(eligible, bound));
+-        } else {
+-            limit = min(width, eligible);
+-        }
++        const int limit = min(width, eligible);
+         const int seed = (limit + 1) / 2;
+         int written = 0;
+         for (int source = 0; source < 2; ++source) {
+             const int combo = source == 0 ? bound_combo : mean_combo;
+diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
+--- a/ggml/src/ggml-cpu/ops.cpp
++++ b/ggml/src/ggml-cpu/ops.cpp
+@@ -8929,11 +8929,7 @@
+         auto a = scores_for(region, 0), b = scores_for(region, 1);
+         const int64_t cold_available = region == 1
+             ? std::count(eligible.begin() + region*n_pages,
+                          eligible.begin() + (region+1)*n_pages, uint8_t(1)) : 0;
+-        const int64_t quarter = cold_available / 4 + (cold_available % 4 != 0);
+-        const int limit = region == 1
+-            ? int(std::min<int64_t>(width, std::min<int64_t>(cold_available,
+-                    std::max<int64_t>(8, std::min<int64_t>(32, quarter)))))
+-            : width;
++        const int limit = region == 1 ? int(std::min<int64_t>(width, cold_available)) : width;
+         std::vector<page_score> merged;
+         const int seed = (limit + 1) / 2;

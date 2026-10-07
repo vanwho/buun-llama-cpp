@@ -1,15 +1,15 @@
 # Active task contract — V10
 
-Current phase104 execution:104-06a/b/c/d ->104-07/08 ->103-04/05.
-104-04e/f/g/h and104-05 are done; preserve their production owner/parity proof.
-104-04d and overloaded104-06 are deferred, not accepted. Current compact
-authority is `../forward/RANKING104_LIVE_REPAIR.md`; current packet and
-immediate handoff contain actionable context. Earlier packets are historical.
+Current execution:105-01a/b/c/d ->105-02/03/04/05.105-01 is deferred, not passed.
+Current compact authority is `../engineering-notes/ranking-query-repair.md`;
+read current packet/cluster and immediate compact handoff. Preserve numerical,
+transport and replay work; do not repeat old104/105 retry diaries or256K
+semantic misses. New task IDs start fresh query/implementation context.
 
 Only unfinished tasks with the current revision and their explicit context
 lists are executable instructions. Completed packets are historical records.
 Current architecture is `../forward/OVERVIEW.md`; this phase's startup context
-is RANKING104_LIVE_REPAIR plus current packet/immediate handoff. V10/V9 broad
+is ranking-query-repair plus current packet/immediate handoff. V10/V9 broad
 overview/testing files are historical; only a specifically needed receipt
 schema or named source contract should be read, not their entire history.
 

@@ -651,6 +651,13 @@ bool llama_memory_hybrid_context::set_kv_query_accumulate_inputs(
             accumulator, ubatch);
 }
 
+bool llama_memory_hybrid_context::can_reuse_kv_query_capture(
+        const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) const {
+    return get_attn() != nullptr && get_attn()->can_reuse_kv_query_capture(
+            accumulator, ubatch, sequence_id, final_batch);
+}
+
 bool llama_memory_hybrid_context::can_reuse_kv_page_select(
         const ggml_tensor * bounds, int layer,
         const llama_ubatch & ubatch) const {

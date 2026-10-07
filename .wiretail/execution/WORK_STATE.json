@@ -2,22 +2,22 @@
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
   "canonical_plan": ".wiretail/execution/forward/OVERVIEW.md",
-  "active_plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
-  "technical_change_spec": ".wiretail/execution/forward/PREFILL101.md",
+  "active_plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+  "technical_change_spec": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
   "execution_cookbook": ".wiretail/execution/forward/TESTING.md",
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current isolated ranking work: 104-04a/b/c groundwork preserved; 104-04d deferred, not passed. Execute 104-04e/f/g/h -> revised104-05 ->104-06/07/08 ->103-04/05. Read compact RANKING104_PIPELINE, current packet and immediate handoff only; no raw retry JSONL or whole historical recovery document. Implement actual frozen key inputs, owned GPU graphs/reader events, final-user invocation and fair resident/cold competition; then tiny same-cache CUDA proof. Missing APIs are implementation work, not audit-only external blockers. Preserve experiment83e5cbfda; no task-agent Git or experiment merge. Keep legacy default, GPU Turbo4 target/full-L native MTP, B1024/U256. Implementation fixtures are tiny; later natural recall/performance misses are findings for measured verdict, not endless proof loops.103-03 deferred.",
+  "context_policy": "Execute105-01a query-owner/input-lifetime/diagnostic isolation repairs,105-01b diverse bounded coarse K shortlist and exact GPU rerank,105-01c small paired retrieval/replay/MTP proof and explicit adoption decision, 105-01d reviewed integration or ordered repair,then105-02/03/04/05.105-01 deferred, not passed; no unchanged256K retry. Read current packet/cluster, ranking-query-repair note and immediate compact handoff only; inspect source by bounded symbols. Main and isolated experiment stay distinct until105-01c decision. GPU Turbo4 target/full-L MTP,B1024/U256; no diagnostic kernel changes, per-token rerank or false nonfinite empty success. Preserve usage/raw history. Completed misses create a concrete implementation successor, not repeated gates.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "blocked",
+  "status": "ready",
   "current_phase": "105",
-  "current_task": "105-01",
-  "last_updated_utc": "2026-10-06T07:28:32+00:00",
+  "current_task": "105-01a",
+  "last_updated_utc": "2026-10-06T14:11:01+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "104-06 deferred without natural comparison proof;104-06a finalization producer repair,06b fresh target/MTP sanity,06c frozen harness,06d bounded outcomes,104-07/08 speed and decision,103-04/05 main review. Preserve completed104-04e/f/g/h and104-05 production parity.",
+    "active_scope": "105-01 deferred without semantic success;105-01a query-owner lifecycle/diagnostic isolation,105-01b bounded diverse key shortlist and exact GPU rerank,105-01c small paired retrieval/MTP verdict,105-01d reviewed main integration or ordered implementation successor,105-02 matched MTP carry,105-03 final occupancy curve,105-04/05 current goal review. Older completed/deferred tasks and retry diaries are historical, not current implementation instructions.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -57,7 +57,7 @@
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
     "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
-    "scale_policy": "102-04 is a completed ordering dependency. Next is 102-05 retry1: clean-build the explicit-H accounting/measurement correction, fresh-load L131072/H51200 with B1024/U256 and full-L GPU Turbo4 MTP, load C120000, sample actual allocations and used/free VRAM through loading and canonical generations, preserve attempt-01 and use attempt-02. No speculative packed/dequant reserve gates; no smaller H or speculative route rewrites. Missing optional telemetry is unknown, not failure. An actual allocation failure preserves partial progress and needs a measured owner-specific repair before102-06. 102-06 tests L262144/C250000 with the same H and sampler; 102-07 reviews findings. Fixed batch, <=16K fresh repo-token chunks, same-slot resumable state, and output/replay reserve prevent compaction.",
+    "scale_policy": "Finish source repairs and coherent small paired retrieval/MTP proof first. 105-03 then owns one L262144/H51200/C~250000 occupancy trajectory with B1024/U256 and full-L GPU Turbo4 MTP; preserve per-request uncached prefill speed, cached input, decode, draft/accept counts and measured used/free VRAM as a compact curve. Actual fresh-process allocation accounting, not hypothetical duplicate reserve, governs admission. No smaller-H substitution, concurrent Qwen, forced route, per-token host retrieval or premature full-context diagnostic campaign. Missing optional telemetry is unknown. True execution failures get an ordered owner-specific repair; completed semantic/speed misses are findings, not unchanged retry loops. Fixed batch, <=16K fresh repo chunks and >=4096-token final reserve prevent context shift/compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
     "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication",
@@ -35862,8 +35862,8 @@
       "cluster": "forward105-goal-repair",
       "title": "Repair final-context semantic retrieval",
       "packet": ".wiretail/execution/tasks/105-01.md",
-      "status": "blocked",
-      "blocker": "Attempt 4 exhausted the bounded recovery cycle: semantic acceptance remains unmet after a fresh 256K request ranked target page 720 out and produced no coherent answer; selector score diagnosis and V10 receipt remain required.",
+      "status": "deferred",
+      "blocker": "Superseded by105-01a/b/c query-owner and ranking repairs plus small paired proof; old256K semantic failure remains unproven, not passed. Preserve usage/raw artifacts; do not rerun old campaign.",
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
@@ -36019,9 +36019,152 @@
       }
     },
     {
+      "id": "105-01a",
+      "phase": "105",
+      "cluster": "forward105-query-owner",
+      "title": "Land query-owner lifecycle and diagnostic-isolation repairs",
+      "packet": ".wiretail/execution/tasks/105-01a.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "required_proofs": [
+        "query_owner_lifecycle_and_diagnostic_isolation"
+      ],
+      "depends_on": [
+        "105-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-query-owner.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-01a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-01a.json"
+      ]
+    },
+    {
+      "id": "105-01b",
+      "phase": "105",
+      "cluster": "forward105-key-ranking",
+      "title": "Implement diverse bounded coarse keys and exact reranking",
+      "packet": ".wiretail/execution/tasks/105-01b.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "required_proofs": [
+        "bounded_diverse_key_shortlist_and_exact_rerank"
+      ],
+      "depends_on": [
+        "105-01a"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-key-ranking.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-01a.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-01b",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-01b.json"
+      ]
+    },
+    {
+      "id": "105-01c",
+      "phase": "105",
+      "cluster": "forward105-key-ranking",
+      "title": "Small paired retrieval replay MTP proof and adoption",
+      "packet": ".wiretail/execution/tasks/105-01c.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "required_proofs": [
+        "small_paired_retrieval_mtp_and_adoption_decision"
+      ],
+      "depends_on": [
+        "105-01b"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-key-ranking.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-01b.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-01c",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-01c.json"
+      ]
+    },
+    {
+      "id": "105-01d",
+      "phase": "105",
+      "cluster": "forward105-key-ranking",
+      "title": "Integrate proven ranking or order its measured repair",
+      "packet": ".wiretail/execution/tasks/105-01d.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "required_proofs": [
+        "reviewed_ranking_integration_or_ordered_repair"
+      ],
+      "depends_on": [
+        "105-01c"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-key-ranking.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-01c.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-01d",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-01d.json"
+      ]
+    },
+    {
       "id": "105-02",
       "phase": "105",
-      "cluster": "forward105-goal-repair",
+      "cluster": "forward105-proof-review",
       "title": "Repair occupied-context native MTP acceptance",
       "packet": ".wiretail/execution/tasks/105-02.md",
       "status": "todo",
@@ -36032,22 +36175,18 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
       "required_proofs": [
         "occupied_context_mtp_source_repair"
       ],
       "depends_on": [
-        "105-01"
+        "105-01d"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-goal-repair.md",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
-        ".wiretail/execution/forward/OVERVIEW.md",
-        ".wiretail/execution/forward/TESTING.md",
-        "src/llama-context.cpp",
-        "common/speculative.cpp",
-        "tests/test-server-query-replay.cpp"
+        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-01d.md"
       ],
       "completion_check": [
         "python3",
@@ -36061,7 +36200,7 @@
     {
       "id": "105-03",
       "phase": "105",
-      "cluster": "forward105-goal-repair",
+      "cluster": "forward105-proof-review",
       "title": "Reassess minimum canonical forward capabilities",
       "packet": ".wiretail/execution/tasks/105-03.md",
       "status": "todo",
@@ -36072,7 +36211,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
       "required_proofs": [
         "minimum_canonical_forward_capability_reassessment"
       ],
@@ -36081,13 +36220,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-goal-repair.md",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
-        ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/v10/validate.py",
-        "tools/server/bench/measure-speed-occupancy.py",
-        "tools/server/bench/validate-speed-occupancy.py",
-        "tests/test-server-query-replay.cpp"
+        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-02.md"
       ],
       "completion_check": [
         "python3",
@@ -36101,7 +36236,7 @@
     {
       "id": "105-04",
       "phase": "105",
-      "cluster": "forward105-goal-repair",
+      "cluster": "forward105-proof-review",
       "title": "Refresh the compact forward goal summary",
       "packet": ".wiretail/execution/tasks/105-04.md",
       "status": "todo",
@@ -36112,7 +36247,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
       "required_proofs": [
         "refreshed_forward_goal_summary"
       ],
@@ -36121,13 +36256,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-goal-repair.md",
-        ".wiretail/execution/tasks/105-01.md",
-        ".wiretail/execution/tasks/105-02.md",
-        ".wiretail/execution/tasks/105-03.md",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.md",
-        ".wiretail/execution/forward/TESTING.md"
+        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-03.md"
       ],
       "completion_check": [
         "python3",
@@ -36141,7 +36272,7 @@
     {
       "id": "105-05",
       "phase": "105",
-      "cluster": "forward105-goal-repair",
+      "cluster": "forward105-proof-review",
       "title": "Review forward goals and schedule bounded follow-up",
       "packet": ".wiretail/execution/tasks/105-05.md",
       "status": "todo",
@@ -36152,7 +36283,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
       "required_proofs": [
         "final_forward_goal_review_and_successors"
       ],
@@ -36161,14 +36292,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-goal-repair.md",
-        ".wiretail/execution/tasks/105-03.md",
-        ".wiretail/execution/tasks/105-04.md",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.json",
-        ".wiretail/execution/forward/FORWARD_FINAL_SUMMARY.md",
-        ".wiretail/execution/forward/OVERVIEW.md",
-        ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/v10/validate.py"
+        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/handoffs/105-04.md"
       ],
       "completion_check": [
         "python3",
