@@ -2417,3 +2417,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01f`
 - Commit at update: `c015f96ff`
 - Summary: Verified noncontiguous multi-head Turbo4 direct/packed parity and recorded validated dense/selected retrieval outcomes with explicit goal_miss ownership
+
+## 2026-10-07T12:13:08+00:00 — 105-01g — done
+
+- Branch: `codex/task-105-01g`
+- Commit at update: `e3cd6d735`
+- Summary: Integrated and validated selective probe-rerank on main; preserved completed PY_MERGE_03 goal_miss for 105-02.

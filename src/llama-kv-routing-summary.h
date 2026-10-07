@@ -100,6 +100,59 @@ struct llama_kv_routing_summary_device_layout {
             uint32_t element_bytes = sizeof(uint16_t)) noexcept;
 };
 
+// Bounded scratch contract for the isolated probe/rerank experiment. Geometry
+// is supplied from the selected attention/K ggml tensors: row bytes are
+// recomputed here with ggml_row_size instead of assuming a KV encoding.
+struct llama_kv_router_budget_config {
+    uint32_t attention_layers = 0;
+    uint32_t valid_probe_capacity = 0;
+    uint32_t query_heads = 0;
+    uint32_t head_dim = 0;
+    enum ggml_type key_type = GGML_TYPE_F16;
+    int64_t key_ne0 = 0;
+    uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS;
+    uint64_t score_workspace_required_bytes = 0;
+    uint64_t score_workspace_cap_bytes = 2ull * 1024 * 1024;
+    uint64_t key_slot_cap_bytes = 4ull * 1024 * 1024;
+    // Backend allocator/CUB/event costs are measured by the owner and passed
+    // here explicitly; zero means not yet allocated, not a hidden estimate.
+    uint64_t tensor_overhead_bytes = 0;
+    uint64_t allocator_alignment_bytes = 0;
+    uint64_t cuda_temporary_bytes = 0;
+    uint64_t event_bytes = 0;
+};
+
+enum class llama_kv_router_budget_status : uint8_t {
+    ok = 0,
+    invalid_geometry,
+    key_row_exceeds_slot,
+    overflow,
+};
+
+struct llama_kv_router_allocation_ledger {
+    uint64_t probe_bytes = 0;
+    uint64_t score_workspace_bytes = 0;
+    uint64_t gpu_key_staging_bytes = 0;
+    uint64_t pinned_key_staging_bytes = 0;
+    uint64_t tensor_overhead_bytes = 0;
+    uint64_t allocator_alignment_bytes = 0;
+    uint64_t cuda_temporary_bytes = 0;
+    uint64_t event_bytes = 0;
+    uint64_t total_bytes = 0;
+};
+
+struct llama_kv_router_budget {
+    llama_kv_router_budget_status status = llama_kv_router_budget_status::invalid_geometry;
+    uint64_t key_row_bytes = 0;
+    uint64_t key_page_bytes = 0;
+    uint32_t key_rows_per_chunk = 0;
+    uint64_t key_slot_bytes = 0;
+    llama_kv_router_allocation_ledger ledger;
+};
+
+llama_kv_router_budget llama_kv_router_make_budget(
+        const llama_kv_router_budget_config & config) noexcept;
+
 // Fixed catalogue layout consumed by GGML_OP_KV_PAGE_SELECT. It has whole-page
 // min/max plus Mean-K per KV head, rather than resident-only storage.
 struct llama_kv_routing_catalogue_layout {

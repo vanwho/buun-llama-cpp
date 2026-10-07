@@ -104,6 +104,10 @@ struct llama_kv_pager_resources {
     uint32_t host_stream_index = 0;
     std::vector<vbr_capture_lane> host_lanes;
     ggml_backend_t host_backend = nullptr;
+    // Dedicated owner for ranking H2D and rerank kernels. This is borrowed by
+    // the pager/cache and must outlive their terminal events.
+    ggml_backend_t ranking_backend = nullptr;
+    ggml_backend_buffer_type_t ranking_host_buft = nullptr;
     uint64_t host_ring_bytes = 0;
     size_t host_chunk_bytes = 0;
     vbr_selected_page_capture_limits host_capture_limits;
@@ -447,6 +451,7 @@ enum class llama_kv_pager_selector_trace_outcome : uint8_t {
     policy_target_omission,
     query_commit_selection_truncated,
     query_commit_capacity_refusal,
+    budget_limited,
     slot_admission,
     transfer_plan_rejected,
     async_transfer_failed,
@@ -532,6 +537,7 @@ struct llama_kv_pager_selector_trace {
     uint32_t cold_bundle_budget = 0;
     float target_cold_bundle_score = 0.0f;
     bool target_candidate_in_cold_budget = false;
+    bool target_cold_budget_limited = false;
     bool target_candidate_scan_complete = false;
     bool policy_decision_evaluated = false;
     bool query_commit_enabled = false;
@@ -669,6 +675,7 @@ public:
     llama_kv_pager & operator=(const llama_kv_pager &) = delete;
 
     const llama_kv_pager_snapshot & snapshot() const noexcept { return snapshot_; }
+    llama_kv_router_mode router_mode() const noexcept { return router_mode_; }
     llama_kv_residency_snapshot residency() const noexcept { return residency_.snapshot(); }
     llama_kv_residency_snapshot residency(int32_t sequence_id) const noexcept {
         return residency_.snapshot().for_sequence(sequence_id);
@@ -764,6 +771,12 @@ public:
             uint64_t representation_epoch) noexcept;
     const llama_kv_pager_host * host_catalog() const noexcept {
         return host_.get();
+    }
+    ggml_backend_t ranking_backend() const noexcept {
+        return resources_ranking_backend_;
+    }
+    ggml_backend_buffer_type_t ranking_host_buft() const noexcept {
+        return resources_ranking_host_buft_;
     }
     ggml_backend_t host_backend() const noexcept {
         return host_ ? resources_host_backend_ : nullptr;
@@ -1043,12 +1056,15 @@ private:
     std::unique_ptr<llama_kv_residency_pool> residency_pool_;
     llama_kv_residency_pool_backend residency_backend_;
     ggml_backend_t resources_host_backend_ = nullptr;
+    ggml_backend_t resources_ranking_backend_ = nullptr;
+    ggml_backend_buffer_type_t resources_ranking_host_buft_ = nullptr;
     uint64_t resources_host_source_namespace_ = 0;
     uint64_t resources_host_topology_identity_ = 0;
     uint32_t resources_host_child_id_ = UINT32_MAX;
     uint32_t resources_host_stream_index_ = UINT32_MAX;
     uint32_t test_force_logical_page_ = UINT32_MAX;
     llama_kv_routing_summary_config routing_summary_config_;
+    llama_kv_router_mode router_mode_ = llama_kv_router_mode::legacy;
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;

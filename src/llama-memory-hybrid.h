@@ -138,6 +138,14 @@ public:
             std::vector<llama_kv_pager_selected_history> & history) const override {
         return mem_attn->get_kv_pager_history_for_test(sequence_id, history);
     }
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const override {
+        return mem_attn->get_kv_pager_router_execution_for_test(stage,
+                resident_rerank_graphs, cold_reader_graphs, reader_events,
+                mass_graphs, output_records);
+    }
     int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const override {
         return mem_attn->get_kv_pager_turn_phase_for_test(sequence_id);
     }
@@ -349,13 +357,16 @@ public:
     uint32_t get_max_graph_seqs() const override;
     ggml_tensor * build_kv_page_select(
             ggml_context * ctx, ggml_tensor * q, int layer,
-            const llama_ubatch & ubatch, uint32_t query_row) const override;
+            const llama_ubatch & ubatch, uint32_t query_row,
+            ggml_tensor ** probe_capture = nullptr) const override;
     bool set_kv_page_select_inputs(
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,
             const llama_ubatch & ubatch) const override;
     bool set_kv_query_accumulate_inputs(
             ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
+    bool set_kv_query_probe_inputs(
+            ggml_tensor * probes, const llama_ubatch & ubatch) const override;
     bool can_reuse_kv_query_capture(
             const ggml_tensor * accumulator, const llama_ubatch & ubatch,
             llama_seq_id sequence_id, bool final_batch) const override;

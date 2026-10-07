@@ -628,6 +628,9 @@ static void test(void) {
     argv = {"binary_name", "-ngl", "hello"};
     assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
 
+    argv = {"binary_name", "--kv-router", "bogus"};
+    assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
+
     // wrong value (enum)
     argv = {"binary_name", "-sm", "hello"};
     assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
@@ -754,6 +757,17 @@ static void test(void) {
         common_params default_params;
         assert(!default_params.speculative.draft.n_max_set);
         assert(default_params.speculative.draft.mtp_vocab_size == 0);
+        assert(default_params.kv_pager.router == llama_kv_router_mode::legacy);
+
+        argv = {"binary_name", "-m", "model.gguf", "--kv-router", "probe-rerank"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+                                           default_params, LLAMA_EXAMPLE_COMMON));
+        assert(default_params.kv_pager.router == llama_kv_router_mode::probe_rerank);
+
+        argv = {"binary_name", "-m", "model.gguf", "--kv-router", "legacy"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+                                           default_params, LLAMA_EXAMPLE_COMMON));
+        assert(default_params.kv_pager.router == llama_kv_router_mode::legacy);
     }
 
     argv = {"binary_name", "--spec-mtp-vocab-size", "32768"};

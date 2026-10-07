@@ -238,7 +238,8 @@ struct llama_memory_context_i {
     // not-configured path; callers must not substitute a host Q readback.
     virtual ggml_tensor * build_kv_page_select(
             ggml_context * /* ctx */, ggml_tensor * /* q */, int /* layer */,
-            const llama_ubatch & /* ubatch */, uint32_t /* query_row */) const {
+            const llama_ubatch & /* ubatch */, uint32_t /* query_row */,
+            ggml_tensor ** /* probe_capture */ = nullptr) const {
         return nullptr;
     }
 
@@ -256,6 +257,11 @@ struct llama_memory_context_i {
     // device accumulator. Sum/count tensors are owned by the KV cache.
     virtual bool set_kv_query_accumulate_inputs(
             ggml_tensor * /* accumulator */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    virtual bool set_kv_query_probe_inputs(
+            ggml_tensor * /* probes */, const llama_ubatch & /* ubatch */) const {
         return false;
     }
 
@@ -386,6 +392,12 @@ struct llama_memory_i {
     }
     virtual bool get_kv_pager_history_for_test(int32_t /* sequence_id */,
             std::vector<llama_kv_pager_selected_history> & /* history */) const {
+        return false;
+    }
+    virtual bool get_kv_pager_router_execution_for_test(
+            uint32_t & /* stage */, uint32_t & /* resident_rerank_graphs */,
+            uint32_t & /* cold_reader_graphs */, uint32_t & /* reader_events */,
+            uint32_t & /* mass_graphs */, uint32_t & /* output_records */) const {
         return false;
     }
     virtual int32_t get_kv_pager_turn_phase_for_test(int32_t /* sequence_id */) const {

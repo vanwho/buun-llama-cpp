@@ -3718,8 +3718,20 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
         case GGML_OP_KV_PAGE_SELECT:
             ggml_cuda_op_kv_page_select(ctx, dst);
             break;
+        case GGML_OP_KV_PAGE_RANK:
+            ggml_cuda_op_kv_page_rank(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_RERANK:
+            ggml_cuda_op_kv_page_rerank(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_MASS:
+            ggml_cuda_op_kv_page_mass(ctx, dst);
+            break;
         case GGML_OP_KV_QUERY_ACCUMULATE:
             ggml_cuda_op_kv_query_accumulate(ctx, dst);
+            break;
+        case GGML_OP_KV_QUERY_PROBES:
+            ggml_cuda_op_kv_query_probes(ctx, dst);
             break;
         case GGML_OP_KV_PAGE_SUMMARY:
             ggml_cuda_op_kv_page_summary(ctx, dst);
@@ -9469,10 +9481,60 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             return op->type == GGML_TYPE_I32 && op->src[0]->type == GGML_TYPE_F32 &&
                 op->src[1]->type == GGML_TYPE_F16 && op->src[2]->type == GGML_TYPE_I64 &&
                 op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_PAGE_RANK:
+            return op->type == GGML_TYPE_I64 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_F16 && op->src[2]->type == GGML_TYPE_I64 &&
+                op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64 &&
+                op->src[5]->type == GGML_TYPE_F32 && op->src[6]->type == GGML_TYPE_I64 &&
+                op->ne[0] == 2 && op->src[1]->ne[1] == 3 &&
+                op->src[2]->ne[0] >= 7 && op->src[2]->ne[1] == op->src[1]->ne[3] &&
+                op->src[3]->ne[0] == op->src[1]->ne[3] &&
+                op->src[4]->ne[0] == 4 && op->src[5]->ne[0] == op->src[0]->ne[0] &&
+                op->src[5]->ne[1] == op->src[0]->ne[1] && op->src[5]->ne[2] > 0 &&
+                op->src[5]->ne[2] <= 4 && op->src[6]->ne[0] == 9 &&
+                op->src[0]->ne[1] % op->src[1]->ne[2] == 0 &&
+                op->src[1]->ne[0] == op->src[5]->ne[0] && op->src[1]->ne[3] <= 4096;
+        case GGML_OP_KV_PAGE_RERANK:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_TURBO4_0 && op->src[2]->type == GGML_TYPE_TURBO4_0 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64 &&
+                op->src[5]->type == GGML_TYPE_I64 && op->src[6]->type == GGML_TYPE_F32 &&
+                op->src[0]->ne[0] > 0 && op->src[1]->ne[0] % op->src[0]->ne[0] == 0 &&
+                op->src[0]->ne[1] % (op->src[1]->ne[0] / op->src[0]->ne[0]) == 0 &&
+                op->src[0]->ne[0] <= 256 && op->src[0]->ne[0] % 32 == 0 &&
+                (op->src[0]->ne[1] / (op->src[1]->ne[0] / op->src[0]->ne[0])) * op->src[0]->ne[2] <= 64 &&
+                op->src[0]->ne[2] <= 4 && op->src[1]->ne[0] == op->src[2]->ne[0] && op->src[1]->ne[1] > 0 && op->src[1]->ne[2] > 0 &&
+                op->src[2]->ne[1] > 0 && op->src[2]->ne[2] > 0 && op->src[3]->ne[0] == 10 && op->src[3]->ne[1] > 0 &&
+                op->src[4]->ne[0] == 2 && op->src[4]->ne[1] == op->src[3]->ne[1] + 1 &&
+                op->src[5]->ne[0] == 9 && op->src[6]->ne[0] == 2 &&
+                op->src[6]->ne[1] == op->src[3]->ne[1] && op->src[6]->ne[2] == op->src[0]->ne[1] &&
+                op->src[6]->ne[3] == op->src[0]->ne[2] &&
+                op->src[4]->ne[0] == 2 && op->src[4]->ne[1] == op->src[3]->ne[1] + 1 && op->src[5]->ne[0] == 9;
+        case GGML_OP_KV_PAGE_MASS:
+            return op->type == GGML_TYPE_I64 && op->ne[0] == 2 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_I64 && op->src[3]->type == GGML_TYPE_I64 &&
+                op->src[0]->ne[0] == 2 && op->src[0]->ne[1] > 0 && op->src[0]->ne[2] > 0 &&
+                op->src[0]->ne[3] > 0 && op->src[0]->ne[3] <= 4 && op->src[1]->type == GGML_TYPE_I64 &&
+                op->src[1]->ne[0] == 10 && op->src[1]->ne[1] == op->src[0]->ne[1] &&
+                op->src[2]->type == GGML_TYPE_I64 && op->src[2]->ne[0] == 2 && op->src[2]->ne[1] == op->src[0]->ne[1] + 1 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[3]->ne[0] == 9;
         case GGML_OP_KV_QUERY_ACCUMULATE:
             return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
                 op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
                 op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_QUERY_PROBES: {
+            ggml_kv_query_probe_params capture{};
+            memcpy(&capture, op->op_params, sizeof(capture));
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                (capture.indexed
+                    ? op->src[1] == nullptr
+                    : op->src[1] != nullptr && op->src[1]->type == GGML_TYPE_I64 &&
+                      op->src[1]->ne[0] == op->src[0]->ne[2]) && op->src[2]->type == GGML_TYPE_F32 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[0]->ne[1] > 0 &&
+                op->src[2]->ne[0] == op->src[0]->ne[0] &&
+                op->src[2]->ne[1] == op->src[0]->ne[1] && op->src[2]->ne[2] == 4 &&
+                ggml_nelements(op->src[3]) == 9;
+        }
         case GGML_OP_KV_PAGE_SUMMARY:
             return op->type == GGML_TYPE_F16 && op->src[0]->type == GGML_TYPE_TURBO4_0 &&
                 op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F16;

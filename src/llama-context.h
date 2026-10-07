@@ -509,6 +509,14 @@ struct llama_context {
             std::vector<llama_kv_pager_selected_history> & history) const {
         return memory && memory->get_kv_pager_history_for_test(sequence_id, history);
     }
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const {
+        return memory && memory->get_kv_pager_router_execution_for_test(stage,
+                resident_rerank_graphs, cold_reader_graphs, reader_events,
+                mass_graphs, output_records);
+    }
     llama_kv_pager * get_kv_pager_owner_for_test() const noexcept {
         return kv_pager_owner.get();
     }
@@ -962,6 +970,9 @@ private:
     // deliberately outside the scheduler backend list so the pager worker
     // cannot share a compute stream/allocator owner with graph execution.
     ggml_backend_ptr pager_transfer_backend;
+    // Probe reranking has its own stream/event owner and never shares the
+    // host-capture transfer backend.
+    ggml_backend_ptr pager_ranking_backend;
     // Packed selected-attention destinations outlive graph rebuilds. This is
     // declared after the backends so its buffers are released before them.
     mutable llama_kv_attention_packed_cache kv_attention_packed_cache;

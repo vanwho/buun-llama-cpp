@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "task": "105-01g",
+  "source_commit": "e3cd6d7352765867fdd06911928ce29271e5b8f9",
+  "checks": {
+    "proven_ranking_selective_main_integration": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-server-query-replay",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--router",
+        "probe-rerank",
+        "--B",
+        "1024",
+        "--U",
+        "256",
+        "--L",
+        "16384",
+        "--H",
+        "4096",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/105-01g/query-replay-main.json"
+      ],
+      "validation_commands": [
+        "cmake --build build-cuda --parallel 16 --target llama-server test-kv-page-select test-server-query-replay",
+        "cmake --build build-cuda --parallel 16 --target test-kv-router-job test-cuda-kv-page-summary",
+        "cmake --build build-cuda --parallel 16 --target llama-server test-kv-page-select test-server-query-replay test-arg-parser",
+        "build-cuda/bin/test-kv-page-select",
+        "LLAMA_TEST_KV_PAGE_SELECT_CUDA=1 build-cuda/bin/test-kv-page-select",
+        "build-cuda/bin/test-kv-router-job --cpu-only",
+        "build-cuda/bin/test-kv-router-job --cuda",
+        "build-cuda/bin/test-kv-router-job --cache-cuda",
+        "build-cuda/bin/test-cuda-kv-page-summary",
+        "build-cuda/bin/test-arg-parser"
+      ],
+      "build_candidate_identity": {
+        "source_commit": "e3cd6d7352765867fdd06911928ce29271e5b8f9",
+        "binary_path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "binary_sha256": "76e5efd5e339d3f75fd5988c8cd5d5211a0256fcac4513a80774350dee4c4d55",
+        "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "loaded_dsos": [
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+            "sha256": "ac9115972889d2957ae917f3d4d2905b0a14c0acd542f4a5308899203a714bef"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+            "sha256": "d750b1bc3fb70ca08b6026b8df8fd8151adf01157388840e2df9f9db946096cf"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+            "sha256": "067e950e8faa14656d9ecb8788f25ab031386ef388c73fddc16be3371307fc29"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+            "sha256": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+            "sha256": "c2e3c8cfea7e625c1a7ec2d6945b5d901d0e03d9e643afee0864af8ff48f50c1"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+            "sha256": "f44bb16c7d548868e1d75be0f6bc04d3d5d242feb4bbfa92da5bc698ba32150a"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+            "sha256": "34ccf71e93d8704104e3c23be29bc7a7c3ec3aaed944472a527d764353792428"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+            "sha256": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+          }
+        ],
+        "service_environment": {
+          "LLAMA_KV_PAGER_SELECTOR_TRACE": "1",
+          "LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE": "8",
+          "LLAMA_KV_ROUTER": "probe-rerank"
+        },
+        "geometry": {
+          "context_tokens": 16384,
+          "hot_tokens": 4096,
+          "page_tokens": 256,
+          "batch": 1024,
+          "ubatch": 256,
+          "hot_pages": 16,
+          "pin_recent_tokens": 0,
+          "target_kv": "GPU Turbo4",
+          "mtp_kv": "GPU Turbo4"
+        }
+      },
+      "model_query_replay": {
+        "status": "pass",
+        "proof": "integrated_server_query_replay_one_pass_parity",
+        "passed": true,
+        "router_execution_observed": true,
+        "resident_rerank_graphs": 16,
+        "cold_reader_graphs": 32,
+        "reader_events": 32,
+        "mass_graphs": 16,
+        "router_output_records": 272,
+        "cold_catalogue_authoritative": true,
+        "replay_map_exact": true,
+        "control_map_exact": true,
+        "canonical_encoded_kv_equal": true,
+        "cancel_after_publication_recovered": true
+      },
+      "selected_a2_outcome": {
+        "fixture_id": "PY_MERGE_03",
+        "execution_status": "complete",
+        "classification": "degenerate_generation",
+        "semantic_outcome": "goal_miss",
+        "goal_miss": true,
+        "semantic_match": false,
+        "requested_trace_page": 8,
+        "target_cold_before_recall": false,
+        "request_http_statuses": [
+          200,
+          200,
+          200
+        ],
+        "final_answer_degenerate": true,
+        "final_mtp_drafted": 374,
+        "final_mtp_accepted": 37,
+        "final_mtp_acceptance_percent": 9.893048128342246,
+        "owner": "105-02",
+        "interpretation": "preserve the completed semantic miss; no requested-page recall claim is inferred from an unrelated page transition"
+      },
+      "changed_owners": [
+        "common/arg.cpp: --kv-router parsing and LLAMA_KV_ROUTER environment configuration",
+        "ggml/include/ggml-kv-query-probes.h and GGML rank/probe operation builders/dispatch/kernels",
+        "src/llama-kv-router-job.{h,cpp} and src/llama-kv-router-ranking.h",
+        "src/llama-kv-cache.{h,cpp}, src/llama-graph.cpp, pager/prefetch and context/config plumbing",
+        "tests/test-kv-page-select.cpp, tests/test-kv-router-job.cpp, tests/test-server-query-replay.cpp and focused operation/consumer coverage",
+        "README.md selective ranker documentation"
+      ],
+      "deferred_verification": [
+        "Physical NVIDIA A2 hardware was unavailable; CUDA parity and managed Qwen execution ran on an NVIDIA RTX 4080. The selected A2 campaign row is fully executed on the main candidate."
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/build-final.log",
+          "sha256": "2ef611f7b2760fc47edaac7637e20262d53a01584be0492d8bcbf912ed8368a8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/build-consumer.log",
+          "sha256": "78cd28e7164272fdcd805941c703b6f8dffe9070d8b7826af3331186d020b57c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/build-replay-fixture.log",
+          "sha256": "2a36963f192f24a568aa332668ea816cbf43b5fb617430803b1f01dee5f1d1e8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/build-router-cli.log",
+          "sha256": "b894dadfaa5fc3fba32666dce43b57599eb2d032979ad0d90a8b9730082b7d1d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-kv-page-select-cpu.log",
+          "sha256": "0675eb290f1cc1d631820ced27be74b03961631a7b55a9b8a5ed53c6d8993787"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-kv-page-select-cuda.log",
+          "sha256": "e9dfb5a3c9e8c17f5f0110cec9f65233071b66134070f2ba3c4b49ef14e6a4de"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-kv-router-job-cpu.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-kv-router-job-cuda.log",
+          "sha256": "111f637dc2be749ac475f6750a91b8c5b9450b4e9e16020f65158d80d6c1bfc1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-kv-router-job-cache-cuda.log",
+          "sha256": "068926938b1317b0ee1c1053651df1ee8b4116527a74c17cb43f1f00b7a9eb83"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-cuda-kv-page-summary.log",
+          "sha256": "2225fb74132411fadcb141bec9e721a57f4717b6ac9b19309c39354e31fea278"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/test-arg-parser.log",
+          "sha256": "f45718b0dbc074135cfc5d8e9b6f4899efcb257846250b00ece81cc8e95b55cc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/query-replay-main.json",
+          "sha256": "5c73c1967952e15823fb59fd4930f1f4819e0393d37df47767647968fb6c7ac3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/query-replay-main-rerun.log",
+          "sha256": "ccf52d0b4735bb952a2d09ede2daa5c90461bd882135971c91900634ad36586b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/main-candidate-probe-rerank/lifecycle-state.json",
+          "sha256": "e2d0c2c8bf43950be2ead25e488bf7861ca96dea189aa0caff7617c05f2ad64d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/main-candidate-probe-rerank/records.jsonl",
+          "sha256": "177c86b90640e108852791df795bc02b85a7637e65d400a22781f7a950b92526"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/main-candidate-probe-rerank/run-config.json",
+          "sha256": "dad2c6b636621f616fcdc986d852cc95d9c9f61f0f4e8a41baef75cf0e429154"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/candidate-identity.json",
+          "sha256": "04ece53fc66240dabf35824c9ec1289b0a91ebac428639dbb03828d5ab6088ee"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/allocator-admission.json",
+          "sha256": "348b91f988111e62710785a03c0b7aea56b7c61643b27d484822622262e9e26f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/campaign-summary.json",
+          "sha256": "5e0abd2edecc448d0940a1785c1d2de77c64e17294b2bb0fdc8fb34c4ccf0aca"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/cases/probe-rerank/PY_MERGE_03/case-summary.json",
+          "sha256": "9a5053bcfa1dc62496f678cae71037fa86fb5d48c6faadaefd2d383e2298d771"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/cases/probe-rerank/PY_MERGE_03/request-01/record.json",
+          "sha256": "9ba234edbbbe1d0349b13c51e91ccbfbb4888ffddc213dde885a4defc554a084"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/cases/probe-rerank/PY_MERGE_03/request-03/record.json",
+          "sha256": "9297a5c19469a08aeb723cd19806c35082896fe3176fb4deede337cb6e9f715a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-complete/cases/probe-rerank/PY_MERGE_03/request-03/completion-response.raw",
+          "sha256": "85cdf9b78c948824f14d70ff59c76e2469716ff98dbc64792f36ce621ba5e092"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/selected-a2-main-validation.json",
+          "sha256": "929b1c88316c6013bad2cf6baeb3ea5c5277a217e010263a8ac197aaf769e5f0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-01g/run-pager-promotion-main-live.py",
+          "sha256": "2f75a9c0d2cc0160d6f81d1fb2ec21b888167b41494e13a25cbe013376355f8b"
+        }
+      ]
+    }
+  }
+}

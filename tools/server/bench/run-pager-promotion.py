@@ -521,6 +521,32 @@ def artifact_refs(case_root: pathlib.Path) -> list[dict[str, str]]:
     return refs
 
 
+def request_local_mtp(response: Mapping[str, Any], before: Mapping[str, Any],
+                      after: Mapping[str, Any]) -> dict[str, Any]:
+    """Read one completion's counts, never subtract resettable slot counters.
+
+    The native MTP response owns draft_n/draft_n_accepted. /slots counters
+    can reset between requests or remain zero on another speculative route;
+    they are diagnostic snapshots, not a replacement for response timings.
+    A missing or inconsistent pair remains unknown rather than false zero.
+    """
+    timings = response.get("timings")
+    timings = timings if isinstance(timings, dict) else {}
+    drafted, accepted = timings.get("draft_n"), timings.get("draft_n_accepted")
+    valid = type(drafted) is int and type(accepted) is int and \
+        0 <= accepted <= drafted
+    return {
+        "drafted": drafted if valid else None,
+        "accepted": accepted if valid else None,
+        "origin": "response.timings" if valid else None,
+        "raw_response_timings": timings,
+        "slot_counter_before": before.get("mtp_request_counters"),
+        "slot_counter_after": after.get("mtp_request_counters"),
+        "acceptance_percent": 100.0 * accepted / drafted
+        if valid and drafted > 0 else None,
+    }
+
+
 def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[Any, ...],
                    step_index: int, prior_answers: list[str], model: str,
                    tracked_fixture: Any | None = None,
@@ -555,6 +581,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
                  for name in mtp_after
                  if isinstance(mtp_after[name], int) and
                  isinstance(mtp_before.get(name, 0), int)}
+    mtp_counts = request_local_mtp(response, before_slot, after_slot)
     actual_mtp = {
         "pager_mode": pager_after.get("mode"),
         "route_override": pager_after.get("route_override"),
@@ -610,6 +637,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "mtp_request_counters_before": mtp_before,
         "mtp_request_counters_after": mtp_after,
         "mtp_request_counters_delta": mtp_delta,
+        "mtp_request_counts": mtp_counts,
         "query_replay_count_before": before_slot.get("query_replay_count"),
         "query_replay_count_after": after_slot.get("query_replay_count"),
         "frozen_history_generation_before": before_slot.get(
@@ -1087,6 +1115,11 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     completion_usage = final_record.get("completion_usage")
     completion_tokens = completion_usage.get("completion_tokens") \
         if isinstance(completion_usage, dict) else None
+    # Polling may miss the start, and these slot counters are request-reset.
+    # Use final response-local counts for proposals; keep poll deltas solely
+    # for diagnosis of within-generation behavior.
+    final_mtp_counts = final_record.get("mtp_request_counts") or {}
+    final_mtp_drafted = final_mtp_counts.get("drafted")
     generation_boundary = {
         "generated_sample_count": len(generated_samples),
         "completion_tokens": completion_tokens,
@@ -1104,6 +1137,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         "mtp_request_counters_before_generation": mtp_counters_before,
         "mtp_request_counters_after_generation": mtp_counters_after,
         "mtp_request_counters_delta": mtp_counters_delta,
+        "mtp_request_counts": final_mtp_counts,
         "gpu_turbo4_mtp_verified": final_record.get("mtp_verified") is True,
     }
     boundary_pass = replay_verified and frozen_history_verified and \
@@ -1112,7 +1146,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         h2d_during_generation_delta == 0 and eviction_during_generation_delta == 0 and \
         reselection_during_generation_delta == 0 and historical_generation_stable and \
         final_record.get("mtp_verified") is True and \
-        mtp_counters_delta.get("drafted", 0) > 0
+        type(final_mtp_drafted) is int and final_mtp_drafted > 0
     mtp = {"target_placement": "gpu" if gpu_backend(mtp_metrics.get("target_backend")) else "unknown",
            "draft_placement": "gpu" if gpu_backend(mtp_metrics.get("mtp_backend")) else "unknown",
            "target_type_k": mtp_metrics.get("target_type_k"),

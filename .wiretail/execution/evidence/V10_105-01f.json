@@ -83,7 +83,7 @@
         "/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/test-cuda-fattn-paged-turbo4"
       ],
       "deferred_verification": [
-        "Canonical occupied-context MTP acceptance/speed remains with 105-02; selected final turn recorded zero proposals/accepts and no acceptance claim is made."
+        "Canonical occupied-context MTP acceptance/speed remains with 105-02a after 105-02's generation proof. Selected final response.timings records 374 drafts / 37 accepted (9.89%); zero diagnostic slot counters are not authoritative. Slash filler remains goal_miss."
       ],
       "exit_code": 0,
       "model_replay": {
@@ -100,8 +100,11 @@
           "direct and packed outputs compared against scalar encoded-key/WHT oracle"
         ],
         "cuda_test_exit_code": 0,
-        "max_direct_packed_error": 0.002934,
-        "max_route_oracle_error": 1.6e-05,
+        "max_direct_packed_error": 0.002927,
+        "max_direct_oracle_error": 1.6e-05,
+        "max_packed_oracle_error": 0.002934,
+        "max_route_oracle_error": 0.002934,
+        "dispatch_scope": "GQA 2:1, materialized ordinary FA control, fused Turbo MMA disabled; not actual Qwen production graph parity",
         "shape": {
           "generation_rows": [
             512,
@@ -162,8 +165,12 @@
           "classification": "degenerate_generation",
           "execution_status": "complete",
           "final_completion_tokens": 400,
-          "final_mtp_accepted": 0,
-          "final_mtp_proposed": 0,
+          "final_mtp_accepted": 37,
+          "final_mtp_proposed": 374,
+          "final_mtp_acceptance_percent": 9.893048128342246,
+          "final_mtp_count_origin": "response.timings",
+          "final_decode_tok_s": 38.00161054444688,
+          "diagnostic_slot_counter_disagreement": "Slot counters show zero; retain response-local timing counts. No new measurements were made for this correction.",
           "goal_miss": true,
           "requests_http_200": 3,
           "runtime_errors": 0,

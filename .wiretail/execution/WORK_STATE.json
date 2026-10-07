@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Execute105-01e verified indexed/spread GPU capture,105-01f small numerical/recall outcomes,105-01g selective main integration,then105-02 coherence/MTP before105-03 scale and105-04/05 review.105-01a/b/c/d historical;d no-adoption. Read current packet/cluster, compact ranking-query-repair note and immediate handoff only. Never replay old patches or load raw transcripts. Main/experiment distinct until105-01g. Turbo4 target/full-L GPU MTP,B1024/U256; native positions pos0, four whole-user-span probes, no mutable position inputs/per-layer readbacks, diagnostic kernel changes, per-token rerank or false empty success. Preserve usage/raw history. Numerical/execution defects require producer repair; completed semantic miss is goal_miss with105-02 ownership, not an unchanged retry or end-to-end success.",
+  "context_policy": "Finish105-01g main integration without restarting it. Then105-02 production-shape attention/generation proof and targeted repair,105-02a small matched recall/canonical MTP/speed,105-03 scale,105-04/05 summary/review. Read only current packet/cluster, task-specific compact engineering note and immediate handoff.105-01a/b/c/d are historical;d no-adoption. No raw transcripts/old patches. Turbo4 target/full-L GPU MTP,B1024/U256, once-per-user-turn GPU ranking/promotion/replay and frozen common history. Completion response timing counts outrank resettable slot diagnostics.105-01f measured9.89% MTP, not zero; slash filler remains goal_miss. Its2:1 materialized oracle is not actual Qwen6:1 generation parity. Source-only October7 consumer/reporting edits await105-02 build/proof. No per-token rerank/readback or diagnostic kernel changes. A repeated small coherence/semantic failure inserts its specific implementation before scale, never unchanged retries or false success. Preserve usage/raw history.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "105",
-  "current_task": "105-01g",
-  "last_updated_utc": "2026-10-07T11:29:44+00:00",
+  "current_task": "105-02",
+  "last_updated_utc": "2026-10-07T12:13:39+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-01 deferred;105-01a/b/c/d historical and d no-adoption.105-01e indexed/spread capture and generic causal/residency repairs,105-01f small numerical/retrieval outcomes,105-01g selective main integration preserving fast paths,105-02 coherence/matched MTP,105-03 scale curve,105-04/05 summary/review. No historical retries/patches in current startup context.",
+    "active_scope": "105-01 deferred;a/b/c/d historical,d no-adoption;e/f capture/numerical findings;105-01g in-flight integration;105-02 generation contract repair/proof;105-02a small paired recall/canonical MTP;105-03 scale only after coherent small behavior;105-04/05 summary/review. Use compact selected-generation-contract for105-02 onward. No historical retries/transcripts.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -36439,7 +36439,7 @@
       "cluster": "forward105-ranking-integration",
       "title": "Integrate proven ranker preserving main hot-path speed",
       "packet": ".wiretail/execution/tasks/105-01g.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36454,7 +36454,7 @@
       "depends_on": [
         "105-01f"
       ],
-      "commit": null,
+      "commit": "a78ec96fe6d00539190683e10e68dda922a276b8",
       "context_files": [
         ".wiretail/execution/clusters/forward105-ranking-integration.md",
         ".wiretail/execution/engineering-notes/ranking-query-repair.md",
@@ -36467,13 +36467,53 @@
         "105-01g",
         "--receipt",
         ".wiretail/execution/evidence/V10_105-01g.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/105-01g-attempt-1-20261007T113009213213976-20261007T113009215962225-pZenDt.jsonl:469",
+            "total_tokens": 34521962,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 34371897,
+            "cached_input_tokens": 33627136,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 744761,
+            "output_tokens": 150065,
+            "thinking_tokens": 71275
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 34521962,
+          "input_tokens": 34371897,
+          "cached_input_tokens": 33627136,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 744761,
+          "output_tokens": 150065,
+          "thinking_tokens": 71275,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "105-02",
       "phase": "105",
       "cluster": "forward105-proof-review",
-      "title": "Repair occupied-context native MTP acceptance",
+      "title": "Resolve selected generation attention and MTP state parity",
       "packet": ".wiretail/execution/tasks/105-02.md",
       "status": "todo",
       "blocker": null,
@@ -36493,7 +36533,7 @@
       "commit": null,
       "context_files": [
         ".wiretail/execution/clusters/forward105-proof-review.md",
-        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-01g.md"
       ],
       "completion_check": [
@@ -36503,6 +36543,42 @@
         "105-02",
         "--receipt",
         ".wiretail/execution/evidence/V10_105-02.json"
+      ]
+    },
+    {
+      "id": "105-02a",
+      "phase": "105",
+      "cluster": "forward105-proof-review",
+      "title": "Matched small recall and canonical MTP speed decision",
+      "packet": ".wiretail/execution/tasks/105-02a.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "medium",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "matched_small_recall_and_canonical_mtp_findings"
+      ],
+      "depends_on": [
+        "105-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-02.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-02a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-02a.json"
       ]
     },
     {
@@ -36524,13 +36600,13 @@
         "minimum_canonical_forward_capability_reassessment"
       ],
       "depends_on": [
-        "105-02"
+        "105-02a"
       ],
       "commit": null,
       "context_files": [
         ".wiretail/execution/clusters/forward105-proof-review.md",
-        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
-        ".wiretail/execution/handoffs/105-02.md"
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-02a.md"
       ],
       "completion_check": [
         "python3",
@@ -36565,7 +36641,7 @@
       "commit": null,
       "context_files": [
         ".wiretail/execution/clusters/forward105-proof-review.md",
-        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-03.md"
       ],
       "completion_check": [
@@ -36601,7 +36677,7 @@
       "commit": null,
       "context_files": [
         ".wiretail/execution/clusters/forward105-proof-review.md",
-        ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-04.md"
       ],
       "completion_check": [
@@ -38504,16 +38580,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 11,
-        "total_tokens": 147858087,
-        "input_tokens": 147040090,
-        "cached_input_tokens": 143486208,
+        "usage_events": 12,
+        "total_tokens": 182380049,
+        "input_tokens": 181411987,
+        "cached_input_tokens": 177113344,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 3553882,
-        "output_tokens": 817997,
-        "thinking_tokens": 422310,
+        "input_tokens_minus_cached_tokens": 4298643,
+        "output_tokens": 968062,
+        "thinking_tokens": 493585,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 11,
+        "total_tokens_derived_events": 12,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -38528,17 +38604,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 556,
-      "total_tokens": 13043208781,
-      "input_tokens": 12996279882,
-      "cached_input_tokens": 12698929280,
+      "usage_events": 557,
+      "total_tokens": 13077730743,
+      "input_tokens": 13030651779,
+      "cached_input_tokens": 12732556416,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 202,
-      "input_tokens_minus_cached_tokens": 297350602,
-      "output_tokens": 46928899,
-      "thinking_tokens": 21632572,
+      "cache_write_input_tokens_known_events": 203,
+      "input_tokens_minus_cached_tokens": 298095363,
+      "output_tokens": 47078964,
+      "thinking_tokens": 21703847,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 556,
+      "total_tokens_derived_events": 557,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

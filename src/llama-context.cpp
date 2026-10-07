@@ -1072,6 +1072,7 @@ llama_context::~llama_context() {
         memory->set_kv_pager(nullptr);
     }
     kv_pager_owner.reset();
+    pager_ranking_backend.reset();
 
     delete crosskv_proj;
 
@@ -1775,6 +1776,22 @@ void llama_context::init_kv_pager() {
     if (!dedicated_transfer_backend) {
         LLAMA_LOG_WARN("%s: KV pager transfer backend unavailable; canonical host capture disabled\n",
                 __func__);
+    }
+    if (kv_pager.router == llama_kv_router_mode::probe_rerank) {
+        if (!pager_ranking_backend ||
+                ggml_backend_get_device(pager_ranking_backend.get()) != dev) {
+            pager_ranking_backend.reset(ggml_backend_dev_init(dev, nullptr));
+        }
+        if (!pager_ranking_backend || pager_ranking_backend.get() == resources.host_backend) {
+            throw std::runtime_error("probe-rerank KV pager requires a dedicated ranking backend");
+        }
+        resources.ranking_backend = pager_ranking_backend.get();
+        resources.ranking_host_buft = ggml_backend_dev_host_buffer_type(dev);
+        if (resources.ranking_host_buft == nullptr ||
+                !ggml_backend_buft_is_host(resources.ranking_host_buft)) {
+            pager_ranking_backend.reset();
+            throw std::runtime_error("probe-rerank KV pager requires pinned host buffer support");
+        }
     }
     const uint64_t host_cap = resources.host_budget_bytes;
     resources.host_budget.host.pageable_cap = host_cap;
@@ -3191,19 +3208,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 pager_geometry.geometry.page_tokens, query_pages)) {
             return refuse("selected attention query positions have invalid page geometry");
         }
-        std::vector<std::vector<llama_kv_page_id>> routed_layer_pages;
-        if (!attention->selected_attention_page_layers(routed_layer_pages)) {
-            return refuse("selected attention layer union allocation failed");
-        }
-        std::vector<llama_kv_page_id> routed_pages;
-        for (const auto & layer : routed_layer_pages) {
-            for (const auto & page : layer) {
-                if (std::find(routed_pages.begin(), routed_pages.end(), page) ==
-                        routed_pages.end()) {
-                    routed_pages.push_back(page);
-                }
-            }
-        }
         const uint32_t page_tokens = pager_geometry.geometry.page_tokens;
         const uint64_t attention_tokens = cparams.kv_attention_tokens != 0
             ? cparams.kv_attention_tokens
@@ -3216,6 +3220,25 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         const bool committed_generation_view = turn.phase == llama_kv_pager_turn_phase::query_replay ||
             (phase != llama_kv_attention_execution_phase::prefill &&
              turn.phase == llama_kv_pager_turn_phase::generating);
+        std::vector<llama_kv_page_id> routed_pages;
+        if (!committed_generation_view) {
+            // Per-layer nominees guide provisional prompt attention only.
+            // Replay/decode/verification already have an authenticated common
+            // R set. Reconstructing and intersecting all layer lists for each
+            // generated token cannot change that set and only adds host work.
+            std::vector<std::vector<llama_kv_page_id>> routed_layer_pages;
+            if (!attention->selected_attention_page_layers(routed_layer_pages)) {
+                return refuse("selected attention layer union allocation failed");
+            }
+            for (const auto & layer : routed_layer_pages) {
+                for (const auto & page : layer) {
+                    if (std::find(routed_pages.begin(), routed_pages.end(), page) ==
+                            routed_pages.end()) {
+                        routed_pages.push_back(page);
+                    }
+                }
+            }
+        }
         if (phase != llama_kv_attention_execution_phase::prefill) {
             kv_attention_prefill_active_ = false;
         } else if (!kv_attention_prefill_active_) {
@@ -3344,51 +3367,17 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         };
         if (!committed_generation_view) append_request_boundary();
         if (committed_generation_view) {
-            std::vector<uint32_t> committed_logical_pages;
-            std::vector<std::vector<uint32_t>> layer_logical_pages;
-            std::vector<uint32_t> committed_union;
-            committed_logical_pages.reserve(turn.selected_history.size());
-            layer_logical_pages.reserve(routed_layer_pages.size());
+            // Publication freezes a full-bundle common history set. Consume
+            // it directly in every target layer, keeping exact identity and
+            // content-version checks below. Nomination provenance is not a
+            // second admission rule. This is the same set formerly returned
+            // by llama_kv_attention_committed_pages, without rebuilding the
+            // per-layer union or rescanning R once per union member.
             for (const auto & selected : turn.selected_history) {
-                committed_logical_pages.push_back(selected.identity.logical_page);
-            }
-            for (const auto & layer : routed_layer_pages) {
-                std::vector<uint32_t> logical_pages;
-                logical_pages.reserve(layer.size());
-                for (const auto & page : layer) {
-                    // Routing nominees are advisory until the residency
-                    // transaction publishes their exact content version.
-                    // A failed all-pinned admission must not make the
-                    // generation graph request a cold page through its
-                    // frozen attention view.
-                    const auto resident = std::find_if(pager_snapshot.pages().begin(),
-                            pager_snapshot.pages().end(), [&](const auto & value) {
-                        return value.id.logical_page == page.logical_page &&
-                            value.id == page &&
-                            resident_state(value);
-                    });
-                    if (resident != pager_snapshot.pages().end()) {
-                        logical_pages.push_back(page.logical_page);
-                    }
-                }
-                layer_logical_pages.push_back(std::move(logical_pages));
-            }
-            if (!llama_kv_attention_committed_pages(layer_logical_pages,
-                    committed_logical_pages, committed_union)) {
-                return refuse("committed attention layer union allocation failed");
-            }
-            for (const uint32_t logical_page : committed_union) {
-                const auto selected = std::find_if(turn.selected_history.begin(),
-                        turn.selected_history.end(), [&](const auto & value) {
-                    return value.identity.logical_page == logical_page;
-                });
-                if (selected == turn.selected_history.end()) {
-                    return refuse("committed attention union contains an unknown page");
-                }
                 const auto page = std::find_if(pager_snapshot.pages().begin(),
                         pager_snapshot.pages().end(), [&](const auto & value) {
-                    return value.id == selected->identity &&
-                        value.content_version == selected->content_version;
+                    return value.id == selected.identity &&
+                        value.content_version == selected.content_version;
                 });
                 if (page == pager_snapshot.pages().end()) {
                     return refuse("committed frozen history identity is absent from pager snapshot");
@@ -3396,7 +3385,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 if (!resident_state(*page)) {
                     return refuse("committed frozen history page is not resident in admitted attention view");
                 }
-                if (!append_page(selected->identity)) {
+                if (!append_page(selected.identity)) {
                     return refuse("committed frozen history exceeds admitted attention view capacity");
                 }
             }

@@ -74,6 +74,18 @@ bool llama_kv_pager_parse_retrieval_policy(
     return true;
 }
 
+bool llama_kv_router_parse_mode(const std::string & raw, llama_kv_router_mode & out) {
+    if (raw == "legacy") {
+        out = llama_kv_router_mode::legacy;
+        return true;
+    }
+    if (raw == "probe-rerank") {
+        out = llama_kv_router_mode::probe_rerank;
+        return true;
+    }
+    return false;
+}
+
 bool llama_kv_pager_derive_turn_geometry(
         uint32_t hot_pages, uint32_t page_tokens,
         uint32_t generation_tail_tokens, uint32_t mandatory_anchor_pages,
