@@ -492,27 +492,72 @@ class OccupancyFrontierTests(unittest.TestCase):
                 return SimpleNamespace(token_ids=tuple(range(count)))
 
         renderer = CountingRenderer()
-        corpus = [
-            occupancy.repo_context.CorpusChunk(
-                "src/a.cpp", "a" * 64, 8, 1, 1, "int a;\n"),
-            occupancy.repo_context.CorpusChunk(
-                "tools/b.md", "b" * 64, 8, 1, 1, "word " * 3000),
+        source_a_text = "int a;\n"
+        source_b_text = "word " * 3000
+        sources = [
+            occupancy.repo_context.SourceFile(
+                "src/a.cpp", hashlib.sha256(source_a_text.encode()).hexdigest(),
+                len(source_a_text.encode()), source_a_text),
+            occupancy.repo_context.SourceFile(
+                "tools/b.md", hashlib.sha256(source_b_text.encode()).hexdigest(),
+                len(source_b_text.encode()), source_b_text),
         ]
+        corpus = occupancy.repo_context.source_chunks(sources)
         prefix = [{"role": "assistant", "content": "prior answer"}]
+        fresh_limit = 100
         text, tokens, selected = occupancy.repo_context.append_chunks_to_frontier(
             renderer, prefix, "B_QUERY", corpus, context_tokens=8192,
-            reserve_tokens=800, max_fresh_tokens=100)
+            reserve_tokens=800, max_fresh_tokens=fresh_limit)
         self.assertIn("src/a.cpp", text)
-        self.assertEqual(["src/a.cpp"], [item.path for item in selected])
+        self.assertEqual(["src/a.cpp", "tools/b.md"], [item.path for item in selected])
         self.assertEqual((1, 1), (selected[0].start_line, selected[0].end_line))
+        self.assertLess(selected[1].end_byte or 0, sources[1].byte_length)
         restored = occupancy.repo_context.restore_chunks(
-            [occupancy.repo_context.SourceFile("src/a.cpp", "a" * 64, 8, "int a;\n")],
-            occupancy.repo_context.selection_record(selected))
+            sources, occupancy.repo_context.selection_record(selected))
         self.assertEqual(selected, restored)
         self.assertEqual(tokens, len(renderer(prefix + [{"role": "user", "content": text}]).token_ids))
+        self.assertLessEqual(tokens - len(renderer(prefix).token_ids), fresh_limit)
         occupancy.repo_context.enforce_reserve(tokens, 400, 800, 8192)
         with self.assertRaises(ValueError):
             occupancy.repo_context.enforce_reserve(7900, 400, 800, 8192)
+
+    def test_repo_frontier_restores_unicode_chunk_with_nonzero_byte_offsets(self) -> None:
+        class CountingRenderer:
+            def __call__(self, messages: list[dict[str, str]]) -> SimpleNamespace:
+                count = sum(len(message["content"].split()) + 4 for message in messages)
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        renderer = CountingRenderer()
+        prefix_text = "head Ω\n"
+        selected_text = "café 🍵\n"
+        source_text = prefix_text + selected_text + "tail\n"
+        source_bytes = source_text.encode("utf-8")
+        start_byte = len(prefix_text.encode("utf-8"))
+        end_byte = start_byte + len(selected_text.encode("utf-8"))
+        source = occupancy.repo_context.SourceFile(
+            "src/unicode.txt", hashlib.sha256(source_bytes).hexdigest(),
+            len(source_bytes), source_text)
+        chunk = occupancy.repo_context.CorpusChunk(
+            source.path, source.sha256, source.byte_length, 2, 2, selected_text,
+            start_byte, end_byte)
+        prefix = [{"role": "assistant", "content": "retained prefix"}]
+        base_user = "B_QUERY"
+        content, tokens, selected = occupancy.repo_context.append_chunks_to_frontier(
+            renderer, prefix, base_user, [chunk], context_tokens=8192,
+            reserve_tokens=800, max_fresh_tokens=256)
+
+        self.assertEqual(1, len(selected))
+        self.assertEqual((start_byte, end_byte),
+                         (selected[0].start_byte, selected[0].end_byte))
+        restored = occupancy.repo_context.restore_chunks(
+            [source], occupancy.repo_context.selection_record(selected))
+        self.assertEqual(selected, restored)
+        restored_content = base_user + "\n\n" + "\n\n".join(
+            occupancy.repo_context.render_chunk(item) for item in restored)
+        self.assertEqual(content, restored_content)
+        self.assertIn(f"bytes {start_byte}-{end_byte}", content)
+        restored_tokens = len(renderer(prefix + [{"role": "user", "content": restored_content}]).token_ids)
+        self.assertEqual(tokens, restored_tokens)
 
     def test_occupancy_freezes_repo_content_schedule_before_generation(self) -> None:
         self.assertIn(262144, validator.SUPPORTED_CONTEXTS)
@@ -552,11 +597,40 @@ class OccupancyFrontierTests(unittest.TestCase):
         self.assertLessEqual(plan["pre_A2_frontier_target_tokens"], 30720)
         self.assertGreater(plan["pre_A2_frontier_target_tokens"], 16384 + 2048)
         self.assertEqual(30720, plan["requested_A2_prompt_frontier_tokens"])
-        self.assertEqual(30315, plan["planner_A2_prompt_frontier_tokens"])
-        self.assertLessEqual(schedule[-1]["rendered_prompt_tokens"], 30315)
+        self.assertEqual(30720, plan["planner_A2_prompt_frontier_tokens"])
+        # The planner targets the requested input frontier directly; it no
+        # longer leaves an assumed 399-token generated-answer gap.
+        self.assertEqual(plan["requested_A2_prompt_frontier_tokens"],
+                         plan["planner_A2_prompt_frontier_tokens"])
+        self.assertLessEqual(schedule[-1]["rendered_prompt_tokens"], 30720)
+        self.assertGreaterEqual(schedule[-2]["reserve"]["safety_gap_tokens"],
+                                occupancy.MIN_SAFETY_GAP_TOKENS)
         self.assertLessEqual(
             plan["pre_A2_frontier_target_tokens"] + schedule[-2]["reserve"]["query_tokens"],
             30720)
+
+        exact_question = "Which exact behavior does this source document establish?"
+        with patch.object(occupancy.repo_context, "tracked_inventory", return_value=[source]), \
+                patch.object(occupancy.repo_context, "git_identity",
+                             return_value={"commit": "candidate-source",
+                                           "dirty_fingerprint": "b" * 64}):
+            override_schedule, override_plan = occupancy.build_repo_schedule(
+                renderer, identity(), 32768, 16384, 16000, 30720,
+                recall_question=exact_question)
+        self.assertEqual(exact_question, override_schedule[-1]["user"])
+        self.assertEqual(hashlib.sha256(exact_question.encode("utf-8")).hexdigest(),
+                         override_plan["recall_question"]["sha256"])
+        self.assertTrue(override_plan["recall_question"]["override"])
+        self.assertNotIn("BEGIN FILE:", override_schedule[-1]["user"])
+        self.assertNotIn("tools/tokenize/tokenize.cpp", override_schedule[-1]["user"])
+        with self.assertRaisesRegex(ValueError, "recall question must not be empty"):
+            with patch.object(occupancy.repo_context, "tracked_inventory", return_value=[source]), \
+                    patch.object(occupancy.repo_context, "git_identity",
+                                 return_value={"commit": "candidate-source",
+                                               "dirty_fingerprint": "b" * 64}):
+                occupancy.build_repo_schedule(
+                    renderer, identity(), 32768, 16384, 16000, 30720,
+                    recall_question=" \n ")
 
     def test_context_limit_validation_precedes_runtime_or_endpoint_access(self) -> None:
         for context_tokens in (8192, 32768, 131072, 262144):
@@ -589,6 +663,129 @@ class OccupancyFrontierTests(unittest.TestCase):
 
         self.assertEqual(runtime.endpoint_calls, 0)
 
+    def test_recall_question_file_hash_is_part_of_resume_geometry(self) -> None:
+        runtime = FakeRuntime()
+        current_identity = identity()
+        source = occupancy.repo_context.SourceFile(
+            "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            key = root / "api-key"
+            key.write_text("fake-key\n", encoding="utf-8")
+            output = root / "campaign"
+            first_question = root / "recall-one.txt"
+            changed_question = root / "recall-two.txt"
+            empty_question = root / "recall-empty.txt"
+            first_question.write_text("What does the source say about the boundary?\n",
+                                      encoding="utf-8")
+            changed_question.write_text("What does the source say about a different boundary?\n",
+                                       encoding="utf-8")
+            empty_question.write_text(" \n", encoding="utf-8")
+
+            def run(question_file: pathlib.Path, *, resume: bool = False) -> int:
+                argv = ["run-occupancy-frontier.py", "--output", str(output),
+                        "--api-key-file", str(key), "--target-tokens", "30000",
+                        "--context-tokens", "32768", "--hot-tokens", "16384",
+                        "--max-tokens", str(occupancy.MAX_OUTPUT_TOKENS),
+                        "--repo-content", "--preflight-only",
+                        "--recall-question-file", str(question_file)]
+                if resume:
+                    argv += ["--resume-state", str(output)]
+                with patch.object(occupancy, "load_driver", return_value=runtime), \
+                        patch.object(occupancy, "capture_runtime_identity",
+                                     return_value=current_identity), \
+                        patch.object(occupancy, "ServerPromptRenderer", FakeRenderer), \
+                        patch.object(occupancy.repo_context, "tracked_inventory",
+                                     return_value=[source]), \
+                        patch.object(occupancy.repo_context, "git_identity",
+                                     return_value={"commit": "fixture-source",
+                                                   "dirty_fingerprint": "f" * 64}), \
+                        patch.object(occupancy.sys, "argv", argv), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    return occupancy.main()
+
+            with self.assertRaisesRegex(SystemExit, "recall question must not be empty"):
+                run(empty_question)
+            self.assertEqual(0, run(first_question))
+            saved = json.loads((output / "incremental-state.json").read_text())
+            planned = json.loads((output / "repo-content-preflight.json").read_text())
+            expected_hash = hashlib.sha256(
+                b"What does the source say about the boundary?").hexdigest()
+            self.assertEqual(expected_hash, saved["geometry"]["recall_question_sha256"])
+            self.assertEqual(expected_hash, planned["recall_question"]["sha256"])
+            self.assertEqual("What does the source say about the boundary?",
+                             planned["recall_question"]["text"])
+            with self.assertRaisesRegex(occupancy.ResumeStateError,
+                                        "geometry differs from this request"):
+                run(changed_question, resume=True)
+            self.assertEqual([], runtime.request_indices)
+
+    def test_short_natural_answer_is_complete_execution_with_goal_miss(self) -> None:
+        runtime = FakeRuntime()
+        source = occupancy.repo_context.SourceFile(
+            "src/corpus.cpp", "a" * 64, 180000, "repository evidence line\n" * 9000)
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            key = root / "api-key"
+            key.write_text("fake-key\n", encoding="utf-8")
+            output = root / "campaign"
+            argv = ["run-occupancy-frontier.py", "--output", str(output),
+                    "--api-key-file", str(key), "--target-tokens", "30000",
+                    "--context-tokens", "32768", "--hot-tokens", "16384",
+                    "--max-tokens", str(occupancy.MAX_OUTPUT_TOKENS), "--repo-content"]
+            with patch.object(occupancy, "load_driver", return_value=runtime), \
+                    patch.object(occupancy, "capture_runtime_identity", return_value=identity()), \
+                    patch.object(occupancy, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(occupancy.repo_context, "tracked_inventory",
+                                 return_value=[source]), \
+                    patch.object(occupancy.repo_context, "git_identity",
+                                 return_value={"commit": "fixture-source",
+                                               "dirty_fingerprint": "f" * 64}), \
+                    patch.object(occupancy.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, occupancy.main())
+
+            report = json.loads((output / "occupied-frontier.json").read_text())
+            self.assertEqual("complete", report["execution_status"])
+            self.assertEqual("goal_miss", report["goal_status"])
+            self.assertFalse(report["request_completed"])
+            self.assertEqual(4, len(report["records"]))
+            self.assertTrue(all(row["status"] == "pass" and row["committed"]
+                                for row in report["records"]))
+            self.assertTrue(all(row["response_completion_tokens"] == 1
+                                for row in report["records"]))
+            self.assertLess(report["frontier"]["committed_tokens"],
+                            report["frontier"]["completion_threshold_tokens"])
+
+    def test_runtime_fault_is_incomplete_execution_and_nonzero_exit(self) -> None:
+        class FaultRuntime(FakeRuntime):
+            def run_request(self, *args: object, **kwargs: object) -> dict[str, object]:
+                record = super().run_request(*args, **kwargs)
+                record.update({"status": "runtime_fault", "error": "fixture runtime failure"})
+                return record
+
+        runtime = FaultRuntime()
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            key = root / "api-key"
+            key.write_text("fake-key\n", encoding="utf-8")
+            output = root / "campaign"
+            argv = ["run-occupancy-frontier.py", "--output", str(output),
+                    "--api-key-file", str(key), "--target-tokens", "20000",
+                    "--initial-tokens", "1200", "--max-tokens", "1"]
+            with patch.object(occupancy, "load_driver", return_value=runtime), \
+                    patch.object(occupancy, "capture_runtime_identity", return_value=identity()), \
+                    patch.object(occupancy, "ServerPromptRenderer", FakeRenderer), \
+                    patch.object(occupancy.sys, "argv", argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(1, occupancy.main())
+
+            report = json.loads((output / "occupied-frontier.json").read_text())
+            self.assertEqual("incomplete", report["execution_status"])
+            self.assertEqual("unmeasured", report["goal_status"])
+            self.assertEqual(1, len(report["records"]))
+            self.assertEqual("runtime_fault", report["records"][0]["status"])
+
     def test_committed_interrupt_resumes_with_bound_identity_and_unique_artifacts(self) -> None:
         runtime = FakeRuntime()
         current_identity = identity()
@@ -616,6 +813,8 @@ class OccupancyFrontierTests(unittest.TestCase):
             self.assertEqual(1, run(["--max-requests", "1"]))
             partial = json.loads((output / "occupied-frontier.json").read_text())
             self.assertFalse(partial["request_completed"])
+            self.assertEqual("incomplete", partial["execution_status"])
+            self.assertEqual("unmeasured", partial["goal_status"])
             partial_proof = validator.validate_report(partial)
             self.assertIn("requested occupancy frontier is incomplete",
                           partial_proof["errors"])
@@ -627,6 +826,8 @@ class OccupancyFrontierTests(unittest.TestCase):
             complete = json.loads((output / "occupied-frontier.json").read_text())
             proof = validator.validate_report(complete)
             self.assertEqual("pass", proof["status"], proof["errors"])
+            self.assertEqual("complete", complete["execution_status"])
+            self.assertEqual("met", complete["goal_status"])
             self.assertGreater(complete["frontier"]["committed_tokens"], 16384)
             indices = [row["request_index"] for row in complete["records"]]
             self.assertEqual(list(range(len(indices))), indices)

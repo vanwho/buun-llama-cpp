@@ -297,6 +297,13 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
     for chunk in chunks:
         lines = chunk.text.splitlines(keepends=True)
         start = chunk.start_line
+        # Freeze one byte-addressed representation for planning and replay.
+        # Measuring a line-only header and later restoring a byte header changes
+        # the prompt and can overrun the reserve despite unchanged source text.
+        source_byte_start = chunk.start_byte or 0
+        line_bytes = [0]
+        for line in lines:
+            line_bytes.append(line_bytes[-1] + len(line.encode("utf-8")))
         offset = 0
         while offset < len(lines):
             best_end = offset
@@ -309,7 +316,9 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                 piece = "".join(lines[offset:mid])
                 end_line = start + mid - 1
                 piece_chunk = CorpusChunk(chunk.path, chunk.sha256, chunk.byte_length,
-                                          start + offset, end_line, piece)
+                                          start + offset, end_line, piece,
+                                          source_byte_start + line_bytes[offset],
+                                          source_byte_start + line_bytes[mid])
                 candidate = content + "\n\n" + render_chunk(piece_chunk)
                 messages = list(prefix) + [{"role": "user", "content": candidate}]
                 rendered = len(renderer(messages).token_ids)
@@ -333,8 +342,7 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                 best_chars = 0
                 best_candidate = ""
                 best_rendered = 0
-                preceding = len("".join(lines[:offset]).encode("utf-8"))
-                source_byte_start = chunk.start_byte or 0
+                preceding = line_bytes[offset]
                 while low_chars <= high_chars:
                     mid_chars = (low_chars + high_chars) // 2
                     piece = line[:mid_chars]
@@ -369,14 +377,11 @@ def append_chunks_to_frontier(renderer: Any, prefix: Sequence[dict[str, str]],
                                             absolute_start, absolute_end))
                 content = best_candidate
                 return content, best_rendered, selected
-            preceding = len("".join(lines[:offset]).encode("utf-8"))
-            source_byte_start = chunk.start_byte or 0
             selected.append(CorpusChunk(chunk.path, chunk.sha256, chunk.byte_length,
                                         start + offset, start + best_end - 1,
                                         "".join(lines[offset:best_end]),
-                                        source_byte_start + preceding,
-                                        source_byte_start + preceding +
-                                        len("".join(lines[offset:best_end]).encode("utf-8"))))
+                                        source_byte_start + line_bytes[offset],
+                                        source_byte_start + line_bytes[best_end]))
             content = best_candidate
             offset = best_end
             if offset < len(lines):

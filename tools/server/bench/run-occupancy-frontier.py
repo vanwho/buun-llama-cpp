@@ -197,10 +197,15 @@ def _remaining_chunks(chunks: list[Any], selected: list[Any]) -> list[Any]:
 def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, Any],
                         context_tokens: int, hot_tokens: int,
                         max_fresh_tokens: int,
-                        target_tokens: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                        target_tokens: int,
+                        recall_question: str | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Freeze a safe A/B/A repository-content sequence before generation."""
     manifest = repo_context.load_manifest()
     prompts = repo_context.load_prompts()
+    if recall_question is not None:
+        if not recall_question.strip():
+            raise ValueError("recall question must not be empty")
+        prompts = dict(prompts, A2=recall_question)
     turns = build_repo_content_turns(manifest, prompts)
     a1, b_turn, a2_turn = turns
     a2 = a2_turn["content"]
@@ -245,12 +250,10 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
     reserve_record: dict[str, int] | None = None
     requested_frontier = max(hot_tokens + 2048,
                              min(target_tokens, context_tokens))
-    # The final A2 request's generated output is part of the occupied
-    # frontier. A 400-token completion advances the live slot by 399 tokens
-    # in this server's accounting, so plan its prompt below the requested
-    # occupied target by that measured delta.
-    planner_frontier = max(hot_tokens + 2048,
-                           requested_frontier - (MAX_OUTPUT_TOKENS - 1) - 6)
+    # Fill from input, not an assumed full-length answer. max_tokens is a
+    # ceiling: a correct factual recall can stop naturally after a few words.
+    # The output allowance is already included in the final safety reserve.
+    planner_frontier = requested_frontier
     # The first turn adds benchmark B documentation and the next deterministic
     # repository ranges. Continuations append further non-overlapping ranges.
     for _ in range(len(chunks) + 1):
@@ -345,6 +348,8 @@ def build_repo_schedule(renderer: ServerPromptRenderer, identity: Mapping[str, A
         "source_identity": source_id,
         "fixture_sha256": sha256_file(repo_context.FIXTURE / "manifest.json"),
         "prompt_sha256": sha256_file(repo_context.FIXTURE / "prompts.md"),
+        "recall_question": {"text": a2, "override": recall_question is not None,
+                            "sha256": hashlib.sha256(a2.encode("utf-8")).hexdigest()},
         "tokenizer_template_id": getattr(renderer, "template_id", None),
         "geometry": {"logical_context_tokens": context_tokens,
                      "hot_capacity_tokens": hot_tokens,
@@ -891,6 +896,8 @@ def main() -> int:
                         help="run the frozen repo-content A/B/A sequence for phase 102")
     parser.add_argument("--post-load-canonical", action="store_true",
                         help="run the resumable three-prompt MTP branches after occupancy")
+    parser.add_argument("--recall-question-file", type=pathlib.Path,
+                        help="freeze an alternate factual A2 question (repo-content only)")
     parser.add_argument("--preflight-only", action="store_true",
                         help="clear the slot and freeze the zero-generation plan")
     parser.add_argument("--adopt-a1-from", type=pathlib.Path,
@@ -904,6 +911,13 @@ def main() -> int:
 
     if args.repo_content and args.max_tokens != MAX_OUTPUT_TOKENS:
         raise SystemExit(f"repo-content sequence requires --max-tokens {MAX_OUTPUT_TOKENS}")
+    recall_question = None
+    if args.recall_question_file is not None:
+        if not args.repo_content:
+            raise SystemExit("--recall-question-file requires --repo-content")
+        recall_question = args.recall_question_file.read_text(encoding="utf-8").strip()
+        if not recall_question:
+            raise SystemExit("recall question must not be empty")
 
     if min(args.target_tokens, args.context_tokens, args.hot_tokens, args.page_tokens,
            args.batch_tokens, args.ubatch_tokens, args.turn_delta, args.initial_tokens,
@@ -928,6 +942,10 @@ def main() -> int:
         "target_tokens": args.target_tokens,
         "completion_threshold_tokens": max(args.target_tokens - args.page_tokens, args.hot_tokens + 1),
     }
+    if recall_question is not None:
+        # Resume must never silently replace the question from a frozen run.
+        geometry["recall_question_sha256"] = hashlib.sha256(
+            recall_question.encode("utf-8")).hexdigest()
     output = args.output.resolve()
     driver = load_driver()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -1034,7 +1052,7 @@ def main() -> int:
         if args.repo_content:
             schedule, repo_preflight = build_repo_schedule(
                 renderer, identity, args.context_tokens, args.hot_tokens,
-                args.max_fresh_tokens, args.target_tokens)
+                args.max_fresh_tokens, args.target_tokens, recall_question)
             geometry["completion_threshold_tokens"] = _repo_completion_threshold(
                 args.target_tokens, args.hot_tokens, schedule)
             if args.adopt_a1_from is not None:
@@ -1285,11 +1303,21 @@ def main() -> int:
                           current_tokens > args.hot_tokens))
     all_commits_within_limit = all(item.get("within_fresh_limit") is True for item in history)
     measurement_valid = bool(history) and all_commits_within_limit and current_tokens > args.hot_tokens
+    probes_complete = (not args.post_load_canonical or
+                       isinstance(state.get("post_load_probes"), Mapping) and
+                       state["post_load_probes"].get("complete") is True)
+    execution_complete = (frontier_consistent and sequence_complete and
+                          measurement_valid and probes_complete)
     metrics = final.get("metrics") if isinstance(final.get("metrics"), dict) else {}
     report = {
         "schema_version": 2,
         "campaign": "occupied-frontier-v1",
         "status": "pass" if request_completed and measurement_valid else "incomplete",
+        # A naturally shorter answer/frontier is a measured goal miss, not a
+        # missing execution. Keep the legacy status for older report readers.
+        "execution_status": "complete" if execution_complete else "incomplete",
+        "goal_status": ("met" if request_completed and execution_complete else
+                        "goal_miss" if execution_complete else "unmeasured"),
         "candidate_identity": identity,
         "identity_fingerprint": fingerprint,
         "geometry": geometry,
@@ -1322,8 +1350,12 @@ def main() -> int:
     }
     atomic_json(output / "occupied-frontier.json", report)
     print(json.dumps({"status": report["status"], "committed_tokens": current_tokens,
+                      "execution_status": report["execution_status"],
+                      "goal_status": report["goal_status"],
                       "target_tokens": args.target_tokens, "stop_reason": stop_reason}, sort_keys=True))
-    return 0 if request_completed and measurement_valid else 1
+    # Exit success means all planned requests actually ran and were measured,
+    # not that a model filled its output ceiling or met the numeric frontier.
+    return 0 if execution_complete else 1
 
 
 if __name__ == "__main__":
