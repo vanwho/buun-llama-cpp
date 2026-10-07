@@ -1026,6 +1026,10 @@ class OccupancyFrontierTests(unittest.TestCase):
             self.assertEqual("unmeasured", report["goal_status"])
             self.assertEqual(1, len(report["records"]))
             self.assertEqual("runtime_fault", report["records"][0]["status"])
+            self.assertEqual("fixture runtime failure",
+                             report["frontier"]["stop_reason"])
+            self.assertGreater(report["frontier"]["live_tokens"],
+                               report["frontier"]["committed_tokens"])
 
     def test_committed_interrupt_resumes_with_bound_identity_and_unique_artifacts(self) -> None:
         runtime = FakeRuntime()

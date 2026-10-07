@@ -1391,7 +1391,10 @@ def main() -> int:
         frontier_consistent = final_slot["occupied_tokens"] == current_tokens and \
             (final_slot["generation"] is None or slot["generation"] is None or
              final_slot["generation"] == slot["generation"])
-    if not frontier_consistent:
+    # A failed decode can invalidate/reset the live slot. Preserve that
+    # producing runtime error rather than overwriting it with the downstream
+    # frontier mismatch; frontier_consistent still records the second fact.
+    if not frontier_consistent and stop_reason is None:
         stop_reason = "final_live_slot_frontier_or_generation_mismatch"
     sequence_complete = (next_turn_index >= len(schedule)) if isinstance(schedule, list) else True
     required_frontier = args.hot_tokens + (2048 if args.repo_content else 1)
