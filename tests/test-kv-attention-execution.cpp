@@ -59,7 +59,8 @@ static llama_kv_attention_operator_metadata metadata(
         const std::vector<uint32_t> & selected_pages = { 2, 0 },
         llama_pos query_position = 600, uint32_t n_head_q = 16,
         uint32_t n_head_kv = 4, ggml_type type_k = GGML_TYPE_TURBO4_0,
-        ggml_type type_v = GGML_TYPE_TURBO4_0) {
+        ggml_type type_v = GGML_TYPE_TURBO4_0,
+        std::vector<llama_pos> query_positions = {}) {
     llama_kv_attention_view_status view_status;
     const auto view = llama_kv_attention_view::build(snap, selected_pages, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);
@@ -80,6 +81,10 @@ static llama_kv_attention_operator_metadata metadata(
     params.n_query_tokens = n_query;
     params.n_batch = n_batch;
     params.query_positions.resize(size_t(n_query) * n_batch, query_position);
+    if (!query_positions.empty()) {
+        assert(query_positions.size() == params.query_positions.size());
+        params.query_positions = query_positions;
+    }
 
     llama_kv_attention_operator_status status;
     auto result = llama_kv_attention_operator_metadata::build(view, params, status);
@@ -260,8 +265,8 @@ static void test_routes_epochs_and_fences() {
     const auto selected_mtp = metadata(snapshot(), 2, 1);
     const auto mtp = execution.prepare(selected_mtp,
             llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch, {}, true, true);
-    assert(mtp.route == llama_kv_attention_execution_route::selected_direct);
-    assert(execution.metrics().mtp_verify_routes.selected_direct == 1);
+    assert(mtp.route == llama_kv_attention_execution_route::selected_packed);
+    assert(execution.metrics().mtp_verify_routes.selected_packed == 1);
     execution.complete_one_graph();
     assert(llama_kv_attention_execution_phase_name(
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
@@ -846,7 +851,7 @@ static void test_view_sized_scratch_contract() {
            llama_kv_attention_execution_route::selected_packed);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::mtp_verify, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
     assert(native_mtp_execution.planned_route(metadata(snapshot(), 1, 1),
             llama_kv_attention_execution_phase::mtp_verify, true, false, true) ==
            llama_kv_attention_execution_route::selected_packed);
@@ -857,9 +862,9 @@ static void test_view_sized_scratch_contract() {
                               llama_kv_attention_execution_phase::decode,
                               llama_kv_attention_execution_phase::mtp_verify }) {
         assert(execution.planned_route(selected, phase, true, false, true) ==
-               (phase == llama_kv_attention_execution_phase::decode
-                    ? llama_kv_attention_execution_route::selected_packed
-                    : llama_kv_attention_execution_route::selected_direct));
+               (phase == llama_kv_attention_execution_phase::prefill
+                    ? llama_kv_attention_execution_route::selected_direct
+                    : llama_kv_attention_execution_route::selected_packed));
         assert(execution.planned_route(selected, phase, true, false, false) ==
                llama_kv_attention_execution_route::selected_direct);
     }
@@ -889,16 +894,29 @@ static void test_view_sized_scratch_contract() {
     const auto complete_mtp_history = metadata(full_history_snapshot,
             3, 1, { 2, 1, 0 }, 600, 24, 4);
     const auto bounded_mtp_history = metadata(full_history_snapshot,
-            3, 1, { 2, 0 }, 600, 24, 4);
+            3, 1, { 2, 0 }, 600, 24, 4, GGML_TYPE_TURBO4_0,
+            GGML_TYPE_TURBO4_0, { 598, 599, 600 });
     assert(complete_mtp_history.get_n_kv() == 601);
     assert(bounded_mtp_history.get_n_kv() < 601);
+    assert((bounded_mtp_history.query_positions() ==
+            std::vector<llama_pos>{ 598, 599, 600 }));
     assert(execution.planned_route(complete_mtp_history,
             llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
            llama_kv_attention_execution_route::selected_dense);
     assert(execution.planned_route(bounded_mtp_history,
             llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
+           llama_kv_attention_execution_route::selected_packed);
+    const auto sparse_scalar = metadata(full_history_snapshot,
+            1, 1, { 2, 0 }, 600, 24, 4);
+    assert(execution.planned_route(sparse_scalar,
+            llama_kv_attention_execution_phase::decode, true, false, true) ==
+           llama_kv_attention_execution_route::selected_packed);
+    assert(execution.planned_route(bounded_mtp_history,
+            llama_kv_attention_execution_phase::mtp_verify, true, false, false) ==
            llama_kv_attention_execution_route::selected_direct);
-    std::fprintf(stdout, "mtp_sparse_history_route=pass complete=selected_dense bounded=direct\n");
+    std::fprintf(stdout, "mtp_sparse_history_route=pass scalar=packed verify3=packed "
+            "query_positions=598,599,600 packed_unavailable=direct "
+            "complete=selected_dense\n");
     const auto standard_dense = metadata(snapshot(), 1, 1, { 0 }, 255, 16, 4,
             GGML_TYPE_Q4_0, GGML_TYPE_Q4_0);
     const auto standard_dense_view = llama_kv_attention_dense_view_check(standard_dense, 8);

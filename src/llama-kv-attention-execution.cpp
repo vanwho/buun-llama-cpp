@@ -977,9 +977,18 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
     // Dense FA uses logical row offsets for causality. A bounded view with an
     // evicted prefix cannot use it, even when its physical rows are contiguous.
     if (!complete_history) {
-        const bool direct_query = phase == llama_kv_attention_execution_phase::prefill ||
-            (phase == llama_kv_attention_execution_phase::mtp_verify &&
-             metadata.n_query_tokens() > 1);
+        // Keep the measured prefill preference, but let ordinary scalar
+        // decode and native-MTP verification share the bounded packed FA
+        // family when it is supported. The old multirow MTP direct preference
+        // worked around masked, uninitialized K/V suffix reads. Packed copies
+        // now depend on the layer's cache writes and zero BOTH encoded tails
+        // on every execution; their explicit native-position mask handles
+        // sparse-history causality. This avoids an unnecessary cross-family
+        // rounding boundary in hybrid recurrent models. Unsupported packed
+        // shapes still use the existing direct fallback; this does not enable
+        // selected_dense over an incomplete causal history or change explicit
+        // diagnostic overrides.
+        const bool direct_query = phase == llama_kv_attention_execution_phase::prefill;
         if (direct_query && direct_capable && production_direct_shape(metadata, phase)) {
             return llama_kv_attention_execution_route::selected_direct;
         }
