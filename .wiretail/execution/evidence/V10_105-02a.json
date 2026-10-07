@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "task": "105-02a",
+  "source_commit": "ccf07a9a6b7bbd32f85b6cab61a789d7c020214d",
+  "source_at_build": {
+    "base_commit": "d4826061b7656ed788aea3467fd9d613fc855413",
+    "worktree_diff_sha256": "3e99195feb7ceb29eecc40b17a0b0440c63360ec9b4be535023e45b61ed3cdab",
+    "committed_as": "ccf07a9a6b7bbd32f85b6cab61a789d7c020214d",
+    "note": "The canonical/current candidate was built from the d482 base plus this source delta, now committed as ccf07a9a6. Historical 32K artifacts remain a distinct older candidate identity."
+  },
+  "checks": {
+    "matched_small_recall_and_canonical_mtp_findings": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/check_105_02a_findings.py",
+        "--summary",
+        "/srv/ai/paged-kv/results/forward/105-02a/final-gpu-comparison-summary.json",
+        "--canonical-root",
+        "/srv/ai/paged-kv/results/forward/105-02a/final-canonical-12-20261007T200045Z",
+        "--selected-root",
+        "/srv/ai/paged-kv/results/forward/105-02a/final-page5-selected-20261007T200300Z/runner",
+        "--dense-root",
+        "/srv/ai/paged-kv/results/forward/105-02a/final-page5-dense-20261007T200745Z",
+        "--historical-root",
+        "/srv/ai/paged-kv/results/forward/105-02a/attempt-01/selected-32k",
+        "--output-json",
+        "/srv/ai/paged-kv/results/forward/105-02a/final-findings-comparison.json"
+      ],
+      "stdout_path": "/srv/ai/paged-kv/results/forward/105-02a/final-findings-checker.stdout",
+      "artifacts": [
+        {
+          "path": "tools/server/bench/check_105_02a_findings.py",
+          "sha256": "e5e23f376ac354b3fe14111f43b78426e03f497a1dcd2fe670974b0f1b5d6ef0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02a/final-gpu-comparison-summary.json",
+          "sha256": "1bb13c5c06af13784c67ea8d9ce26b487203fbd1021a4666dd5d84c491deeee7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02a/final-findings-checker.stdout",
+          "sha256": "d94ca667108ed643b6458623ddef3bd09e674f7aea83506b28267e533400dc59"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02a/final-findings-comparison.json",
+          "sha256": "d94ca667108ed643b6458623ddef3bd09e674f7aea83506b28267e533400dc59"
+        }
+      ],
+      "result": {
+        "goal_outcome": "goal_miss",
+        "canonical_selective": {
+          "rows": 12,
+          "fresh_cache_prompt_false_rows": 12,
+          "measured_rows_with_request_local_mtp": 9
+        },
+        "page5_selected_and_dense": {
+          "rows_each": 3,
+          "http_200": true,
+          "same_fixture_source_hashes": true,
+          "same_last_user_question_hashes": true,
+          "generation_and_cache_schedule_matched": true,
+          "whole_input_hashes_recorded_without_cross-mode_gate": true,
+          "semantic_fact_correct_in_each": true
+        },
+        "current_candidate": {
+          "revision_at_capture": "d4826061b7656ed788aea3467fd9d613fc855413 plus recorded worktree delta",
+          "server_sha256": "56a8033a75dce1d08cf7dcc4e75499443b658ae675b79dd0c843daa395d06d9a",
+          "libllama_sha256": "f8893f682b3ba3e9c1963030d136f40cd0dba10c1bdd75bbccedeba3d32dddc0",
+          "libllama_server_impl_sha256": "efa611a672ab73931f8d834cd6d7017fc4e702acc2307f9ccebb1c1384f6b1c0",
+          "cuda_sha256": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+        },
+        "historical_32k": {
+          "execution_status": "complete",
+          "semantic_status": "goal_miss",
+          "identity_is_separate": true,
+          "server_sha256": "d52e7ec7054377fafdb38700b5539ede60edf12d6f111f41c073adab2c393b74",
+          "libllama_sha256": "3d350db1723cf7ef0209531458e06c062a5b481d7ac3679c88d44506eaa6dfca",
+          "libllama_server_impl_sha256": "unknown",
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+        },
+        "formal_witness_tags_and_bit_parity": "findings only; not gates"
+      }
+    }
+  }
+}

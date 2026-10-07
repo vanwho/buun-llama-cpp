@@ -134,20 +134,278 @@
       "sha256": "c7d5fccaa297dc0b67b4f53b79dbc07bcec206587f8abf944284f1735a2c6269"
     }
   ],
+  "selector_catalogue_repair": {
+    "source_commit": "cdfb1b795",
+    "candidate_server_sha256": "104d9c5b923a7dca35d45a6884106b815fae86dae8359b5ea0a298cb8fd0de90",
+    "candidate_libllama_sha256": "b392d1c50fa9aacbc7fa42ab0a6e0eba054350fed34c56db226230e6a6efa8e3",
+    "source_hashes": {
+      "src/llama-kv-cache.cpp": "0186e5de8f7d299217052a6aca184570c980004b990996d6d195d9d4ffa322f6",
+      "src/llama-kv-pager.cpp": "c4647ac5058f3e1953ac298e29fb3d7ffe02adfe50507294b20f0a040e52806f",
+      "src/llama-kv-routing-summary.cpp": "f00aa04df5057e5d6fb2191fcedb4554eaca2a1f46952860e20b54f0645f9bbb",
+      "src/llama-kv-routing-summary.h": "61dd391ac0d7af6907edcbd0049cd549f5307815e1b0df9ed88efa6532659b72"
+    },
+    "build": "pass, incremental build-cuda parallel 16",
+    "focused_checks": "CPU summary/page selector/router and CUDA summary/page selector pass; router CTest mode repaired",
+    "raw_root": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/selector-target-coarse-current-20261007T184744Z",
+    "final_query_generation": 105,
+    "final_query_position": 5556,
+    "requested_page": 5,
+    "coarse_present": true,
+    "exact_rank_zero_based": 1,
+    "exact_score": 0.7287027,
+    "nominated_and_admitted": true,
+    "requested_page_cold_before": true,
+    "requested_page_resident_after": true,
+    "requested_page_in_selected_snapshot_after": true,
+    "semantic_fact_matched": true,
+    "full_same_query_use_event_chain_validated": false,
+    "answer_quality": "expected fact followed by repetitive continuation to 400-token cap; not a completed quality success",
+    "final_mtp_proposed": 386,
+    "final_mtp_accepted": 205,
+    "final_mtp_percent": 53.1088,
+    "final_decode_tok_s": 71.93,
+    "fresh_A1_input_tokens": 2155,
+    "fresh_A1_prefill_tok_s": 1303.915862,
+    "pressure_B": {
+      "usage_prompt_tokens": 5498,
+      "cached_tokens": 2310,
+      "reported_timing_prompt_n": 6366,
+      "reported_timing_prompt_ms": 4569.495,
+      "reported_timing_prompt_tok_s": 1393.15176,
+      "note": "Timing token count includes more work than fresh input; preserve raw fields, do not call this a clean uncached-only rate."
+    }
+  },
   "next_fixture": {
     "source_sha256": "d5facd1dbb6da13f00e8334056d449e635794b5839c343655b3a5a0530209c4c",
     "executable_sha256": "0f21e662997ae079c15969bbfe46aca30c56d929c80e40420904be137a99cbaf",
     "incremental_build": "pass, parallel 16",
     "matched_frontier_captures": "scalar token3/4 versus width3 group1 current/group2 first-row recurrent and convolution planes, optional second-group tensors",
-    "model_run_performed": false,
+    "model_run_performed": true,
+    "overall_generation_parity": false,
+    "raw_root": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/continuation-matched-frontier-current-20261007T182746Z",
+    "matched_current_state": {
+      "token_4360_layer_0": "convolution/recurrent exact",
+      "token_4360_layer_4_conv_max_error": 0.0156552,
+      "token_4360_layer_4_recurrent_max_error": 0.000705592,
+      "token_4361_layer_0": "convolution/recurrent exact",
+      "token_4361_layer_4_conv_max_error": 0.639411,
+      "token_4361_layer_4_recurrent_max_error": 0.0149396,
+      "second_group_layer_tap_bytes": 0,
+      "interpretation": "No demonstrated recurrent ownership bug; first detectable difference remains packed/direct attention. Missing taps are not equality proof."
+    },
     "production_diagnostics_added": false,
     "note": "Fixture-only follow-up, not evidence of a new runtime repair or successful numerical parity."
   },
-  "current_session_limitations": {
-    "git_staging": "blocked: .git/index.lock is on a read-only filesystem",
-    "localhost_health": "blocked: failed to open socket, Operation not permitted",
-    "gpu_access": "driver inaccessible from this session; not evidence of a candidate CUDA regression",
-    "commit_push_completed": false
+  "current_session_access": {
+    "git_staging": "read/write",
+    "localhost_health": "healthy selected managed candidate",
+    "gpu_access": "available, one managed Qwen owner",
+    "previous_position_fix_commit": "b127c87a857473e03eb91a222230465988454d6e",
+    "previous_position_fix_pushed": "task and plan branches"
+  },
+  "routefix_current_20261007T190142Z": {
+    "status": "functional_result_with_diagnostic_incomplete_promotion_chain",
+    "live_candidate": {
+      "server_sha256": "0c84115796002414733ff3f235af7f21188cc50312792c5b6ae9e27bb1672d63",
+      "libllama_sha256": "2a075159887d9c93e3f0736ecbab03cdb4a08390cf20ec8fa22cc51d3b4fb857",
+      "cuda_dso_sha256": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "target_kv": "GPU Turbo4 hot KV with canonical Turbo4 host backing",
+      "draft_kv": "full-L GPU Turbo4 MTP, depth 2"
+    },
+    "a_b_a": {
+      "all_http_200": true,
+      "A1": {
+        "fresh_input_tokens": 2155,
+        "prefill_tok_s": 1305.593757,
+        "output_tokens": 155,
+        "finish_reason": "stop",
+        "mtp_accepted_proposed": "93/124",
+        "mtp_acceptance_percent": 75.0,
+        "decode_tok_s": 88.647991
+      },
+      "B": {
+        "usage_prompt_tokens": 5498,
+        "cached_tokens": 2310,
+        "reported_prompt_n": 6366,
+        "reported_prompt_ms": 4575.172,
+        "reported_prompt_tok_s": 1391.423098,
+        "interpretation": "Includes kernel/replay; not a clean uncached-prefill rate."
+      },
+      "A2": {
+        "output_tokens": 131,
+        "finish_reason": "stop",
+        "expected_fact_matched": true,
+        "mtp_accepted_proposed": "73/116",
+        "mtp_acceptance_percent": 62.931034,
+        "decode_tok_s": 72.168577
+      }
+    },
+    "page5": {
+      "cold_and_host_backed_before_A2": true,
+      "resident_after_A2": true,
+      "selected_exact_rank_zero_based": 1,
+      "nominated_and_admitted": true,
+      "selector_diagnostic_query_generation": 106,
+      "formal_same_query_promotion_use_chain_validated": false,
+      "reason": "The authenticated report lacks same-page, same-query natural proof. Selector query generation 106 is not equated with server request generation 3."
+    },
+    "teacher_forced_width3_comparison": {
+      "parity_pass": false,
+      "max_logits_error": 0.334331,
+      "max_hidden_error": 0.475013,
+      "all_finite": true,
+      "top1_equal_rows": "12/12",
+      "kl_mean_max": "0.000856/0.001750",
+      "tv_mean_max": "0.01544/0.02658",
+      "next_mtp_proposals_accepted": "2/2"
+    },
+    "raw_evidence": [
+      {"path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/campaign/candidate-identity.json", "sha256": "3ec4382d8b3fca47927e040e65f90327626d43fc83431e018c2fcf78726ba1a8"},
+      {"path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/campaign/cases/PY_MERGE_03/case-summary.json", "sha256": "8b5e5addc1e798051fb1eae04b137c0292b5defa95be0dfee37b32ef8c08c117"},
+      {"path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/generation-parity.json", "sha256": "e53a1c3cef897509970b6f6dc57d8a0c9e9fd3c311523df628f09b7ff3e65309"}
+    ]
+  },
+  "witness_scope_repair": {
+    "source_commit": "d4826061b7656ed788aea3467fd9d613fc855413",
+    "focused_cpu_witness_checks": "pass",
+    "raw_cpu_test_log": {"path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/test-kv-pager-cpu.log", "sha256": "672d59a809dfa444a7ae653dd383fc332b37cfc107ced7a67016ddd91776fb19"},
+    "build_log": {"path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/build-pager-proof-scope.log", "sha256": "d4ef98915b541c83fe041c45afc85e6e006f3716997d825c82675f75ed17f8fd"},
+    "candidate_build_server_sha256": "d52e7ec7054377fafdb38700b5539ede60edf12d6f111f41c073adab2c393b74",
+    "candidate_build_libllama_sha256": "3d350db1723cf7ef0209531458e06c062a5b481d7ac3679c88d44506eaa6dfca",
+    "model_tested": false,
+    "note": "CPU-only diagnostic metadata fix; these binaries are distinct from the live A/B/A candidate above."
+  },
+  "remaining_scope": {
+    "formal_same_query_promotion_chain": "not validated",
+    "canonical_matrix_for_routefix_candidate": "fresh canonical matrix completed for the current candidate; the earlier cached-hit attempt remains diagnostic only",
+    "long_recall": "not run",
+    "overall_teacher_forced_generation_parity": false,
+    "task_status": "remains in_progress; receipt validation is not task-state completion"
+  },
+  "task_105_02a_update": {
+    "status": "done; CLI receipt check passed with goal_outcome goal_miss",
+    "completed_32k": {
+      "source_commit": "d4826061b7656ed788aea3467fd9d613fc855413",
+      "server_sha256": "d52e7ec7054377fafdb38700b5539ede60edf12d6f111f41c073adab2c393b74",
+      "libllama_sha256": "3d350db1723cf7ef0209531458e06c062a5b481d7ac3679c88d44506eaa6dfca",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "geometry": "L32768/H16384/B1024/U256, Turbo4 target and native GPU MTP",
+      "http_200_requests": 4,
+      "committed_tokens": 26984,
+      "hot_tokens": 16384,
+      "target_tokens": 26000,
+      "stages": {
+        "A1": {"fresh_tokens": 3890, "prompt_n": 3890, "prompt_ms": 2831.383, "reported_prompt_tok_s": 1373.89, "fresh_only_tok_s": 1373.89, "decode_tok_s": 92.63, "mtp_accepted": 225, "mtp_proposed": 284, "mtp_percent": 79.23},
+        "B": {"fresh_tokens": 11901, "cached_tokens": 4257, "prompt_n": 23791, "prompt_ms": 17900.838, "reported_prompt_tok_s": 1329.04, "fresh_only_tok_s": 664.83, "decode_tok_s": 74.15, "mtp_accepted": 240, "mtp_proposed": 278, "mtp_percent": 86.33},
+        "C": {"fresh_tokens": 9650, "cached_tokens": 16537, "prompt_n": 19289, "prompt_ms": 15644.224, "reported_prompt_tok_s": 1232.98, "fresh_only_tok_s": 616.84, "decode_tok_s": 70.62, "mtp_accepted": 166, "mtp_proposed": 206, "mtp_percent": 80.58}
+      },
+      "rate_note": "Reported prompt rate uses prompt_n and may include replay. Fresh-only rate is fresh tokens divided by prompt_ms.",
+      "reuse_without_repeat": true
+    },
+    "A2": {
+      "http_status": 200,
+      "fresh_tokens": 129,
+      "processed_prompt_tokens": 248,
+      "prompt_ms": 1411.104,
+      "reported_prompt_tok_s": 175.75,
+      "fresh_only_tok_s": 91.42,
+      "mtp_accepted": 231,
+      "mtp_proposed": 335,
+      "mtp_percent": 68.96,
+      "classification": "partial source-fact recall and incomplete code-test coverage/setup; short cached request, not bulk prefill",
+      "ranking_defect_conclusion": "none without matched dense control"
+    },
+    "current_canonical_attempt": {
+      "classification": "initial cached-hit diagnostic superseded by validated fresh canonical matrix below",
+      "raw_path": "/srv/ai/paged-kv/results/forward/105-02a/attempt-01/current-candidate-selected-canonical-20261007T192945Z/",
+      "python_http_500_responses": 2,
+      "root_reproduction": {"warm_tokens": 40, "measured_tokens": 400, "repeat_tokens": 400, "first_two_http_status": 200, "repeat_http_status": 500, "fresh_matrix_frozen": false},
+      "diagnostic": {"current_visible": 0, "eligible_history": 0, "page": 0, "state": "sealing_host", "physical_slot": 0, "pinned": true, "stale_generation": 1, "expected_generation": 3, "reason": "cached user query skipped"},
+      "recovery_changes_observed_in_fresh_canonical": [
+        "visibility includes sealing_host",
+        "cached-query capture re-evaluates final user query only when one of four spread-probe positions is reused; preserve earlier prefix and n_past_common, cap n_past_keep/splice",
+        "helper uses effective native KV query end including final_user_kv_position_offset, with begin_kv_pager_turn fallback; normal chat raw rendered end differs because of user delimiter; CPU offset case added",
+        "llm_graph_input_kv_page_select::can_reuse validates rank source5-probe input through accumulate-only matcher, not transformed source0; dangling duplicate call removed; standalone final-user-probe input intentionally rejects reuse; no performance claim; production ranking review found no other normalization defect"
+      ],
+      "candidate_identity_requires": ["llama-server executable", "libllama-server-impl.so", "libllama", "CUDA DSO"],
+      "source_at_build_identity": {
+        "build_checkout_head": "d4826061b7656ed788aea3467fd9d613fc855413",
+        "worktree_diff_sha256": "3e99195feb7ceb29eecc40b17a0b0440c63360ec9b4be535023e45b61ed3cdab",
+        "source_delta_now_production_commit": "ccf07a9a6b7bbd32f85b6cab61a789d7c020214d",
+        "note": "The tested candidate was built from d482 plus the recorded source delta, now committed as ccf07a9a6b7bbd32f85b6cab61a789d7c020214d; do not report raw source HEAD at build time as ccf. Binary/DSO hashes identify the tested candidate."
+      },
+      "fresh_run_requirements": "Satisfied: cache_prompt:false; empty/reset slot per row; actual cached tokens zero; three original prompts; one 40-token warmup plus three measured requests per prompt; temperature 0; reasoning off",
+      "fresh_canonical_matrix": {
+        "raw_path": "/srv/ai/paged-kv/results/forward/105-02a/final-canonical-12-20261007T200045Z/",
+        "http_200_requests": 12,
+        "all_measured_normal_eos": true,
+        "cache_prompt": false,
+        "slot_reset_per_row": true,
+        "measured_cached_tokens": 0,
+        "temperature": 0,
+        "reasoning": "off",
+        "warmup_max_tokens": 40,
+        "measured_repetitions_per_prompt": 3,
+        "candidate_sha256": {
+          "llama_server": "56a8033a75dce1d08cf7dcc4e75499443b658ae675b79dd0c843daa395d06d9a",
+          "libllama": "f8893f682b3ba3e9c1963030d136f40cd0dba10c1bdd75bbccedeba3d32dddc0",
+          "libllama_server_impl": "efa611a672ab73931f8d834cd6d7017fc4e702acc2307f9ccebb1c1384f6b1c0",
+          "cuda_dso": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867"
+        },
+        "prompts": {
+          "python_merge": {"input_tokens": 30, "output_tokens": 365, "median_decode_tok_s": 105.25, "decode_range_tok_s": [105.20, 105.48], "mtp_accepted_proposed": ["237/258", "237/258", "237/258"], "median_mtp_percent": 91.86, "median_prefill_ms": 202.14},
+          "mmap_vs_read": {"input_tokens": 27, "output_tokens": 171, "median_decode_tok_s": 82.83, "decode_range_tok_s": [82.82, 83.92], "mtp_accepted_proposed": ["95/152", "94/154", "94/154"], "median_mtp_percent": 61.04, "median_prefill_ms": 203.06},
+          "bash_watcher": {"input_tokens": 28, "output_tokens": 225, "median_decode_tok_s": 103.94, "decode_range_tok_s": [101.33, 103.98], "mtp_accepted_proposed": ["143/162", "143/166", "143/162"], "median_mtp_percent": 88.27, "median_prefill_ms": 199.83}
+        },
+        "bulk_prefill_measured": false
+      },
+      "cached_request3_recapture": {
+        "raw_path": "/srv/ai/paged-kv/results/forward/105-02a/final-cache-repro-20261007T200001Z/",
+        "http_200_requests": 3,
+        "measured_output_tokens": 365,
+        "finish_reason": "stop",
+        "measured_mtp_accepted_proposed": ["238/256", "237/258"],
+        "cache_prompt": true,
+        "measured_cached_tokens": 0,
+        "expected_user_query_begin_zero_recapture": true,
+        "lcp_journal_check": "pending"
+      },
+      "mtp_acceptance_floor_percent": 40,
+      "matched_small_recall_dense_controls": "completed: selected and dense both returned the exact factual answer on the same candidate/question/cache lifecycle; executable receipt validation passed",
+      "selected_dense_exact_fact_recall": {
+        "comparison_summary": "/srv/ai/paged-kv/results/forward/105-02a/final-gpu-comparison-summary.json",
+        "candidate_identity": "same server/libllama/libllama-server-impl/CUDA DSO identity as fresh_canonical_matrix; built from d482 plus recorded source delta now production commit ccf07a9a6b7bbd32f85b6cab61a789d7c020214d",
+        "selected": {
+          "raw_path": "/srv/ai/paged-kv/results/forward/105-02a/final-page5-selected-20261007T200300Z/runner/",
+          "http_status": 200,
+          "finish_reason": "stop",
+          "semantic_fact_correct": true,
+          "output_tokens": 134,
+          "prompt_tokens": 5569,
+          "cached_tokens": 5501,
+          "processed_new_tokens": 125,
+          "mtp_accepted_proposed": "79/112",
+          "page5_before": {"sequence_id": 0, "sequence_generation": 1, "page_generation": 9, "content_version": 256, "position_range": [1280, 1536], "cold": true, "host_backed": true},
+          "page5_after": {"resident": true, "host_backed": true},
+          "query": {"generation": 104, "span": [5503, 5557], "position": 5556},
+          "selection": {"eligible": true, "summary_ready": true, "cold_bundle_rank_zero_based": 1, "cold_bundle_budget": 8, "nominated": true, "admitted": true, "mapping_published": true, "h2d_completed_bytes": 34603008},
+          "target_graph_used": false,
+          "witness_status": "identity-bound transfer/target-use proof unknown/incomplete; target_graph_used=false is a tracing gap, not failed semantic execution"
+        },
+        "dense": {
+          "raw_path": "/srv/ai/paged-kv/results/forward/105-02a/final-page5-dense-20261007T200745Z/",
+          "http_200_requests": 3,
+          "all_finish_reason_stop": true,
+          "semantic_fact_correct": true,
+          "recall_row": {"prompt_tokens": 5569, "cached_tokens": 5494, "processed_new_tokens": 75, "output_tokens": 141, "decode_ms": 1541.787, "mtp_accepted_proposed": "84/112"}
+        },
+        "scope": "Exact-fact selected/dense semantic comparison completed. Formal identity-bound promotion transfer and target-use witness remains unknown; do not upgrade unknown witness tags to pass/fail."
+      },
+      "identity_semantics": "32K result remains valid under its separately labeled historical candidate identity; mixed identities are disallowed within paired current comparisons/campaigns, not across distinct findings",
+      "receipt": {"path": ".wiretail/execution/evidence/V10_105-02a.json", "check": "matched_small_recall_and_canonical_mtp_findings", "status": "pass", "exit_code": 0, "goal_outcome": "goal_miss"},
+      "certification_policy": "No bit-parity or complete-witness certification gate; witness tags remain truthful unknowns where evidence is incomplete"
+    }
   },
   "raw_evidence_root": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/",
   "publication": "Local execution metadata, exclude from upstream PR. No raw binaries or tensors are committed."

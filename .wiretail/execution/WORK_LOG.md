@@ -2423,3 +2423,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-01g`
 - Commit at update: `e3cd6d735`
 - Summary: Integrated and validated selective probe-rerank on main; preserved completed PY_MERGE_03 goal_miss for 105-02.
+
+## 2026-10-07T19:27:19+00:00 — 105-02 — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `d4826061b`
+- Summary: Repaired selector catalogue lifetime/readiness and sparse-history packed MTP dispatch; compiled focused checks and source-identified cold A/B/A recalled the correct fact with normal EOS and 73/116 accepted drafts. Numerical bit parity and full stage-chain telemetry remain findings; broader matched/long-context work continues in 105-02a.
+
+## 2026-10-07T19:30:21+00:00 — 105-02a — in_progress
+
+- Branch: `codex/task-105-02`
+- Commit at update: `d4826061b`
+- Summary: Task started
+
+## 2026-10-07T20:20:36+00:00 — 105-02a — done
+
+- Branch: `codex/task-105-02`
+- Commit at update: `ccf07a9a6`
+- Summary: Validated current-candidate cold requested-page recall and matched dense control; fresh canonical 12-row benchmark passed with MTP medians 91.86/61.04/88.27 percent. Preserved separately identified 32K prefill curve; formal transfer/use tags remain findings, not certified.

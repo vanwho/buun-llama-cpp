@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "105",
-  "current_task": "105-02",
-  "last_updated_utc": "2026-10-07T12:14:05+00:00",
+  "current_task": "105-03",
+  "last_updated_utc": "2026-10-07T20:20:36+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -36515,7 +36515,7 @@
       "cluster": "forward105-proof-review",
       "title": "Resolve selected generation attention and MTP state parity",
       "packet": ".wiretail/execution/tasks/105-02.md",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36530,7 +36530,7 @@
       "depends_on": [
         "105-01g"
       ],
-      "commit": null,
+      "commit": "d4826061b7656ed788aea3467fd9d613fc855413",
       "context_files": [
         ".wiretail/execution/clusters/forward105-proof-review.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
@@ -36551,7 +36551,7 @@
       "cluster": "forward105-proof-review",
       "title": "Matched small recall and canonical MTP speed decision",
       "packet": ".wiretail/execution/tasks/105-02a.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "medium",
@@ -36566,7 +36566,7 @@
       "depends_on": [
         "105-02"
       ],
-      "commit": null,
+      "commit": "ccf07a9a6b7bbd32f85b6cab61a789d7c020214d",
       "context_files": [
         ".wiretail/execution/clusters/forward105-proof-review.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
@@ -36584,7 +36584,7 @@
     {
       "id": "105-03",
       "phase": "105",
-      "cluster": "forward105-proof-review",
+      "cluster": "forward105-large-recall",
       "title": "Reassess minimum canonical forward capabilities",
       "packet": ".wiretail/execution/tasks/105-03.md",
       "status": "todo",
@@ -36595,7 +36595,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
       "required_proofs": [
         "minimum_canonical_forward_capability_reassessment"
       ],
@@ -36604,7 +36604,7 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/clusters/forward105-large-recall.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-02a.md"
       ],
@@ -36620,7 +36620,7 @@
     {
       "id": "105-04",
       "phase": "105",
-      "cluster": "forward105-proof-review",
+      "cluster": "forward105-large-recall",
       "title": "Refresh the compact forward goal summary",
       "packet": ".wiretail/execution/tasks/105-04.md",
       "status": "todo",
@@ -36631,7 +36631,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
       "required_proofs": [
         "refreshed_forward_goal_summary"
       ],
@@ -36640,7 +36640,7 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/clusters/forward105-large-recall.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-03.md"
       ],
@@ -36656,7 +36656,7 @@
     {
       "id": "105-05",
       "phase": "105",
-      "cluster": "forward105-proof-review",
+      "cluster": "forward105-large-recall",
       "title": "Review forward goals and schedule bounded follow-up",
       "packet": ".wiretail/execution/tasks/105-05.md",
       "status": "todo",
@@ -36667,7 +36667,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
       "required_proofs": [
         "final_forward_goal_review_and_successors"
       ],
@@ -36676,7 +36676,7 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-proof-review.md",
+        ".wiretail/execution/clusters/forward105-large-recall.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
         ".wiretail/execution/handoffs/105-04.md"
       ],

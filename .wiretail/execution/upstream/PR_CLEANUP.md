@@ -64,3 +64,23 @@ commit list again, and run the repository's normal upstream tests.
 
 This file itself is fork-local execution metadata and is excluded along with
 the rest of `.wiretail/execution/`.
+
+## October 7 recall/occupancy harness changes
+
+Keep the fork-local benchmark implementation in its own commit, separate from
+production attention/router/MTP fixes. Exclude that harness commit when
+preparing the upstream implementation slice:
+`1a5723443` (`bench(fork): preserve frozen occupancy inputs and executed findings`).
+Its paths are:
+
+- `tools/server/bench/check_105_02a_findings.py`;
+- `tools/server/bench/run-occupancy-frontier.py`;
+- `tools/server/bench/repo_context.py`;
+- `tools/server/bench/test_occupancy_frontier.py`.
+
+These changes preserve frozen source/question identity and byte-exact prompt
+replay, and distinguish measured goal misses from incomplete executions. They
+are useful locally but are not proposed production llama.cpp API changes.
+Raw request logs, candidate DSOs, tensor dumps and binary bundles remain
+external/ignored and must not be staged. Compact receipts and handoffs stay in
+the denylisted `.wiretail/` planning commit.

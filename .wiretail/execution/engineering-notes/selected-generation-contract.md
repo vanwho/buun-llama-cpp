@@ -1,8 +1,10 @@
 # Selected generation: current source and measured findings
 
 Revision: hotpath-v10-20260914. Updated October7 for105-02 onward.
-Current summary, not an attempt diary. Raw runs remain external.105-02 is
-in_progress; no cold-recall success or complete numerical-parity proof.
+Current summary, not an attempt diary. Raw runs remain external. The 105-02a
+selected/dense exact-fact comparison succeeded semantically with response-local
+MTP. Identity-bound transfer/target-use witness remains unknown; this is not a
+semantic failure or completion gate. Root owns task state/receipt.
 
 ## Architecture and preserved repairs
 
@@ -34,15 +36,19 @@ F16 draft, global reference route or expected-answer injection.
 - `llama_context::prepare_kv_attention_graph` consumes ALL admitted frozen
   R pages plus required query/current/resident-output rows. Nomination is
   provenance, not another filter. No additional all-layer union allocation.
+- Current routing-summary source fixes address dirty-map pointer lifetime,
+  zeroed metadata holes, incomplete-bounds retries and transactional full-grid
+  publication. Keep holes invalid until complete bounds are published.
+- `cdfb1b795` fixes summary lifetime; `7374e74a3` enables packed automatic
+  MTP when capacity permits (prefill unchanged, direct fallback retained).
+  `c803dc14b` is obsolete after SET_ROWS/padding fix `52d04942c`.
 
 ## Confirmed I32 -> I64 position defect
 
-`include/llama.h` defines llama_pos=int32_t; direct CUDA query/native tensors
-are GGML_TYPE_I64 and the paged kernel reads int64_t. Four ordinary direct/
-exact-wave uploads sent sizeof(llama_pos), not the tensor element size.
-Actual device query0 became4344+(4345<<32)=18661632905464. Only7 of14 I64
-positions were filled; query7..13 used zero/stale bytes. Correct host masks
-hid this from host-only snapshots and synthetic attention fixtures.
+`llama_pos` is I32; direct CUDA query/native tensors and the paged kernel use
+I64. Four direct/exact-wave uploads sent4bytes per element, leaving half the
+positions stale. Device query0 became4344+(4345<<32)=18661632905464; host
+masks hid the malformed upload from earlier snapshots.
 The old first mismatch at row7 was the halfway point of the malformed
 upload, NOT evidence of a4351/4352 page-boundary kernel bug.
 
@@ -63,9 +69,10 @@ is fixed, not bypassed. Compiled libllama SHA256:
 
 ## Post-fix measurements
 
-Exact original prompts, one40-token warmup and three400-output-token maxima
-each, temperature0/reasoning off. All12HTTP200, coherent, fresh slot and
-cache_prompt=false/cached input0. Normal EOS below400 is valid.
+Historical candidate `a78b2e09…` only: exact prompts, one40-token warmup and
+three400-token maxima each, temperature0/reasoning off. All12HTTP200, coherent,
+fresh slot and cached input0. This matrix predates the current DSO and cannot
+be claimed as its canonical result.
 
 | Prompt | Median decode tok/s | Median request MTP | Aggregate accepted/proposed |
 | --- | ---: | ---: | ---: |
@@ -73,47 +80,97 @@ cache_prompt=false/cached input0. Normal EOS below400 is valid.
 | mmap vs read paragraph |82.32|61.04%|283/460|
 | Bash watcher |102.28|86.59%|426/492|
 
-Inputs30/27/28; outputs365/171/225. These tiny prompts are NOT bulk-prefill
-measurements. Do not relabel prior candidates' benchmarks or claim an
-isolated patch speedup without an old/new ablation.
+Tiny prompts are NOT bulk-prefill measurements. Do not relabel candidates or
+claim an isolated patch gain without an old/new ablation.
 
-One post-fix PY_MERGE_03 A/B/A completed3HTTP200. Requested page5 was cold,
-host-backed/summary-ready and not promoted. Final400-token output repeated
-the wrong Bash comment, accepting258/282drafts(91.49%). High acceptance is
-not correct retrieval or useful speed. Page6 completed a real promotion/use
-chain; it is not page5 proof. Current trace was OFF, so default zeros and
-cumulative rejection counters do not localize the page5 miss. An older
-query104 shortlist[6,7,8] must not be attributed to the current query.
+### Completed 105-02a 32K trajectory
+
+The selected-32k run is complete and reusable under source
+`d4826061b7656ed788aea3467fd9d613fc855413`, server
+`d52e7ec7054377fafdb38700b5539ede60edf12d6f111f41c073adab2c393b74`,
+libllama `3d350db1723cf7ef0209531458e06c062a5b481d7ac3679c88d44506eaa6dfca`,
+model `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`.
+L32768/H16384/B1024/U256; four HTTP200 requests; committed C=26984 exceeded
+H=16384 and target26000. Do not repeat the trajectory.
+
+| Stage | Fresh | Prompt n/ms | Reported tok/s | Fresh-only tok/s | Decode tok/s | MTP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| A1 | 3890 | 3890/2831.383 | 1373.89 | 1373.89 | 92.63 | 225/284 (79.23%) |
+| B | 11901 | 23791/17900.838 | 1329.04 | 664.83 | 74.15 | 240/278 (86.33%) |
+| C | 9650 | 19289/15644.224 | 1232.98 | 616.84 | 70.62 | 166/206 (80.58%) |
+| A2 | 129 | 248/1411.104 | 175.75 | 91.42 | 63.56 | 231/335 (68.96%) |
+
+Reported prompt rates use prompt n and can include replay. A2 is short cached
+input, not bulk prefill. It partially recalled the Windows-console
+invalid-UTF8 fact (`<fffe>`, `invalid_utf8=true`) but did not provide all
+redirection/non-Windows tests for `write_utf8_cstr_to_stdout`; without the
+matched dense control this is not a ranking-defect finding. The measured 40%
+MTP acceptance floor is a finding.
+
+### Completed current-candidate canonical and selected/dense recall
+
+The fresh canonical matrix is complete under candidate hashes recorded in
+`evidence/PRODUCER105_02_FINDINGS.json` (including
+`libllama-server-impl.so`). All12 requests were HTTP200; measured rows used
+`cache_prompt:false`, reset slots and cached input0. The three original prompts
+had median decode speeds105.25,82.83,103.94tok/s with median request MTP
+91.86%,61.04%,88.27%. Inputs30/27/28 tokens and prefill medians202.14/203.06/
+199.83ms are not bulk-prefill measurements. The earlier cached-hit attempt
+with two Python HTTP500 responses is superseded diagnostic history, not the
+current canonical result.
+
+The matched exact-fact selected/dense control is also complete. Both returned
+the requested fact with HTTP200/EOS. In selected mode, page5 (seq0, generation1,
+page generation9, content version256, positions1280..1536) was cold and
+host-backed before the query; it was eligible/summary-ready at zero-based rank
+1/8, nominated/admitted, mapping published, and resident plus host-backed in
+the after snapshot. Query104 covered5503..5557. Dense returned the same fact
+with prompt5569/cached5494/new75, 141 outputs, 1541.8ms decode, MTP84/112.
+Selected returned134 outputs, prompt5569/cached5501/new125, MTP79/112.
+However, formal identity-bound transfer/target-use proof is unknown/incomplete;
+`target_graph_used=false` is a tracing gap, not evidence that semantic execution
+failed. Record witness tags as unknown where unsupported; no witness or bitwise
+parity gate applies. No forced page ownership or retired diagnostic route is
+required.
+
+The tested candidate was built from source HEAD
+`d4826061b7656ed788aea3467fd9d613fc855413` plus source diff
+`3e99195feb7ceb29eecc40b17a0b0440c63360ec9b4be535023e45b61ed3cdab`, now
+production commit `ccf07a9a6b7bbd32f85b6cab61a789d7c020214d`; do not report raw
+build HEAD as ccf. Reuse the completed 32K and canonical results without
+repeating unchanged runs. The cached
+`cache_prompt:true` recapture returned HTTP200 with zero cached tokens and
+re-evaluated the user query; its optional LCP journal check is not a completion
+gate. Mixed identities remain disallowed within paired comparisons/campaigns,
+not across separately labeled historical findings.
+
+Earlier 105-02 route-fix candidate (distinct from current 105-02a matrix): source root
+`/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/`;
+server SHA256 `0c84115796002414733ff3f235af7f21188cc50312792c5b6ae9e27bb1672d63`,
+libllama SHA256 `2a075159887d9c93e3f0736ecbab03cdb4a08390cf20ec8fa22cc51d3b4fb857`.
+One A/B/A: all HTTP200. A1: 2155 fresh tokens, prefill1305.59tok/s,
+decode155 tokens, MTP93/124 (75%). B: usage5498, cached2310; prompt n6366,
+4575ms, 1391tok/s is raw kernel/replay-inclusive, not clean input rate.
+Final A: 131 tokens, normal stop, fact-correct, no filler; MTP73/116 (62.93%),
+decode72.17tok/s. Page5 was cold before/hot after; it was nominated/admitted
+at zero-based exact-rank index1 for the current query. Prior-query witness
+accounting is fixed; the full stage chain remains unvalidated. Server request
+generation3 and trace generation106 use different counter domains. The witness
+fix passed CPU metadata tests; latest disk hashes are server `d52e7ec7`,
+libllama `3d350db1`, not a new model measurement.
 
 ## Remaining numerical boundary and exact next seam
 
 CPU prefetch/residency/speculative-state and production-shape/padding CUDA
-checks pass. CUDA covers actual24-Q/4-KV, Q1/Q3/Q256, causal gaps/noncontiguous
-slots, generation roll and repeated NaN-poisoned padding. Cancellation,
-native frontiers, frozen map and next-MTP2/2 pass. Full teacher-forced
-scalar-packed vs width3-direct continuation parity still fails over12rows:
-max logits6.82667/hidden8.40555. This is separate from fixed question inputs.
-
-First continuation layer0-2 and layer3 normalized Q/K agree. First layer3
-attention delta0.00167859 is inside the existing0.003 CUDA route bound;
-layer4 differences are downstream. Full-softmax row0 KL(scalar||batch)
-0.000472/TV0.01044 with same top1; row3 (next width3 group) increases to
-KL0.1017/TV0.1629. First top1 mismatchrow5; maxKL0.9742/TV0.5029 atrow7.
-Do not dismiss late drift as rare-logit roundoff or assume a kernel bug.
-Source audits found no confirmed stale second-group upload/row-ticket or
-recurrent-plane indexing defect. No speculative production edit follows.
-
-`tests/test-server-query-replay.cpp` now has OPTIONAL fixture-only captures
-of layers0/4 current recurrent+conv planes at scalar token3 vs width3 group1
-endpoint (position4360, plane0), and scalar token4 vs width3 group2 first
-snapshot (position4361, planeK-1). Read actual hybrid recurrent owner rows,
-checked tensor strides, missing reasons, byte hashes and numeric differences
-before draft catch-up; the draft decode does not write target state.
-Optional scalar token4/second-group taps expose device positions/current K/V
-and first changed layer. Captures default off, capped24MiB/branch, outside
-production. Rebuild passed; the new capture has NOT been model-run yet.
-The earlier sidecar's object-closing/comma serialization defects are fixed;
-original raw artifacts are retained, not silently overwritten as valid JSON.
+checks pass (24-Q/4-KV, Q1/Q3/Q256, causal gaps, generation roll, poisoned
+padding). Cancellation, native frontiers, frozen map and next-MTP2/2 pass.
+Full-fixture bitwise parity remains false; current max logit/hidden deltas are
+.334331/.475013. The 12x248320 comparison is finite, top1 agrees12/12, KL
+mean/max .000856/.001750 and TV mean/max .01544/.02658. Next-MTP is2/2 and
+maps are exact. Main-question parity was proven by the I64 fix; bitwise
+quantized batch/scalar equality is not a gate. After packed-MTP commit7374e74a3,
+layer4 conv/recurrent deltas are token4360 .00580704/.000310144 and token4361
+.00580704/.000388846. No additional owner defect is confirmed.
 
 ## Cold ranking: avoid false bottlenecks
 
@@ -123,27 +180,22 @@ and `prepare_router_query_layers` processes the full authenticated list.
 Eight is a separate later full-K/V H2D transaction limit. Default encoded
 query/key domains agree by source audit; no compensating transform needed.
 
-Use current sequence/query/generation-bound existing opt-in selector trace
-to distinguish page descriptor eligibility -> coarse shortlist -> exact-mass
-rank -> admission -> transfer/publication -> target use. Current page5 cause
-is unknown. Trace retains only a bounded raw-ID prefix; absence from that
-prefix is not absence from a48-page coarse list. Do not widen imaginary
-budgets, invent zero scores or special-case a fixture/expected answer.
+Generation106's older trace missed page5 at exact bundle3. The final selected
+query found it at rank1/8 and both selected/dense answered the exact fact. Keep
+older measurements attached to their own identities. The 105-02a 32K/H16K,
+canonical matrix and selected/dense semantic controls are complete. Next task
+105-03 is the one novel occupied-context trajectory; do not rerun unchanged
+small/canonical/32K experiments or reopen retired diagnostic routes.
 
 ## Artifacts and continuation
 
-Compact hashes/findings: `evidence/PRODUCER105_02_FINDINGS.json`, not a V10
-success receipt. External raw root:
+Compact findings: `evidence/PRODUCER105_02_FINDINGS.json`. Executable receipt
+`evidence/V10_105-02a.json` passed; measured outcome is `goal_miss`, distinct
+from task completion. Raw artifacts remain under
 `/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/`.
-Relevant runs: `generation-parity-int64-current-kv-20261007T183000/`,
-`continuation-first-capture-20261007T193000/`,
-`canonical-mtp-matrix-corrected-int64-fresh-20261007T190000/`,
-`promotion-corrected-int64-20261007T184000/`. Do not load whole transcripts.
 
-Keep single Qwen under lifecycle lock; exact argv/next fixture in105-02.
-Immich ML remains operator-stopped; stop only that authorized worker if it
-returns. Never restart it automatically, never8092; leave8091 unchanged.
-105-02a owns ONE32K/H16K trajectory and bulk-prefill curve, then only missing
-matched controls. No unchanged400-token campaign retries or blind250K fill.
-Benchmark tooling/compact execution metadata are excluded from upstream PR;
-raw tensors/binaries stay external and uncommitted.
+Keep one Qwen under the lifecycle lock; exact argv is in105-02. Immich ML
+remains operator-stopped; never restart it automatically. 105-02a findings and
+receipt validation are complete. The optional cache LCP journal check is not a
+completion gate. 105-03 owns new scale findings only. Keep raw tensors/binaries
+external and uncommitted.

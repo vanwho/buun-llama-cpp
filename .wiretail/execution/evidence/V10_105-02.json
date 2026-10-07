@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "task": "105-02",
+  "source_commit": "d4826061b7656ed788aea3467fd9d613fc855413",
+  "checks": {
+    "occupied_context_mtp_source_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/check_105_02_functional_findings.py",
+        "--run-root",
+        "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z",
+        "--server-sha256",
+        "0c84115796002414733ff3f235af7f21188cc50312792c5b6ae9e27bb1672d63",
+        "--libllama-sha256",
+        "2a075159887d9c93e3f0736ecbab03cdb4a08390cf20ec8fa22cc51d3b4fb857",
+        "--cuda-dso-sha256",
+        "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+        "--model-sha256",
+        "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/v10/check_105_02_functional_findings.py",
+          "sha256": "a9cd14926a31a166ce5e4b3ceb8fe4c53baf1ec39fef6ebe0784af34e766ecb2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/functional-findings-validator.log",
+          "sha256": "43f0a6ff10680927f6735a11e7bda62570781b9e5f17e4a4b039abbdaa097517"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/test-kv-pager-cpu.log",
+          "sha256": "672d59a809dfa444a7ae653dd383fc332b37cfc107ced7a67016ddd91776fb19"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/test-kv-router-job-cpu.log",
+          "sha256": "837baa071a36c7b371d6e32dbccda7d70f45a4a0536eff79475ecaddb813d503"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/build-pager-proof-scope.log",
+          "sha256": "d4ef98915b541c83fe041c45afc85e6e006f3716997d825c82675f75ed17f8fd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/campaign/candidate-identity.json",
+          "sha256": "3ec4382d8b3fca47927e040e65f90327626d43fc83431e018c2fcf78726ba1a8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/campaign/cases/PY_MERGE_03/case-summary.json",
+          "sha256": "8b5e5addc1e798051fb1eae04b137c0292b5defa95be0dfee37b32ef8c08c117"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-02/source-review-fixes/routefix-current-20261007T190142Z/generation-parity.json",
+          "sha256": "e53a1c3cef897509970b6f6dc57d8a0c9e9fd3c311523df628f09b7ff3e65309"
+        }
+      ],
+      "source_repair_cpu_candidate": {
+        "commit": "d4826061b7656ed788aea3467fd9d613fc855413",
+        "server_sha256": "d52e7ec7054377fafdb38700b5539ede60edf12d6f111f41c073adab2c393b74",
+        "libllama_sha256": "3d350db1723cf7ef0209531458e06c062a5b481d7ac3679c88d44506eaa6dfca",
+        "model_tested": false
+      },
+      "live_measurement_candidate": {
+        "server_sha256": "0c84115796002414733ff3f235af7f21188cc50312792c5b6ae9e27bb1672d63",
+        "libllama_sha256": "2a075159887d9c93e3f0736ecbab03cdb4a08390cf20ec8fa22cc51d3b4fb857",
+        "cuda_dso_sha256": "f8b66c3fa9b17cc77e08678dba8407b4c2998362278e6e796f9d5cf67de42867",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "A1": {
+          "fresh_input_tokens": 2155,
+          "prefill_tok_s": 1305.593757,
+          "output_tokens": 155,
+          "finish_reason": "stop",
+          "mtp_accepted_proposed": "93/124",
+          "mtp_acceptance_percent": 75.0,
+          "decode_tok_s": 88.647991
+        },
+        "B": {
+          "usage_prompt_tokens": 5498,
+          "cached_tokens": 2310,
+          "reported_prompt_n": 6366,
+          "reported_prompt_ms": 4575.172,
+          "reported_prompt_tok_s": 1391.423098,
+          "clean_uncached_rate": false
+        },
+        "A2": {
+          "output_tokens": 131,
+          "finish_reason": "stop",
+          "expected_fact_matched": true,
+          "mtp_accepted_proposed": "73/116",
+          "mtp_acceptance_percent": 62.931034,
+          "decode_tok_s": 72.168577,
+          "page5_cold_host_backed_before": true,
+          "page5_resident_after": true,
+          "page5_exact_rank_zero_based": 1
+        },
+        "promotion_chain": {
+          "same_query_natural_use_validated": false,
+          "selector_query_generation": 106,
+          "server_request_generation": 3,
+          "domains_equated": false
+        },
+        "teacher_forced_width3": {
+          "parity_pass": false,
+          "max_logits_error": 0.334331,
+          "max_hidden_error": 0.475013,
+          "all_finite": true,
+          "top1_equal_rows": "12/12",
+          "kl_mean_max": "0.000856/0.001750",
+          "tv_mean_max": "0.01544/0.02658",
+          "next_mtp_proposals_accepted": "2/2"
+        }
+      },
+      "scope": {
+        "overall_teacher_forced_generation_parity": false,
+        "formal_same_query_promotion_chain": "not validated",
+        "canonical_matrix_for_live_candidate": "not run",
+        "long_recall": "not run",
+        "task_state_completion": "not asserted"
+      }
+    }
+  }
+}

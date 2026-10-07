@@ -1,0 +1,1 @@
+In tools/tokenize/tokenize.cpp, when write_utf8_cstr_to_stdout receives invalid UTF-8 bytes ff fe while stdout is a Windows console, what does it print, and how does it set invalid_utf8? Answer in ordinary prose.
