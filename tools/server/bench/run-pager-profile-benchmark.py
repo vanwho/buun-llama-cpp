@@ -223,6 +223,7 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
         "batch": _command_value(command, "-b"),
         "ubatch": _command_value(command, "-ub"),
         "pager_mode": pager,
+        "router_mode": _command_value(command, "--kv-router") or "absent",
         "page_size_tokens": _command_value(command, "--kv-page-size"),
         "target_kv_placement": "cpu" if no_kv_offload else "gpu",
         "no_kv_offload": no_kv_offload,
@@ -287,6 +288,8 @@ def identity_mismatches(observed: dict[str, object], expected: dict[str, object]
         fields += ("batch",)
     if "ubatch" in expected:
         fields += ("ubatch",)
+    if "router_mode" in expected:
+        fields += ("router_mode",)
     errors = [field for field in fields if observed.get(field) != expected.get(field)]
     if expected.get("pager_mode") != "off" and observed.get("page_size_tokens") != expected.get("page_size_tokens"):
         errors.append("page_size_tokens")
@@ -1179,6 +1182,8 @@ def _main() -> int:
                         help="restore the profile active before the run after completion")
     parser.add_argument("--mode", choices=("off", "observe", "selective", "exact"),
                         default="selective", help="live KV pager mode")
+    parser.add_argument("--router", choices=("legacy", "probe-rerank", "dense"),
+                        help="require this observed --kv-router value (absent is recorded as absent)")
     parser.add_argument("--device", default="auto",
                         help="target device list passed to the live server (default: auto)")
     parser.add_argument("--page-size", type=int, default=256,
@@ -1312,6 +1317,10 @@ def _main() -> int:
         print(f"pager benchmark: invalid immutable candidate bundle: {error}", file=sys.stderr)
         return 2
     before = service_snapshot(endpoint)
+    if args.router is not None and before.get("identity", {}).get("router_mode") != args.router:
+        print(f"pager benchmark: router identity mismatch before run: expected {args.router}, "
+              f"observed {before.get('identity', {}).get('router_mode')}", file=sys.stderr)
+        return 2
     telemetry_before, telemetry_before_error = read_server_metrics(endpoint)
     if telemetry_before_error:
         (output / "lifecycle-state.json").write_text(json.dumps({
@@ -1423,6 +1432,8 @@ def _main() -> int:
         expected_after = before.get("identity") if args.restore_control else requested
         if isinstance(expected_after, dict):
             mismatches = identity_mismatches(after.get("identity", {}), expected_after)
+            if args.router is not None and after.get("identity", {}).get("router_mode") != args.router:
+                mismatches.append("router_mode")
             if mismatches:
                 prefix = "control_restore_identity_mismatch" if args.restore_control else "runtime_identity_mismatch"
                 validation_errors.append(prefix + ":" + ",".join(mismatches))

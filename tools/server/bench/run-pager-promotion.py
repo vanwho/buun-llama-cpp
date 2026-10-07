@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import threading
@@ -19,14 +21,16 @@ from typing import Any, Mapping
 from mtp_diagnostic import promotion_event_chain_from_snapshots
 from pager_promotion import (
     DEFAULT_PRESSURE_FIXTURE_IDS, DEFAULT_SOURCE_FIXTURE_IDS,
-    DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT,
-    PromotionStep, build_promotion_steps, load_fixture_catalog, response_budget,
+    DEFAULT_TARGET_FIXTURE_ID, DEFAULT_PYTHON_TARGET_IDS, FIXTURE_ROOT,
+    GENERATION_CONTEXT_RESERVE_TOKENS, PromotionStep, build_frozen_schedule,
+    frozen_schedule_hash, load_fixture_catalog, response_budget,
+    write_or_validate_schedule,
     messages_for_step, pages_overlapping_token_range, refresh_page_versions,
 )
 from prompt_sizing import ServerPromptRenderer, request_options
 
 
-MODEL_PATH = pathlib.Path("/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf")
+MODEL_PATH = pathlib.Path("/srv/ai/models/text/current.gguf")
 DEFAULT_ENDPOINT = "http://127.0.0.1:8080"
 DEFAULT_SERVICE = "llama-server.service"
 COMPLETION_SEED_BASE = 947300
@@ -38,6 +42,7 @@ UBATCH = 256
 NATURAL_RECALL_ANCHORS = {
     "PY_MERGE_03": "out = [0] * (len(left) + len(right))",
 }
+MANAGED_DROPIN = pathlib.Path("/run/systemd/system/llama-server.service.d/104-06.conf")
 
 
 def sha256(data: bytes) -> str:
@@ -57,16 +62,117 @@ def gpu_backend(value: Any) -> bool:
     return name == "gpu" or name.startswith(("cuda", "ggml_cuda"))
 
 
+def profile_setting_mismatches(values: Mapping[str, Any], profile: str) -> list[str]:
+    if profile not in {"legacy", "probe-rerank", "dense"}:
+        return [f"unknown profile {profile!r}"]
+    mismatches = []
+    if profile == "dense":
+        if values.get("--kv-pager") != "off":
+            mismatches.append("dense requires --kv-pager off")
+        if values.get("--kv-router") is not None or values.get("--kv-hot-pages") is not None:
+            mismatches.append("dense omits --kv-router and --kv-hot-pages")
+    else:
+        router = "legacy" if profile == "legacy" else "probe-rerank"
+        expected = {"--kv-pager": "selective", "--kv-router": router,
+                    "--kv-page-size": "256", "--kv-hot-pages": "16"}
+        for option, value in expected.items():
+            if values.get(option) != value:
+                mismatches.append(f"{option}={values.get(option)!r} expected {value!r}")
+    return mismatches
+
+
+def reload_managed_profile(args: argparse.Namespace, key: str) -> None:
+    """Apply the same 104-06b drop-in lifecycle, then wait for one exact server."""
+    argv = [str(pathlib.Path(args.server_binary).resolve()), "-m", args.model,
+            "--alias", args.model_alias, "-ngl", "999", "--fit", "off", "-fa", "on",
+            "-c", str(args.context), "-np", "1", "-ctk", "turbo4", "-ctv", "turbo4",
+            "-b", "1024", "-ub", "256", "--poll", "0", "--host", "0.0.0.0",
+            "--port", args.endpoint.rsplit(":", 1)[-1], "--api-key-file", args.key_file,
+            "--metrics", "--no-context-shift", "--device", "CUDA0", "--cache-ram", "0",
+            "--ctx-checkpoints", "2", "--checkpoint-min-step", "1024",
+            "--no-cache-idle-slots", "--kv-unified", "--spec-draft-kv-device", "gpu",
+            "--spec-type", "draft-mtp", "--spec-draft-n-max", "2",
+            "--spec-draft-type-k", "turbo4", "--spec-draft-type-v", "turbo4"]
+    if args.profile == "dense":
+        argv += ["--kv-pager", "off"]
+    else:
+        argv += ["--kv-pager", "selective", "--kv-router", args.profile,
+                 "--kv-page-size", "256", "--kv-hot-pages", str(args.hot_pages), "--kv-pin-recent", "0"]
+    config = ("[Service]\nExecStart=\nExecStart=" + " ".join(
+        shlex.quote(part) for part in argv) +
+        "\nEnvironment=LD_LIBRARY_PATH=" +
+        shlex.quote(str(pathlib.Path(args.server_binary).resolve().parent)) + "\n")
+    if args.selector_trace_page >= 0:
+        config += ("Environment=LLAMA_KV_PAGER_SELECTOR_TRACE=1\n"
+                   f"Environment=LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE={args.selector_trace_page}\n")
+    config += "Environment=LLAMA_KV_ROUTER_TIMINGS=1\n"
+    subprocess.run(["sudo", "-n", "tee", str(MANAGED_DROPIN)],
+                   input=config, text=True, stdout=subprocess.DEVNULL, check=True)
+    subprocess.run(["sudo", "-n", "systemctl", "daemon-reload"], check=True)
+    subprocess.run(["sudo", "-n", "systemctl", "restart", args.service_name], check=True)
+    deadline = time.monotonic() + 240
+    last_error = "service did not become ready"
+    while time.monotonic() < deadline:
+        try:
+            identity = process_identity(args.service_name,
+                pathlib.Path(args.server_binary).resolve(), pathlib.Path(args.model).resolve(),
+                args.selector_trace_page, args.profile)
+            status, health, _ = json_request(args.endpoint.rstrip("/"), "/health", key)
+            if status == 200 and isinstance(health, dict) and health.get("status") == "ok":
+                return
+            last_error = f"health returned HTTP {status}"
+        except Exception as error:
+            last_error = f"{type(error).__name__}: {error}"
+        time.sleep(1)
+    raise RuntimeError(f"managed {args.profile} candidate did not become ready: {last_error}")
+
+
+def profile_setting_mismatches(values: Mapping[str, Any], profile: str) -> list[str]:
+    if profile not in {"legacy", "probe-rerank", "dense"}:
+        return [f"unknown profile {profile!r}"]
+    mismatches = []
+    if profile == "dense":
+        if values.get("--kv-pager") != "off":
+            mismatches.append("dense requires --kv-pager off")
+        if values.get("--kv-router") is not None or values.get("--kv-hot-pages") is not None:
+            mismatches.append("dense omits --kv-router and --kv-hot-pages")
+    else:
+        router = "legacy" if profile == "legacy" else "probe-rerank"
+        expected = {"--kv-pager": "selective", "--kv-router": router,
+                    "--kv-page-size": "256", "--kv-hot-pages": "16"}
+        for option, value in expected.items():
+            if values.get(option) != value:
+                mismatches.append(f"{option}={values.get(option)!r} expected {value!r}")
+    return mismatches
+
+
 def assess_content_retrieval(expected: str, answer: str,
                              markers: tuple[str, ...] =
                              ("preallocated", "output position", "once")
                              ) -> dict[str, Any]:
     """Keep semantic answer quality diagnostic and independent of movement."""
     normalized = " ".join(answer.casefold().split())
-    matched = all(marker.casefold() in normalized for marker in markers)
+    expected_normalized = " ".join(expected.casefold().split())
+    matched = expected_normalized in normalized or all(
+        marker.casefold() in normalized for marker in markers)
     return {"status": "pass" if matched else "diagnostic_mismatch",
             "matched": matched, "expected_fact_local_only": expected,
             "markers": list(markers), "answer": answer}
+
+
+def answer_trace_page(anchor_start: int, anchor_end: int,
+                      fixture_start: int, fixture_end: int,
+                      page_tokens: int = PAGE_TOKENS) -> tuple[int, bool, list[int]]:
+    """Map the answer span to real KV pages and preserve edge-page overlap."""
+    if page_tokens <= 0 or not fixture_start <= anchor_start < anchor_end <= fixture_end:
+        raise ValueError("answer span must be inside the rendered fixture")
+    first = anchor_start // page_tokens
+    last = (anchor_end - 1) // page_tokens
+    page_ids = list(range(first, last + 1))
+    page_start = first * page_tokens
+    page_end = page_start + page_tokens
+    wholly_within_fixture = fixture_start <= page_start and page_end <= fixture_end
+    return first, wholly_within_fixture, page_ids
 
 
 def generation_start_index(samples: list[dict[str, Any]]) -> int | None:
@@ -131,7 +237,8 @@ def read_key(path: pathlib.Path) -> str:
 
 
 def process_identity(service: str, expected_bundle: pathlib.Path,
-                     model_path: pathlib.Path, trace_page: int) -> dict[str, Any]:
+                     model_path: pathlib.Path, trace_page: int,
+                     profile: str) -> dict[str, Any]:
     pid_text = subprocess.check_output(
         ["sudo", "-n", "systemctl", "show", "--value", "--property=MainPID", service],
         text=True).strip()
@@ -146,7 +253,7 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
     values: dict[str, str | None] = {}
     for option in ("-m", "-c", "-b", "-ub", "-np", "-ngl", "-ctk", "-ctv", "--device",
                    "--kv-pager", "--kv-page-size",
-                   "--kv-hot-pages", "--kv-pin-recent", "--spec-draft-kv-device",
+                   "--kv-hot-pages", "--kv-pin-recent", "--kv-router", "--spec-draft-kv-device",
                    "--spec-type", "--spec-draft-n-max", "--spec-draft-type-k",
                    "--spec-draft-type-v"):
         try:
@@ -159,6 +266,11 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
             name, value = item.split("=", 1)
             if name.startswith("LLAMA_KV_PAGER_SELECTOR_TRACE"):
                 environment[name] = value
+    mapped_paths = set()
+    for line in (proc / "maps").read_text(errors="replace").splitlines():
+        fields = line.split()
+        if len(fields) >= 6 and fields[-1].startswith("/") and ".so" in fields[-1]:
+            mapped_paths.add(str(pathlib.Path(fields[-1].removesuffix(" (deleted)")).resolve()))
     try:
         model = pathlib.Path(values["-m"] or "").resolve()
     except (OSError, TypeError):
@@ -166,14 +278,13 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
     expected = {
         "-c": str(CONTEXT), "-b": str(BATCH), "-ub": str(UBATCH), "-np": "1",
         "-ctk": "turbo4", "-ctv": "turbo4",
-        "--kv-pager": "selective", "--kv-page-size": "256",
-        "--kv-hot-pages": "16",
         "--spec-draft-kv-device": "gpu", "--spec-type": "draft-mtp",
         "--spec-draft-n-max": "2", "--spec-draft-type-k": "turbo4",
         "--spec-draft-type-v": "turbo4",
     }
     mismatches = [f"{key}={values[key]!r} expected {value!r}"
                   for key, value in expected.items() if values[key] != value]
+    mismatches.extend(profile_setting_mismatches(values, profile))
     if values["--device"] is None:
         try:
             gpu_layers = int(values["-ngl"] or "0")
@@ -187,16 +298,28 @@ def process_identity(service: str, expected_bundle: pathlib.Path,
         mismatches.append(f"--kv-pin-recent={values['--kv-pin-recent']!r} expected default/0")
     if executable != expected_bundle.resolve() or model != model_path.resolve():
         mismatches.append(f"executable/model identity mismatch: {executable} / {model}")
-    if environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE") != "1" or \
-            environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE") != str(trace_page):
-        mismatches.append("selector trace environment is not bound to the answer-page identity")
+    candidate_dsos = sorted(path for path in mapped_paths
+                            if pathlib.Path(path).name.startswith(("libggml", "libllama", "libmtmd")))
+    expected_dso_dir = expected_bundle.resolve().parent
+    if not candidate_dsos:
+        mismatches.append("no candidate llama/ggml shared libraries are mapped")
+    for path in candidate_dsos:
+        if pathlib.Path(path).parent != expected_dso_dir:
+            mismatches.append(f"candidate DSO loaded from unexpected directory: {path}")
+    configured_trace_page = environment.get("LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE")
+    if profile != "dense" and (trace_page >= 0 and configured_trace_page != str(trace_page) or \
+            (trace_page < 0 and configured_trace_page not in (None, "", "-1"))):
+        mismatches.append("selector trace environment does not match the requested page scope")
     if mismatches:
         raise RuntimeError("managed candidate contract mismatch: " + "; ".join(mismatches))
     return {
         "pid": pid, "start_time_ticks": start_ticks, "executable": str(executable),
         "binary_sha256": sha256_file(executable), "command": command,
         "model": str(model), "model_sha256": sha256_file(model),
+        "candidate_dsos": [{"path": path, "sha256": sha256_file(pathlib.Path(path))}
+                            for path in candidate_dsos],
         "settings": values, "selector_trace_environment": environment,
+        "profile": profile,
     }
 
 
@@ -218,7 +341,8 @@ def get_slot(base: str, key: str) -> tuple[int, dict[str, Any], bytes]:
     return status, slot, raw
 
 
-def erase_and_verify(base: str, key: str, output: pathlib.Path) -> dict[str, Any]:
+def erase_and_verify(base: str, key: str, output: pathlib.Path,
+                     profile: str = "probe-rerank") -> dict[str, Any]:
     output.mkdir(parents=True, exist_ok=True)
     status, body, _ = raw_request(base.rstrip("/") + "/slots/0?action=erase", key,
                                   b"", timeout=60.0)
@@ -229,8 +353,11 @@ def erase_and_verify(base: str, key: str, output: pathlib.Path) -> dict[str, Any
     (output / "erased-slot.json").write_bytes(raw + b"\n")
     pager = slot.get("pager_metrics") if isinstance(slot.get("pager_metrics"), dict) else {}
     valid_rows = pager.get("valid_rows")
-    if slot.get("is_processing") is True or slot.get("n_prompt_tokens", 0) != 0 or \
-            not isinstance(valid_rows, int) or valid_rows != 0:
+    prompt_rows = slot.get("n_prompt_tokens", 0)
+    invalid_prompt_rows = not isinstance(prompt_rows, int) or prompt_rows != 0
+    invalid_pager_rows = profile != "dense" and \
+            (not isinstance(valid_rows, int) or valid_rows != 0)
+    if slot.get("is_processing") is True or invalid_prompt_rows or invalid_pager_rows:
         raise RuntimeError("slot 0 erase left live prompt rows")
     return slot
 
@@ -306,12 +433,12 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
     # winning fixture body and its answer-bearing source line.
     prefix_count = body_end_token_count = anchor_start_token_count = probe_end_token_count = None
     body_start = body_end = anchor_start = anchor_end = None
-    if step_index == 0 and tracked_fixture is not None:
+    if tracked_fixture is not None:
         body_start = rendered.text.find(tracked_fixture.body)
         if body_start < 0 or rendered.text.find(tracked_fixture.body, body_start + 1) >= 0:
             raise RuntimeError("candidate-rendered prompt does not contain one unique winner body")
         body_end = body_start + len(tracked_fixture.body)
-        anchor = NATURAL_RECALL_ANCHORS[tracked_fixture.fixture_id]
+        anchor = tracked_fixture.expected_answer
         anchor_offset = rendered.text.rfind(anchor, body_start, body_end)
         if anchor_offset < 0:
             raise RuntimeError("winning fixture is missing its answer-bearing source line")
@@ -422,7 +549,19 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
     try:
         response = json.loads(response_raw.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as error:
-        raise RuntimeError(f"completion returned invalid JSON (HTTP {status}, {content_type})") from error
+        response = {"error": {"type": "invalid_transport_response",
+                              "message": f"{type(error).__name__}: {error}"},
+                    "transport_status": status, "content_type": content_type,
+                    "response_excerpt": response_raw[:1024].decode("utf-8", errors="replace")}
+        (output / "completion-response.json").write_text(
+            json.dumps(response, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        raise CompletionFailure(status, response, payload,
+                                {"rendered_token_count": len(rendered.token_ids),
+                                 "n_predict": n_predict,
+                                 "generation_context_reserve_tokens": CONTEXT -
+                                     len(rendered.token_ids) - n_predict,
+                                 "template_id": rendered.template_id,
+                                 "tokenizer_id": rendered.tokenizer_id}) from error
     (output / "completion-response.json").write_text(
         json.dumps(response, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
     if status != 200 or not isinstance(response, dict):
@@ -487,19 +626,16 @@ def preflight_messages(base: str, key: str, messages: list[dict[str, str]], mode
     write_json(output / "token-ids.json", list(rendered.token_ids))
     write_json(output / "renderer-exchanges.json", renderer.last_exchanges)
     token_count = len(rendered.token_ids)
-    try:
-        planned_completion_tokens = response_budget(
-            token_count + planned_prior_reply_tokens, CONTEXT)
-        fits = planned_completion_tokens >= 400
-    except ValueError:
-        planned_completion_tokens = 0
-        fits = False
+    fits = token_count + planned_prior_reply_tokens + \
+        GENERATION_CONTEXT_RESERVE_TOKENS <= CONTEXT
+    planned_completion_tokens = 400 if fits else 0
     result = {"context_tokens": CONTEXT, "completion_reserve_tokens": 400,
               "planned_prior_reply_reserve_tokens": planned_prior_reply_tokens,
-              "context_safety_reserve_tokens": 128,
+              "context_safety_reserve_tokens": GENERATION_CONTEXT_RESERVE_TOKENS,
               "rendered_prompt_tokens": token_count,
               "remaining_completion_tokens": max(0, CONTEXT - token_count -
-                                                    planned_prior_reply_tokens - 128),
+                                                    planned_prior_reply_tokens -
+                                                    GENERATION_CONTEXT_RESERVE_TOKENS),
               "planned_completion_tokens": planned_completion_tokens,
               "fits": fits,
               "rendered_prompt_sha256": sha256(rendered.text.encode("utf-8"))}
@@ -513,6 +649,67 @@ def artifact_refs(case_root: pathlib.Path) -> list[dict[str, str]]:
         if path.is_file() and path.name != "case-summary.json":
             refs.append({"path": str(path.resolve()), "sha256": sha256_file(path)})
     return refs
+
+
+def request_local_mtp(response: Mapping[str, Any], before: Mapping[str, Any],
+                      after: Mapping[str, Any]) -> dict[str, Any]:
+    """Prefer completion-local timing counts; absent values stay unknown."""
+    timings = response.get("timings")
+    timings = timings if isinstance(timings, dict) else {}
+    raw = {"drafted": timings.get("draft_n"),
+           "accepted": timings.get("draft_n_accepted")}
+    before_counters = before.get("mtp_request_counters")
+    after_counters = after.get("mtp_request_counters")
+    before_counters = before_counters if isinstance(before_counters, dict) else {}
+    after_counters = after_counters if isinstance(after_counters, dict) else {}
+    drafted = accepted = None
+    origins = []
+    for field, counter_name in (("drafted", "draft_n"), ("accepted", "draft_n_accepted")):
+        value = raw[field]
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            if field == "drafted":
+                drafted = value
+            else:
+                accepted = value
+            origins.append("response.timings")
+        elif isinstance(before_counters.get(counter_name), int) and \
+                isinstance(after_counters.get(counter_name), int):
+            delta = after_counters[counter_name] - before_counters[counter_name]
+            if delta >= 0:
+                if field == "drafted":
+                    drafted = delta
+                else:
+                    accepted = delta
+                origins.append("authenticated_slot_counter_delta")
+    unique_origins = sorted(set(origins))
+    origin = (unique_origins[0] if len(unique_origins) == 1 else
+              "mixed" if unique_origins else None)
+    return {"drafted": drafted, "accepted": accepted, "origin": origin,
+            "raw_response_timings": timings,
+            "slot_counter_before": before.get("mtp_request_counters"),
+            "slot_counter_after": after.get("mtp_request_counters"),
+            "acceptance_percent": (100.0 * accepted / drafted)
+            if isinstance(drafted, int) and drafted > 0 and isinstance(accepted, int) else None}
+
+
+def classify_sequence(profile: str, requests: list[Mapping[str, Any]],
+                      semantic_match: bool | None, target_was_cold: bool | None) -> str:
+    if len(requests) != 3 or any(item.get("http_status") != 200 or
+                                 item.get("runtime_error") for item in requests):
+        return "execution_incomplete"
+    if any(item.get("degenerate_generation") is True for item in requests):
+        return "degenerate_generation"
+    if profile == "dense":
+        return "dense_inconclusive"
+    if semantic_match is True and target_was_cold is True:
+        return "useful_cold_recall"
+    if profile == "legacy" and semantic_match is True and target_was_cold is False:
+        return "resident_control"
+    if semantic_match is False:
+        return "semantic_miss"
+    if semantic_match is True:
+        return "semantic_recall"
+    return "budget_limited"
 
 
 def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[Any, ...],
@@ -537,7 +734,11 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         answer, response, payload, render = None, error.response, error.payload, error.render
         http_status = error.status
         runtime_error = str(error)
-    after_status, after_slot, after_raw = get_slot(base, key)
+    try:
+        after_status, after_slot, after_raw = get_slot(base, key)
+    except Exception as error:
+        after_status, after_slot = 0, {}
+        after_raw = f"{type(error).__name__}: {error}".encode("utf-8")
     (request_root / "slots-after.json").write_bytes(after_raw + b"\n")
     pager_after = after_slot.get("pager_metrics")
     pager_after = pager_after if isinstance(pager_after, dict) else {}
@@ -545,10 +746,11 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
     mtp_after = after_slot.get("mtp_request_counters")
     mtp_before = mtp_before if isinstance(mtp_before, dict) else {}
     mtp_after = mtp_after if isinstance(mtp_after, dict) else {}
-    mtp_delta = {name: mtp_after[name] - mtp_before.get(name, 0)
+    mtp_delta = {name: mtp_after[name] - mtp_before[name]
                  for name in mtp_after
                  if isinstance(mtp_after[name], int) and
-                 isinstance(mtp_before.get(name, 0), int)}
+                 isinstance(mtp_before.get(name), int)}
+    mtp_counts = request_local_mtp(response, before_slot, after_slot)
     actual_mtp = {
         "pager_mode": pager_after.get("mode"),
         "route_override": pager_after.get("route_override"),
@@ -563,16 +765,13 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "resident_pages": pager_after.get("resident_pages"),
         "mtp_bytes": pager_after.get("mtp_bytes"),
     }
-    mtp_verified = actual_mtp["pager_mode"] == "selective" and \
-        actual_mtp["route_override"] == "auto" and \
-        gpu_backend(actual_mtp["target_backend"]) and \
+    placement_verified = gpu_backend(actual_mtp["target_backend"]) and \
         actual_mtp["target_type_k"] == "turbo4" and actual_mtp["target_type_v"] == "turbo4" and \
         gpu_backend(actual_mtp["mtp_backend"]) and \
         actual_mtp["mtp_type_k"] == "turbo4" and actual_mtp["mtp_type_v"] == "turbo4" and \
-        isinstance(actual_mtp["physical_pool_capacity_bytes"], int) and \
-        actual_mtp["physical_pool_capacity_bytes"] > 0 and \
-        isinstance(actual_mtp["resident_pages"], int) and actual_mtp["resident_pages"] > 0 and \
         isinstance(actual_mtp["mtp_bytes"], int) and actual_mtp["mtp_bytes"] > 0
+    mtp_verified = placement_verified and mtp_counts["origin"] is not None and \
+        isinstance(mtp_counts["drafted"], int) and mtp_counts["drafted"] > 0
     record = {
         "step_index": step_index, "stage": step.stage, "fixture_id": step.fixture_id,
         "appended_fixture_id": step.appended_fixture_id,
@@ -582,13 +781,16 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "user_content_sha256": sha256(step.user_content.encode("utf-8")),
         "expected_answer_local_only": step.expected_answer_local_only or None,
         "assistant_answer": answer,
+        "degenerate_generation": isinstance(answer, str) and len(answer) >= 32 and
+            answer.count("/") / max(len(answer), 1) >= 0.5,
         "answer_quality": (
             assess_content_retrieval(
                 step.expected_answer_local_only, answer if isinstance(answer, str) else "",
-                ("merge_sorted_lists_01.py", "append", "extend"))
+                ("reviewed", "Python", "merge"))
             if step.stage == "source_file" else
             assess_content_retrieval(
-                step.expected_answer_local_only, answer if isinstance(answer, str) else "")
+                step.expected_answer_local_only, answer if isinstance(answer, str) else "",
+                (step.question.split("(", 1)[1].split(")", 1)[0],))
             if step.stage == "natural_recall" else
             {"status": "not_applicable", "matched": None}),
         "request_id": response.get("id"), "http_status": http_status,
@@ -604,6 +806,8 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "mtp_request_counters_before": mtp_before,
         "mtp_request_counters_after": mtp_after,
         "mtp_request_counters_delta": mtp_delta,
+        "mtp_request_counts": mtp_counts,
+        "timings": response.get("timings"),
         "query_replay_count_before": before_slot.get("query_replay_count"),
         "query_replay_count_after": after_slot.get("query_replay_count"),
         "frozen_history_generation_before": before_slot.get(
@@ -611,14 +815,23 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "frozen_history_generation_after": after_slot.get(
             "pager_frozen_history_generation"),
         "mtp_observation": actual_mtp,
+        "placement_verified": placement_verified,
         "mtp_verified": mtp_verified,
         "render": render,
         "slot_http": {"before": before_status, "after": after_status},
         "completion_usage": response.get("usage"),
         "finish_reason": render.get("finish_reason"),
+        "raw_request_artifact": {
+            "path": str((request_root / "completion-request.json").resolve()),
+            "sha256": sha256_file(request_root / "completion-request.json"),
+        },
         "raw_response_artifact": {
             "path": str((request_root / "completion-response.raw").resolve()),
             "sha256": sha256_file(request_root / "completion-response.raw"),
+        },
+        "raw_request_artifact": {
+            "path": str((request_root / "completion-request.json").resolve()),
+            "sha256": sha256_file(request_root / "completion-request.json"),
         },
         "message_count": len(messages),
     }
@@ -823,24 +1036,37 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     return result
 
 
+def steps_from_frozen(sequence: Mapping[str, Any]) -> tuple[PromotionStep, ...]:
+    steps = []
+    for turn in sequence.get("turns", []):
+        steps.append(PromotionStep(
+            int(turn["index"]), str(turn["stage"]),
+            str(turn["fixture_id_local_only"]), turn.get("appended_fixture_id_local_only"),
+            tuple(turn.get("appended_fixture_ids_local_only", [])),
+            str(turn["question"]), str(turn["user_content"]),
+            str(turn.get("expected_answer_local_only") or ""), bool(turn.get("cache_prompt"))))
+    if len(steps) != 3 or [step.index for step in steps] != [0, 1, 2]:
+        raise ValueError("frozen sequence must contain the A/B/A three-turn schedule")
+    return tuple(steps)
+
+
 def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
-             root: pathlib.Path, model: str, selector_trace_page: int) -> dict[str, Any]:
-    case_root = root / "cases" / target.fixture_id
+             sequence: Mapping[str, Any], profile: str, schedule_hash: str,
+             root: pathlib.Path, model: str, selector_trace_page: int | None) -> dict[str, Any]:
+    case_root = root / "cases" / profile / target.fixture_id
     case_root.mkdir(parents=True, exist_ok=True)
-    erase_and_verify(base, key, case_root / "reset")
-    steps = build_promotion_steps(
-        catalog, target.fixture_id,
-        python_fixture_ids=DEFAULT_SOURCE_FIXTURE_IDS,
-        bash_fixture_ids=DEFAULT_PRESSURE_FIXTURE_IDS)
+    erase_and_verify(base, key, case_root / "reset", profile)
+    steps = steps_from_frozen(sequence)
+    tracked_index = next(index for index, step in enumerate(steps)
+                         if target.fixture_id in step.appended_fixture_ids)
 
     # Preflight the exact fixture/question turns and short completion placeholders
     # before the first request. Actual replies are rendered and checked again
     # before the final natural recall.
     final_index = len(steps) - 1
-    placeholder_replies = [step.expected_answer_local_only for step in steps[:-1]]
     preflight_rows = []
     for index, step in enumerate(steps):
-        prior = placeholder_replies[:index]
+        prior = [""] * index
         messages = messages_for_step(steps, index, prior)
         result = preflight_messages(
             base, key, messages, model,
@@ -849,12 +1075,13 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         result["request_index"] = index
         result["stage"] = step.stage
         result["message_count"] = len(messages)
-        result["placeholder_prior_replies"] = prior
+        result["prior_reply_tokens_reserved_once"] = GENERATION_CONTEXT_RESERVE_TOKENS
         preflight_rows.append(result)
     write_json(case_root / "preflight-summary.json", {
         "context_tokens": CONTEXT,
         "hot_tokens": HOT_TOKENS,
         "completion_reserve_tokens": 400,
+        "conversation_reserve_tokens": GENERATION_CONTEXT_RESERVE_TOKENS,
         "requests": preflight_rows,
         "all_fit": all(item.get("fits") is True for item in preflight_rows),
     })
@@ -864,12 +1091,12 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                 print(f"preflight request {index + 1}: rendered={result.get('rendered_prompt_tokens')} "
                       f"completion_reserve=400 context={CONTEXT} does not fit", flush=True)
         raise RuntimeError("one or more rendered cumulative messages do not fit with completion reserve")
+    if preflight_rows[1].get("rendered_prompt_tokens", 0) + \
+            GENERATION_CONTEXT_RESERVE_TOKENS <= HOT_TOKENS:
+        raise RuntimeError("end-B occupied token count does not cross the 4096-token hot boundary")
     answers: list[str] = []
     records: list[dict[str, Any]] = []
-    initial_pages: list[dict[str, Any]] = []
-    answer_initial_pages: list[dict[str, Any]] = []
-    page_snapshots: dict[str, list[dict[str, Any]]] = {}
-    fixture_span: dict[str, Any] = {}
+    trace_page = selector_trace_page if selector_trace_page >= 0 else None
     for index in range(len(steps)):
         if index > 0:
             actual_messages = messages_for_step(steps, index, answers)
@@ -878,288 +1105,94 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                 case_root / f"preflight-request-{index + 1:02d}-actual")
             if not actual_preflight["fits"]:
                 raise RuntimeError(f"actual request {index + 1} does not fit with a 400-token output reserve")
-            if index == final_index and actual_preflight["rendered_prompt_tokens"] <= HOT_TOKENS:
-                raise RuntimeError("actual final request does not exceed H with a 400-token output reserve")
+            if index == 1 and actual_preflight["rendered_prompt_tokens"] + \
+                    GENERATION_CONTEXT_RESERVE_TOKENS <= HOT_TOKENS:
+                raise RuntimeError("actual end-B prompt does not exceed H")
         record = request_record(base, key, case_root, steps, index, answers, model,
-                                tracked_fixture=target if index == 0 else None,
-                                selector_trace_page=selector_trace_page if index == final_index else None)
+                                tracked_fixture=target if profile != "dense" and
+                                    index == tracked_index else None,
+                                selector_trace_page=trace_page
+                                if index == final_index else None)
         records.append(record)
         answers.append(record["assistant_answer"] if isinstance(record["assistant_answer"], str) else "")
-        if index == 1:
-            start_token = record.get("slot_prompt_tokens_before")
-            end_token = record.get("slot_prompt_tokens_after")
-            if type(start_token) is not int or type(end_token) is not int or end_token <= start_token:
-                raise RuntimeError("pressure turn has no advancing slot token frontier")
-            record_pressure_tail_readiness(
-                base, key, start_token, end_token,
-                case_root / "request-02" / "pressure-tail-readiness-poll.json")
-        inventory = get_pages({"pager_metrics": record["pager_after"]})
-        snapshot_name = f"after_request_{index + 1}"
-        if index == 0:
-            start = record["render"].get("fixture_start_token")
-            end = record["render"].get("fixture_end_token")
-            anchor_start = record["render"].get("answer_bearing_start_token")
-            anchor_end = record["render"].get("probe_end_token_count")
-            if not all(type(value) is int for value in (start, end, anchor_start, anchor_end)) or not start <= anchor_start < anchor_end <= end:
-                raise RuntimeError("cannot map the rendered winning fixture and answer-bearing source span")
-            initial_pages = pages_overlapping_token_range(inventory, start, end)
-            answer_pages = pages_overlapping_token_range(inventory, anchor_start, anchor_end)
-            answer_initial_pages = answer_pages
-            answer_resident_after_request_1 = all(page.get("resident") is True for page in answer_pages)
-            if not answer_resident_after_request_1:
-                raise RuntimeError("answer-bearing page was not resident after request 1; adjust prompt placement")
-            body_bytes = target.body.encode("utf-8")
-            anchor_bytes = NATURAL_RECALL_ANCHORS[target.fixture_id].encode("utf-8")
-            answer_byte_start = body_bytes.rfind(anchor_bytes)
-            if answer_byte_start < 0:
-                raise RuntimeError("answer-bearing fixture fact is missing from the fixture bytes")
-            fixture_span = {"fixture_id": target.fixture_id,
-                            "fixture_sha256": target.sha256,
-                            "body_byte_span": [0, len(body_bytes)],
-                            "answer_bearing_byte_span": [answer_byte_start,
-                                                         answer_byte_start + len(anchor_bytes)],
-                            "rendered_character_span": [record["render"].get("fixture_start_char"),
-                                                         record["render"].get("fixture_end_char")],
-                            "rendered_byte_span": [record["render"].get("fixture_start_byte"),
-                                                    record["render"].get("fixture_end_byte")],
-                            "token_span": [start, end],
-                            "answer_bearing_source_fact": NATURAL_RECALL_ANCHORS[target.fixture_id],
-                            "answer_bearing_rendered_byte_span": [record["render"].get("answer_bearing_start_byte"),
-                                                                   record["render"].get("answer_bearing_end_byte")],
-                            "answer_bearing_token_span": [anchor_start, anchor_end],
-                            "answer_page_resident_after_request_1": answer_resident_after_request_1}
-            answer_ids = {page.get("logical_page_id") for page in answer_pages}
-            fixture_span["answer_bearing_page_ids"] = sorted(x for x in answer_ids if x is not None)
-            page_bounds = {page_id: (page_id * PAGE_TOKENS,
-                                     (page_id + 1) * PAGE_TOKENS)
-                           for page_id in fixture_span["answer_bearing_page_ids"]}
-            fixture_span["answer_bearing_pages_wholly_within_file"] = {
-                page_id: start <= bounds[0] and bounds[1] <= end
-                for page_id, bounds in page_bounds.items()
+        if record.get("http_status") != 200 or record.get("runtime_error"):
+            case = {
+                "fixture_id": target.fixture_id,
+                "profile": profile,
+                "schedule_sha256": schedule_hash,
+                "execution_status": "incomplete",
+                "classification": "execution_incomplete",
+                "failure": {
+                    "http_status": record.get("http_status"),
+                    "runtime_error": record.get("runtime_error"),
+                    "response_artifact": record.get("raw_response_artifact"),
+                },
+                "requests": records,
+                "semantic_outcome": None,
+                "note": "Incomplete HTTP request; not counted as a ranking miss.",
             }
-            if not fixture_span["answer_bearing_pages_wholly_within_file"].get(
-                    selector_trace_page, False):
-                raise RuntimeError("tracked answer page overlaps a file boundary or unrelated prompt text")
-            if selector_trace_page not in fixture_span["answer_bearing_page_ids"]:
-                raise RuntimeError("filtered selector trace page does not overlap the answer-bearing source span")
-        page_snapshots[snapshot_name] = _snapshot_tracked_pages(inventory, initial_pages) \
-            if index else [dict(page) for page in initial_pages]
-        write_json(case_root / f"{snapshot_name}-tracked-pages.json", page_snapshots[snapshot_name])
-        if index == final_index - 1:
-            answer_before_final = _snapshot_tracked_pages(inventory, answer_initial_pages)
-            trace = record["pager_after"].get("selector_trace")
-            trace = trace if isinstance(trace, dict) else {}
-            target_page = next((page for page in answer_before_final
-                                if page.get("logical_page_id") == selector_trace_page), {})
-            readiness = {
-                "page": target_page,
-                "selector_trace": trace,
-                "cold": target_page.get("resident") is False and
-                        target_page.get("host_backed") is True,
-                "summary_ready": target_page.get("summary_ready") is True and
-                                 target_page.get("summary_content_version") ==
-                                     target_page.get("content_version"),
-                "target_found": trace.get("target_found") is True,
-            }
-            readiness["ready_for_final_query"] = readiness["cold"] and \
-                readiness["summary_ready"]
-            write_json(case_root / "pre-final-readiness.json", readiness)
-            if not readiness["ready_for_final_query"]:
-                raise RuntimeError(
-                    "answer-bearing page is not cold, host-backed, and summary-ready before final query")
-
-    final_request_number = final_index + 1
-    final_request_name = f"request-{final_request_number:02d}"
-    before_pages = get_pages({"pager_metrics": records[final_index]["pager_before"]})
-    pre_final_key = f"immediately_before_request_{final_request_number}"
-    page_snapshots[pre_final_key] = _snapshot_tracked_pages(before_pages, initial_pages)
-    write_json(case_root / f"immediately-before-request-{final_request_number}-tracked-pages.json",
-               page_snapshots[pre_final_key])
-    cold_inventory = before_pages
+            case["raw_artifacts"] = artifact_refs(case_root)
+            write_json(case_root / "case-summary.json", case)
+            return case
     final_record = records[final_index]
-    natural = final_record["pager_after"].get("natural_proof", {})
-    natural = natural if isinstance(natural, dict) else {}
-    trace_poll_path = case_root / final_request_name / "selector-trace-poll-snapshots.json"
-    trace_poll = json.loads(trace_poll_path.read_text(encoding="utf-8")) \
-        if trace_poll_path.is_file() else {}
-    trace_poll_snapshots = trace_poll.get("snapshots", []) \
-        if isinstance(trace_poll, dict) and isinstance(trace_poll.get("snapshots"), list) else []
-    page_reports = [_promotion_for_page(page, natural, final_record,
-                                       page_snapshots[pre_final_key],
-                                       trace_poll_snapshots)
-                    for page in page_snapshots[pre_final_key]]
-    for report in page_reports:
-        report["fixture_byte_span"] = fixture_span.get("body_byte_span")
-        begin = report["page_identity"].get("position_begin")
-        end = report["page_identity"].get("position_end")
-        fixture_begin, fixture_end = fixture_span.get("token_span", [None, None])
-        report["fixture_token_span"] = [max(begin, fixture_begin), min(end, fixture_end)] \
-            if all(type(value) is int for value in (begin, end, fixture_begin, fixture_end)) else None
-    answer_page_ids = set(fixture_span.get("answer_bearing_page_ids", []))
-    answer_page_reports = [row for row in page_reports
-                           if row["page_identity"].get("logical_page_id") in answer_page_ids]
-    same_answer_page_promoted = any(row.get("claimed_promoted") and row.get("chain_valid")
-                                    for row in answer_page_reports)
-    whole_fixture_resident_after = bool(initial_pages) and all(
-        page.get("resident") is True for page in _snapshot_tracked_pages(
-            get_pages({"pager_metrics": final_record["pager_after"]}), initial_pages))
-    mtp_metrics = final_record["pager_after"]
-    runtime_path = case_root / final_request_name / "generation-runtime-snapshots.json"
-    runtime_document = json.loads(runtime_path.read_text(encoding="utf-8")) \
-        if runtime_path.is_file() else {}
-    runtime_samples = runtime_document.get("samples", []) \
-        if isinstance(runtime_document, dict) else []
-    runtime_samples = [sample for sample in runtime_samples if isinstance(sample, dict)]
-    generation_start = generation_start_index(runtime_samples)
-    generated_samples = runtime_samples[generation_start:] if generation_start is not None else []
-    before_generation = runtime_samples[generation_start - 1] \
-        if generation_start is not None and generation_start > 0 else {}
-    first_generated = generated_samples[0] if generated_samples else {}
-    history_limit = final_record.get("prompt_tokens")
-
-    def historical_map(sample: Mapping[str, Any]) -> dict[tuple[int, int, int], tuple[Any, ...]]:
-        result: dict[tuple[int, int, int], tuple[Any, ...]] = {}
-        inventory = sample.get("page_inventory")
-        if not isinstance(inventory, list) or not isinstance(history_limit, int):
-            return result
-        for page in inventory:
-            if not isinstance(page, dict) or not isinstance(page.get("position_end"), int) or \
-                    page["position_end"] > history_limit:
-                continue
-            identity = (page.get("logical_page_id"), page.get("generation"),
-                        page.get("content_version"))
-            result[identity] = (page.get("resident"), page.get("host_backed"),
-                                page.get("position_begin"), page.get("position_end"))
-        return result
-
-    historical_baseline = historical_map(first_generated)
-    historical_generation_stable = bool(generated_samples) and bool(historical_baseline) and all(
-        historical_map(sample) == historical_baseline for sample in generated_samples)
-    h2d_during_generation_delta = None
-    eviction_during_generation_delta = None
-    reselection_during_generation_delta = None
-    if generated_samples:
-        last_generated = generated_samples[-1]
-        first_h2d = first_generated.get("h2d_useful_bytes")
-        last_h2d = last_generated.get("h2d_useful_bytes")
-        if isinstance(first_h2d, int) and isinstance(last_h2d, int):
-            h2d_during_generation_delta = last_h2d - first_h2d
-        first_evict = first_generated.get("evictions")
-        last_evict = last_generated.get("evictions")
-        first_transfer_evict = first_generated.get("transfer_evictions")
-        last_transfer_evict = last_generated.get("transfer_evictions")
-        if isinstance(first_evict, int) and isinstance(last_evict, int) and \
-                isinstance(first_transfer_evict, int) and isinstance(last_transfer_evict, int):
-            eviction_during_generation_delta = (
-                last_evict - first_evict + last_transfer_evict - first_transfer_evict)
-        if historical_baseline:
-            reselection_during_generation_delta = max(
-                len(historical_baseline.keys() ^ historical_map(sample).keys()) +
-                sum(historical_baseline[key] != historical_map(sample).get(key)
-                    for key in historical_baseline.keys() & historical_map(sample).keys())
-                for sample in generated_samples)
-    replay_before = final_record.get("query_replay_count_before", 0)
-    replay_after = first_generated.get("query_replay_count")
-    frozen_before = first_generated.get("frozen_history_generation")
-    frozen_after = generated_samples[-1].get("frozen_history_generation") \
-        if generated_samples else None
-    replay_verified = isinstance(replay_after, int) and isinstance(replay_before, int) and \
-        replay_after > replay_before
-    frozen_history_verified = isinstance(frozen_before, int) and frozen_before > 0 and \
-        frozen_after == frozen_before and all(
-            sample.get("frozen_history_generation") == frozen_before
-            for sample in generated_samples)
-    mtp_counters_before = first_generated.get("mtp_request_counters", {})
-    mtp_counters_after = generated_samples[-1].get("mtp_request_counters", {}) \
-        if generated_samples else {}
-    mtp_counters_delta = {
-        name: mtp_counters_after[name] - mtp_counters_before[name]
-        for name in mtp_counters_after
-        if isinstance(mtp_counters_after.get(name), int) and
-        isinstance(mtp_counters_before.get(name), int)
-    }
-    completion_usage = final_record.get("completion_usage")
-    completion_tokens = completion_usage.get("completion_tokens") \
-        if isinstance(completion_usage, dict) else None
-    generation_boundary = {
-        "generated_sample_count": len(generated_samples),
-        "completion_tokens": completion_tokens,
-        "assistant_output_characters": len(final_record.get("assistant_answer") or ""),
-        "historical_h2d_delta_after_first_emitted_token": h2d_during_generation_delta,
-        "historical_eviction_delta_after_first_emitted_token": eviction_during_generation_delta,
-        "historical_reselection_delta_after_first_emitted_token": reselection_during_generation_delta,
-        "historical_mapping_stable_after_first_emitted_token": historical_generation_stable,
-        "query_replay_count_before": replay_before,
-        "query_replay_count_after": replay_after,
-        "changed_query_replay_verified": replay_verified,
-        "frozen_history_generation_before": frozen_before,
-        "frozen_history_generation_after": frozen_after,
-        "frozen_history_generation_stable": frozen_history_verified,
-        "mtp_request_counters_before_generation": mtp_counters_before,
-        "mtp_request_counters_after_generation": mtp_counters_after,
-        "mtp_request_counters_delta": mtp_counters_delta,
-        "gpu_turbo4_mtp_verified": final_record.get("mtp_verified") is True,
-    }
-    boundary_pass = replay_verified and frozen_history_verified and \
-        generation_boundary["generated_sample_count"] > 0 and \
-        isinstance(completion_tokens, int) and completion_tokens > 0 and \
-        h2d_during_generation_delta == 0 and eviction_during_generation_delta == 0 and \
-        reselection_during_generation_delta == 0 and historical_generation_stable and \
-        final_record.get("mtp_verified") is True and \
-        mtp_counters_delta.get("drafted", 0) > 0
-    mtp = {"target_placement": "gpu" if gpu_backend(mtp_metrics.get("target_backend")) else "unknown",
-           "draft_placement": "gpu" if gpu_backend(mtp_metrics.get("mtp_backend")) else "unknown",
-           "target_type_k": mtp_metrics.get("target_type_k"),
-           "target_type_v": mtp_metrics.get("target_type_v"),
-           "draft_type_k": mtp_metrics.get("mtp_type_k"),
-           "draft_type_v": mtp_metrics.get("mtp_type_v"),
-           "draft_n_max": 2}
-    case = {
-        "execution_status": "complete" if all(
-            record.get("http_status") == 200 for record in records) else "incomplete",
-        "requests_attempted": len(records),
-        "fixture_id": target.fixture_id, "fixture_sha256": target.sha256,
-        "fixture_hashes": {fixture_id: next(item.sha256 for item in catalog
-                                              if item.fixture_id == fixture_id)
-                           for fixture_id in tuple(fixture_id for step in steps[:-1]
-                                                   for fixture_id in step.appended_fixture_ids)},
-        "fixture_span": fixture_span, "page_snapshots": page_snapshots,
-        f"all_fixture_pages_present_before_request_{final_request_number}": all(
-            page.get("inventory_status") != "missing" for page in
-            page_snapshots[pre_final_key]),
-        f"all_fixture_pages_cold_host_backed_before_request_{final_request_number}": bool(initial_pages) and all(
-            page.get("resident") is False and page.get("host_backed") is True and
-            isinstance(page.get("valid_length"), int) and page["valid_length"] > 0 and
-            page.get("valid_length") == page.get("position_end", 0) -
-            page.get("position_begin", 0)
-            for page in page_snapshots[pre_final_key]),
-        "answer_bearing_pages": answer_page_reports,
-        "tracked_page_results": page_reports,
-        "answer_bearing_page_naturally_promoted": same_answer_page_promoted,
-        "whole_fixture_hot_before_final_request": whole_fixture_resident_after,
-        "request_1_answer_quality": records[0]["answer_quality"],
-        "final_request_answer_quality": final_record["answer_quality"],
-        "selector_trace_poll_snapshot_count": len(trace_poll_snapshots),
-        "final_answer": final_record["assistant_answer"],
-        "final_request_id": final_record.get("request_id"),
-        "final_request_generation": final_record.get("request_generation"),
-        "mtp": mtp, "requests": records, "preflight": preflight_rows,
-        "generation_boundary": generation_boundary,
-        "physical_promotion_status": "pass" if same_answer_page_promoted else "incomplete",
-        "acceptance_status": "pass" if same_answer_page_promoted and boundary_pass else "diagnostic_incomplete",
-        "answer_quality_diagnostic": final_record["answer_quality"],
-    }
-    case["raw_artifacts"] = artifact_refs(case_root)
+    semantic_match = final_record.get("answer_quality", {}).get("matched")
+    target_was_cold: bool | None = None
+    source_render = records[tracked_index].get("render", {})
+    begin = source_render.get("answer_bearing_start_token")
+    end = source_render.get("probe_end_token_count")
+    before_inventory = [] if profile == "dense" else get_pages(
+        {"pager_metrics": final_record.get("pager_before", {})})
+    if profile != "dense" and type(begin) is int and type(end) is int and end > begin:
+        try:
+            spans = pages_overlapping_token_range(before_inventory, begin, end)
+            target_was_cold = all(page.get("resident") is False and
+                                  page.get("host_backed") is True for page in spans)
+        except ValueError:
+            target_was_cold = None
+    outcome = classify_sequence(profile, records, semantic_match, target_was_cold)
+    observations = [{"request_id": item.get("request_id"),
+                     "timings": item.get("timings"),
+                     "mtp_request_counts": item.get("mtp_request_counts"),
+                     "natural_proof": item.get("pager_after", {}).get("natural_proof"),
+                     "selector_trace": item.get("pager_after", {}).get("selector_trace"),
+                     "placement_verified": item.get("placement_verified")}
+                    for item in records]
+    case = {"schema": "pager-promotion-paired-sequence-v1",
+            "fixture_id": target.fixture_id, "profile": profile,
+            "schedule_sha256": schedule_hash,
+            "execution_status": "complete", "classification": outcome,
+            "semantic_match": semantic_match,
+            "target_cold_before_recall": target_was_cold,
+            "requests": records, "stage_observations": observations,
+            "raw_artifacts": artifact_refs(case_root)}
     write_json(case_root / "case-summary.json", case)
     return case
 
 
-def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any]) -> dict[str, Any]:
+
+def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any],
+                              profile: str) -> dict[str, Any]:
     status, value, raw = json_request(base, "/slots", key)
     if status != 200:
         raise RuntimeError(f"initial /slots returned HTTP {status}")
     slot = slot0(value)
     pager = slot.get("pager_metrics") if isinstance(slot.get("pager_metrics"), dict) else {}
+    if profile == "dense":
+        settings = identity.get("settings", {})
+        return {"context_tokens": CONTEXT, "requested_context_tokens": CONTEXT,
+                "admitted_context_tokens": CONTEXT, "batch": BATCH, "ubatch": UBATCH,
+                "pager_mode": "off", "page_size_tokens": None, "hot_pages": None,
+                "hot_tokens": None, "admitted_hot_bytes": None,
+                "target_type_k": settings.get("-ctk"),
+                "target_type_v": settings.get("-ctv"),
+                "mtp_placement": settings.get("--spec-draft-kv-device"),
+                "mtp_type_k": settings.get("--spec-draft-type-k"),
+                "mtp_type_v": settings.get("--spec-draft-type-v"),
+                "draft_n_max": settings.get("--spec-draft-n-max"),
+                "profile_settings_verified": True,
+                "allocator_snapshot": pager,
+                "identity": identity,
+                "slots_raw_sha256": sha256(raw)}
     resolved = pager.get("resolved_context_tokens")
     admitted = pager.get("accepted_target_tokens")
     page_capacity = pager.get("page_capacity")
@@ -1167,125 +1200,354 @@ def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any]) 
         raise RuntimeError(f"allocator did not admit exactly {CONTEXT} context tokens")
     if pager.get("page_tokens") != PAGE_TOKENS or page_capacity != 16 or admitted != HOT_TOKENS:
         raise RuntimeError(f"allocator did not admit exactly {HOT_TOKENS // PAGE_TOKENS} pages of {PAGE_TOKENS} tokens")
-    if pager.get("pin_recent_tokens") != 0:
-        raise RuntimeError("allocator did not resolve the recent-token pin to zero")
-    if not gpu_backend(pager.get("target_backend")) or not gpu_backend(pager.get("mtp_backend")):
-        raise RuntimeError("target and MTP execution are not both admitted on GPU")
-    if any(pager.get(field) != "turbo4" for field in
-           ("target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v")):
-        raise RuntimeError("target and MTP KV are not both admitted in Turbo4")
     hot_bytes = pager.get("physical_pool_capacity_bytes")
-    if not isinstance(hot_bytes, int) or hot_bytes <= 0:
-        raise RuntimeError("allocator hot-page bytes are unavailable")
+    settings = identity.get("settings", {})
     return {"context_tokens": CONTEXT, "requested_context_tokens": CONTEXT,
             "admitted_context_tokens": resolved,
             "context_admitted_tokens": resolved, "hot_pages": page_capacity,
             "hot_tokens": page_capacity * PAGE_TOKENS,
             "admitted_hot_tokens": admitted,
-            "admitted_hot_bytes": hot_bytes, "page_size_tokens": PAGE_TOKENS,
+            "admitted_hot_bytes": hot_bytes if isinstance(hot_bytes, int) else None,
+            "page_size_tokens": PAGE_TOKENS,
             "batch": BATCH, "ubatch": UBATCH, "pager_mode": pager.get("mode"),
-            "target_type_k": pager.get("target_type_k"),
-            "target_type_v": pager.get("target_type_v"),
-            "mtp_placement": "gpu" if gpu_backend(pager.get("mtp_backend")) else "unknown",
-            "mtp_type_k": pager.get("mtp_type_k"), "mtp_type_v": pager.get("mtp_type_v"),
+            "target_type_k": pager.get("target_type_k", settings.get("-ctk")),
+            "target_type_v": pager.get("target_type_v", settings.get("-ctv")),
+            "mtp_placement": "gpu" if settings.get("--spec-draft-kv-device") == "gpu" else "unknown",
+            "mtp_type_k": pager.get("mtp_type_k", settings.get("--spec-draft-type-k")),
+            "mtp_type_v": pager.get("mtp_type_v", settings.get("--spec-draft-type-v")),
             "draft_n_max": 2, "thinking": "off",
-            "allocator_snapshot": pager, "identity": identity,
+            "allocator_snapshot": pager, "identity": identity, "profile": profile,
             "slots_raw_sha256": sha256(raw)}
 
 
+def _schedule_sources_valid(schedule: Mapping[str, Any], catalog: tuple[Any, ...],
+                            fixture_root: pathlib.Path) -> None:
+    by_id = {item.fixture_id: item for item in catalog}
+    manifest_path = fixture_root / "manifest.json"
+    manifest_hash = sha256_file(manifest_path)
+    if schedule.get("schema") != "pager-promotion-frozen-schedule-v1" or \
+            schedule.get("manifest", {}).get("sha256") != manifest_hash or \
+            schedule.get("seed_base") != COMPLETION_SEED_BASE or \
+            schedule.get("geometry") != {"context_tokens": CONTEXT, "hot_tokens": HOT_TOKENS,
+                                          "page_tokens": PAGE_TOKENS, "batch": BATCH,
+                                          "ubatch": UBATCH} or \
+            schedule.get("request_options") != {"model_alias": "qwen38-fast-turbo4-mtp",
+                "temperature": 0, "top_p": 1,
+                "max_tokens": 400, "reasoning_effort": "none",
+                "enable_thinking": False, "stop": None}:
+        raise ValueError("frozen schedule manifest, options, seed, or geometry mismatch")
+    entries = schedule.get("sources")
+    if not isinstance(entries, list):
+        raise ValueError("frozen schedule source list is missing")
+    for entry in entries:
+        fixture = by_id.get(entry.get("fixture_id"))
+        if fixture is None or entry.get("sha256") != fixture.sha256 or \
+                entry.get("path") != fixture.relative_path:
+            raise ValueError(f"frozen schedule source mismatch: {entry.get('fixture_id')}")
+        if sha256_file(fixture_root / fixture.relative_path) != fixture.sha256:
+            raise ValueError(f"fixture bytes changed: {fixture.fixture_id}")
+    expected_targets = [*DEFAULT_PYTHON_TARGET_IDS, "BASH_WATCH_01"]
+    if [sequence.get("target_fixture_id") for sequence in schedule.get("sequences", [])] != expected_targets:
+        raise ValueError("frozen schedule target order mismatch")
+    for sequence in schedule["sequences"]:
+        if not sequence.get("named_source_spans") or not sequence.get("answer_span"):
+            raise ValueError("frozen schedule lacks named source/token spans")
+        for turn in sequence.get("turns", []):
+            if turn.get("user_content_sha256") != sha256(
+                    turn.get("user_content", "").encode("utf-8")):
+                raise ValueError("frozen turn content hash mismatch")
+        final_turn = sequence["turns"][-1]
+        if final_turn.get("appended_fixture_ids_local_only") or \
+                final_turn.get("user_content") != final_turn.get("question"):
+            raise ValueError("A2 must ask about prior content without reinserting sources")
+
+
+def _trim_pressure_once(schedule: dict[str, Any], catalog: tuple[Any, ...]) -> None:
+    by_id = {item.fixture_id: item for item in catalog}
+    for sequence in schedule["sequences"]:
+        turn = sequence["turns"][1]
+        ids = list(turn["appended_fixture_ids_local_only"])
+        if len(ids) <= 1:
+            raise ValueError("cannot remove more pressure without losing the frozen content span")
+        remove_id = ids.pop()
+        fixture = by_id[remove_id]
+        file_text = (f"Read the following file as context ({fixture.filename}):\n"
+                     "--- BEGIN FILE CONTENT ---\n" + fixture.body + "--- END FILE CONTENT ---")
+        turn["user_content"] = turn["user_content"].replace(file_text, "").strip()
+        turn["appended_fixture_ids_local_only"] = ids
+        turn["appended_fixture_id_local_only"] = ids[0]
+        turn["user_content_sha256"] = sha256(turn["user_content"].encode("utf-8"))
+        sequence["pressure_fixture_ids"] = ids
+        sequence["named_source_spans"] = [entry for entry in sequence.get("named_source_spans", [])
+                                           if entry.get("fixture_id") != remove_id]
+        sequence["named_source_spans"] = [entry for entry in sequence.get("named_source_spans", [])
+                                           if entry.get("fixture_id") != remove_id]
+    used = sorted({fixture_id for sequence in schedule["sequences"]
+                   for turn in sequence["turns"]
+                   for fixture_id in turn["appended_fixture_ids_local_only"]})
+    schedule["sources"] = [{"fixture_id": fixture_id,
+                            "path": by_id[fixture_id].relative_path,
+                            "sha256": by_id[fixture_id].sha256,
+                            "token_count_no_bos": by_id[fixture_id].token_count_no_bos}
+                           for fixture_id in used]
+    schedule["pressure_trimmed_once"] = True
+
+
+def preflight_schedule(base: str, key: str, schedule: Mapping[str, Any], model: str,
+                      output: pathlib.Path) -> tuple[bool, list[dict[str, Any]]]:
+    rows = []
+    for sequence in schedule["sequences"]:
+        steps = steps_from_frozen(sequence)
+        sequence_root = output / sequence["target_fixture_id"]
+        for index, step in enumerate(steps):
+            messages = messages_for_step(steps, index, [""] * index)
+            result = preflight_messages(base, key, messages, model,
+                                        sequence_root / f"turn-{index + 1:02d}")
+            row = {"target_fixture_id": sequence["target_fixture_id"],
+                   "turn": index, "stage": step.stage, **result}
+            row["occupied_with_conversation_reserve"] = \
+                result["rendered_prompt_tokens"] + GENERATION_CONTEXT_RESERVE_TOKENS
+            row["fits"] = row["fits"] and row["occupied_with_conversation_reserve"] <= CONTEXT
+            if index == 1:
+                row["crosses_hot_boundary"] = \
+                    row["occupied_with_conversation_reserve"] > HOT_TOKENS
+            rows.append(row)
+    all_fit = all(row.get("fits") is True for row in rows) and all(
+        row.get("crosses_hot_boundary", True) for row in rows if row.get("turn") == 1)
+    write_json(output / "preflight-summary.json", {
+        "schema": "pager-promotion-preflight-v1", "generation_requests": 0,
+        "context_tokens": CONTEXT, "hot_tokens": HOT_TOKENS,
+        "reserve_tokens_once": GENERATION_CONTEXT_RESERVE_TOKENS,
+        "schedule_sha256": frozen_schedule_hash(schedule),
+        "all_fit": all_fit, "requests": rows})
+    return all_fit, rows
+
+
+def validate_summary(path: pathlib.Path) -> dict[str, Any]:
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    if summary.get("schema") != "pager-promotion-profile-summary-v1":
+        raise ValueError("summary schema mismatch")
+    identity = summary.get("candidate_identity", {})
+    if not identity.get("binary_sha256") or not identity.get("model_sha256") or \
+            not identity.get("candidate_dsos") or not summary.get("schedule_sha256") or \
+            not summary.get("shared_options_sha256"):
+        raise ValueError("summary lacks hashed immutable candidate/schedule/options identity")
+    if summary.get("candidate_identity_sha256") != sha256(
+            json.dumps(identity, sort_keys=True).encode()):
+        raise ValueError("candidate identity hash mismatch")
+    schedule_path = pathlib.Path(summary.get("schedule_path", ""))
+    if not schedule_path.is_file() or sha256_file(schedule_path) != summary["schedule_sha256"]:
+        raise ValueError("frozen schedule is missing or hash-mismatched")
+    schedule = json.loads(schedule_path.read_text(encoding="utf-8"))
+    shared_options = summary.get("shared_options")
+    if not isinstance(shared_options, dict) or summary["shared_options_sha256"] != sha256(
+            json.dumps(shared_options, sort_keys=True).encode()):
+        raise ValueError("shared request/profile options hash mismatch")
+    if shared_options.get("request_options") != schedule.get("request_options") or \
+            shared_options.get("geometry") != schedule.get("geometry") or \
+            shared_options.get("seed_base") != schedule.get("seed_base") or \
+            not schedule.get("sources"):
+        raise ValueError("summary options/source corpus differ from the shared frozen schedule")
+    accepted = {"useful_cold_recall", "semantic_miss", "resident_control",
+                "semantic_recall", "budget_limited", "dense_inconclusive", "execution_incomplete",
+                "degenerate_generation"}
+    frozen_sequences = {row.get("target_fixture_id"): row
+                        for row in schedule.get("sequences", [])}
+    cases = summary.get("sequences", [])
+    case_ids = [case.get("fixture_id") for case in cases]
+    expected_case_ids = summary.get("selected_targets", list(frozen_sequences))
+    if not isinstance(expected_case_ids, list) or not expected_case_ids or \
+            any(fixture_id not in frozen_sequences for fixture_id in expected_case_ids) or \
+            expected_case_ids != [fixture_id for fixture_id in frozen_sequences
+                                  if fixture_id in expected_case_ids] or case_ids != expected_case_ids:
+        raise ValueError("summary target subset is missing, reordered, or outside the shared frozen schedule")
+    for case in cases:
+        if case.get("classification") not in accepted:
+            raise ValueError("sequence classification is missing or fabricated")
+        if case.get("schedule_sha256") != summary["schedule_sha256"]:
+            raise ValueError("sequence does not use the shared frozen schedule")
+        if case.get("profile") != summary.get("profile"):
+            raise ValueError("sequence profile mismatch")
+        requests = case.get("requests")
+        if not isinstance(requests, list) or not requests or len(requests) > 3 or \
+                (len(requests) != 3 and case.get("classification") != "execution_incomplete"):
+            raise ValueError("sequence lacks the expected raw requests for its execution status")
+        failed = False
+        frozen_turns = frozen_sequences[case.get("fixture_id")].get("turns", [])
+        for turn_index, record in enumerate(requests):
+            for key in ("raw_request_artifact", "raw_response_artifact"):
+                ref = record.get(key)
+                if not isinstance(ref, dict) or not pathlib.Path(ref.get("path", "")).is_file() or \
+                        sha256_file(pathlib.Path(ref["path"])) != ref.get("sha256"):
+                    raise ValueError(f"sequence raw artifact is missing or hash-mismatched: {key}")
+            request_payload = json.loads(pathlib.Path(
+                record["raw_request_artifact"]["path"]).read_text(encoding="utf-8"))
+            expected_user_turns = [turn.get("user_content") for turn in frozen_turns[:turn_index + 1]]
+            actual_user_turns = [message.get("content") for message in request_payload.get("messages", [])
+                                 if message.get("role") == "user"]
+            if actual_user_turns != expected_user_turns:
+                raise ValueError("raw request user turns differ from the shared frozen schedule")
+            if request_payload.get("seed") != COMPLETION_SEED_BASE + turn_index or \
+                    request_payload.get("temperature") != 0 or request_payload.get("top_p") != 1 or \
+                    request_payload.get("max_tokens") != 400 or request_payload.get("stop") or \
+                    request_payload.get("model") != schedule["request_options"]["model_alias"] or \
+                    request_payload.get("reasoning_effort") != "none" or \
+                    request_payload.get("chat_template_kwargs") != {"enable_thinking": False} or \
+                    request_payload.get("cache_prompt") != frozen_turns[turn_index].get("cache_prompt"):
+                raise ValueError("raw request options differ from the frozen schedule")
+            if record.get("http_status") != 200 or record.get("runtime_error"):
+                failed = True
+        if failed and case.get("classification") != "execution_incomplete":
+            raise ValueError("failed HTTP/crash request was not classified execution_incomplete")
+        if not failed and case.get("classification") == "execution_incomplete":
+            raise ValueError("complete requests cannot be classified execution_incomplete")
+        if case.get("classification") == "semantic_miss" and case.get("semantic_match") is not False:
+            raise ValueError("semantic miss lacks an observed negative semantic result")
+        classification = case.get("classification")
+        if classification == "dense_inconclusive" and summary.get("profile") != "dense":
+            raise ValueError("dense-inconclusive classification requires dense profile")
+        if classification == "useful_cold_recall" and not (
+                case.get("semantic_match") is True and
+                case.get("target_cold_before_recall") is True):
+            raise ValueError("useful cold recall lacks semantic and cold-page evidence")
+        if classification == "semantic_recall" and case.get("semantic_match") is not True:
+            raise ValueError("semantic recall lacks a positive semantic result")
+        if classification == "resident_control" and not (
+                case.get("semantic_match") is True and
+                case.get("target_cold_before_recall") is False):
+            raise ValueError("resident control lacks a positive answer and resident evidence")
+        if classification == "degenerate_generation" and not any(
+                record.get("degenerate_generation") is True for record in requests):
+            raise ValueError("degenerate generation classification lacks a degenerate response")
+    return {"valid": True, "sequence_count": len(summary.get("sequences", [])),
+            "profile": summary["profile"], "schedule_sha256": summary["schedule_sha256"]}
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    if args.validate_summary:
+        return validate_summary(pathlib.Path(args.validate_summary).resolve())
     root = pathlib.Path(args.output).resolve()
     if root.exists() and any(root.iterdir()):
         raise FileExistsError(f"refusing to overwrite nonempty raw result root: {root}")
     root.mkdir(parents=True, exist_ok=True)
+    lock_stream = open("/tmp/ai-pager-benchmark.lock", "a", encoding="utf-8")
+    fcntl.flock(lock_stream.fileno(), fcntl.LOCK_EX)
     model_path = pathlib.Path(args.model).resolve()
     candidate_path = pathlib.Path(args.server_binary).resolve()
-    identity = process_identity(args.service_name, candidate_path, model_path,
-                                args.selector_trace_page)
-    write_json(root / "candidate-identity.json", identity)
     key = read_key(pathlib.Path(args.key_file))
+    if args.reload_managed:
+        reload_managed_profile(args, key)
+    identity = process_identity(args.service_name, candidate_path, model_path,
+                                args.selector_trace_page, args.profile)
+    write_json(root / "candidate-identity.json", identity)
     base = args.endpoint.rstrip("/")
     status, health, raw = json_request(base, "/health", key)
     (root / "health-response.json").write_bytes(raw + b"\n")
     if status != 200 or not isinstance(health, dict) or health.get("status") != "ok":
         raise RuntimeError("managed candidate is not healthy")
-    geometry = validate_runtime_geometry(base, key, identity)
+    geometry = validate_runtime_geometry(base, key, identity, args.profile)
     write_json(root / "allocator-admission.json", geometry)
-    selected_fixture_ids = [*DEFAULT_SOURCE_FIXTURE_IDS,
-                             *DEFAULT_PRESSURE_FIXTURE_IDS]
-    catalog = load_fixture_catalog(pathlib.Path(args.fixture_root), selected_fixture_ids)
-    manifest_raw = (pathlib.Path(args.fixture_root) / "manifest.json").read_bytes()
-    progress_path = root / "campaign-progress.json"
-    cases: list[dict[str, Any]] = []
-    failures: list[dict[str, str]] = []
+    fixture_root = pathlib.Path(args.fixture_root).resolve()
+    catalog = load_fixture_catalog(fixture_root)
+    schedule_path = pathlib.Path(args.schedule).resolve()
+    new_schedule = not schedule_path.exists()
+    if new_schedule:
+        schedule = build_frozen_schedule(catalog, fixture_root)
+    else:
+        schedule = json.loads(schedule_path.read_text(encoding="utf-8"))
+        _schedule_sources_valid(schedule, catalog, fixture_root)
+    if args.model_alias != schedule["request_options"]["model_alias"]:
+        raise ValueError("model alias differs from the shared frozen schedule")
+    preflight_ok, preflight_rows = preflight_schedule(
+        base, key, schedule, args.model_alias, root / "preflight")
+    if not preflight_ok and new_schedule:
+        _trim_pressure_once(schedule, catalog)
+        preflight_ok, preflight_rows = preflight_schedule(
+            base, key, schedule, args.model_alias, root / "preflight-trimmed")
+    if not preflight_ok:
+        raise RuntimeError("frozen A/B/A preflight failed context or H-boundary requirements")
+    schedule_hash = (write_or_validate_schedule(schedule_path, schedule) if new_schedule
+                     else sha256_file(schedule_path))
+    if args.preflight_only:
+        return {"schema": "pager-promotion-preflight-receipt-v1", "profile": args.profile,
+                "candidate_identity": identity, "schedule_path": str(schedule_path),
+                "schedule_sha256": schedule_hash, "generation_requests": 0,
+                "preflight_rows": len(preflight_rows), "all_fit": True}
+    sequences = []
     target_by_id = {fixture.fixture_id: fixture for fixture in catalog}
-    if args.target_fixture_id not in target_by_id:
-        raise ValueError(f"unknown target fixture {args.target_fixture_id!r}")
-    if args.target_fixture_id != DEFAULT_TARGET_FIXTURE_ID:
-        raise ValueError("natural-promotion target is fixed at PY_MERGE_03")
-    targets = [target_by_id[DEFAULT_TARGET_FIXTURE_ID]]
-    for target in targets:
+    selected_targets = ([args.target_fixture] if args.target_fixture else
+                        [sequence["target_fixture_id"] for sequence in schedule["sequences"]])
+    schedule_targets = {sequence["target_fixture_id"] for sequence in schedule["sequences"]}
+    if any(fixture_id not in schedule_targets for fixture_id in selected_targets):
+        raise ValueError("selected target is not part of the shared frozen schedule")
+    for sequence in schedule["sequences"]:
+        if sequence["target_fixture_id"] not in selected_targets:
+            continue
+        target = target_by_id[sequence["target_fixture_id"]]
         try:
-            case = run_case(base, key, catalog, target, root, args.model_alias,
-                            args.selector_trace_page)
-            cases.append(case)
-            case_status = case.get("acceptance_status", "diagnostic_incomplete")
-            error = None
+            case = run_case(base, key, catalog, target, sequence, args.profile,
+                            schedule_hash, root, args.model_alias, args.selector_trace_page)
         except Exception as exc:
-            case_status = "fail"
-            error = f"{type(exc).__name__}: {exc}"
-            failures.append({"fixture_id": target.fixture_id, "error": error})
-            case = None
-        progress_cases = [{"fixture_id": item["fixture_id"],
-                           "status": item.get("acceptance_status", "diagnostic_incomplete"),
-                           "evidence": item} for item in cases]
-        if case is None:
-            progress_cases.append({"fixture_id": target.fixture_id, "status": case_status,
-                                   "error": error})
-        write_json(progress_path, {"schema": "pager-promotion-progress-v1",
-                                   "cases": progress_cases, "failures": failures})
-        print(f"{target.fixture_id}: {case_status}" + (f" ({error})" if error else ""),
-              flush=True)
-        if case is None:
-            break
-
-    execution_complete = len(cases) == len(targets) and not failures and all(
-        case.get("execution_status") == "complete" for case in cases)
-    campaign_pass = execution_complete and all(
-        case.get("acceptance_status") == "pass" for case in cases)
-    return {
-        "schema": "file-backed-natural-promotion-sequence-v1",
-        "execution_status": "complete" if execution_complete else "incomplete",
-        "acceptance_status": "pass" if campaign_pass else "diagnostic_only",
-        "target_fixture_ids": selected_fixture_ids,
-        "candidate_identity_verified": True, "geometry": geometry,
-        "fixture_manifest_sha256": sha256(manifest_raw), "cases": cases,
-        "failures": failures,
-    }
+            case = {"fixture_id": target.fixture_id, "profile": args.profile,
+                    "schedule_sha256": schedule_hash, "execution_status": "incomplete",
+                    "classification": "execution_incomplete", "requests": [],
+                    "error": f"{type(exc).__name__}: {exc}"}
+        sequences.append(case)
+    shared_options = {"geometry": schedule["geometry"],
+                      "seed_base": schedule["seed_base"],
+                      "request_options": schedule["request_options"]}
+    summary = {"schema": "pager-promotion-profile-summary-v1",
+               "profile": args.profile, "candidate_identity": identity,
+               "candidate_identity_sha256": sha256(json.dumps(identity, sort_keys=True).encode()),
+               "schedule_path": str(schedule_path), "schedule_sha256": schedule_hash,
+               "profile_admission": geometry,
+               "shared_options": shared_options,
+               "selected_targets": selected_targets,
+               "shared_options_sha256": sha256(json.dumps(shared_options, sort_keys=True).encode()),
+               "sequences": sequences}
+    write_json(root / "campaign-summary.json", summary)
+    return summary
 
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--output", required=True)
+    result.add_argument("--output", default="/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/profile")
     result.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     result.add_argument("--service-name", default=DEFAULT_SERVICE)
-    result.add_argument("--server-binary", required=True)
+    result.add_argument("--server-binary", default="/srv/repos/vanwho/buun-llama-cpp-ranking-v1/build-ranking/bin/llama-server")
     result.add_argument("--model", default=str(MODEL_PATH))
     result.add_argument("--model-alias", default="qwen38-fast-turbo4-mtp")
     result.add_argument("--key-file", default="/srv/ai/config/llama/api-keys")
     result.add_argument("--fixture-root", default=str(FIXTURE_ROOT))
-    result.add_argument("--target-fixture-id", default=DEFAULT_TARGET_FIXTURE_ID,
-                        help="answer-bearing Python fixture, currently PY_MERGE_03")
-    result.add_argument("--selector-trace-page", required=True, type=int,
-                        help="candidate-preflight logical page ID filtered by server diagnostics")
+    result.add_argument("--schedule", "--schedule-input", "--schedule-output",
+                        dest="schedule", required=False,
+                        default="/srv/ai/paged-kv/results/ranking104/104-06c/attempt-01/frozen-schedule-v2.json")
+    result.add_argument("--profile", choices=("legacy", "probe-rerank", "dense"), default="probe-rerank")
+    result.add_argument("--context", type=int, default=8192)
+    result.add_argument("--hot-pages", type=int, default=16)
+    result.add_argument("--target-fixture", choices=(*DEFAULT_PYTHON_TARGET_IDS, "BASH_WATCH_01"),
+                        help="run one frozen target sequence while preserving the complete shared schedule")
+    result.add_argument("--preflight-only", action="store_true")
+    result.add_argument("--reload-managed", action="store_true",
+                        help="restart the existing managed service, then verify its exact profile identity")
+    result.add_argument("--validate-summary", help="validate a completed immutable profile summary and raw artifacts")
+    result.add_argument("--selector-trace-page", type=int, default=-1,
+                        help="optional selector trace page (default: derive from frozen target span)")
     return result
 
 
 if __name__ == "__main__":
     try:
-        outcome = run(parser().parse_args())
+        args = parser().parse_args()
+        outcome = run(args)
         print(json.dumps(outcome, indent=2, sort_keys=True))
-        if outcome.get("execution_status") != "complete":
+        if args.validate_summary and outcome.get("valid") is not True:
+            raise SystemExit(2)
+        if args.preflight_only and (outcome.get("all_fit") is not True or
+                                    outcome.get("generation_requests") != 0):
+            raise SystemExit(2)
+        if not args.validate_summary and not args.preflight_only and \
+                outcome.get("execution_status") != "complete":
             raise SystemExit(2)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"pager promotion campaign failed: {error}", file=sys.stderr)

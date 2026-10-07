@@ -11,9 +11,11 @@ import unittest
 from pager_promotion import (
     DEFAULT_PRESSURE_FIXTURE_IDS, DEFAULT_SOURCE_FIXTURE_IDS,
     DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT, GENERATION_COMPLETION_LIMIT_TOKENS,
+    GENERATION_CONTEXT_RESERVE_TOKENS,
     PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS, SERVER_CONTEXT_TOKENS, GPU_HOT_TOKENS,
     assess_natural_retrieval, build_case_plan, build_promotion_steps,
-    load_fixture_catalog, messages_for_step,
+    load_fixture_catalog, messages_for_step, build_frozen_schedule,
+    frozen_schedule_hash, write_or_validate_schedule,
     pages_are_cold, pages_overlapping_token_range, refresh_page_versions,
     response_budget,
 )
@@ -25,8 +27,13 @@ _DRIVER = importlib.util.module_from_spec(_DRIVER_SPEC)
 _DRIVER_SPEC.loader.exec_module(_DRIVER)
 _promotion_for_page = _DRIVER._promotion_for_page
 _assess_content_retrieval = _DRIVER.assess_content_retrieval
+_answer_trace_page = _DRIVER.answer_trace_page
 _completed_pressure_tail_pages = _DRIVER.completed_pressure_tail_pages
 _generation_start_index = _DRIVER.generation_start_index
+_request_local_mtp = _DRIVER.request_local_mtp
+_classify_sequence = _DRIVER.classify_sequence
+_profile_setting_mismatches = _DRIVER.profile_setting_mismatches
+_validate_summary = _DRIVER.validate_summary
 
 
 class PagerPromotionPromptTest(unittest.TestCase):
@@ -67,6 +74,14 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertTrue(source["matched"])
         self.assertTrue(final["matched"])
 
+    def test_answer_page_boundary_is_recorded_without_dropping_outcome(self) -> None:
+        page, wholly_within, answer_pages = _answer_trace_page(
+            anchor_start=2092, anchor_end=2102,
+            fixture_start=1078, fixture_end=2103)
+        self.assertEqual(8, page)
+        self.assertFalse(wholly_within)
+        self.assertEqual([8], answer_pages)
+
     def test_exact_three_user_turns_and_fixture_order(self) -> None:
         steps = build_promotion_steps(self.catalog)
         self.assertEqual(3, len(steps))
@@ -84,8 +99,8 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertIn("merge_sorted_lists_03.py", steps[2].question)
         self.assertEqual(steps[2].question, steps[2].user_content)
         self.assertTrue(steps[0].user_content.endswith(steps[0].question))
-        self.assertIn("merge_sorted_lists_01.py",
-                      steps[0].expected_answer_local_only)
+        self.assertEqual("I have reviewed the Python merge examples.",
+                         steps[0].expected_answer_local_only)
         self.assertEqual(self.by_id["PY_MERGE_03"].expected_answer,
                          steps[2].expected_answer_local_only)
         self.assertTrue(steps[1].cache_prompt)
@@ -110,14 +125,14 @@ class PagerPromotionPromptTest(unittest.TestCase):
             messages_for_step(steps, 2, replies[:1])
 
     def test_response_budget_and_filename_scoring(self) -> None:
-        self.assertEqual(256, response_budget(100))
-        self.assertEqual(256, response_budget(SERVER_CONTEXT_TOKENS - 128 - 257))
+        self.assertEqual(400, response_budget(100))
+        self.assertEqual(400, response_budget(SERVER_CONTEXT_TOKENS - 401))
         self.assertTrue(assess_natural_retrieval(
             "merge_sorted_lists_03.py", '"merge_sorted_lists_03.py"')['matched'])
         self.assertFalse(assess_natural_retrieval(
             "merge_sorted_lists_03.py", "merge_sorted_lists_02.py")['matched'])
         with self.assertRaises(ValueError):
-            response_budget(SERVER_CONTEXT_TOKENS - 128 - 256)
+            response_budget(SERVER_CONTEXT_TOKENS - 399)
         with self.assertRaises(ValueError):
             response_budget(SERVER_CONTEXT_TOKENS)
 
@@ -152,11 +167,11 @@ class PagerPromotionPromptTest(unittest.TestCase):
                          plan["steps"][1]["appended_fixture_ids_local_only"])
         budget = plan["token_budget"]
         self.assertEqual(5120, budget["selected_fixture_tokens_no_bos"])
-        self.assertEqual(512, budget["planned_prior_reply_tokens"])
+        self.assertEqual(0, budget["planned_prior_reply_tokens"])
         self.assertEqual(GENERATION_COMPLETION_LIMIT_TOKENS,
                          budget["final_completion_reserve_tokens"])
         self.assertEqual(1024, PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS)
-        self.assertEqual(7040, budget["estimated_required_tokens"])
+        self.assertEqual(8080, budget["estimated_required_tokens"])
         self.assertTrue(budget["fits_with_context_reserve"])
         self.assertTrue(budget["fixture_pressure_exceeds_hot_capacity"])
         self.assertEqual("source_file", plan["steps"][0]["stage"])
@@ -174,14 +189,9 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(DEFAULT_PRESSURE_FIXTURE_IDS, steps[1].appended_fixture_ids)
         self.assertIn("merge_sorted_lists_01.py", steps[0].question)
         self.assertIn(target.filename, steps[2].question)
-        self.assertIn("allocate", steps[2].question.lower())
+        self.assertIn("allocate", steps[2].expected_answer_local_only.lower())
         self.assertIn("PY_MERGE_03", steps[2].question)
-        self.assertIn("`out[write]`", steps[2].question)
-        self.assertIn("how many times", steps[2].question.lower())
-        self.assertIn("cursor increments", steps[2].question)
-        self.assertIn("preallocated output", steps[2].question)
-        self.assertIn("how many times", steps[2].question.lower())
-        self.assertIn("output position", steps[2].question)
+        self.assertIn("what implementation behavior", steps[2].question.lower())
         self.assertIn(target.filename, steps[2].question)
         self.assertNotIn("RETRIEVAL_KEY", steps[2].question)
         self.assertTrue(steps[1].cache_prompt)
@@ -192,6 +202,18 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(4096, _DRIVER.HOT_TOKENS)
         self.assertEqual(1024, _DRIVER.BATCH)
         self.assertEqual(256, _DRIVER.UBATCH)
+
+    def test_bash_target_uses_same_two_python_three_bash_sequence(self) -> None:
+        ids = DEFAULT_SOURCE_FIXTURE_IDS + DEFAULT_PRESSURE_FIXTURE_IDS
+        catalog = load_fixture_catalog(FIXTURE_ROOT, ids)
+        target = next(item for item in catalog if item.fixture_id == "BASH_WATCH_02")
+        steps = build_promotion_steps(catalog, target.fixture_id,
+                                      python_fixture_ids=DEFAULT_SOURCE_FIXTURE_IDS,
+                                      bash_fixture_ids=DEFAULT_PRESSURE_FIXTURE_IDS)
+        self.assertEqual(DEFAULT_SOURCE_FIXTURE_IDS, steps[0].appended_fixture_ids)
+        self.assertEqual(DEFAULT_PRESSURE_FIXTURE_IDS, steps[1].appended_fixture_ids)
+        self.assertIn(target.filename, steps[2].question)
+        self.assertEqual(target.expected_answer, steps[2].expected_answer_local_only)
 
     def test_pressure_readiness_covers_only_newly_completed_full_pages(self) -> None:
         inventory = [
@@ -270,6 +292,174 @@ class PagerPromotionPromptTest(unittest.TestCase):
                               "outcome": outcome}}}
                 report = _promotion_for_page(page, {}, record, [])
                 self.assertFalse(report["selector_nominated"])
+
+    def test_frozen_schedule_targets_and_a2_does_not_reinsert_source(self) -> None:
+        schedule = build_frozen_schedule(self.catalog, FIXTURE_ROOT)
+        self.assertEqual(["PY_MERGE_03", "PY_MERGE_01", "BASH_WATCH_01"],
+                         [row["target_fixture_id"] for row in schedule["sequences"]])
+        python_sequence = schedule["sequences"][0]
+        self.assertEqual(2, len(python_sequence["turns"][0]["appended_fixture_ids_local_only"]))
+        self.assertEqual(3, len(python_sequence["turns"][1]["appended_fixture_ids_local_only"]))
+        bash_sequence = schedule["sequences"][2]
+        self.assertEqual(2, len(bash_sequence["turns"][0]["appended_fixture_ids_local_only"]))
+        self.assertEqual(3, len(bash_sequence["turns"][1]["appended_fixture_ids_local_only"]))
+        self.assertEqual([], bash_sequence["turns"][2]["appended_fixture_ids_local_only"])
+        self.assertNotIn(self.by_id["BASH_WATCH_01"].body,
+                         bash_sequence["turns"][2]["user_content"])
+        self.assertEqual(947300, schedule["seed_base"])
+        self.assertEqual(1536, schedule["reserve_tokens"])
+
+    def test_shared_schedule_is_create_once_and_source_bound(self) -> None:
+        import tempfile
+        schedule = build_frozen_schedule(self.catalog, FIXTURE_ROOT)
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "frozen.json"
+            first_hash = write_or_validate_schedule(path, schedule)
+            self.assertEqual(first_hash, write_or_validate_schedule(path, schedule))
+            changed = dict(schedule)
+            changed["seed_base"] = 1
+            with self.assertRaisesRegex(ValueError, "differs"):
+                write_or_validate_schedule(path, changed)
+        schedule["sources"][0]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "source mismatch"):
+            _DRIVER._schedule_sources_valid(schedule, self.catalog, FIXTURE_ROOT)
+
+    def test_actual_reply_is_retained_at_its_full_length(self) -> None:
+        steps = build_promotion_steps(self.catalog)
+        reply = "actual prior response " + ("detail " * 700)
+        messages = messages_for_step(steps, 1, [reply])
+        self.assertEqual(reply, messages[1]["content"])
+        self.assertGreater(len(messages[1]["content"]), 4000)
+        self.assertEqual(1536, GENERATION_CONTEXT_RESERVE_TOKENS)
+
+    def test_profile_matching_enforces_selective_and_dense_flags(self) -> None:
+        base = {"--kv-pager": "selective", "--kv-router": "legacy",
+                "--kv-page-size": "256", "--kv-hot-pages": "16"}
+        self.assertEqual([], _profile_setting_mismatches(base, "legacy"))
+        self.assertTrue(_profile_setting_mismatches(base, "probe-rerank"))
+        self.assertTrue(_profile_setting_mismatches(base, "dense"))
+        dense = {"--kv-pager": "off", "--kv-router": None, "--kv-hot-pages": None}
+        self.assertEqual([], _profile_setting_mismatches(dense, "dense"))
+
+    def test_response_local_mtp_counts_win_over_zero_slot_deltas(self) -> None:
+        observation = _request_local_mtp(
+            {"timings": {"draft_n": 398, "draft_n_accepted": 0,
+                         "prompt_per_second": 1200.0}},
+            {"mtp_request_counters": {"draft_n": 8, "draft_n_accepted": 3}},
+            {"mtp_request_counters": {"draft_n": 8, "draft_n_accepted": 3}})
+        self.assertEqual(398, observation["drafted"])
+        self.assertEqual(0, observation["accepted"])
+        self.assertEqual("response.timings", observation["origin"])
+        self.assertEqual(0.0, observation["acceptance_percent"])
+        self.assertEqual(1200.0, observation["raw_response_timings"]["prompt_per_second"])
+        no_draft = _request_local_mtp({"timings": {"draft_n": 0,
+            "draft_n_accepted": 0}},
+            {"mtp_request_counters": {"draft_n": 4, "draft_n_accepted": 2}},
+            {"mtp_request_counters": {"draft_n": 4, "draft_n_accepted": 2}})
+        self.assertEqual(0, no_draft["drafted"])
+        self.assertEqual(0, no_draft["accepted"])
+        self.assertEqual("response.timings", no_draft["origin"])
+        self.assertIsNone(no_draft["acceptance_percent"])
+
+    def test_missing_mtp_counts_remain_unknown(self) -> None:
+        observation = _request_local_mtp({}, {}, {})
+        self.assertIsNone(observation["drafted"])
+        self.assertIsNone(observation["accepted"])
+        self.assertIsNone(observation["acceptance_percent"])
+        self.assertIsNone(observation["origin"])
+
+    def test_http500_is_execution_incomplete_and_miss_is_valid(self) -> None:
+        requests = [{"http_status": 200} for _ in range(3)]
+        requests[-1] = {"http_status": 500, "runtime_error": "query_finalize"}
+        self.assertEqual("execution_incomplete",
+                         _classify_sequence("probe-rerank", requests, None, None))
+        self.assertEqual("semantic_miss",
+                         _classify_sequence("probe-rerank", [{"http_status": 200}] * 3,
+                                            False, None))
+        self.assertEqual("dense_inconclusive",
+                         _classify_sequence("dense", [{"http_status": 200}] * 3,
+                                            False, None))
+
+    def test_summary_validator_accepts_miss_dense_and_rejects_missing_raw_request(self) -> None:
+        import hashlib
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            records = []
+            for index in range(3):
+                request = root / f"request-{index}.json"
+                response = root / f"response-{index}.json"
+                payload = {"messages": [{"role": "user", "content": f"u{turn} ",}
+                                        for turn in range(index + 1)],
+                           "seed": 947300 + index, "temperature": 0,
+                           "top_p": 1, "max_tokens": 400,
+                           "model": "qwen38-fast-turbo4-mtp",
+                           "reasoning_effort": "none",
+                           "chat_template_kwargs": {"enable_thinking": False},
+                           "cache_prompt": index > 0}
+                request.write_text(json.dumps(payload))
+                response.write_text("{}")
+                records.append({"http_status": 200,
+                    "raw_request_artifact": {"path": str(request),
+                        "sha256": hashlib.sha256(request.read_bytes()).hexdigest()},
+                    "raw_response_artifact": {"path": str(response),
+                        "sha256": hashlib.sha256(response.read_bytes()).hexdigest()}})
+            frozen = root / "schedule.json"
+            schedule = {"schema": "pager-promotion-frozen-schedule-v1",
+                "seed_base": 947300,
+                "geometry": {"context_tokens": 8192, "hot_tokens": 4096,
+                    "page_tokens": 256, "batch": 1024, "ubatch": 256},
+                "request_options": {"model_alias": "qwen38-fast-turbo4-mtp",
+                    "temperature": 0, "top_p": 1,
+                    "max_tokens": 400, "reasoning_effort": "none",
+                    "enable_thinking": False, "stop": None},
+                "sources": [{"fixture_id": "x", "sha256": "a" * 64}],
+                "sequences": [{"target_fixture_id": "T", "turns": [
+                    {"user_content": "u0 ", "cache_prompt": False},
+                    {"user_content": "u1 ", "cache_prompt": True},
+                    {"user_content": "u2 ", "cache_prompt": True}]},
+                    {"target_fixture_id": "U", "turns": [
+                    {"user_content": "v0 ", "cache_prompt": False},
+                    {"user_content": "v1 ", "cache_prompt": True},
+                    {"user_content": "v2 ", "cache_prompt": True}]}]}
+            frozen.write_text(json.dumps(schedule))
+            schedule_hash = hashlib.sha256(frozen.read_bytes()).hexdigest()
+            identity = {"binary_sha256": "a", "model_sha256": "b",
+                        "candidate_dsos": [{"sha256": "c"}]}
+            shared = {"geometry": schedule["geometry"], "seed_base": 947300,
+                      "request_options": schedule["request_options"]}
+            summary = {"schema": "pager-promotion-profile-summary-v1", "profile": "dense",
+                "candidate_identity": identity,
+                "candidate_identity_sha256": hashlib.sha256(
+                    json.dumps(identity, sort_keys=True).encode()).hexdigest(),
+                "schedule_path": str(frozen), "schedule_sha256": schedule_hash,
+                "shared_options": shared,
+                "shared_options_sha256": hashlib.sha256(
+                    json.dumps(shared, sort_keys=True).encode()).hexdigest(),
+                "selected_targets": ["T"],
+                "sequences": [{"profile": "dense", "fixture_id": "T",
+                    "schedule_sha256": schedule_hash,
+                    "classification": "dense_inconclusive", "semantic_match": False,
+                    "requests": records}]}
+            path = root / "summary.json"
+            path.write_text(json.dumps(summary))
+            self.assertTrue(_validate_summary(path)["valid"])
+            summary["sequences"][0]["classification"] = "execution_incomplete"
+            summary["sequences"][0]["requests"] = records[:1]
+            summary["sequences"][0]["requests"][0]["http_status"] = 0
+            path.write_text(json.dumps(summary))
+            self.assertTrue(_validate_summary(path)["valid"])
+            summary["selected_targets"] = ["U", "T"]
+            path.write_text(json.dumps(summary))
+            with self.assertRaisesRegex(ValueError, "subset|reordered"):
+                _validate_summary(path)
+            summary["selected_targets"] = ["T"]
+            summary["sequences"][0]["classification"] = "dense_inconclusive"
+            summary["sequences"][0]["requests"] = records[:2]
+            path.write_text(json.dumps(summary))
+            with self.assertRaisesRegex(ValueError, "expected raw requests"):
+                _validate_summary(path)
 
 
 if __name__ == "__main__":

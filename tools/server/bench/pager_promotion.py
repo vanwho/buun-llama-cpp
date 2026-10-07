@@ -18,20 +18,19 @@ EXPECTED_SCHEMA = "attention-promotion-fixtures-v1"
 EXPECTED_TOKENS_PER_FILE = 1024
 EXPECTED_FILES_PER_FAMILY = 8
 DEFAULT_TARGET_FIXTURE_ID = "PY_MERGE_03"
+DEFAULT_MODEL_ALIAS = "qwen38-fast-turbo4-mtp"
 DEFAULT_SOURCE_FIXTURE_IDS = ("PY_MERGE_01", DEFAULT_TARGET_FIXTURE_ID)
 DEFAULT_PRESSURE_FIXTURE_IDS = tuple(f"BASH_WATCH_{index:02d}" for index in range(2, 5))
+DEFAULT_PYTHON_TARGET_IDS = ("PY_MERGE_03", "PY_MERGE_01")
 RECALL_PROBE_ANCHORS = {"PY_MERGE_03": "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once."}
 SERVER_CONTEXT_TOKENS = 8192
 GPU_HOT_TOKENS = 4096
 PAGE_SIZE_TOKENS = 256
-GENERATION_CONTEXT_RESERVE_TOKENS = 128
+GENERATION_CONTEXT_RESERVE_TOKENS = 1536
 GENERATION_COMPLETION_LIMIT_TOKENS = 400
 PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS = 1024
 
-SOURCE_QUESTION = (
-    "Between merge_sorted_lists_01.py and merge_sorted_lists_03.py, which file "
-    "grows the output list with append() and copies any leftover suffix with "
-    "extend()? Explain briefly.")
+SOURCE_QUESTION = None
 PRESSURE_QUESTION = (
     "I have finished reviewing these Bash watcher examples. Please acknowledge briefly.")
 
@@ -42,9 +41,9 @@ def response_budget(prompt_tokens: int, context_tokens: int = SERVER_CONTEXT_TOK
         raise ValueError("prompt_tokens must be a non-negative integer")
     if not isinstance(context_tokens, int) or isinstance(context_tokens, bool) or context_tokens <= 0:
         raise ValueError("context_tokens must be a positive integer")
-    available = context_tokens - prompt_tokens - GENERATION_CONTEXT_RESERVE_TOKENS
-    if available <= GENERATION_COMPLETION_LIMIT_TOKENS:
-        raise ValueError("rendered prompt leaves less than 400 tokens for completion and context reserve")
+    available = context_tokens - prompt_tokens
+    if available < GENERATION_COMPLETION_LIMIT_TOKENS:
+        raise ValueError("rendered prompt leaves less than 400 tokens for completion")
     return min(available, GENERATION_COMPLETION_LIMIT_TOKENS)
 
 SUPPORTED_CATEGORIES = {"python_sorted_merge", "mmap_vs_read", "bash_directory_watch"}
@@ -192,17 +191,21 @@ def build_promotion_steps(
         target_id: str = DEFAULT_TARGET_FIXTURE_ID,
         python_fixture_ids: Sequence[str] = DEFAULT_SOURCE_FIXTURE_IDS,
         bash_fixture_ids: Sequence[str] = DEFAULT_PRESSURE_FIXTURE_IDS,
-        source_question: str = SOURCE_QUESTION,
+        source_question: str | None = SOURCE_QUESTION,
         pressure_question: str = PRESSURE_QUESTION,
         recall_question: str | None = None) -> tuple[PromotionStep, ...]:
     """Build a bounded source, pressure, and natural-recall sequence."""
     by_id = {item.fixture_id: item for item in catalog}
     python_ids = tuple(python_fixture_ids)
     bash_ids = tuple(bash_fixture_ids)
-    if not python_ids or target_id not in python_ids:
-        raise ValueError("the answer-bearing Python target must be in the selected source files")
+    if not python_ids:
+        raise ValueError("at least one Python context fixture is required")
     if not bash_ids or len(set(python_ids + bash_ids)) != len(python_ids + bash_ids):
         raise ValueError("selected source and pressure fixture IDs must be nonempty and unique")
+    source_question = source_question or (
+        f"Please read {by_id[python_ids[0]].filename} and "
+        f"{by_id[python_ids[1]].filename} for later reference, "
+        "then acknowledge briefly without summarizing.")
     if any(not isinstance(question, str) or not question.strip() for question in
            (source_question, pressure_question)) or \
             (recall_question is not None and
@@ -213,18 +216,16 @@ def build_promotion_steps(
         bash_fixtures = tuple(by_id[key] for key in bash_ids)
     except KeyError as error:
         raise ValueError(f"missing required campaign fixture {error.args[0]}") from error
+    target = by_id.get(target_id)
+    if target is None or target not in python_fixtures + bash_fixtures:
+        raise ValueError("the answer-bearing target must be one of the selected source fixtures")
     if any(item.category != "python_sorted_merge" for item in python_fixtures) or \
             any(item.category != "bash_directory_watch" for item in bash_fixtures):
         raise ValueError("selected source/pressure fixture IDs have the wrong content family")
     recall_question = recall_question or (
-        f"In {target_id} ({by_id[target_id].filename}), the `write` cursor "
-        "assigns `out[write]`. What does the comment say about how many times "
-        "each preallocated output position is written, and how do the cursor increments "
-        "guarantee that?")
+        f"In {target_id} ({target.filename}), {target.retrieval_question}")
     source_id = python_ids[0]
-    source_answer = (
-        "merge_sorted_lists_01.py grows the result with append() and extends "
-        "the unconsumed input suffixes.")
+    source_answer = "I have reviewed the Python merge examples."
     first = "\n\n".join(_file_context(item) for item in python_fixtures) + "\n\n" + source_question
     second = "\n\n".join(_file_context(item) for item in bash_fixtures) + "\n\n" + pressure_question
     return (
@@ -236,6 +237,113 @@ def build_promotion_steps(
         PromotionStep(2, "natural_recall", target_id, None, (), recall_question,
                       recall_question, by_id[target_id].expected_answer, True),
     )
+
+
+def build_frozen_schedule(catalog: Sequence[PromotionFixture],
+                          fixture_root: pathlib.Path = FIXTURE_ROOT) -> dict[str, Any]:
+    """Build one source-bound A/B/A schedule shared by all profiles."""
+    by_id = {item.fixture_id: item for item in catalog}
+    bash_targets = sorted(item.fixture_id for item in catalog
+                          if item.category == "bash_directory_watch")
+    if not bash_targets:
+        raise ValueError("fixture catalog has no Bash watcher target")
+    bash_target = bash_targets[0]
+    manifest_path = fixture_root / MANIFEST_NAME
+    manifest_raw = manifest_path.read_bytes()
+    sequences = []
+    for target_id in (*DEFAULT_PYTHON_TARGET_IDS, bash_target):
+        target = by_id.get(target_id)
+        if target is None:
+            raise ValueError(f"frozen schedule target is missing: {target_id}")
+        reverse = target.category == "bash_directory_watch"
+        if reverse:
+            retained_ids = (target_id, "BASH_WATCH_02")
+            pressure_ids = ("PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_03")
+            source_content = "\n\n".join(_file_context(by_id[key]) for key in retained_ids)
+            pressure_content = "\n\n".join(_file_context(by_id[key]) for key in pressure_ids)
+            q_a = "Read these Bash watcher examples for later reference, then acknowledge briefly."
+            q_b = "I have finished reviewing these Python merge examples. Please acknowledge briefly."
+            recall = f"In {target_id} ({target.filename}), {target.retrieval_question}"
+            steps = (
+                PromotionStep(0, "source_file", target_id, retained_ids[0], retained_ids,
+                              q_a, source_content + "\n\n" + q_a,
+                              "I have reviewed the Bash examples.", False),
+                PromotionStep(1, "python_pressure", pressure_ids[0], pressure_ids[0],
+                              pressure_ids, q_b, pressure_content + "\n\n" + q_b,
+                              "I have reviewed the Python examples.", True),
+                PromotionStep(2, "natural_recall", target_id, None, (), recall, recall,
+                              target.expected_answer, True),
+            )
+        else:
+            retained_ids = ("PY_MERGE_01", "PY_MERGE_03")
+            pressure_ids = DEFAULT_PRESSURE_FIXTURE_IDS
+            steps = build_promotion_steps(catalog, target_id,
+                                          python_fixture_ids=retained_ids,
+                                          bash_fixture_ids=pressure_ids)
+        sequences.append({"target_fixture_id": target_id,
+                          "target_family": target.category,
+                          "retained_source_fixture_ids": list(retained_ids),
+                          "pressure_fixture_ids": list(pressure_ids),
+                          "named_source_spans": [
+                              {"fixture_id": item.fixture_id,
+                               "path": item.relative_path,
+                               "sha256": item.sha256,
+                               "source_byte_span": [0, len(item.body.encode("utf-8"))],
+                               "source_token_span_no_bos": [0, item.token_count_no_bos]}
+                              for item in (by_id[key] for key in
+                                  tuple(retained_ids) + tuple(pressure_ids))],
+                          "answer_span": {
+                              "fixture_id": target.fixture_id,
+                              "path": target.relative_path,
+                              "source_sha256": target.sha256,
+                              "byte_span": [
+                                  target.body.encode("utf-8").rfind(
+                                      target.expected_answer.encode("utf-8")),
+                                  target.body.encode("utf-8").rfind(
+                                      target.expected_answer.encode("utf-8")) +
+                                  len(target.expected_answer.encode("utf-8"))],
+                              "source_token_span_no_bos": [0, target.token_count_no_bos]},
+                          "turns": [_step_json(step) for step in steps]})
+    fixture_ids = sorted({fixture_id for sequence in sequences
+                          for turn in sequence["turns"]
+                          for fixture_id in turn["appended_fixture_ids_local_only"]})
+    sources = [{"fixture_id": fixture_id,
+                "path": by_id[fixture_id].relative_path,
+                "sha256": by_id[fixture_id].sha256,
+                "token_count_no_bos": by_id[fixture_id].token_count_no_bos}
+               for fixture_id in fixture_ids]
+    return {"schema": "pager-promotion-frozen-schedule-v1",
+            "seed_base": 947300,
+            "request_options": {"model_alias": DEFAULT_MODEL_ALIAS,
+                                "temperature": 0, "top_p": 1, "max_tokens": 400,
+                                "reasoning_effort": "none", "enable_thinking": False,
+                                "stop": None},
+            "geometry": {"context_tokens": SERVER_CONTEXT_TOKENS,
+                         "hot_tokens": GPU_HOT_TOKENS, "page_tokens": PAGE_SIZE_TOKENS,
+                         "batch": 1024, "ubatch": 256},
+            "manifest": {"path": str(manifest_path.resolve()),
+                         "sha256": _sha256(manifest_raw)},
+            "sources": sources,
+            "reserve_tokens": GENERATION_CONTEXT_RESERVE_TOKENS,
+            "sequences": sequences}
+
+
+def frozen_schedule_hash(schedule: Mapping[str, Any]) -> str:
+    content = json.dumps(schedule, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    return _sha256(content.encode("utf-8"))
+
+
+def write_or_validate_schedule(path: pathlib.Path, schedule: Mapping[str, Any]) -> str:
+    """Create once; subsequent profiles must reuse byte-identical schedule."""
+    path = path.resolve()
+    content = json.dumps(schedule, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    if path.exists():
+        if path.read_text(encoding="utf-8") != content:
+            raise ValueError(f"existing frozen schedule differs from current sources: {path}")
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    return _sha256(content.encode("utf-8"))
 
 
 def pages_overlapping_token_range(pages: Sequence[Mapping[str, Any]],
@@ -340,8 +448,8 @@ def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str = DEFAUL
     selected = {item.fixture_id: item for item in catalog}
     fixture_tokens = sum(selected[fixture_id].token_count_no_bos
                          for fixture_id in tuple(python_fixture_ids) + tuple(bash_fixture_ids))
-    prior_reply_reserve = (len(steps) - 1) * GENERATION_COMPLETION_LIMIT_TOKENS
-    required_tokens = fixture_tokens + prior_reply_reserve + \
+    prior_reply_reserve = 0
+    required_tokens = fixture_tokens + \
         GENERATION_COMPLETION_LIMIT_TOKENS + GENERATION_CONTEXT_RESERVE_TOKENS + \
         PLAN_FORMAT_AND_QUERY_RESERVE_TOKENS
     return {
