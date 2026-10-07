@@ -6,17 +6,17 @@ Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
-Continue the first unfinished task in WORK_STATE:105-01a.105-01 is deferred,
-not passed. Order105-01a/b/c/d ->105-02/03/04/05. Read the compact
-[query/ranking repair](engineering-notes/ranking-query-repair.md), current
-packet/cluster and immediate handoff only. Main query probes/input lifetime/
-diagnostic isolation have source fixes; supplied patches repair the separate
-ranking experiment. No further unchanged256K semantic retry.
+Continue the first unfinished task in WORK_STATE, never a historical phase ID.
+105-01g is the current integration owner; do not restart it for this amendment.
+Order105-01g ->105-02 generation contract ->105-02a small matched recall/MTP
+->105-03 scale ->105-04/05 summary/review.105-01a/b/c/d are historical;
+105-01d explicitly declined adoption. Read current packet/cluster, immediate
+handoff and the compact task-specific engineering note only.105-02 onward
+uses [selected generation](engineering-notes/selected-generation-contract.md).
+No unchanged256K semantic retry. Correct response-local MTP accounting and
+coherent same-map generation precede new ranking tuning or scale work.
 
-105-01a lands supplied owner fixes;105-01b finishes diverse K-only shortlist
-and exact GPU rerank;105-01c makes a small matched recall/MTP decision;
-105-01d integrates ONLY proven product changes. Then occupied MTP, minimal
-scale findings and compact review. Preserve B1024/U256, Turbo4 target/draft,
+Preserve B1024/U256, Turbo4 target/draft,
 frozen GPU history and inclusive host storage. Never run two Qwen models or
 change the production kernel for diagnostic counters. Preserve historical
 usage/raw artifacts without treating old failed oracles as release evidence.

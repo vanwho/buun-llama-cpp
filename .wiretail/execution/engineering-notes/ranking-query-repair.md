@@ -122,8 +122,10 @@ CUDA attention oracle with varying nonzero encoded K and V, Q1/Q3, noncontiguous
 physical slots, partial tails and a rolled generation page; compare direct vs
 packed on identical bytes and native positions. Keep fixture work small, GPU,
 outside production loops. If it passes, do NOT force a route or undo transport
-repairs: approximate target history differs from full-L draft history, and
-misses/coherence/MTP then belong to the bounded history-selection/carry owner.
+repairs. Coverage is limited to its declared shapes/dispatch. See the current
+[selected-generation contract](selected-generation-contract.md):105-01f's2:1
+materialized control is not Qwen6:1 production-seam parity. Approximate target
+history also differs legitimately from full-L draft history.
 If it fails, fix the first K/V addressing/mask/WHT/output-layout producer, not
 the acceptance counter.105-02 owns MTP generation/carry work after integration.
 
@@ -143,7 +145,8 @@ identity, exact order, publication, replay and consumer in that order.
 Do not change score formulas while reading another page's keys/mask.
 
 Order:105-01e supplied capture proof ->105-01f small numerical/recall outcome
-->105-01g selective main integration ->105-02 canonical MTP ->105-03 curve
+->105-01g selective main integration ->105-02 generation repair/proof
+->105-02a small paired recall/canonical MTP ->105-03 curve
 ->105-04/05 review. Main already contains generic position/padding/residency
 fixes. Port ranker by symbol preserving newer main prefill batching/fences,
 graph reuse, sealing and diagnostic isolation. No whole experiment overwrite.
