@@ -2509,3 +2509,9 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-10-08T00:44:00+00:00 — 105 benchmark matrix — baseline/fill boundary clarified
 
 - Summary: The three 77,824-token baseline configurations run from an empty slot with no repository ingestion. Repo A/B/A context filling starts at 105-09 (8K/4K hot) and is used for every subsequent context-size test and its GPU/CPU controls.
+
+## 2026-10-08T01:10:58+00:00 — 105-06 — done
+
+- Branch: `codex/task-105-06`
+- Commit at update: `7a7e4befe`
+- Summary: Frozen all 15 matrix commands; completed and validated the 48-row original GPU-only baseline, and restored the healthy pre-run service.

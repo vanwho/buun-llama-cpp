@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "105",
-  "current_task": "105-06",
-  "last_updated_utc": "2026-10-07T22:47:45+00:00",
+  "current_task": "105-07",
+  "last_updated_utc": "2026-10-08T01:11:10+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -36774,7 +36774,7 @@
       "cluster": "forward105-matrix",
       "title": "Freeze the matrix and measure the original GPU-only baseline",
       "packet": ".wiretail/execution/tasks/105-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -36789,7 +36789,7 @@
       "depends_on": [
         "105-05"
       ],
-      "commit": null,
+      "commit": "7a7e4befe175d050348375b4e6a862b47c416872",
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md"
@@ -36801,7 +36801,47 @@
         "105-06",
         "--receipt",
         ".wiretail/execution/evidence/V10_105-06.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/105-06-attempt-1-20261008T005946076961538-20261008T005946079387178-zKbN2K.jsonl:178",
+            "total_tokens": 8359988,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 8298178,
+            "cached_input_tokens": 8091904,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 206274,
+            "output_tokens": 61810,
+            "thinking_tokens": 30291
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 8359988,
+          "input_tokens": 8298178,
+          "cached_input_tokens": 8091904,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 206274,
+          "output_tokens": 61810,
+          "thinking_tokens": 30291,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "105-07",
@@ -36838,20 +36878,498 @@
         ".wiretail/execution/evidence/V10_105-07.json"
       ]
     },
-    {"id":"105-08","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at original 77,824 context","packet":".wiretail/execution/tasks/105-08.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_original_context_baseline"],"depends_on":["105-07"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-08","--receipt",".wiretail/execution/evidence/V10_105-08.json"]},
-    {"id":"105-09","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 8K total / 4K hot","packet":".wiretail/execution/tasks/105-09.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_8k_4k_speed_and_prefill"],"depends_on":["105-08"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-09","--receipt",".wiretail/execution/evidence/V10_105-09.json"]},
-    {"id":"105-10","phase":"105","cluster":"forward105-matrix","title":"Measure GPU-only control at 8K","packet":".wiretail/execution/tasks/105-10.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["gpu_only_8k_control"],"depends_on":["105-09"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-10","--receipt",".wiretail/execution/evidence/V10_105-10.json"]},
-    {"id":"105-11","phase":"105","cluster":"forward105-matrix","title":"Measure CPU-F16-KV control at 8K","packet":".wiretail/execution/tasks/105-11.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["cpu_kv_8k_control"],"depends_on":["105-10"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-11","--receipt",".wiretail/execution/evidence/V10_105-11.json"]},
-    {"id":"105-12","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 32K occupied / 16K hot","packet":".wiretail/execution/tasks/105-12.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_32k_16k_hot_speed_curve"],"depends_on":["105-11"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-12","--receipt",".wiretail/execution/evidence/V10_105-12.json"]},
-    {"id":"105-13","phase":"105","cluster":"forward105-matrix","title":"Measure GPU-only control at 32K","packet":".wiretail/execution/tasks/105-13.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["gpu_only_32k_control"],"depends_on":["105-12"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-13","--receipt",".wiretail/execution/evidence/V10_105-13.json"]},
-    {"id":"105-14","phase":"105","cluster":"forward105-matrix","title":"Measure CPU-F16-KV control at 32K","packet":".wiretail/execution/tasks/105-14.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["cpu_kv_32k_control"],"depends_on":["105-13"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-14","--receipt",".wiretail/execution/evidence/V10_105-14.json"]},
-    {"id":"105-15","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 64K occupied / 32K hot","packet":".wiretail/execution/tasks/105-15.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_64k_32k_hot_speed_curve"],"depends_on":["105-14"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-15","--receipt",".wiretail/execution/evidence/V10_105-15.json"]},
-    {"id":"105-16","phase":"105","cluster":"forward105-matrix","title":"Measure GPU-only control at 64K","packet":".wiretail/execution/tasks/105-16.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["gpu_only_64k_control"],"depends_on":["105-15"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-16","--receipt",".wiretail/execution/evidence/V10_105-16.json"]},
-    {"id":"105-17","phase":"105","cluster":"forward105-matrix","title":"Measure CPU-F16-KV control at 64K","packet":".wiretail/execution/tasks/105-17.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["cpu_kv_64k_control"],"depends_on":["105-16"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-17","--receipt",".wiretail/execution/evidence/V10_105-17.json"]},
-    {"id":"105-18","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 128K occupied / 64K hot","packet":".wiretail/execution/tasks/105-18.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_128k_64k_hot_speed_curve"],"depends_on":["105-17"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-18","--receipt",".wiretail/execution/evidence/V10_105-18.json"]},
-    {"id":"105-19","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 192K occupied / 64K hot","packet":".wiretail/execution/tasks/105-19.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_192k_64k_hot_speed_curve"],"depends_on":["105-18"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-19","--receipt",".wiretail/execution/evidence/V10_105-19.json"]},
-    {"id":"105-20","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 250K occupied / 64K hot","packet":".wiretail/execution/tasks/105-20.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_256k_64k_hot_speed_curve"],"depends_on":["105-19"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-20","--receipt",".wiretail/execution/evidence/V10_105-20.json"]},
-    {"id":"105-21","phase":"105","cluster":"forward105-matrix","title":"Aggregate the fixed matrix and report goal findings","packet":".wiretail/execution/tasks/105-21.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["complete_context_speed_matrix_and_prefill_curve"],"depends_on":["105-20"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md",".wiretail/execution/handoffs/105-03b.md",".wiretail/execution/handoffs/105-05.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-21","--receipt",".wiretail/execution/evidence/V10_105-21.json"]}
+    {
+      "id": "105-08",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at original 77,824 context",
+      "packet": ".wiretail/execution/tasks/105-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_original_context_baseline"
+      ],
+      "depends_on": [
+        "105-07"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-08",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-08.json"
+      ]
+    },
+    {
+      "id": "105-09",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at 8K total / 4K hot",
+      "packet": ".wiretail/execution/tasks/105-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_8k_4k_speed_and_prefill"
+      ],
+      "depends_on": [
+        "105-08"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-09",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-09.json"
+      ]
+    },
+    {
+      "id": "105-10",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure GPU-only control at 8K",
+      "packet": ".wiretail/execution/tasks/105-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "gpu_only_8k_control"
+      ],
+      "depends_on": [
+        "105-09"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-10",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-10.json"
+      ]
+    },
+    {
+      "id": "105-11",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure CPU-F16-KV control at 8K",
+      "packet": ".wiretail/execution/tasks/105-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "cpu_kv_8k_control"
+      ],
+      "depends_on": [
+        "105-10"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-11",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-11.json"
+      ]
+    },
+    {
+      "id": "105-12",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at 32K occupied / 16K hot",
+      "packet": ".wiretail/execution/tasks/105-12.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_32k_16k_hot_speed_curve"
+      ],
+      "depends_on": [
+        "105-11"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-12",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-12.json"
+      ]
+    },
+    {
+      "id": "105-13",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure GPU-only control at 32K",
+      "packet": ".wiretail/execution/tasks/105-13.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "gpu_only_32k_control"
+      ],
+      "depends_on": [
+        "105-12"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-13",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-13.json"
+      ]
+    },
+    {
+      "id": "105-14",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure CPU-F16-KV control at 32K",
+      "packet": ".wiretail/execution/tasks/105-14.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "cpu_kv_32k_control"
+      ],
+      "depends_on": [
+        "105-13"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-14",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-14.json"
+      ]
+    },
+    {
+      "id": "105-15",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at 64K occupied / 32K hot",
+      "packet": ".wiretail/execution/tasks/105-15.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_64k_32k_hot_speed_curve"
+      ],
+      "depends_on": [
+        "105-14"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-15",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-15.json"
+      ]
+    },
+    {
+      "id": "105-16",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure GPU-only control at 64K",
+      "packet": ".wiretail/execution/tasks/105-16.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "gpu_only_64k_control"
+      ],
+      "depends_on": [
+        "105-15"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-16",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-16.json"
+      ]
+    },
+    {
+      "id": "105-17",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure CPU-F16-KV control at 64K",
+      "packet": ".wiretail/execution/tasks/105-17.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "cpu_kv_64k_control"
+      ],
+      "depends_on": [
+        "105-16"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-17",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-17.json"
+      ]
+    },
+    {
+      "id": "105-18",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at 128K occupied / 64K hot",
+      "packet": ".wiretail/execution/tasks/105-18.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_128k_64k_hot_speed_curve"
+      ],
+      "depends_on": [
+        "105-17"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-18",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-18.json"
+      ]
+    },
+    {
+      "id": "105-19",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at 192K occupied / 64K hot",
+      "packet": ".wiretail/execution/tasks/105-19.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_192k_64k_hot_speed_curve"
+      ],
+      "depends_on": [
+        "105-18"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-19",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-19.json"
+      ]
+    },
+    {
+      "id": "105-20",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Measure ACO at 250K occupied / 64K hot",
+      "packet": ".wiretail/execution/tasks/105-20.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "aco_256k_64k_hot_speed_curve"
+      ],
+      "depends_on": [
+        "105-19"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-20",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-20.json"
+      ]
+    },
+    {
+      "id": "105-21",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Aggregate the fixed matrix and report goal findings",
+      "packet": ".wiretail/execution/tasks/105-21.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "complete_context_speed_matrix_and_prefill_curve"
+      ],
+      "depends_on": [
+        "105-20"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-03b.md",
+        ".wiretail/execution/handoffs/105-05.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-21",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-21.json"
+      ]
+    }
   ],
   "last_checkpoint_commit": "31137bcce02494737ff4c1416e079eceee99a970",
   "phase_token_usage": {
@@ -38743,16 +39261,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 12,
-        "total_tokens": 182380049,
-        "input_tokens": 181411987,
-        "cached_input_tokens": 177113344,
+        "usage_events": 13,
+        "total_tokens": 190740037,
+        "input_tokens": 189710165,
+        "cached_input_tokens": 185205248,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 4298643,
-        "output_tokens": 968062,
-        "thinking_tokens": 493585,
+        "input_tokens_minus_cached_tokens": 4504917,
+        "output_tokens": 1029872,
+        "thinking_tokens": 523876,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 12,
+        "total_tokens_derived_events": 13,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -38767,17 +39285,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 557,
-      "total_tokens": 13077730743,
-      "input_tokens": 13030651779,
-      "cached_input_tokens": 12732556416,
+      "usage_events": 558,
+      "total_tokens": 13086090731,
+      "input_tokens": 13038949957,
+      "cached_input_tokens": 12740648320,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 203,
-      "input_tokens_minus_cached_tokens": 298095363,
-      "output_tokens": 47078964,
-      "thinking_tokens": 21703847,
+      "cache_write_input_tokens_known_events": 204,
+      "input_tokens_minus_cached_tokens": 298301637,
+      "output_tokens": 47140774,
+      "thinking_tokens": 21734138,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 557,
+      "total_tokens_derived_events": 558,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

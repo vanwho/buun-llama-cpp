@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "task": "105-06",
+  "source_commit": "7a7e4befe175d050348375b4e6a862b47c416872",
+  "proof": "frozen_matrix_and_original_gpu_baseline",
+  "checks": {
+    "frozen_matrix_and_original_gpu_baseline": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/run_matrix105.py",
+        "--endpoint",
+        "http://127.0.0.1:8080",
+        "--key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--out",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/canonical-run.log",
+          "sha256": "7e8efdd8ea6c14607feb0dbba952518a78ca5ee074b3cf3e71bdec974c620766"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/records.json",
+          "sha256": "8c0ed7dfb4187ab996329732f9ce05a855ddad7621a5515fd2223eca13fb8c5b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/artifact-manifest.json",
+          "sha256": "0dc04bd2c7bbae036230cc634a4a4c971f290f89f3d87830994cfb8edd82a9dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/helper-self-test.log",
+          "sha256": "f597053d03b7cc4e794838bc31eb5ae55eb52af33674c7ba71c015191137c9f3"
+        }
+      ]
+    }
+  },
+  "summary": "All 15 commands frozen; 48/48 canonical requests completed with HTTP 200; original managed service restored healthy.",
+  "deferred_verification": []
+}

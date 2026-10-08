@@ -1,0 +1,445 @@
+{
+  "schema": "forward105-config-report-v1",
+  "task": "105-06",
+  "configuration": "original-fast-profile-gpu-only",
+  "revision": "hotpath-v10-20260914",
+  "status": "complete",
+  "result_classification": "completed measurement; no speed or MTP threshold",
+  "settings": {
+    "context": 77824,
+    "hot_pages": "not applicable",
+    "target_kv": "turbo4",
+    "pager": "off",
+    "batch": 1024,
+    "ubatch": 256,
+    "parallel": 1,
+    "gpu_layers": 999,
+    "flash_attention": "on",
+    "mtp": "native draft-mtp; draft K/V turbo4 on GPU; n_max=2",
+    "context_shift": "off",
+    "empty_slot": true,
+    "repository_context_turns": 0,
+    "H": "not applicable"
+  },
+  "candidate": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "sha256": "6b5b225b4791c1c5a9402304207c74e1a119e5c7f51a5300a891909dbdae34c7",
+    "version": "",
+    "build_receipt_sha256": "10612b68cd18a9f24543549193a4f6d0b6a0950e090c7f8a0e1188bcf3c05759"
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "bytes": 14252845984
+  },
+  "frozen_matrix_sha256": "3a978d416a65b2092346c6a66872642c4deb02949709a492d231954fd21cda53",
+  "helper_sha256": "fe59102934baff94ba8d81adb1c50bbefdc4cf60e8a2bc7e1ab25053fd09544e",
+  "protocol": {
+    "prompts": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ],
+    "modes": [
+      "off",
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "rows": 48,
+    "warmups": 12,
+    "measured": 36,
+    "http_statuses": {
+      "200": 48
+    },
+    "empty_context": true,
+    "repository_context_turns": 0,
+    "occupied_tokens_at_start": 0,
+    "native_eos": true,
+    "max_tokens_is_ceiling": true,
+    "fresh_prefill_tokens_field": "response-local timings.prompt_n; cached tokens excluded"
+  },
+  "medians": {
+    "decode_tok_s": {
+      "off": [
+        {
+          "median": 106.07519139942349,
+          "values": [
+            104.88473983560102,
+            108.6853105378916,
+            106.07519139942349
+          ],
+          "n": 3
+        },
+        {
+          "median": 80.94335614870481,
+          "values": [
+            80.94335614870481,
+            80.87482389971893,
+            81.9774095043274
+          ],
+          "n": 3
+        },
+        {
+          "median": 100.11177035627117,
+          "values": [
+            102.4271128664842,
+            100.11177035627117,
+            94.95855533852252
+          ],
+          "n": 3
+        }
+      ],
+      "low": [
+        {
+          "median": 104.01373397343384,
+          "values": [
+            102.71105838610114,
+            104.01373397343384,
+            104.14822375204392
+          ],
+          "n": 3
+        },
+        {
+          "median": 78.92941826095431,
+          "values": [
+            76.17771736096745,
+            78.92941826095431,
+            80.58321069392144
+          ],
+          "n": 3
+        },
+        {
+          "median": 92.24230670336374,
+          "values": [
+            93.6727346302948,
+            89.0331423646624,
+            92.24230670336374
+          ],
+          "n": 3
+        }
+      ],
+      "medium": [
+        {
+          "median": 101.08785697281292,
+          "values": [
+            101.08785697281292,
+            101.90399980842048,
+            100.51006344446479
+          ],
+          "n": 3
+        },
+        {
+          "median": 79.46616221546893,
+          "values": [
+            80.7638320176905,
+            79.34859563896151,
+            79.46616221546893
+          ],
+          "n": 3
+        },
+        {
+          "median": 92.81954928219162,
+          "values": [
+            92.81954928219162,
+            94.07483747395891,
+            88.21183366159163
+          ],
+          "n": 3
+        }
+      ],
+      "xhigh": [
+        {
+          "median": 99.44976747295894,
+          "values": [
+            99.44976747295894,
+            100.24983832256467,
+            98.658401718294
+          ],
+          "n": 3
+        },
+        {
+          "median": 79.59752822586694,
+          "values": [
+            81.57974646827681,
+            78.62073862915865,
+            79.59752822586694
+          ],
+          "n": 3
+        },
+        {
+          "median": 77.89552768669952,
+          "values": [
+            85.21063002609576,
+            72.32162729447143,
+            77.89552768669952
+          ],
+          "n": 3
+        }
+      ]
+    },
+    "mtp_acceptance_percent": {
+      "off": [
+        {
+          "median": 93.57142857142857,
+          "values": [
+            91.94915254237289,
+            96.72897196261682,
+            93.57142857142857
+          ],
+          "n": 3
+        },
+        {
+          "median": 59.375,
+          "values": [
+            58.333333333333336,
+            59.375,
+            60.8974358974359
+          ],
+          "n": 3
+        },
+        {
+          "median": 84.61538461538461,
+          "values": [
+            88.27160493827161,
+            84.61538461538461,
+            79.47882736156352
+          ],
+          "n": 3
+        }
+      ],
+      "low": [
+        {
+          "median": 90.81272084805654,
+          "values": [
+            89.82456140350877,
+            90.81272084805654,
+            90.81272084805654
+          ],
+          "n": 3
+        },
+        {
+          "median": 57.9646017699115,
+          "values": [
+            53.57142857142857,
+            57.9646017699115,
+            60.0
+          ],
+          "n": 3
+        },
+        {
+          "median": 74.92163009404389,
+          "values": [
+            77.07006369426752,
+            70.9090909090909,
+            74.92163009404389
+          ],
+          "n": 3
+        }
+      ],
+      "medium": [
+        {
+          "median": 86.94158075601375,
+          "values": [
+            86.94158075601375,
+            87.24137931034483,
+            86.00682593856655
+          ],
+          "n": 3
+        },
+        {
+          "median": 57.99457994579946,
+          "values": [
+            60.11080332409972,
+            57.567567567567565,
+            57.99457994579946
+          ],
+          "n": 3
+        },
+        {
+          "median": 75.9493670886076,
+          "values": [
+            75.9493670886076,
+            77.07006369426752,
+            69.66966966966967
+          ],
+          "n": 3
+        }
+      ],
+      "xhigh": [
+        {
+          "median": 85.1145038167939,
+          "values": [
+            85.1145038167939,
+            86.25954198473282,
+            83.6842105263158
+          ],
+          "n": 3
+        },
+        {
+          "median": 58.52272727272727,
+          "values": [
+            60.0,
+            56.89655172413793,
+            58.52272727272727
+          ],
+          "n": 3
+        },
+        {
+          "median": 55.851063829787236,
+          "values": [
+            66.1807580174927,
+            48.39506172839506,
+            55.851063829787236
+          ],
+          "n": 3
+        }
+      ]
+    },
+    "prefill_tok_s": {
+      "off": [
+        {
+          "median": 95.03896597605018,
+          "values": [
+            81.10628979277344,
+            106.34338278300633,
+            95.03896597605018
+          ],
+          "n": 3
+        },
+        {
+          "median": 111.83493164089802,
+          "values": [
+            93.31404842999113,
+            111.83493164089802,
+            112.2208506340478
+          ],
+          "n": 3
+        },
+        {
+          "median": 106.47359454855197,
+          "values": [
+            112.9305477131564,
+            106.47359454855197,
+            95.57031585989392
+          ],
+          "n": 3
+        }
+      ],
+      "low": [
+        {
+          "median": 95.25850777547569,
+          "values": [
+            88.95214374666429,
+            105.53254359813208,
+            95.25850777547569
+          ],
+          "n": 3
+        },
+        {
+          "median": 110.824813675782,
+          "values": [
+            110.83709717642495,
+            110.70212824841556,
+            110.824813675782
+          ],
+          "n": 3
+        },
+        {
+          "median": 106.56152596105177,
+          "values": [
+            109.27767457108513,
+            106.56152596105177,
+            92.3744861669207
+          ],
+          "n": 3
+        }
+      ],
+      "medium": [
+        {
+          "median": 93.65488176071177,
+          "values": [
+            89.17424647761726,
+            108.20168794633196,
+            93.65488176071177
+          ],
+          "n": 3
+        },
+        {
+          "median": 93.24226671950395,
+          "values": [
+            92.24666758913334,
+            106.21913006532476,
+            93.24226671950395
+          ],
+          "n": 3
+        },
+        {
+          "median": 95.8611929925468,
+          "values": [
+            94.88791365199857,
+            105.82850490779693,
+            95.8611929925468
+          ],
+          "n": 3
+        }
+      ],
+      "xhigh": [
+        {
+          "median": 95.27665960031442,
+          "values": [
+            94.32182607055272,
+            105.74736953418284,
+            95.27665960031442
+          ],
+          "n": 3
+        },
+        {
+          "median": 110.63476697552206,
+          "values": [
+            110.31743842907967,
+            111.42992450622616,
+            110.63476697552206
+          ],
+          "n": 3
+        },
+        {
+          "median": 106.7093504068294,
+          "values": [
+            110.78184285595592,
+            106.7093504068294,
+            95.5223880597015
+          ],
+          "n": 3
+        }
+      ]
+    }
+  },
+  "records_path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/records.json",
+  "records_sha256": "8c0ed7dfb4187ab996329732f9ce05a855ddad7621a5515fd2223eca13fb8c5b",
+  "raw_manifest_path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/artifact-manifest.json",
+  "raw_manifest_sha256": "0dc04bd2c7bbae036230cc634a4a4c971f290f89f3d87830994cfb8edd82a9dc",
+  "raw_file_count": 164,
+  "restored_service": {
+    "pre_run_override_restored": true,
+    "effective_execstart": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 16384 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 16 --kv-pin-recent 0 --device CUDA0 --ctx-checkpoints 2 --checkpoint-min-step 1024 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "health": "HTTP 200",
+    "cuda_owners_path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/restored-cuda-owners.csv"
+  },
+  "provenance": {
+    "runtime_preflight": {
+      "effective_execstart_exact_match": true,
+      "effective_argv_sha256": "3965b2d3bdf85baa79965187847d32449fa75f759b575c198f5aa07fb975500e",
+      "main_pid": 3382763,
+      "resolved_executable": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "health": {
+        "status": "ok"
+      },
+      "slot_snapshot_path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/candidate-slots.json",
+      "slot_snapshot_sha256": "20ba6a9cb77744f1cfef29101a2eaa28d89a2954023987b66fafec593259ef3f",
+      "slots_empty": true
+    },
+    "receipt_build_file_count": 236,
+    "receipt_build_hash_mismatches": []
+  }
+}
