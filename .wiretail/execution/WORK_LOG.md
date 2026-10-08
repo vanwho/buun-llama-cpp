@@ -2551,3 +2551,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-12`
 - Commit at update: `e671de38f`
 - Summary: Measured 32K occupied / 16K hot ACO with an eight-point prefill curve and 48 isolated prompts; restored managed service and passed receipt validation.
+
+## 2026-10-08T23:56:51+00:00 — 105-13 — done
+
+- Branch: `codex/task-105-13`
+- Commit at update: `1e26251fa`
+- Summary: Measured the frozen GPU-only 32K Turbo4 control with 48 successful rows, verified the C=30K prefill curve and restored service
