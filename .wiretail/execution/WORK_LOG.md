@@ -2545,3 +2545,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-11`
 - Commit at update: `9373b6e6b`
 - Summary: Verified frozen CPU-F16 8K target-KV control with GPU Turbo4 MTP: 48/48 isolated requests, fresh prefill curve, median tables, and exact service restoration.
+
+## 2026-10-08T03:01:53+00:00 — 105-12 — done
+
+- Branch: `codex/task-105-12`
+- Commit at update: `e671de38f`
+- Summary: Measured 32K occupied / 16K hot ACO with an eight-point prefill curve and 48 isolated prompts; restored managed service and passed receipt validation.
