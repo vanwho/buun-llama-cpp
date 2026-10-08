@@ -37089,7 +37089,7 @@
       "depends_on": [
         "105-09"
       ],
-      "commit": "aef3e771f4a1aabfe73f6d259d0d55124b65047e",
+      "commit": "1661af8e45d2d53ee55cf5d2b4413ba5b04f717e",
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md"
