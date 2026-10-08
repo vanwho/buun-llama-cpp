@@ -54,7 +54,13 @@ def check_plan(root: Path, state: dict) -> list[str]:
                         or positions[predecessor["id"]] >= positions[tid]):
                     errors.append(f"{tid}: not an earlier current-revision handoff: {text}")
             elif "/evidence/" in text:
-                if not path.name.startswith("V10_"):
+                # This immutable matrix manifest is a current configuration
+                # contract, not a predecessor runtime receipt. Keep the
+                # exception exact and require the selected file to exist.
+                if text == ".wiretail/execution/evidence/MATRIX105_FREEZE.md":
+                    if not path.is_file():
+                        errors.append(f"{tid}: missing frozen matrix manifest: {text}")
+                elif not path.name.startswith("V10_"):
                     errors.append(f"{tid}: historical evidence loaded: {text}")
             elif not path.is_file():
                 errors.append(f"{tid}: missing context: {text}")
