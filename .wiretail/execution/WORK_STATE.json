@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-01 deferred;a/b/c/d historical,d no-adoption;e/f capture/numerical findings;105-01g in-flight integration;105-02 generation contract repair/proof;105-02a small paired recall/canonical MTP;105-03 large trajectory/primary fact executed with occupancy proof and canonical 0/12;105-03a validate existing split-document layout;105-03b novel scale, two extra recalls, and 12-row canonical;105-04 summary;105-05 review. Use compact selected-generation-contract and task-specific fresh clusters. No historical retries/transcripts.",
+    "active_scope": "105-01 through105-05 are complete/deferred as recorded. Current ordered work is105-06 through105-20: freeze the exact benchmark helper, source, binaries and all expanded server argv before the first scored row, then run the immutable 15-configuration original-GPU/original-CPU/ACO context matrix. Task105-21 aggregates all three median tables per setup and the fresh-prefill context curve. Use only the forward105-matrix cluster and current task packet; no historical transcripts.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -56,7 +56,7 @@
     "attention_path": "GPU-native direct-paged or compressed mature FA chosen by matched shape/preparation/kernel/append timings; reference explicit oracle only",
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
-    "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
+    "speed_policy": "Matrix105 uses the exact three canonical prompts, SSE, T=0 seed42, one 40-token warmup and three 400-token-maximum measured runs for each prompt at request-level reasoning off/low/medium/xhigh; GPU Turbo4 draft-MTP n-max2 stays enabled. Report per-prompt medians for decode tok/s, response-local MTP acceptance percent and fresh executed prefill tok/s, plus context-fill fresh-prefill curve. Freeze both binaries, source, helper, prompts, sampling and all launch settings before first measured row; no code/performance-config edits or rebuilds between configurations. Low results are findings, not failed tests.",
     "scale_policy": "Finish source repairs and coherent small paired retrieval/MTP proof first. The 105-03 L262144/H51200 trajectory and primary fact are executed, with occupancy-only proof and canonical 0/12. 105-03a validates split-document layout at L16384/H8192; 105-03b owns novel large scale, two additional recalls, and fresh canonical rows. Preserve per-request uncached prefill speed, cached input, decode, draft/accept counts and measured used/free VRAM as a compact curve. Actual fresh-process allocation accounting, not hypothetical duplicate reserve, governs admission. No smaller-H substitution for large proof, concurrent Qwen, forced route, per-token host retrieval or premature full-context diagnostic campaign. Missing optional telemetry is unknown. True execution failures get an ordered owner-specific repair; completed semantic/speed misses are findings, not unchanged retry loops. Fixed batch, <=16K fresh repo chunks and >=4096-token final reserve prevent context shift/compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
@@ -36771,8 +36771,8 @@
     {
       "id": "105-06",
       "phase": "105",
-      "cluster": "forward105-matched-control",
-      "title": "Measure a bounded matched ordinary CPU-KV speed control",
+      "cluster": "forward105-matrix",
+      "title": "Freeze the matrix and measure the original GPU-only baseline",
       "packet": ".wiretail/execution/tasks/105-06.md",
       "status": "todo",
       "blocker": null,
@@ -36784,17 +36784,15 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
       "required_proofs": [
-        "matched_ordinary_cpu_kv_and_selected_speed_findings"
+        "frozen_matrix_and_original_gpu_baseline"
       ],
       "depends_on": [
         "105-05"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-matched-control.md",
-        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
-        ".wiretail/execution/handoffs/105-03b.md",
-        ".wiretail/execution/handoffs/105-05.md"
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
       ],
       "completion_check": [
         "python3",
@@ -36808,8 +36806,8 @@
     {
       "id": "105-07",
       "phase": "105",
-      "cluster": "forward105-matched-control",
-      "title": "Review the final candidate-matched goal findings",
+      "cluster": "forward105-matrix",
+      "title": "Measure original-profile CPU-KV at 77,824",
       "packet": ".wiretail/execution/tasks/105-07.md",
       "status": "todo",
       "blocker": null,
@@ -36819,23 +36817,17 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "review_policy": {
-        "type": "semantic_forward_findings_v1"
-      },
       "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
       "required_proofs": [
-        "final_matched_forward_goal_review"
+        "original_cpu_kv_baseline_77k"
       ],
       "depends_on": [
         "105-06"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward105-matched-control.md",
-        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
-        ".wiretail/execution/handoffs/105-04.md",
-        ".wiretail/execution/handoffs/105-05.md",
-        ".wiretail/execution/handoffs/105-06.md"
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md"
       ],
       "completion_check": [
         "python3",
@@ -36845,7 +36837,21 @@
         "--receipt",
         ".wiretail/execution/evidence/V10_105-07.json"
       ]
-    }
+    },
+    {"id":"105-08","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at original 77,824 context","packet":".wiretail/execution/tasks/105-08.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_original_context_baseline"],"depends_on":["105-07"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-08","--receipt",".wiretail/execution/evidence/V10_105-08.json"]},
+    {"id":"105-09","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 8K total / 4K hot","packet":".wiretail/execution/tasks/105-09.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_8k_4k_speed_and_prefill"],"depends_on":["105-08"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-09","--receipt",".wiretail/execution/evidence/V10_105-09.json"]},
+    {"id":"105-10","phase":"105","cluster":"forward105-matrix","title":"Measure GPU-only control at 8K","packet":".wiretail/execution/tasks/105-10.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["gpu_only_8k_control"],"depends_on":["105-09"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-10","--receipt",".wiretail/execution/evidence/V10_105-10.json"]},
+    {"id":"105-11","phase":"105","cluster":"forward105-matrix","title":"Measure CPU-F16-KV control at 8K","packet":".wiretail/execution/tasks/105-11.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["cpu_kv_8k_control"],"depends_on":["105-10"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-11","--receipt",".wiretail/execution/evidence/V10_105-11.json"]},
+    {"id":"105-12","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 32K occupied / 16K hot","packet":".wiretail/execution/tasks/105-12.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_32k_16k_hot_speed_curve"],"depends_on":["105-11"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-12","--receipt",".wiretail/execution/evidence/V10_105-12.json"]},
+    {"id":"105-13","phase":"105","cluster":"forward105-matrix","title":"Measure GPU-only control at 32K","packet":".wiretail/execution/tasks/105-13.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["gpu_only_32k_control"],"depends_on":["105-12"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-13","--receipt",".wiretail/execution/evidence/V10_105-13.json"]},
+    {"id":"105-14","phase":"105","cluster":"forward105-matrix","title":"Measure CPU-F16-KV control at 32K","packet":".wiretail/execution/tasks/105-14.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["cpu_kv_32k_control"],"depends_on":["105-13"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-14","--receipt",".wiretail/execution/evidence/V10_105-14.json"]},
+    {"id":"105-15","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 64K occupied / 32K hot","packet":".wiretail/execution/tasks/105-15.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_64k_32k_hot_speed_curve"],"depends_on":["105-14"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-15","--receipt",".wiretail/execution/evidence/V10_105-15.json"]},
+    {"id":"105-16","phase":"105","cluster":"forward105-matrix","title":"Measure GPU-only control at 64K","packet":".wiretail/execution/tasks/105-16.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["gpu_only_64k_control"],"depends_on":["105-15"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-16","--receipt",".wiretail/execution/evidence/V10_105-16.json"]},
+    {"id":"105-17","phase":"105","cluster":"forward105-matrix","title":"Measure CPU-F16-KV control at 64K","packet":".wiretail/execution/tasks/105-17.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["cpu_kv_64k_control"],"depends_on":["105-16"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-17","--receipt",".wiretail/execution/evidence/V10_105-17.json"]},
+    {"id":"105-18","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 128K occupied / 64K hot","packet":".wiretail/execution/tasks/105-18.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_128k_64k_hot_speed_curve"],"depends_on":["105-17"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-18","--receipt",".wiretail/execution/evidence/V10_105-18.json"]},
+    {"id":"105-19","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 192K occupied / 64K hot","packet":".wiretail/execution/tasks/105-19.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_192k_64k_hot_speed_curve"],"depends_on":["105-18"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-19","--receipt",".wiretail/execution/evidence/V10_105-19.json"]},
+    {"id":"105-20","phase":"105","cluster":"forward105-matrix","title":"Measure ACO at 250K occupied / 64K hot","packet":".wiretail/execution/tasks/105-20.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["aco_256k_64k_hot_speed_curve"],"depends_on":["105-19"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-20","--receipt",".wiretail/execution/evidence/V10_105-20.json"]},
+    {"id":"105-21","phase":"105","cluster":"forward105-matrix","title":"Aggregate the fixed matrix and report goal findings","packet":".wiretail/execution/tasks/105-21.md","status":"todo","blocker":null,"recommended_model":"gpt-6-luna","recommended_reasoning":"high","assessment_model":"gpt-6-luna","assessment_reasoning":"high","retry1_reasoning":"high","scope_revision":"hotpath-v10-20260914","plan_amendment":".wiretail/execution/engineering-notes/selected-generation-contract.md","required_proofs":["complete_context_speed_matrix_and_prefill_curve"],"depends_on":["105-20"],"commit":null,"context_files":[".wiretail/execution/clusters/forward105-matrix.md",".wiretail/execution/engineering-notes/selected-generation-contract.md",".wiretail/execution/handoffs/105-03b.md",".wiretail/execution/handoffs/105-05.md"],"completion_check":["python3",".wiretail/execution/v10/validate.py","--task","105-21","--receipt",".wiretail/execution/evidence/V10_105-21.json"]}
   ],
   "last_checkpoint_commit": "31137bcce02494737ff4c1416e079eceee99a970",
   "phase_token_usage": {

@@ -5,9 +5,12 @@ Revision: `hotpath-v10-20260914`. Amendment: `ranking-query-repair-20261006`.
 This is the architecture contract. The current execution amendment is
 `ranking-query-repair-20261006`, detailed in
 [ranking-query-repair](../engineering-notes/ranking-query-repair.md).
-Order105-01e/f/g ->105-02 generation contract ->105-02a32K/H16K finding
-followed by paired small recall/MTP
-->105-03 scale ->105-04/05 review;105-01 is deferred, not passed.
+105-01e/f/g through105-05 are complete. Current work is the fixed benchmark
+matrix:105-06 freezes the exact helper/binaries/argv and runs the original
+GPU baseline;105-07 through105-20 run the requested original CPU, ACO, and
+context-size controls without changing code or performance settings between
+rows;105-21 aggregates medians and the fresh-prefill context curve. See
+`clusters/forward105-matrix.md`.105-01 remains deferred, not passed.
 For105-02 onward the compact
 [selected-generation contract](../engineering-notes/selected-generation-contract.md)
 supersedes earlier conclusions about zero proposals or fully covered parity.
@@ -130,10 +133,10 @@ Historical phase100/101 diagnostics and their old scheduling are not current
 instructions. Their ~212 tok/s row predates subsequent GPU-route repairs;
 neither that row nor a faster but incoherent experimental row certifies the
 current candidate. Preserve existing capacity, storage and transport repairs.
-The next work is precisely105-01e/f/g, not reopening old release audits.
-Current source integration and coherent small retrieval/MTP evidence precede
-105-03 scale measurements. A reproduced failure inserts a concrete source
-repair, never an unchanged campaign or a speculative route rewrite.
+The next work is precisely105-06 through105-21, not reopening old release
+audits. Source integration and small retrieval/MTP evidence are complete.
+During the matrix, a reproduced setup failure stops the sequence and requires
+a newly frozen campaign; do not patch settings between measured rows.
 
 Primary goal remains 256K full logical/host history, bounded H, natural
 promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill

@@ -2501,3 +2501,7 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-02`
 - Commit at update: `90cb448f4`
 - Summary: Validated findings-based review: earlier-source recall, replay, Turbo4 GPU placements, near250K occupancy, bulk ingestion and canonical MTP supported. Overall goal remains unconfirmed solely on missing matched ordinary CPU-KV speed control. Ordered exact-command Luna High tasks10506/10507 are ready; no unchanged large refill or forced-witness gate.
+
+## 2026-10-08T00:41:23+00:00 — 105 benchmark matrix — planned
+
+- Summary: Replaced the narrow remaining CPU-KV comparison with an ordered 15-configuration benchmark matrix plus final aggregation. The first task freezes harness, source, binaries and expanded server argv before any measurements. Every setup uses the three exact prompts across off/low/medium/xhigh, one 40-token warmup and three 400-token-maximum measurements, and reports decode/MTP/fresh-prefill medians plus an occupied-context fresh-prefill curve. No code or performance setting changes are permitted between measured configurations.

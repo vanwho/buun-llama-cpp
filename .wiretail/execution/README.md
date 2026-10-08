@@ -7,9 +7,13 @@ Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
-105-01g is the current integration owner; do not restart it for this amendment.
-Order105-01g ->105-02 generation contract ->105-02a small matched recall/MTP
-->105-03 scale ->105-04/05 summary/review.105-01a/b/c/d are historical;
+105-01g through105-05 are completed. The current sequence is105-06 through
+105-20: freeze the benchmark harness and exact server configurations once,
+then run the unchanged old-profile GPU, old-profile CPU-KV, ACO and context
+matrix;105-21 aggregates the three median tables per setup and fresh-prefill
+curve. Read only the `forward105-matrix` cluster and current task packet for
+that sequence. No source, benchmark, build or performance-config changes are
+allowed between measured configurations.105-01a/b/c/d are historical;
 105-01d explicitly declined adoption. Read current packet/cluster, immediate
 handoff and the compact task-specific engineering note only.105-02 onward
 uses [selected generation](engineering-notes/selected-generation-contract.md).
