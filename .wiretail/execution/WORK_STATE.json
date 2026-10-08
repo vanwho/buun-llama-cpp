@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "in_progress",
   "current_phase": "105",
   "current_task": "105-09",
-  "last_updated_utc": "2026-10-08T01:30:14+00:00",
+  "last_updated_utc": "2026-10-08T01:30:40+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-01 through105-05 are complete/deferred as recorded. Current ordered work is105-06 through105-20: freeze the exact benchmark helper, source, binaries and all expanded server argv before the first scored row, then run the immutable 15-configuration original-GPU/original-CPU/ACO context matrix. Task105-21 aggregates all three median tables per setup and the fresh-prefill context curve. Use only the forward105-matrix cluster and current task packet; no historical transcripts.",
+    "active_scope": "105-01 through105-05 are complete/deferred as recorded. Current ordered work is105-06 through105-20: freeze the exact benchmark helper, source, binary and all expanded server argv before the first scored row, then run the immutable 15-configuration GPU-only/CPU-F16-KV/ACO context matrix. Task105-21 runs a bounded two-file cold-recall/promotion measurement at the near-full 256K ACO geometry; misses are recorded without repair. Task105-22 aggregates all matrix medians, recall outcomes and the fresh-prefill context curve. Use only the forward105-matrix cluster and current task packet; no historical transcripts.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -36999,7 +36999,7 @@
       "cluster": "forward105-matrix",
       "title": "Measure ACO at 8K total / 4K hot",
       "packet": ".wiretail/execution/tasks/105-09.md",
-      "status": "todo",
+      "status": "in_progress",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -37417,7 +37417,7 @@
       "id": "105-21",
       "phase": "105",
       "cluster": "forward105-matrix",
-      "title": "Aggregate the fixed matrix and report goal findings",
+      "title": "Test cold-file recall and promotion at near-full 256K occupancy",
       "packet": ".wiretail/execution/tasks/105-21.md",
       "status": "todo",
       "blocker": null,
@@ -37429,7 +37429,7 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
       "required_proofs": [
-        "complete_context_speed_matrix_and_prefill_curve"
+        "near_full_256k_cold_file_recall_and_promotion_result"
       ],
       "depends_on": [
         "105-20"
@@ -37438,8 +37438,8 @@
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
-        ".wiretail/execution/handoffs/105-03b.md",
-        ".wiretail/execution/handoffs/105-05.md"
+        ".wiretail/execution/evidence/MATRIX105_FREEZE.md",
+        ".wiretail/execution/handoffs/105-20.md"
       ],
       "completion_check": [
         "python3",
@@ -37448,6 +37448,44 @@
         "105-21",
         "--receipt",
         ".wiretail/execution/evidence/V10_105-21.json"
+      ]
+    },
+    {
+      "id": "105-22",
+      "phase": "105",
+      "cluster": "forward105-matrix",
+      "title": "Aggregate the fixed matrix and report the goal findings",
+      "packet": ".wiretail/execution/tasks/105-22.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "required_proofs": [
+        "complete_context_speed_matrix_recall_and_prefill_curve"
+      ],
+      "depends_on": [
+        "105-21"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+        ".wiretail/execution/handoffs/105-03b.md",
+        ".wiretail/execution/handoffs/105-05.md",
+        ".wiretail/execution/handoffs/105-21.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "105-22",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_105-22.json"
       ]
     }
   ],

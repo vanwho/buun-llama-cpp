@@ -241,6 +241,10 @@ or semantic error is a valid measured result. Missing telemetry is `not
 observed`, not zero, and only transport/setup failure may be repaired before
 resuming a row. Medians require three valid measured runs; retain successful
 raw rows and resume only missing identical rows. Each task's receipt must hash
-the compact report and raw manifest. Task 105-21 combines the 15 configuration
-reports without rerunning them and produces the cross-configuration tables,
-context-fill prefill curve, and conclusions.
+the compact report and raw manifest. After the last matrix row, task 105-21
+performs one bounded two-file cold-recall/promotion measurement at the 105-20
+near-full context using the same frozen 105-20 server argv. It is
+measurement-only: wrong answers or unobserved promotion are recorded, never
+repaired or retried. Task 105-22 aggregates the 15 configuration reports and
+the recall result without rerunning them, producing the cross-configuration
+tables, context-fill prefill curve, and conclusions.

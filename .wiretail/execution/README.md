@@ -9,9 +9,10 @@ resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
 105-01g through105-05 are completed. The current sequence is105-06 through
 105-20: freeze the benchmark harness and exact server configurations once,
-then run the unchanged old-profile GPU, old-profile CPU-KV, ACO and context
-matrix;105-21 aggregates the three median tables per setup and fresh-prefill
-curve. Read only the `forward105-matrix` cluster and current task packet for
+then run the unchanged GPU-only, CPU-F16-KV, ACO and context matrix;105-21
+tests cold-file recall/promotion at near-full 256K occupancy without repair;
+105-22 aggregates the median tables, recall result and fresh-prefill curve.
+Read only the `forward105-matrix` cluster and current task packet for
 that sequence. No source, benchmark, build or performance-config changes are
 allowed between measured configurations.105-01a/b/c/d are historical;
 105-01d explicitly declined adoption. Read current packet/cluster, immediate
