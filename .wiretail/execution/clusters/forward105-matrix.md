@@ -1,4 +1,4 @@
-# Cluster forward105-matrix — fixed old-profile and ACO context benchmark matrix
+# Cluster forward105-matrix — fixed original-profile, CPU-KV, and ACO context benchmark matrix
 
 Revision: `hotpath-v10-20260914`.
 
@@ -12,8 +12,8 @@ campaign, not a code-tuning phase.
 Task 105-06 is the only preparation boundary. It must validate or repair the
 benchmark helper, request construction, tokenizer/preflight, row parser, and
 launch configuration before any measured row. Before its first measured
-request it writes a frozen matrix manifest with source SHA, both binary SHA-256
-values, model SHA-256, helper SHA-256, prompt bytes, exact expanded server
+request it writes a frozen matrix manifest with source SHA, the single frozen
+candidate binary SHA-256, model SHA-256, helper SHA-256, prompt bytes, exact expanded server
 `ExecStart` argv for all 15 configurations, effective profile values, and the
 expected output schedule. From the first measured request through the final
 task 105-20, do not edit source code, benchmark code, launch/profile settings,
@@ -58,39 +58,91 @@ start a second Qwen model. Resolve the current service owner and ensure its
 process is gone before replacing it. Restore the original healthy service at
 the end of each task and verify its identity/health.
 
-The old original profile binary is exactly
-`/srv/ai/paged-kv/build/buun/bin/llama-server`. The ACO binary is exactly
-`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server`. Freeze their
-hashes during 105-06. GPU-only means pager off and normal GPU KV placement.
-Ordinary CPU offload means all target KV on CPU using F16 target K/V, while
-model weights and Turbo4 draft-MTP stay on GPU; label it `CPU-F16 KV` in every
-report and never call it codec-matched Turbo4. ACO means GPU-hot Turbo4 target
-KV plus the existing attention-aware selective pager, with the full context
-allocation and H specified below. Do not add experimental profile overrides.
+All 15 measured configurations use the same frozen ACO candidate binary
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server`. The two
+non-paged controls deliberately use that binary with `--kv-pager off`; this
+holds source/build identity constant so the ACO-vs-control comparison measures
+placement/paging, not unrelated binary changes. “Original fast-profile GPU”
+means the original fast-profile settings with pager off, not the older
+executable at `/srv/ai/paged-kv/build/buun/bin/llama-server` (that binary does
+not expose the explicit native-MTP KV-device flag required by the managed
+benchmark lifecycle). Ordinary CPU offload means F16 target K/V in CPU RAM via
+`--no-kv-offload`; model weights and Turbo4 draft-MTP K/V remain on CUDA0. Label
+it `CPU-F16 KV`, not codec-matched Turbo4. All GPU-target and ACO target K/V
+are Turbo4. Every command below is a complete one-line `ExecStart`; tasks use
+the named command verbatim, never reconstruct it from prose. The task owns the
+managed service lifecycle and must not launch a second model.
 
-Exact argv is written by 105-06 into the frozen manifest and checked byte for
-byte before each launch. The only legal argv variants are these literal option
-sets; the `<...>` items are substituted in 105-06 and the fully expanded argv
-is frozen before the first measured request:
+### Exact `llama-server` commands
 
-Old-profile GPU-only:
+105-06 — original fast-profile settings, GPU-only, empty slot, L=77,824:
 
-`/srv/ai/paged-kv/build/buun/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c <L> -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 77824 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-Old-profile ordinary CPU-F16 target-KV:
+105-07 — CPU-F16 target-KV, empty slot, L=77,824:
 
-`/srv/ai/paged-kv/build/buun/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c <L> -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 77824 -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-ACO GPU-hot / host-extended:
+105-08 — ACO, empty slot, L=77,824, H=65,536 (256 pages):
 
-`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c <L> -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages <H/256> --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 77824 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-Before freezing the manifest, 105-06 checks each exact option against that
-binary's `--help`/reported devices and the existing managed launcher contract.
-If a listed flag is unsupported or ignored, fix the preparation/configuration
-before any measurements and freeze the corrected argv. Thereafter, an effective
-argv mismatch invalidates setup, not the model result. Never discover flags by
-repeatedly launching a model or sending one-token probes.
+105-09 — ACO, L=8,192, H=4,096 (16 pages):
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 16 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-10 — GPU-only control, L=8,192:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-11 — CPU-F16 target-KV control, L=8,192:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 8192 -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-12 — ACO, L=262,144, H=16,384 (64 pages):
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 64 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-13 — GPU-only control, L=32,768:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 32768 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-14 — CPU-F16 target-KV control, L=32,768:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 32768 -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-15 — ACO, L=262,144, H=32,768 (128 pages):
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 128 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-16 — GPU-only control, L=65,536:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-17 — CPU-F16 target-KV control, L=65,536:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-18 — ACO, L=262,144, H=65,536 (256 pages), fill C=120,000:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-19 — ACO, L=262,144, H=65,536 (256 pages), fill C=184,000:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+105-20 — ACO, L=262,144, H=65,536 (256 pages), fill C=250,000:
+
+`/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
+
+Before freezing the manifest, 105-06 checks each exact option against the
+candidate binary's `--help`/reported devices. The old August binary is not used
+by this matrix: its CLI lacks explicit draft-KV device selection and the
+managed lifecycle refuses it for native MTP. If any command above is rejected
+by the candidate binary, fix this preparation/configuration before any scored
+row and freeze the corrected command set. Thereafter, an effective argv
+mismatch invalidates setup; never probe by launching a second model or sending
+one-token requests.
 
 ## Which configurations are filled
 
