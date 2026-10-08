@@ -2539,3 +2539,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-10`
 - Commit at update: `aef3e771f`
 - Summary: Verified frozen GPU-only 8K Turbo4 MTP control: 48/48 isolated requests, fresh prefill curve and median tables, and exact managed-service restoration.
+
+## 2026-10-08T02:29:40+00:00 — 105-11 — done
+
+- Branch: `codex/task-105-11`
+- Commit at update: `9373b6e6b`
+- Summary: Verified frozen CPU-F16 8K target-KV control with GPU Turbo4 MTP: 48/48 isolated requests, fresh prefill curve, median tables, and exact service restoration.
