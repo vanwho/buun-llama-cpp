@@ -92,10 +92,27 @@ before any measurements and freeze the corrected argv. Thereafter, an effective
 argv mismatch invalidates setup, not the model result. Never discover flags by
 repeatedly launching a model or sending one-token probes.
 
-## A/B/A source-context workload
+## Which configurations are filled
 
-Every configuration first runs the same deterministic A/B/A context build:
-load tracked repository source files in chronological user turns; A1 contains
+The first three configurations—105-06 original GPU-only, 105-07 original
+CPU-F16-KV, and 105-08 ACO—are the 77,824-token *empty-context baseline
+group*. Set server `-c 77824`, clear the slot, send no A/B/A files, and do not
+ingest repository content. Run only the 48 canonical prompt requests from a
+clean isolated slot. The context setting is capacity, not preloaded occupancy.
+This preserves the original fast-profile benchmark as an unfilled baseline.
+
+Every subsequent configuration, beginning with 105-09 at 8K/4K-hot, is a
+repo-filled context test. These tests use the A/B/A workload below, then append
+tracked repository source to the task's occupied-context target before running
+the 48 canonical requests. Thus all GPU-only/CPU-KV controls at 8K, 32K, and
+64K receive the same repo-derived filled workload as their paired ACO case;
+the 128K, 192K, and 250K ACO tests do too.
+
+## A/B/A source-context workload for filled-context tasks
+
+Every filled-context configuration first runs the same deterministic A/B/A
+context build: load tracked repository source files in chronological user
+turns; A1 contains
 the chosen Python merge implementations, B contains the Bash directory-watch
 implementations, and A2 asks about the best Python implementation again using
 its filename/identifier. Use the canonical existing fixtures and prompt text
@@ -109,8 +126,8 @@ prompt, response, and normal runtime margin. If source text runs out or the
 count cannot fit, record actual C and stop the fill; never exceed L or compact.
 
 Use C targets: 6,144 at L=8,192; 30,000 for 32K; 60,000 for 64K; 120,000,
-184,000, and 250,000 for the three large ACO rows. At the 77,824 baseline,
-fill to C=70,000. For ACO H is respectively 4,096, 16,384, 32,768, and
+184,000, and 250,000 for the three large ACO rows. The 77,824 baseline group
+is not filled. For ACO H is respectively 4,096, 16,384, 32,768, and
 65,536 tokens as listed in the task packet. The 32K and 64K ACO tasks allocate
 L=262,144 while filling only to their named C; their GPU/CPU controls allocate
 L=32,768 or 65,536. The 8K ACO allocation is L=8,192. The baseline ACO
@@ -162,8 +179,9 @@ PREFILL MEDIAN TOK/S
   `not observed` distinctly; do not invent zero when no proposal was made.
 * `PREFILL MEDIAN TOK/S`: executed fresh input tokens divided by the server's
   prompt-evaluation duration for that request. Do not count cached historical
-  tokens as newly processed prefill. Also save each append chunk's fresh
-  ingestion tok/s and plot/table it against occupied C to produce the curve.
+  tokens as newly processed prefill. For filled-context configurations also
+  save each append chunk's fresh ingestion tok/s against occupied C to produce
+  the curve. The unfilled 77,824 baseline group has no append curve.
 
 Do not impose an MTP acceptance or speed pass/fail threshold in these
 measurement tasks. A completed request with low MTP, slow prefill, poor decode,

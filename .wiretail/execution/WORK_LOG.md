@@ -2505,3 +2505,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-10-08T00:41:23+00:00 — 105 benchmark matrix — planned
 
 - Summary: Replaced the narrow remaining CPU-KV comparison with an ordered 15-configuration benchmark matrix plus final aggregation. The first task freezes harness, source, binaries and expanded server argv before any measurements. Every setup uses the three exact prompts across off/low/medium/xhigh, one 40-token warmup and three 400-token-maximum measurements, and reports decode/MTP/fresh-prefill medians plus an occupied-context fresh-prefill curve. No code or performance setting changes are permitted between measured configurations.
+
+## 2026-10-08T00:44:00+00:00 — 105 benchmark matrix — baseline/fill boundary clarified
+
+- Summary: The three 77,824-token baseline configurations run from an empty slot with no repository ingestion. Repo A/B/A context filling starts at 105-09 (8K/4K hot) and is used for every subsequent context-size test and its GPU/CPU controls.
