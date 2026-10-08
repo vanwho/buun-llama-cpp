@@ -2521,3 +2521,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-07`
 - Commit at update: `e9e927394`
 - Summary: Completed 48-request original CPU-F16 KV baseline at 77,824; restored managed service healthy.
+
+## 2026-10-08T01:30:05+00:00 — 105-08 — done
+
+- Branch: `codex/task-105-08`
+- Commit at update: `5fcb6f23a`
+- Summary: Completed 48-request unfilled ACO baseline at L=77,824; captured placement metrics and restored managed service healthy.
