@@ -2533,3 +2533,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-09`
 - Commit at update: `81ed4f49c`
 - Summary: Completed exact C=6144 ACO 8K/4K matrix (48/48), fresh-prefill curve and medians; restored managed service and passed V10 proof check.
+
+## 2026-10-08T02:10:49+00:00 — 105-10 — done
+
+- Branch: `codex/task-105-10`
+- Commit at update: `aef3e771f`
+- Summary: Verified frozen GPU-only 8K Turbo4 MTP control: 48/48 isolated requests, fresh prefill curve and median tables, and exact managed-service restoration.

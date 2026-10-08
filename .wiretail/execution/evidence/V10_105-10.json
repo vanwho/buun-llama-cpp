@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "task": "105-10",
+  "proof": "gpu_only_8k_control",
+  "source_commit": "aef3e771f4a1aabfe73f6d259d0d55124b65047e",
+  "summary": "48/48 GPU-only Turbo4 8K control requests completed at exact C=6144 with fresh prefill after verified slot erasure; four-point prefill curve, three median tables, frozen argv identity, and byte-exact managed-service restoration recorded.",
+  "checks": {
+    "gpu_only_8k_control": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/run_matrix105_cleared.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/MATRIX105_105-10.json",
+          "sha256": "d583aaaf0f81cb9dade96570718bf4094b5a9b99a46ba13ed6956c8ff3b10b4d",
+          "bytes": 175221
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/MATRIX105_105-10.md",
+          "sha256": "a1ad087c56245d7910de6579e58ec47abb4a293187356f657546594a27a605ab",
+          "bytes": 2858
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/records.json",
+          "sha256": "e0fe08c6013453733500140d7ab2bcd884d7519a2a473cae9671906ce041a53f",
+          "bytes": 155723
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/medians.json",
+          "sha256": "36657c24472c99c12f9792c039946ef8c00e2e9fd8c9ddd725fb299d98a72670",
+          "bytes": 1221
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/matrix-run-summary.json",
+          "sha256": "87946a2ef4f118cfe2886a3630840a1fdc1422e310d61d2630903619444c2da8",
+          "bytes": 2287
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/prefill_curve.json",
+          "sha256": "3c8c4b319cd660fe3e4407324c863bcbbfc2f9ea9760c5a46ce862ea028a6e33",
+          "bytes": 5421
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/matrix-run-task10.log",
+          "sha256": "3a35588bbb7c0202f457387ecf27868a46a4df3de22fa223311078c959b57774",
+          "bytes": 2689
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/prefill-curve-task10.log",
+          "sha256": "2241a3597e08576c3f7286ac0656002a843d14d32c43104b4b1913ad34c0b23a",
+          "bytes": 613
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/task10-live-preflight.json",
+          "sha256": "32ed06332b8add6f1b559fbb6441b1fc0ba312ba037ac739f2712d395df760e2",
+          "bytes": 521
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/service-restoration.json",
+          "sha256": "14a5d393270e2d4e30bb2326e3b13ee873b6b5043b7cdd67f978e8f689de8fc7",
+          "bytes": 1207
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/preflight.json",
+          "sha256": "0f27c52a982feb2954dc8de51d28e6b8cabacc08ea80c830a04511237fc36972",
+          "bytes": 4311
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/runtime-full-prompt-counts.json",
+          "sha256": "ea74922b16dda9813759a679be33a3a1a563bd466b03aea66f045ed25b952f21",
+          "bytes": 1026
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/filled_base_messages.json",
+          "sha256": "45a4e0d8f5996d0fe3fd4c09e8c5a1b22696835bf521213f6788beb0ccd3725f",
+          "bytes": 24443
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/run_matrix105_cleared.py",
+          "sha256": "bd17141355902ad1056d5533b708ec76e51e2579eee5bf1faba12660d335ef45",
+          "bytes": 9075
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/prefill_curve10510.py",
+          "sha256": "f2839963fb91adf7eefdfbc6c0e7e8647e1e04bc199efb9f2bf59d3f54cc87c5",
+          "bytes": 5526
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/gpu-owners-restored.csv",
+          "sha256": "e8f35ea318f0fd9262eec7afb7efb267cac86707997fb4a56b5730fdd073065a",
+          "bytes": 81
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/restored-service-identity.txt",
+          "sha256": "0ce5be8468be9b201bf764340013ef5e77827d94e89628dcf4c9ad34814c7224",
+          "bytes": 926
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/raw/restored-override.sha256",
+          "sha256": "4ec9c54a993085d32e29a470692f43bdbed7223b63dd5a055e985b122d1b0a8a",
+          "bytes": 68
+        }
+      ]
+    }
+  }
+}
