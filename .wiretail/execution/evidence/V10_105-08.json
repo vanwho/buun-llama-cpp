@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "task": "105-08",
+  "proof": "aco_original_context_baseline",
+  "source_commit": "5fcb6f23a3c831419dce4bc8438ac867c87ec205",
+  "summary": "48/48 canonical ACO baseline requests completed with HTTP 200; frozen runtime placements captured and original managed service restored healthy.",
+  "checks": {
+    "aco_original_context_baseline": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/run_matrix105.py",
+        "--endpoint",
+        "http://127.0.0.1:8080",
+        "--key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--out",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/canonical-run.log",
+          "sha256": "e7817a8d11abefd2f528f32af38840536f10a9f3b7aa668aea1b8d780b4ca287"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/records.json",
+          "sha256": "f08c28f63457d29ee4c0235cf475813b4813ae78de98bc11b659b9339e5e30ed"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/artifact-manifest.json",
+          "sha256": "a643378134357765fb7d5b14b2f2d8a03ee7cfd6c4a9c27bc940bb973d67806b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/helper-self-test.log",
+          "sha256": "f597053d03b7cc4e794838bc31eb5ae55eb52af33674c7ba71c015191137c9f3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/test-startup-journal.log",
+          "sha256": "57863061fb4f45e2a9a8da0e4b4b6cd6c8f476341b55cc6f47c3651f943f020e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/test-service.txt",
+          "sha256": "c60a04b9b1f146265d43bcc8fdc2331f3708cfe305988be5557810402436def3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/preflight-metrics.txt",
+          "sha256": "092bc12f7ce4add985e3919f9c53ba1d0ba7ebe8a0c3c25ec727ddc4f9e868dd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/postrun-metrics.txt",
+          "sha256": "735ef2242869dade3ece44e47f9a950f54f8c8395fb1cfc2f76f8dbb8d334a88"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/preflight-slots.json",
+          "sha256": "d6de2cf70360150c99f657b9735d35cfb32aab005c94fc0868e003c55b474577"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/postrun-slots.json",
+          "sha256": "5b85f18b9039b3e1ae2d7594eabfa57b549e3fc3091339425dcd0182e0e6a27b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/restored-service.txt",
+          "sha256": "0527d2ffbfb3c6b826f962c283d904e8add9de0fcfc74b083f06a1dca0a04d3e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/restored-health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-08/attempt-01/raw/restored-cuda-owners.csv",
+          "sha256": "60b55cf16737cee173131d3c9bf17656c20ebe40c8c6f3dbd1572f272be2d6c7"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_105-08.json",
+          "sha256": "9d5358f033a5e552dab0411d5be35df6635b8facfb9e0fb6b9a4c9f1cf6a919a"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_105-08.md",
+          "sha256": "592ff134d981a64ba38d30b121b7c8380a6f526eaad5a30495ba37e3f8162944"
+        }
+      ]
+    }
+  }
+}
