@@ -2527,3 +2527,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-08`
 - Commit at update: `5fcb6f23a`
 - Summary: Completed 48-request unfilled ACO baseline at L=77,824; captured placement metrics and restored managed service healthy.
+
+## 2026-10-08T01:57:54+00:00 — 105-09 — done
+
+- Branch: `codex/task-105-09`
+- Commit at update: `81ed4f49c`
+- Summary: Completed exact C=6144 ACO 8K/4K matrix (48/48), fresh-prefill curve and medians; restored managed service and passed V10 proof check.
