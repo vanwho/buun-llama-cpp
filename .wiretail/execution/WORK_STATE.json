@@ -37314,7 +37314,7 @@
       "depends_on": [
         "105-12"
       ],
-      "commit": "1e26251fa2ff59d835da6ff9035366176ac530c8",
+      "commit": "42d59b6cb0355412cbaa83628715717b04fa9683",
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md"
