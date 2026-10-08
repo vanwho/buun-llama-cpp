@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task": "105-07",
+  "proof": "original_cpu_kv_baseline_77k",
+  "source_commit": "e9e927394d8b5f09b051174ccbf30a2053a013bd",
+  "summary": "48/48 canonical CPU-F16 target-KV baseline requests completed with HTTP 200; original managed service restored healthy.",
+  "checks": {
+    "original_cpu_kv_baseline_77k": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/run_matrix105.py",
+        "--endpoint",
+        "http://127.0.0.1:8080",
+        "--key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--out",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/canonical-run.log",
+          "sha256": "c16a0a28060afdd14f169b758d0593e6c0039f24959ade89b8b04952c9226f12"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/records.json",
+          "sha256": "b01cf47dd29a5d669c8fe36ccc9bff64e530ee5136d9950a8bbe50ae7441bc7c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/artifact-manifest.json",
+          "sha256": "ece07a6c54499c2b2d7d3700e6af68b9fbedf2d4e616ea123107d779642f2fb9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/helper-self-test.log",
+          "sha256": "f597053d03b7cc4e794838bc31eb5ae55eb52af33674c7ba71c015191137c9f3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/test-startup-journal.log",
+          "sha256": "be9b25850f3b9d19140d0533f0d2e84f130ae54e3d1a0bcaae95cc96e3710879"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/test-service.txt",
+          "sha256": "85e4ac2fdf3321902f8f2d35e4d11cead7dde43e54242d900ad47e1b51afee1f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/preflight-slots.json",
+          "sha256": "eb80c96e3370dbf641deb3e2fd59e82b40cae9bfd4d0b889fe9f412d035a1e06"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/postrun-slots.json",
+          "sha256": "611c0b5e3baf84cf71086e0d927789ae823a923e1acdafef36f8f03a164300a1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/restored-service-final.txt",
+          "sha256": "c7c3f4a705a5efd7a041fa50ae9c78fdc2d68b4b3706a7e5e5ab992ed7b95f3d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/restored-health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-07/attempt-01/raw/restored-cuda-owners.csv",
+          "sha256": "23080f2b205385605a061ebe7e29ca91383cacab8e72476e971967f6ef537830"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_105-07.json",
+          "sha256": "f1901a2ee0d9814a85c5682b1fa46dedb184509ee75a604d63a21da2a582c7f3"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_105-07.md",
+          "sha256": "a70f2dedbfedc356f6d50e59a0c51e08b62426d32eeffac2419c65db1089f006"
+        }
+      ]
+    }
+  }
+}
