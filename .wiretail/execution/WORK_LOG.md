@@ -2515,3 +2515,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-06`
 - Commit at update: `7a7e4befe`
 - Summary: Frozen all 15 matrix commands; completed and validated the 48-row original GPU-only baseline, and restored the healthy pre-run service.
+
+## 2026-10-08T01:23:51+00:00 — 105-07 — done
+
+- Branch: `codex/task-105-07`
+- Commit at update: `e9e927394`
+- Summary: Completed 48-request original CPU-F16 KV baseline at 77,824; restored managed service healthy.
