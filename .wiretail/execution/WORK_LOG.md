@@ -2587,3 +2587,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-15`
 - Commit at update: `a68150855`
 - Summary: Automatic blocker-recovery attempt 2/3; previous blocker: Attempt 02 verified the frozen profile still cannot run: the RTX 4080 has only 454 MiB free with no competing CUDA compute owner; attempt 01 failed prefill with CUDA graph-buffer OOM. Required measurements and receipt remain absent. Retry after GPU capacity changes.
+
+## 2026-10-09T01:11:25+00:00 — 105-15 — blocked
+
+- Branch: `codex/task-105-15`
+- Commit at update: `d2a25e4c1`
+- Summary: Attempt 3 exhausted a bounded distinct-path diagnostic: exact frozen profile again failed CUDA graph-buffer allocation (113.12 MiB request, 20 MiB free); no scored evidence exists, and the prefill curve helper also needs a corrected preparation revision. Managed service was restored and verified.
