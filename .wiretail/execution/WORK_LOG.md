@@ -2599,3 +2599,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-15`
 - Commit at update: `18d393817`
 - Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Attempt 3 exhausted a bounded distinct-path diagnostic: exact frozen profile again failed CUDA graph-buffer allocation (113.12 MiB request, 20 MiB free); no scored evidence exists, and the prefill curve helper also needs a corrected preparation revision. Managed service was restored and verified.
+
+## 2026-10-09T01:19:33+00:00 — 105-15 — blocked
+
+- Branch: `codex/task-105-15`
+- Commit at update: `b756f4453`
+- Summary: Attempt 4 exhausted the distinct exact-profile graph-init path: the tiny probe succeeded but left only 4 MiB free; no competing CUDA owner exists, no scored data or required receipt was produced, and further campaign work requires documented GPU capacity change.

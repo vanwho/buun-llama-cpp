@@ -1,10 +1,14 @@
 """Small negative tests for completion guardrails; run with unittest discovery."""
 import hashlib
 import importlib.util
+import io
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("v10_validate", Path(__file__).with_name("validate.py"))
 validator = importlib.util.module_from_spec(spec)
@@ -12,6 +16,16 @@ spec.loader.exec_module(validator)
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_cli_reports_absent_receipt_as_unmet_proof(self):
+        output = io.StringIO()
+        argv = ["validate.py", "--task", "105-15", "--receipt",
+                ".wiretail/execution/evidence/V10_missing-test-receipt.json"]
+        with patch.object(sys, "argv", argv), redirect_stdout(output):
+            result = validator.main()
+        self.assertEqual(result, 1)
+        self.assertIn("required receipt is missing", output.getvalue())
+        self.assertIn("write truthful proof artifacts", output.getvalue())
+
     def receipt(self):
         path = Path(__file__).resolve()
         return {"schema_version": 1, "task": "49-02", "source_commit": "a" * 40,

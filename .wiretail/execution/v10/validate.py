@@ -1337,6 +1337,14 @@ def main() -> int:
     args = parser.parse_args()
     if bool(args.task) != bool(args.receipt):
         parser.error("--task and --receipt are used together")
+    if args.task and args.receipt:
+        receipt_path = args.receipt if args.receipt.is_absolute() else ROOT / args.receipt
+        if not receipt_path.is_file():
+            print(
+                f"ERROR: required receipt is missing: {args.receipt}; "
+                "write truthful proof artifacts before completing this task"
+            )
+            return 1
     try:
         state = json.loads((ROOT / ".wiretail/execution/WORK_STATE.json").read_text())
         errors = check_plan(ROOT, state)
