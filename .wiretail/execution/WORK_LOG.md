@@ -2569,3 +2569,15 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-15`
 - Commit at update: `a5e063387`
 - Summary: Required live ACO run failed at the first C=6144 prefill because the frozen configuration could not allocate a 113.12 MiB CUDA graph buffer on the available 16 GB RTX 4080; service has been restored, and the required matrix/receipt cannot be truthfully produced until GPU capacity is available.
+
+## 2026-10-09T01:00:54+00:00 — 105-15 — todo
+
+- Branch: `codex/task-105-15`
+- Commit at update: `6b029f17a`
+- Summary: Automatic blocker-recovery attempt 1/3; previous blocker: Required live ACO run failed at the first C=6144 prefill because the frozen configuration could not allocate a 113.12 MiB CUDA graph buffer on the available 16 GB RTX 4080; service has been restored, and the required matrix/receipt cannot be truthfully produced until GPU capacity is available.
+
+## 2026-10-09T01:03:29+00:00 — 105-15 — blocked
+
+- Branch: `codex/task-105-15`
+- Commit at update: `6b029f17a`
+- Summary: Attempt 02 verified the frozen profile still cannot run: the RTX 4080 has only 454 MiB free with no competing CUDA compute owner; attempt 01 failed prefill with CUDA graph-buffer OOM. Required measurements and receipt remain absent. Retry after GPU capacity changes.
