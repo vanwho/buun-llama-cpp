@@ -2563,3 +2563,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-14`
 - Commit at update: `3a12bff6a`
 - Summary: Completed CPU-F16 L32K matrix, verified 48 rows and restoration, and passed receipt validation
+
+## 2026-10-09T01:00:38+00:00 — 105-15 — blocked
+
+- Branch: `codex/task-105-15`
+- Commit at update: `a5e063387`
+- Summary: Required live ACO run failed at the first C=6144 prefill because the frozen configuration could not allocate a 113.12 MiB CUDA graph buffer on the available 16 GB RTX 4080; service has been restored, and the required matrix/receipt cannot be truthfully produced until GPU capacity is available.
