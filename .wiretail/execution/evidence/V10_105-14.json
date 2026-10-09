@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "task": "105-14",
+  "source_commit": "3a12bff6a0e8c9d7216c9f2281b2bbbb447f47ae",
+  "checks": {
+    "cpu_kv_32k_control": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/verify_task14.py"
+      ],
+      "related_commands": [
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/run_prefill_curve.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/run_matrix105_cleared.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/create_report_14.py"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/MATRIX105_105-14.json",
+          "sha256": "382f34387792391b5ea60be693b0924642ff1324f32668ee98a742bb33663c2b",
+          "bytes": 178975
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/MATRIX105_105-14.md",
+          "sha256": "64631215d429578b75bc12c79911ecbcaf275bec19071aa422377d576142d5e6",
+          "bytes": 4259
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/prefill_curve.json",
+          "sha256": "163b7ac5252647dc2474792260cbc0073957ab301b97b97921895e1304372ca1",
+          "bytes": 9124
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/records.json",
+          "sha256": "b2963d0bcb6b06e5c29893af6c7f6e6f5f9798c01b9642450d14648e52737904",
+          "bytes": 151734
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/medians.json",
+          "sha256": "f25ee8ae44a6e89578749254c49460ea445b908d25a3be96eb20ab861cab4d25",
+          "bytes": 1215
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/matrix-run-summary.json",
+          "sha256": "3f5b6527f7e6525a8c9d02c7f92277bbec938e64dfc29d6115c473b11aabd957",
+          "bytes": 2292
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/filled_base_messages.json",
+          "sha256": "6c12245f8ac0dff5a9641289178a574734fe474bb12e1b23127e9bb4a20f5557",
+          "bytes": 122282
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/verify_task14.py",
+          "sha256": "c4527412c0240c298eeaaa52f657bdc581aae3e9427b3fc2779a80d536c22184",
+          "bytes": 5457
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/verify-task14.log",
+          "sha256": "8188707dd6090e8dbe24300a233dedf669c73fb683de1d1267fbd77c998df44a",
+          "bytes": 158
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/create_report_14.py",
+          "sha256": "e214d193d754c87937614d9b5f1fae5427af405656d3e13ef72e8cd886b31f48",
+          "bytes": 9453
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/run_prefill_curve.py",
+          "sha256": "2f260ea65dbc315e54e6a0f4ad69f6c9a856e15ab73d30c43027d9eb2e0a372e",
+          "bytes": 5580
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/run_matrix105_cleared.py",
+          "sha256": "747dd8641d56c9029b877dc4a5f44d8bec06f520e4b4cc88e146330d55dc3713",
+          "bytes": 9076
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/execute_task14.sh",
+          "sha256": "cf1b6a1646f40d12c2fafa78160b5f9a2d9e8de431978ee2d3738b4075071ac0",
+          "bytes": 5829
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task14-execstart.txt",
+          "sha256": "2f99545bb137e04f3aff92530eb3559653f2a2a3f69020327d6c6f16934055f0",
+          "bytes": 560
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/argv-sha256.txt",
+          "sha256": "12cd6d68b33a506b07c91e08a1885fc630516a63e128fc7acd295df582a9c255",
+          "bytes": 65
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/context-plan.json",
+          "sha256": "add7870eaf872dd6be5f2b4b885c8d68a81f08136b189ade345bb1846bca952f",
+          "bytes": 3889
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/source-chunk-manifest.json",
+          "sha256": "9fe70493888899d3cd347ee357b6a8a9dfe2ffed0fa3da43acb6282666686b9a",
+          "bytes": 4376
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/prefill-curve.log",
+          "sha256": "5a3e867513cf92aa7b9e911d4cfe070cc5849f5d1e9e3981b4b2d5ce75f0be46",
+          "bytes": 413
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/matrix-run.log",
+          "sha256": "e44f52104afd4e273235be4c7ee0abdd54ea657764331d174a33f6b8020501fc",
+          "bytes": 2737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/runtime-full-prompt-counts.json",
+          "sha256": "9edbc3d9e2215720ee135692882088bd2e23afde5da4624bd3626333e9a63d93",
+          "bytes": 1038
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task14-runtime-identity.json",
+          "sha256": "d691b39a07a69fcc7aff0092be15307d3f01d12816cb48088dc0c75e97c94760",
+          "bytes": 1493
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task14-service.txt",
+          "sha256": "26f4adbd003f11e6c9dad507e167f89434fbc549f4430baf401edf03c56ad953",
+          "bytes": 888
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task14-health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+          "bytes": 15
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task14-cuda-owners.csv",
+          "sha256": "8661de1165059fe25561d86905623602e016f73222811d21f16d3707b91175ec",
+          "bytes": 120
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task14-runtime-sha256.txt",
+          "sha256": "f1c277b1429642ccf25501f276d977801faa1f3ba3d909272318836f00350dbb",
+          "bytes": 375
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/restore-verification.json",
+          "sha256": "791f574cfbf9614187110a7b5071bccb15c47dea1583f556393e2c2788dd7f60",
+          "bytes": 662
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/restore-service.txt",
+          "sha256": "c9fc9513f79f079ba9fbf8ede85a52d65debffaaf622e35995236e68b32c3340",
+          "bytes": 307
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/restore-health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+          "bytes": 15
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/restore-cuda-owners.csv",
+          "sha256": "95098d7f33b86b9606611d3599fbbae4d32374eab97f297f82f433e7c723aca3",
+          "bytes": 121
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/pre-run-service.txt",
+          "sha256": "00f68ff6724c7fd3cfe47540712715e87e11e3fa2f007d0c6e63e2d6c61478bb",
+          "bytes": 305
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/pre-run-health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+          "bytes": 15
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/pre-run-config-sha256.txt",
+          "sha256": "8c4c53afb3b5bd4952ecfd3556b86d63053c333f26f4f8eb087aa16f0cd1263d",
+          "bytes": 320
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/restore-config-sha256.txt",
+          "sha256": "8c4c53afb3b5bd4952ecfd3556b86d63053c333f26f4f8eb087aa16f0cd1263d",
+          "bytes": 320
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/pre-run-active-profile.txt",
+          "sha256": "e46a0e16ea4b27bec6afc9c45d672d69331b4227558f10dc1f4c4a53dec19d11",
+          "bytes": 11
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/restore.log",
+          "sha256": "bf406f2881c0b12ae43d4a90578a3f28b03e93076ee69ef2a15dd612fad85ccf",
+          "bytes": 11
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/raw/task-label-correction.log",
+          "sha256": "55d6e65106cb62c6b2703bb48b9673fe7560f2f61a8496b658a4aad05264a971",
+          "bytes": 271
+        }
+      ]
+    }
+  }
+}

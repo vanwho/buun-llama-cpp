@@ -2557,3 +2557,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-13`
 - Commit at update: `1e26251fa`
 - Summary: Measured the frozen GPU-only 32K Turbo4 control with 48 successful rows, verified the C=30K prefill curve and restored service
+
+## 2026-10-09T00:53:21+00:00 — 105-14 — done
+
+- Branch: `codex/task-105-14`
+- Commit at update: `3a12bff6a`
+- Summary: Completed CPU-F16 L32K matrix, verified 48 rows and restoration, and passed receipt validation
