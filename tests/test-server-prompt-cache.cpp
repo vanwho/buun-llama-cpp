@@ -61,6 +61,35 @@ void test_slot_pager_lifecycle_generation() {
 
 void test_prompt_trim_recovery_runs_paired_resets() {
     {
+        // A recurrent-only checkpoint restore reports min(attention,recurrent)
+        // at the old prefix while attention still holds a complete prior turn.
+        // Both children must actually execute the attention trim before replay.
+        int target_attention_last = 72484;
+        int draft_attention_last = 72484;
+        const int restored_recurrent_last = 29;
+        int trim_calls = 0;
+        int reset_calls = 0;
+        const auto trim_attention = [&](int & attention_last) {
+            const int public_last = std::min(attention_last, restored_recurrent_last);
+            if (server_prompt_trim_has_suffix(30, public_last, true)) {
+                attention_last = 29;
+                ++trim_calls;
+            }
+            return true;
+        };
+        const auto result = server_prompt_trim_recover(
+            true, false, [&]() { ++reset_calls; },
+            [&]() { return trim_attention(target_attention_last); },
+            [&]() { return trim_attention(draft_attention_last); },
+            [&]() { ++reset_calls; return true; },
+            [&]() { ++reset_calls; return true; },
+            []() { return true; });
+        CHECK(result.trim_succeeded() && !result.recovery_attempted);
+        CHECK(trim_calls == 2 && reset_calls == 0);
+        CHECK(target_attention_last == 29 && draft_attention_last == 29);
+        CHECK(!server_prompt_trim_has_suffix(30, restored_recurrent_last));
+    }
+    {
         // The selected MTP reproduction had an incoming prompt at position 30
         // and no resident target or draft rows. Empty suffixes are successful
         // no-ops; they must not trigger destructive paired recovery.

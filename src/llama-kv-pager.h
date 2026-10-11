@@ -621,6 +621,7 @@ enum class llama_kv_pager_write_status : uint8_t {
     stale_generation,
     transaction,
     overflow,
+    pending_copy,
 };
 
 const char * llama_kv_pager_write_status_name(llama_kv_pager_write_status status) noexcept;

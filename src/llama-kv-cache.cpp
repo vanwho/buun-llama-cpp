@@ -106,8 +106,10 @@ static llama_memory_failure_reason pager_failure_reason(
     switch (status) {
         case llama_kv_pager_write_status::all_pinned:
             return llama_memory_failure_reason::all_pinned;
-        case llama_kv_pager_write_status::transaction:
+        case llama_kv_pager_write_status::pending_copy:
             return llama_memory_failure_reason::pending_copy;
+        case llama_kv_pager_write_status::transaction:
+            return llama_memory_failure_reason::invalid_frontier;
         case llama_kv_pager_write_status::invalid_position:
         case llama_kv_pager_write_status::stale_generation:
         case llama_kv_pager_write_status::overflow:
@@ -8251,36 +8253,23 @@ bool llama_kv_cache::update(llama_context * lctx, bool do_shift, const stream_co
 }
 
 void llama_kv_cache::record_slot_failure(const llama_ubatch & ubatch) noexcept {
-    // Cell admission remains the authority for logical capacity.  The pager
-    // can refine that terminal when its bounded physical window explains why
-    // no append page is currently usable.
+    // find_slot() searches the logical cell table, not the pager's physical
+    // slots. An unrelated asynchronous seal cannot explain its exhaustion:
+    // reporting pending_copy here hid leaked attention rows after a hybrid
+    // checkpoint restore and made a harmless seal look like the cause.
+    // Physical admission reports its own reason from begin_write_batch().
     last_failure_reason_ = llama_memory_failure_reason::logical_capacity;
     if (pager_ == nullptr || ubatch.n_seqs_unq == 0 ||
             ubatch.seq_id_unq == nullptr) {
         return;
     }
 
-    bool any_page = false;
-    bool all_pinned = true;
-    bool pending_copy = false;
     for (uint32_t i = 0; i < ubatch.n_seqs_unq; ++i) {
         const llama_seq_id sequence_id = ubatch.seq_id_unq[i];
         if (sequence_id < 0) {
             last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
             return;
         }
-        const auto residency = pager_->residency(sequence_id);
-        for (const auto & page : residency.pages()) {
-            any_page = true;
-            all_pinned = all_pinned && page.pin_count != 0;
-            pending_copy = pending_copy ||
-                page.state == llama_kv_page_state::sealing_host;
-        }
-    }
-    if (pending_copy) {
-        last_failure_reason_ = llama_memory_failure_reason::pending_copy;
-    } else if (any_page && all_pinned) {
-        last_failure_reason_ = llama_memory_failure_reason::all_pinned;
     }
 }
 
@@ -18893,7 +18882,10 @@ bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32
             return false;
         }
         if (!append) {
-            seq_rm(dest_seq_id, -1, -1);
+            if (!seq_rm(dest_seq_id, -1, -1)) {
+                LLAMA_LOG_ERROR("%s: destination sequence removal failed before restore\n", __func__);
+                return false;
+            }
         }
 
         // cells past n_place are parsed and dropped

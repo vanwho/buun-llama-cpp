@@ -1033,6 +1033,63 @@ static void test_cuda_async_host_publication() {
         }
     }
     host.reset();
+
+    // Mutations must retire a capture before snapshotting its page state.
+    // Even when the worker has completed, its pin remains owned by the pager
+    // until drained. A pre-drain snapshot would reintroduce that pin/flag.
+    fixture.use_requested_page_identity = true;
+    llama_kv_pager_backend pager_backend;
+    pager_backend.allocate = [backend](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        auto buffer = ggml_backend_alloc_buffer(backend, bytes);
+        if (!buffer) return false;
+        allocation.handle = buffer;
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = ggml_backend_buffer_get_size(buffer);
+        return true;
+    };
+    pager_backend.release = [](llama_kv_pager_allocation & allocation) {
+        if (allocation.handle) ggml_backend_buffer_free(
+                static_cast<ggml_backend_buffer_t>(allocation.handle));
+        allocation = {};
+    };
+    for (const auto kind : { llama_kv_pager_mutation_kind::remove,
+            llama_kv_pager_mutation_kind::rewind, llama_kv_pager_mutation_kind::clear,
+            llama_kv_pager_mutation_kind::keep }) {
+        llama_kv_pager_config config;
+        config.mode = llama_kv_pager_mode::selective;
+        config.hot_pages.automatic = false;
+        config.hot_pages.value = 2;
+        llama_kv_pager_status pager_status;
+        auto pager = llama_kv_pager::create(config, geometry(512), host_resources,
+                pager_backend, pager_status);
+        assert(pager && pager_status == llama_kv_pager_status::ok);
+        pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+        pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+        llama_kv_pager_write_ticket ticket;
+        for (llama_pos pos = 0; pos < 256; ++pos) {
+            assert(pager->begin_write(0, 1, pos, ticket) == llama_kv_pager_write_status::ok);
+            assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+        }
+        (void) pager->seal_ready_pages(false);
+        assert(pager->host_inflight_pages() == 1);
+        const auto status = pager->mutate({ kind,
+                kind == llama_kv_pager_mutation_kind::keep ? 1 : 0, -1,
+                kind == llama_kv_pager_mutation_kind::remove ? 128 : 0,
+                256, 0, 0, pager->residency().epoch(), false });
+        assert(status == llama_kv_pager_write_status::ok);
+        assert(pager->host_inflight_pages() == 0);
+        assert(pager->host_catalog()->snapshot().live_pages == 0);
+        if (kind == llama_kv_pager_mutation_kind::remove) {
+            const auto remaining = pager->residency().pages();
+            assert(remaining.size() == 1 && remaining[0].pin_count == 0);
+            assert(remaining[0].id.position_end == 128);
+            assert(pager->begin_write(0, 1, 128, ticket) == llama_kv_pager_write_status::ok);
+            assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+        } else {
+            assert(pager->residency().pages().empty());
+        }
+    }
+    std::cout << "async_capture_mutation=pass remove_partial_reappend=1 rewind=1 clear=1 keep=1\n";
     fixture.release_cuda(backend);
 }
 

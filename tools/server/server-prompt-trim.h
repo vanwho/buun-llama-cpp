@@ -27,8 +27,14 @@ struct server_prompt_trim_recovery_result {
 // beyond the last resident position as a successful no-op.
 template <typename Position>
 constexpr bool server_prompt_trim_has_suffix(Position first_removed,
-                                             Position last_present) noexcept {
-    return first_removed <= last_present;
+                                             Position last_present,
+                                             bool attention_only = false) noexcept {
+    // PARTIAL_ONLY restores a hybrid model's recurrent frontier without
+    // truncating attention. Its public seq_pos_max() is the MINIMUM of the
+    // two frontiers, so it cannot prove that an attention suffix is absent.
+    // The attention removal API accepts an empty range; always invoke it at
+    // this restore boundary, before replay can allocate duplicate KV rows.
+    return attention_only || first_removed <= last_present;
 }
 
 // Keep the paired memory operation deterministic and directly testable. A

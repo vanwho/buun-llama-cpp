@@ -1498,6 +1498,7 @@ const char * llama_kv_pager_write_status_name(llama_kv_pager_write_status status
         case llama_kv_pager_write_status::stale_generation: return "stale_generation";
         case llama_kv_pager_write_status::transaction: return "transaction";
         case llama_kv_pager_write_status::overflow: return "overflow";
+        case llama_kv_pager_write_status::pending_copy: return "pending_copy";
     }
     return "invalid";
 }
@@ -1896,9 +1897,14 @@ llama_kv_pager_turn_status llama_kv_pager::clear_turn_state(
             page.generation_queued = false;
         }
         if (current_page_index_ < pages_.size() && &page == &pages_[current_page_index_]) {
-            if (page.record.pin_count != 0) page.record.pin_count--;
-            page.record.state = page.record.host_valid
-                ? llama_kv_page_state::gpu_host_clean : llama_kv_page_state::gpu_dirty;
+            // A full frontier may already have exchanged its write pin for
+            // the host capture's pin. Only completion may retire that pin;
+            // ending the turn must not relabel a still-sealing source dirty.
+            if (!page.host_inflight) {
+                if (page.record.pin_count != 0) page.record.pin_count--;
+                page.record.state = page.record.host_valid
+                    ? llama_kv_page_state::gpu_host_clean : llama_kv_page_state::gpu_dirty;
+            }
             queue_maintenance(page);
             (void) publish_page(page);
             current_page_index_ = UINT32_MAX;
@@ -3362,7 +3368,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
             }
         }
         if (page->host_inflight) {
-            return transaction_failure("tail_host_inflight", page);
+            return llama_kv_pager_write_status::pending_copy;
         }
     }
     const uint64_t content_version_before = page != nullptr ? page->content_version : 0;
@@ -3810,7 +3816,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
             }
         }
         if (has_inflight_target()) {
-            return llama_kv_pager_write_status::transaction;
+            return llama_kv_pager_write_status::pending_copy;
         }
 
         tickets.reserve(positions.size());
@@ -4111,6 +4117,50 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
             mutation.expected_epoch != residency_.snapshot().epoch()) {
             return llama_kv_pager_write_status::stale_generation;
         }
+        const auto selected = [&](const page_state & page, int32_t sequence) {
+            return page.present && (sequence < 0 || page.record.id.sequence_id == sequence) &&
+                (mutation.sequence_generation == 0 ||
+                 page.record.id.sequence_generation == mutation.sequence_generation);
+        };
+        const auto overlaps = [&](const page_state & page) {
+            const llama_pos begin = mutation.position_begin;
+            const llama_pos end = mutation.position_end > begin
+                ? mutation.position_end : std::numeric_limits<llama_pos>::max();
+            return page.record.id.position_end > begin && page.record.id.position_begin < end;
+        };
+
+        // Complete affected captures before taking the transaction snapshot.
+        // Taking `next` first resurrected stale host_inflight/pin state after
+        // wait_host_completions() had retired it in pages_. This applies to
+        // turn rewinds, clear/keep and copy/shift as well as suffix removal;
+        // none may release a capture pin or reuse its source slot early.
+        const auto affects_capture = [&](const page_state & page) {
+            if (!page.present) return false;
+            if (mutation.release_sequence_pins && (mutation.sequence_id < 0 ||
+                    page.record.id.sequence_id == mutation.sequence_id)) return true;
+            switch (mutation.kind) {
+                case llama_kv_pager_mutation_kind::clear: return true;
+                case llama_kv_pager_mutation_kind::keep:
+                    return page.record.id.sequence_id != mutation.sequence_id;
+                default:
+                    return selected(page, mutation.sequence_id) && overlaps(page);
+            }
+        };
+        if (host_ && host_->async_enabled()) {
+            drain_host_completions();
+            const auto has_inflight_target = [&]() {
+                for (const auto & page : pages_) {
+                    if (page.host_inflight && affects_capture(page)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            if (has_inflight_target()) {
+                wait_host_completions();
+            }
+            if (has_inflight_target()) return llama_kv_pager_write_status::pending_copy;
+        }
         auto next = pages_;
         auto next_slots = slot_pages_;
         uint32_t next_current = current_page_index_;
@@ -4131,42 +4181,6 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                     page.record.state = llama_kv_page_state::gpu_dirty;
                 }
                 page.maintenance_pending = true;
-            }
-        }
-
-        const auto selected = [&](const page_state & page, int32_t sequence) {
-            return page.present && (sequence < 0 || page.record.id.sequence_id == sequence) &&
-                (mutation.sequence_generation == 0 ||
-                 page.record.id.sequence_generation == mutation.sequence_generation);
-        };
-        const auto overlaps = [&](const page_state & page) {
-            const llama_pos begin = mutation.position_begin;
-            const llama_pos end = mutation.position_end > begin
-                ? mutation.position_end : std::numeric_limits<llama_pos>::max();
-            return page.record.id.position_end > begin && page.record.id.position_begin < end;
-        };
-
-        // A cached append may first remove the divergent suffix from a page
-        // that was handed to the asynchronous host-seal worker by the
-        // preceding request.  That seal pins the page until its D2H event is
-        // published; treating the transient pin as a permanent all-pinned
-        // refusal makes an in-page append fall back to a cold prompt.  Drain
-        // ready completions and wait once for an overlapping host capture,
-        // preserving the same bounded boundary used by begin_write_batch().
-        if (mutation.kind == llama_kv_pager_mutation_kind::remove &&
-                host_ && host_->async_enabled()) {
-            drain_host_completions();
-            const auto has_inflight_target = [&]() {
-                for (const auto & page : next) {
-                    if (page.present && page.host_inflight &&
-                            selected(page, mutation.sequence_id) && overlaps(page)) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-            if (has_inflight_target()) {
-                wait_host_completions();
             }
         }
         const auto reject_pinned = [&](const auto & predicate) {

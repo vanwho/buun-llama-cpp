@@ -23124,7 +23124,8 @@ private:
                         [&]() {
                             const auto memory = llama_get_memory(ctx_tgt);
                             if (!server_prompt_trim_has_suffix(
-                                    p0, llama_memory_seq_pos_max(memory, slot.id))) {
+                                    p0, llama_memory_seq_pos_max(memory, slot.id),
+                                    trim_tgt_attn_only)) {
                                 return true;
                             }
                             return checkpoint_suffix
@@ -23138,7 +23139,8 @@ private:
                         [&]() {
                             const auto memory = llama_get_memory(ctx_dft.get());
                             if (!server_prompt_trim_has_suffix(
-                                    p0, llama_memory_seq_pos_max(memory, slot.id))) {
+                                    p0, llama_memory_seq_pos_max(memory, slot.id),
+                                    trim_dft_attn_only)) {
                                 return true;
                             }
                             return checkpoint_suffix
