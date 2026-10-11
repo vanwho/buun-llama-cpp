@@ -1707,6 +1707,13 @@ llama_kv_pager::page_state * llama_kv_pager::oldest_unselected_history_victim(
         int32_t sequence_id, const llama_kv_pager_turn_state & turn,
         const std::vector<uint32_t> & excluded_logical_pages) noexcept {
     page_state * oldest = nullptr;
+    // Until generation first writes into the query tail, retain that page as
+    // the query frontier. Afterward the current-write pin and generation FIFO
+    // govern it; older completed Q pages are pageable when host-authenticated.
+    const uint64_t query_tail_page = turn.query_end > turn.query_start &&
+            turn.query_end > 0 && snapshot_.geometry.page_tokens != 0
+        ? uint64_t(turn.query_end - 1) / snapshot_.geometry.page_tokens
+        : UINT64_MAX;
     for (auto & page : pages_) {
         if (!page.present || page.record.id.sequence_id != sequence_id ||
                 page.owner != page_owner::prior_turn_history ||
@@ -1723,14 +1730,7 @@ llama_kv_pager::page_state * llama_kv_pager::oldest_unselected_history_victim(
                     page.record.id.logical_page) != excluded_logical_pages.end()) {
             continue;
         }
-        const uint64_t page_begin = uint64_t(page.record.id.logical_page) *
-            snapshot_.geometry.page_tokens;
-        const uint64_t page_end = page_begin + snapshot_.geometry.page_tokens;
-        if (turn.query_start >= 0 && turn.query_end > turn.query_start &&
-                page_begin < uint64_t(turn.query_end) &&
-                page_end > uint64_t(turn.query_start)) {
-            continue;
-        }
+        if (page.record.id.logical_page == query_tail_page) continue;
         if (oldest == nullptr || page.record.id.position_begin <
                 oldest->record.id.position_begin) {
             oldest = &page;
@@ -3686,10 +3686,10 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                     victims.push_back(identity);
                     ++at;
                 }
-                // The selected history and the live query tail stay pinned,
-                // but an unselected host-backed prior page may supply the
-                // generation tail's first physical slot before the turn has
-                // produced any completed page for the FIFO to recycle.
+                // Explicitly selected history and currently pinned writes are
+                // protected, but any other authenticated host-backed prior
+                // page may supply the generation tail's first physical slot
+                // before the turn has produced a completed FIFO page.
                 while (victims.size() < new_logical_pages.size()) {
                     std::vector<uint32_t> excluded = written_logical_pages;
                     for (const auto & victim : victims) {

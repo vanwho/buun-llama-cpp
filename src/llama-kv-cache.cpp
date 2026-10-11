@@ -8569,6 +8569,10 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
                             " positions=" + std::to_string(positions.front()) + ".." +
                                 std::to_string(positions.back()) +
                             " rows=" + std::to_string(positions.size()) +
+                            " hot_pages=" +
+                                std::to_string(pager_->snapshot().physical_page_count) +
+                            " query_positions=" + std::to_string(turn.query_start) + ".." +
+                                std::to_string(turn.query_end) +
                             " frozen_history_pages=" +
                                 std::to_string(turn.selected_history.size()) +
                             " phase=" + std::to_string(uint32_t(turn.phase)));

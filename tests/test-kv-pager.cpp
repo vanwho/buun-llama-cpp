@@ -1945,6 +1945,154 @@ static void test_generation_ring_victim_and_history_pins() {
                  " rejected_seal_excluded=1\n";
 }
 
+static void test_long_query_generation_recycles_closed_query_pages() {
+    // Scale the production shape down to H=4/P=256. The query is longer than
+    // the physical pool and ends 125 rows into its last page, matching the
+    // long-prompt generation boundary where every resident prompt page used
+    // to be treated as protected current-query history.
+    constexpr llama_pos page_tokens = 256;
+    constexpr uint32_t hot_pages = 4;
+    constexpr llama_pos query_end = 6 * page_tokens + 125;
+
+    host_page_fixture fixture;
+    fixture.initialize(2048);
+    fixture.use_requested_page_identity = true;
+    auto host_resources = resources(hot_pages * 128 + 64, 128);
+    host_resources.host_capture_enabled = true;
+    host_resources.host_source_namespace = host_page_fixture::source_namespace;
+    host_resources.host_child_id = 0;
+    host_resources.host_stream_index = 0;
+    host_resources.host_lanes = { { nullptr, nullptr, true } };
+    host_resources.host_ring_bytes = 128;
+    host_resources.host_chunk_bytes = 64;
+    host_resources.host_budget.host.pageable_cap = 1u << 20;
+    host_resources.host_budget.host.pageable_state = llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.pinned_cap = 128;
+    host_resources.host_budget.host.pinned_state = llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.total_cap = 1u << 20;
+    host_resources.host_budget.host.total_state = llama_cache_budget_capacity_state::known;
+
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = hot_pages;
+    config.retrieval_pages.automatic = false;
+    config.retrieval_pages.value = 1;
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(0x9a));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    llama_kv_pager_status status;
+    auto pager = llama_kv_pager::create(
+            config, geometry(4096), host_resources, backend, status);
+    assert(pager && status == llama_kv_pager_status::ok);
+    assert(pager->snapshot().physical_page_count == hot_pages);
+    pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+
+    llama_kv_pager_write_ticket ticket;
+    for (llama_pos position = 0; position < query_end; ++position) {
+        assert(pager->begin_write(0, 1, position, ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    const auto prompt_resident = pager->residency().pages();
+    assert(prompt_resident.size() == hot_pages);
+    const auto query_tail = std::find_if(prompt_resident.begin(), prompt_resident.end(),
+            [](const auto & page) { return page.id.logical_page == 6; });
+    assert(query_tail != prompt_resident.end());
+    assert(query_tail->id.position_begin == 6 * page_tokens &&
+            query_tail->id.position_end == query_end && query_tail->pin_count != 0);
+    const llama_kv_page_id committed_frontier = query_tail->id;
+
+    // Raw-completion/chat fallback shape: the entire prompt is Q, there is no
+    // selected R, and the final partial Q page is the only query page that
+    // must remain resident while generation starts.
+    assert(pager->transition_turn(0, 700, 0,
+            llama_kv_pager_turn_phase::query_provisional, 0, query_end,
+            committed_frontier, 0) == llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 700, 0,
+            llama_kv_pager_turn_phase::retrieval_commit, 0, query_end,
+            committed_frontier, 1, {}) == llama_kv_pager_turn_status::ok);
+    assert(pager->turn_state(0).selected_history.empty());
+    assert(pager->transition_turn(0, 700, 1,
+            llama_kv_pager_turn_phase::query_replay, 0, query_end,
+            committed_frontier, 1) == llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 700, 1,
+            llama_kv_pager_turn_phase::generating, 0, query_end,
+            committed_frontier, 1) == llama_kv_pager_turn_status::ok);
+
+    // Reserve two 256-row batches through the production write API. The first
+    // completes the partial query tail and leaves generation page 7 partial.
+    // The second reserves the rest
+    // of page 7 and opens page 8 in the same batch; page 7 is still pinned by
+    // that reservation, so admission must recycle a closed, host-safe Q page.
+    std::vector<llama_pos> first_packet;
+    std::vector<llama_pos> second_packet;
+    for (llama_pos position = query_end; position < query_end + page_tokens; ++position) {
+        first_packet.push_back(position);
+    }
+    for (llama_pos position = query_end + page_tokens;
+            position < query_end + 2 * page_tokens; ++position) {
+        second_packet.push_back(position);
+    }
+    std::vector<llama_kv_pager_write_ticket> packet_tickets;
+    assert(pager->begin_write_batch(0, 1, first_packet, packet_tickets) ==
+            llama_kv_pager_write_status::ok);
+    assert(packet_tickets.size() == page_tokens);
+    for (const auto & packet_ticket : packet_tickets) {
+        assert(pager->complete_write(packet_ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    const auto after_first_packet = pager->residency().pages();
+    const auto cold_query_records = pager->exact_page_records(0);
+    bool recycled_closed_query = false;
+    for (const auto & before : prompt_resident) {
+        if (before.id.logical_page == 6) continue; // The final Q page becomes generation output.
+        const bool still_resident = std::any_of(after_first_packet.begin(),
+                after_first_packet.end(), [&](const auto & page) {
+                    return page.id == before.id;
+                });
+        if (still_resident) continue;
+        const auto recycled_query = std::find_if(cold_query_records.begin(),
+                cold_query_records.end(), [&](const auto & page) {
+                    return page.id == before.id;
+                });
+        if (recycled_query != cold_query_records.end() &&
+                recycled_query->physical_slot == UINT32_MAX &&
+                recycled_query->host_valid && !recycled_query->dirty &&
+                recycled_query->content_version == before.content_version) {
+            recycled_closed_query = true;
+            break;
+        }
+    }
+    assert(recycled_closed_query);
+    assert(pager->begin_write_batch(0, 1, second_packet, packet_tickets) ==
+            llama_kv_pager_write_status::ok);
+    assert(packet_tickets.size() == page_tokens);
+    const auto after_second_packet = pager->residency().pages();
+    assert(std::any_of(after_second_packet.begin(), after_second_packet.end(),
+            [](const auto & page) { return page.id.logical_page == 8; }));
+    assert(std::any_of(after_second_packet.begin(), after_second_packet.end(),
+            [](const auto & page) {
+                return page.id.logical_page == 7 && page.pin_count != 0;
+            }));
+    assert(std::none_of(after_second_packet.begin(), after_second_packet.end(),
+            [](const auto & page) { return page.id.logical_page == 0; }));
+    for (auto it = packet_tickets.rbegin(); it != packet_tickets.rend(); ++it) {
+        assert(pager->cancel_write(*it) == llama_kv_pager_write_status::ok);
+    }
+
+    std::cout << "long_query_generation_recycle=pass P=256 H=4 query_end="
+              << query_end << " selected_history=0 generation_boundaries=2 "
+                 "closed_query_host_safe_recycle=1 active_ticket_retained=1\n";
+}
+
 int main() {
     test_natural_proof_query_scope();
     test_turn_epoch_state_and_geometry();
@@ -1957,6 +2105,7 @@ int main() {
     test_mode_lifecycle_matrix();
     test_pager_host_mutation();
     test_generation_ring_victim_and_history_pins();
+    test_long_query_generation_recycles_closed_query_pages();
     test_full_256k_capacity_plan();
     llama_kv_pager_config off;
     llama_kv_pager_snapshot snapshot;
