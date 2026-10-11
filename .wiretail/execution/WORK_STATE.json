@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current work is 105-15 through 105-22. Read only current packet/cluster, request-time-mtp-scratch compact note, immediate relevant handoff and cohort freeze. Prior implementation tasks and failed assessments are historical, not instructions to replay. Turbo4 target K/V and full-L GPU Turbo4 MTP, B1024/U256; preserve GPU fused attention without unused F16 scratch. 105-15 is a new corrected-candidate preparation boundary; freeze once before scored rows. Keep original 105-06..14 results in their old cohort, remaining measurements in MATRIX105_SCRATCH_FREEZE; never mix binary identities. No source/config changes between scored rows, no raw transcript loading, no per-token diagnostic/rerank work. Report actual fresh-prefill timing, request-local MTP and memory. A completed low speed or semantic miss is a finding, not an unchanged-retry gate. Preserve usage/raw history externally.",
+  "context_policy": "Current work is 105-15 through 105-22. Read only current packet/cluster, request-time-mtp-scratch compact note, long-query-generation-no-victim note, immediate relevant handoff and cohort freeze. Prior implementation tasks and failed assessments are historical, not instructions to replay. Turbo4 target K/V and full-L GPU Turbo4 MTP, B1024/U256; preserve GPU fused attention without unused F16 scratch. 105-15 is a new corrected-candidate preparation boundary; freeze once before scored rows. Keep original 105-06..14 results in their old cohort, remaining measurements in MATRIX105_SCRATCH_FREEZE; never mix binary identities. No source/config changes between scored rows, no raw transcript loading, no per-token diagnostic/rerank work. Report actual fresh-prefill timing, request-local MTP and memory. A completed low speed or semantic miss is a finding, not an unchanged-retry gate. Preserve usage/raw history externally.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-06 through 105-14 retain their original completed benchmark cohort. Current ordered work is 105-15 through 105-22. Task 105-15 prepares MATRIX105_SCRATCH_FREEZE for the corrected Turbo4 target/GPU-MTP candidate after verifying actual compiled source and loaded DSOs; freeze helper, model, prompts, schedule and expanded argv before scored rows. Tasks 105-15 through 105-20 measure the remaining fixed configurations without code/configuration changes. Task 105-21 measures cold-file recall at near-full 256K; misses are findings without repair. Task 105-22 aggregates medians/curves and labels the two candidate cohorts explicitly. Use only current packet/cluster, compact scratch note and immediate relevant handoff; do not load historical transcripts.",
+    "active_scope": "105-06 through 105-14 retain their original completed benchmark cohort. Current ordered work is 105-15 through 105-22. Task 105-15 prepares MATRIX105_SCRATCH_FREEZE for the newest corrected Turbo4 target/GPU-MTP candidate after an incremental --parallel 16 build identity check and loaded-DSO verification; freeze helper, model, prompts, schedule and expanded argv before scored rows. The long-query generation eviction fix at 0247624e9 is live validated. Tasks 105-15 through 105-20 measure the remaining fixed configurations without code/configuration changes. Poor speeds, MTP rates, or recall are recorded and do not stop later measurements. Repair setup mismatches in the same task and resume missing rows with the frozen identity; do not advance past missing required measurements. Task 105-21 measures cold-file recall at near-full 256K; misses are findings without repair. Task 105-22 aggregates medians/curves and labels the two candidate cohorts explicitly. Use only current packet/cluster, compact relevant notes and immediate handoff; do not load historical transcripts.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -37468,6 +37468,7 @@
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
+        ".wiretail/execution/engineering-notes/long-query-generation-no-victim.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md"
       ],
       "completion_check": [

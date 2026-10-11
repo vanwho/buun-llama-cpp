@@ -11,6 +11,39 @@ campaign, not a code-tuning phase.
 
 ### Operator-directed MTP scratch repair: new preparation boundary at 105-15
 
+### Continue the remaining measurements to completion
+
+The next task is **105-15**, currently `todo`. Continue in state order through
+105-22: 105-15 ACO 64K/32K-hot; 105-16 GPU-only 64K; 105-17 CPU-F16-KV
+64K; 105-18 ACO 128K/64K-hot; 105-19 ACO 192K/64K-hot; 105-20 ACO
+250K/64K-hot; 105-21 the near-full 256K cold-file measurement; and 105-22
+the final tables and findings. Do not stop this sequence because a measured
+speed, MTP acceptance rate, or answer quality is poor. The protocol explicitly
+records those outcomes without pass thresholds.
+
+For the new 105-15 cohort, the newest production-code candidate is the
+`build-cuda` server whose embedded source commit is `0247624e9` or a later
+build containing that fix. Its validated loaded `libllama.so.0.5.0` hash is
+`d7b8c73d7e43f78c652376c01fec66f3b7e8c02ed113b6ea21671fe283cad08a`.
+The later commits `37f3e7248`, `490e7150a`, `62b0c3d2d`, and `8b52cf504`
+only add the local validator, response-timeout handling, and planning/results
+notes; they do not change production code. At 105-15, run the incremental
+`cmake --build build-cuda --parallel 16 --target llama-server` once and
+verify the actual executable and loaded DSO identities. Reuse the build if
+the production source hashes still match this repaired candidate; if any
+production source differs, rebuild once before freezing the new cohort.
+Never use an older installed server or a stale already-loaded process.
+
+If a task encounters an obvious launcher/setup mismatch, correct that exact
+configuration from the command below, restart only the managed service after
+its slot is idle, and resume the same task/row. Do not call a zero-request
+preflight a completed benchmark and do not advance past missing required
+rows. Once a valid request has been measured, do not change binary, helper,
+sampling, model, or performance settings inside this cohort. Resume missing
+rows with the same frozen identity. A genuine runtime failure is reported
+with its raw cause and the affected measurement remains incomplete until the
+same frozen row can be completed; do not fabricate timing values.
+
 The request-time allocation blocker was a source defect, not proof that the
 RTX 4080 cannot admit 64K hot. Read only the compact engineering note
 `engineering-notes/request-time-mtp-scratch.md` for the correction and its
