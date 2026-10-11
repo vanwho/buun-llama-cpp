@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "105",
   "current_task": "105-15",
-  "last_updated_utc": "2026-10-11T14:42:35+00:00",
+  "last_updated_utc": "2026-10-11T15:10:19+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -37447,9 +37447,9 @@
       "id": "105-15",
       "phase": "105",
       "cluster": "forward105-matrix",
-      "title": "Measure ACO at 64K occupied / 32K hot",
+      "title": "Measure ACO at 60Ki occupied / 32Ki hot",
       "packet": ".wiretail/execution/tasks/105-15.md",
-      "status": "in_progress",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -37459,7 +37459,7 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
       "required_proofs": [
-        "aco_64k_32k_hot_speed_curve"
+        "aco_60ki_32ki_hot_speed_curve"
       ],
       "depends_on": [
         "105-14"

@@ -2611,3 +2611,7 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-15`
 - Commit at update: `24669529e`
 - Summary: Confirmed unused full-L/legacy F16 MTP scratch corrected in 8d09fe367 and 24669529e. Focused CPU 3/3 and CUDA checks pass; fixed L262144 H65536 Turbo4 GPU MTP live validation reached C71218 with 330 MiB peak headroom. Resume new frozen-cohort benchmark preparation; diagnostic proof does not complete 105-15.
+
+## 2026-10-11 — 105-15 — todo
+
+- Summary: Operator reset the interrupted decimal C=59,998 run. 105-15 now targets exactly C=61,440 (60Ki) with L=262,144 and H=32,768; future 128Ki/192Ki/250Ki targets are 131,072/196,608/256,000, with a 6,144-token reserve at 250Ki. Historical raw attempts remain diagnostic and preserved; the next Wiretail invocation starts task attempt 1.

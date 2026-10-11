@@ -14,9 +14,10 @@ campaign, not a code-tuning phase.
 ### Continue the remaining measurements to completion
 
 The next task is **105-15**, currently `todo`. Continue in state order through
-105-22: 105-15 ACO 64K/32K-hot; 105-16 GPU-only 64K; 105-17 CPU-F16-KV
-64K; 105-18 ACO 128K/64K-hot; 105-19 ACO 192K/64K-hot; 105-20 ACO
-250K/64K-hot; 105-21 the near-full 256K cold-file measurement; and 105-22
+105-22: 105-15 ACO C=61,440 (60Ki)/H=32,768 (32Ki); 105-16 GPU-only C=61,440
+at L=65,536 (64Ki); 105-17 CPU-F16-KV C=61,440 at L=65,536; 105-18 ACO
+C=131,072 (128Ki); 105-19 ACO C=196,608 (192Ki); 105-20 ACO C=256,000
+(250Ki) in L=262,144 (256Ki); 105-21 near-full cold-file measurement; and 105-22
 the final tables and findings. Do not stop this sequence because a measured
 speed, MTP acceptance rate, or answer quality is poor. The protocol explicitly
 records those outcomes without pass thresholds.
@@ -179,7 +180,7 @@ managed service lifecycle and must not launch a second model.
 
 `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 32768 -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-105-15 — ACO, L=262,144, H=32,768 (128 pages):
+105-15 — ACO, L=262,144, H=32,768 (128 pages), fill C=61,440 (60Ki):
 
 `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 128 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
@@ -191,15 +192,16 @@ managed service lifecycle and must not launch a second model.
 
 `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -ctk f16 -ctv f16 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager off --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-105-18 — ACO, L=262,144, H=65,536 (256 pages), fill C=120,000:
+105-18 — ACO, L=262,144, H=65,536 (256 pages), fill C=131,072 (128Ki):
 
 `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-105-19 — ACO, L=262,144, H=65,536 (256 pages), fill C=184,000:
+105-19 — ACO, L=262,144, H=65,536 (256 pages), fill C=196,608 (192Ki):
 
 `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
-105-20 — ACO, L=262,144, H=65,536 (256 pages), fill C=250,000:
+105-20 — ACO, L=262,144, H=65,536 (256 pages), fill C=256,000 (250Ki),
+leaving 6,144 tokens below the 256Ki allocation:
 
 `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 256 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4`
 
@@ -226,7 +228,7 @@ repo-filled context test. These tests use the A/B/A workload below, then append
 tracked repository source to the task's occupied-context target before running
 the 48 canonical requests. Thus all GPU-only/CPU-KV controls at 8K, 32K, and
 64K receive the same repo-derived filled workload as their paired ACO case;
-the 128K, 192K, and 250K ACO tests do too.
+the 128Ki, 192Ki, and 250Ki occupied ACO tests do too.
 
 ## A/B/A source-context workload for filled-context tasks
 
@@ -245,14 +247,23 @@ count for that test is reached. Keep at least 1,536 tokens for the next user
 prompt, response, and normal runtime margin. If source text runs out or the
 count cannot fit, record actual C and stop the fill; never exceed L or compact.
 
-Use C targets: 6,144 at L=8,192; 30,000 for 32K; 60,000 for 64K; 120,000,
-184,000, and 250,000 for the three large ACO rows. The 77,824 baseline group
-is not filled. For ACO H is respectively 4,096, 16,384, 32,768, and
+Completed 105-06 through 105-14 retain their historical measured occupancies;
+do not rewrite their evidence. For the remaining rows use exact binary-K
+targets: 6,144 at L=8,192; 30,000 for the historical 32K row; 61,440 (60Ki)
+for 105-15/16/17; 131,072 (128Ki) for 105-18; 196,608 (192Ki) for 105-19;
+and 256,000 (250Ki) for 105-20/21. The 256Ki server allocation is
+L=262,144, so C=256,000 deliberately leaves a 6,144-token reserve for the
+recall request and runtime margin; do not fill to 262,144. The 77,824 baseline
+group is not filled. For ACO H is respectively 4,096, 16,384, 32,768, and
 65,536 tokens as listed in the task packet. The 32K and 64K ACO tasks allocate
 L=262,144 while filling only to their named C; their GPU/CPU controls allocate
 L=32,768 or 65,536. The 8K ACO allocation is L=8,192. The baseline ACO
 allocation is L=77,824 and H=65,536. The 128K/192K/256K rows use L=262,144,
 H=65,536. Never reduce H, batch size, or other settings during the campaign.
+In this matrix, K means 1,024 tokens: 32K=32,768, 60K=61,440,
+64K=65,536, 128K=131,072, 192K=196,608, and 256K=262,144. Always state both
+the binary-K label and exact integer in results. Occupied C can be lower than
+allocated L to preserve the explicitly stated reserve.
 
 The 8K A/B/A fixture must be sized in 105-06 to fit and still reach C>H. For
 larger contexts, use that same frozen A/B/A seed then the fixed repository
@@ -266,7 +277,9 @@ do not begin the matrix.
 
 Each configuration writes a compact JSON and Markdown result plus append-only
 raw request/response, SSE, lifecycle, process-identity, and memory artifacts
-under `/srv/ai/paged-kv/results/forward/105-matrix/<task-id>/attempt-01/`.
+under `/srv/ai/paged-kv/results/forward/105-matrix/<task-id>/<unique-run-root>/`.
+Never overwrite or reuse an earlier attempt directory; Wiretail retry numbers
+and raw-result directory names are independent.
 Report 3 tables per configuration, with rows `off`, `low`, `medium`, `xhigh`
 and columns Prompt 1, Prompt 2, Prompt 3:
 
