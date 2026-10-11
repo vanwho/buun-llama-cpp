@@ -1,17 +1,19 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
-Revision: `hotpath-v10-20260914`. Amendment: `ranking-query-repair-20261006`.
+Revision: `hotpath-v10-20260914`. Amendment: `request-time-mtp-scratch`.
 
 This is the architecture contract. The current execution amendment is
-`ranking-query-repair-20261006`, detailed in
-[ranking-query-repair](../engineering-notes/ranking-query-repair.md).
-105-01e/f/g through105-05 are complete. Current work is the fixed benchmark
-matrix:105-06 freezes the exact helper/binaries/argv and runs the original
-GPU baseline;105-07 through105-20 run the requested original CPU, ACO, and
-context-size controls without changing code or performance settings between
-rows;105-21 aggregates medians and the fresh-prefill context curve. See
-`clusters/forward105-matrix.md`.105-01 remains deferred, not passed.
-For105-02 onward the compact
+[request-time MTP scratch](../engineering-notes/request-time-mtp-scratch.md).
+The earlier ranking-query repair is implemented history, not work to repeat.
+105-06 through 105-14 are complete in the original frozen benchmark cohort.
+105-15 prepares a separately frozen scratch-corrected candidate; 105-15
+through 105-20 measure the remaining context-size controls without changing
+code or performance settings between rows; 105-21 measures cold-file recall;
+105-22 aggregates medians and the fresh-prefill context curve with explicit
+candidate-cohort labels. Turbo4 target K/V and GPU Turbo4 MTP remain primary;
+eligible fused attention must not reserve unused F16 materialization. See
+`clusters/forward105-matrix.md`. 105-01 remains deferred, not passed.
+For 105-02 onward the compact
 [selected-generation contract](../engineering-notes/selected-generation-contract.md)
 supersedes earlier conclusions about zero proposals or fully covered parity.
 105-01a/b/c/d are historical; d explicitly decided NO ADOPTION.
@@ -38,7 +40,7 @@ Preserve
 import its unfinished exact-capacity harness into the experimental base.
 Experimental source is developed in a separate worktree/branch from the local
 plan branch; main default routing remains unchanged until an explicit later
-numerical/recall outcome proof in105-01f and reviewed integration in105-01g. Independent query probes plus GPU
+numerical/recall outcome proof in 105-01f and reviewed integration in 105-01g. Independent query probes plus GPU
 metadata shortlist/key-only rerank replace the legacy averaged-span Mean-K
 ranking. Storage, prefill/FA routes and full-L GPU Turbo4 MTP are preserved.
 Completed poor experimental results are verdicts, not repeat gates.
@@ -133,7 +135,7 @@ Historical phase100/101 diagnostics and their old scheduling are not current
 instructions. Their ~212 tok/s row predates subsequent GPU-route repairs;
 neither that row nor a faster but incoherent experimental row certifies the
 current candidate. Preserve existing capacity, storage and transport repairs.
-The next work is precisely105-06 through105-21, not reopening old release
+The next work is precisely105-15 through105-22, not reopening old release
 audits. Source integration and small retrieval/MTP evidence are complete.
 During the matrix, a reproduced setup failure stops the sequence and requires
 a newly frozen campaign; do not patch settings between measured rows.

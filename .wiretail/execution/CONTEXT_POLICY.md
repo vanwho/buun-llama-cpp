@@ -17,6 +17,12 @@ product code. Use `--clean-first` only when the task requires a clean candidate;
 it is not a general speed setting. If an active packet still specifies another
 job count, correct its command to `--parallel 16` before building.
 
+Do not edit implementation files during an active compile. If an edit did
+race a compiler, an object completed after the edit may look newer while
+containing old code. After the final edit, invalidate the affected
+translation unit's build timestamp and rebuild incrementally; do not
+launch a supposedly corrected candidate based on timestamps alone.
+
 ## GPU test ownership
 
 Before model tests, hold `/tmp/ai-pager-benchmark.lock` and inspect actual
@@ -31,24 +37,27 @@ setup issues, not reasons to change H accounting, routes, codecs or B/U.
 
 ## Current phase-105 source-directed override
 
-Order105-01e/f/g ->105-02 ->105-02a ->105-03/04/05.105-01a/b/c/d are historical; d decided
-no-adoption.105-01 is deferred, not passed. Start from
-WORK_STATE current task, its packet/cluster, the compact
-engineering-notes/selected-generation-contract.md for105-02 onward, and
-the immediate relevant handoff.
+Current ordered work is 105-15 through 105-22; earlier implementation work
+is history, not steps to repeat. Start from WORK_STATE current task, its
+packet/cluster, `engineering-notes/request-time-mtp-scratch.md`, and the
+immediate relevant handoff. Keep Turbo4 target K/V and full-L GPU Turbo4
+MTP with B/U=1024/256. Task 105-15 prepares a separately frozen corrected
+candidate; preserve original completed matrix results in their old cohort.
+Do not restore the obsolete full-L/early F16 reserve or read old capacity
+assessments as current instructions. The diagnostic memory run does not
+complete the prescribed benchmarks. Source/configuration remains fixed
+between scored rows. Use selected-generation-contract only for a precise
+remaining generation-policy detail, not an old implementation itinerary.
 104/103/older retry plans are historical, not startup directions. Preserve
 working storage/transport/replay code; do not load whole recovery documents,
 WORK_LOG/WORK_STATE, source files or raw JSONL into agent context. Source
 paths mean rg-selected symbol regions. New task IDs/clusters avoid old failed
 sessions; retain historical token usage and raw artifacts.
 
-Main source owns state/receipts. Experiment implementation is in
-/srv/repos/vanwho/buun-llama-cpp-ranking-v1. Keep its dirty source; never edit
-its copied execution ledger, start nested Wiretail or load a second Qwen.
-Supplied source patches may be applied as explicitly directed by the packet;
-that is not a task-agent commit/branch merge. The outer runner owns Git history.
-Main adoption is explicitly105-01f numerical/recall outcomes and105-01g reviewed integration,
-not a wholesale experiment merge or a historical104 approval.
+The main checkout `/srv/repos/vanwho/buun-llama-cpp` owns the current source,
+build and state/receipts. The separate ranking-v1 worktree is historical;
+do not switch to it or restart its implementation tasks. Never start nested
+Wiretail or load a second Qwen. The outer runner owns task Git transitions.
 
 GPU Turbo4 target/full-L GPU Turbo4 MTP, B1024/U256. Capture independent Q
 probes at the final-user boundary; diverse coarse K candidates precede exact
@@ -69,9 +78,10 @@ profilers unset for speed/MTP comparisons. Diagnostic snapshots are bounded
 and failure-only. Small numerical/recall outcome work precedes integration;
 coherent retrieval/MTP work precedes large occupancy. Correct auth/identity/port/config errors in-run and
 retry the smallest affected request. A completed semantic/performance miss
-creates a specific code repair, not an unchanged large campaign loop. Missing
-semantic success does not block an outcome/porting task when numerical and
-execution invariants pass: preserve goal_miss and its105-02 owner. It does
+is a recorded finding in the immutable matrix, not an unchanged campaign
+loop or authorization to tune between rows. Missing semantic success does
+not block an outcome task when numerical and execution invariants pass:
+preserve goal_miss for the final 105-22 review. It does
 block an end-to-end success claim. Do not infer requested-page recall from
 promotion of a different page or from high MTP acceptance alone. Missing
 optional telemetry is unknown, not failed functionality. Actual execution or

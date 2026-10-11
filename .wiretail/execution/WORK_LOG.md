@@ -2605,3 +2605,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-15`
 - Commit at update: `b756f4453`
 - Summary: Attempt 4 exhausted the distinct exact-profile graph-init path: the tiny probe succeeded but left only 4 MiB free; no competing CUDA owner exists, no scored data or required receipt was produced, and further campaign work requires documented GPU capacity change.
+
+## 2026-10-11T00:46:48+00:00 — 105-15 — todo
+
+- Branch: `codex/task-105-15`
+- Commit at update: `24669529e`
+- Summary: Confirmed unused full-L/legacy F16 MTP scratch corrected in 8d09fe367 and 24669529e. Focused CPU 3/3 and CUDA checks pass; fixed L262144 H65536 Turbo4 GPU MTP live validation reached C71218 with 330 MiB peak headroom. Resume new frozen-cohort benchmark preparation; diagnostic proof does not complete 105-15.

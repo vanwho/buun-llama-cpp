@@ -2,22 +2,22 @@
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
   "canonical_plan": ".wiretail/execution/forward/OVERVIEW.md",
-  "active_plan_amendment": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
-  "technical_change_spec": ".wiretail/execution/engineering-notes/ranking-query-repair.md",
+  "active_plan_amendment": ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
+  "technical_change_spec": ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
   "execution_cookbook": ".wiretail/execution/forward/TESTING.md",
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Finish105-01g main integration without restarting it. Then105-02 production-shape attention/generation proof and targeted repair,105-02a small matched recall/canonical MTP/speed,105-03 executed large trajectory and primary fact,105-03a split-layout validation,105-03b novel post-layout capability/canonical evidence,105-04/05 summary/review. Read only current packet/cluster, task-specific compact engineering note and immediate handoff.105-01a/b/c/d are historical;d no-adoption. No raw transcripts/old patches. Turbo4 target/full-L GPU MTP,B1024/U256, once-per-user-turn GPU ranking/promotion/replay and frozen common history. Completion response timing counts outrank resettable slot diagnostics.105-01f measured9.89% MTP, not zero; slash filler remains goal_miss. Its2:1 materialized oracle is not actual Qwen6:1 generation parity. Source-only October7 consumer/reporting edits await105-02 build/proof. No per-token rerank/readback or diagnostic kernel changes. A repeated small coherence/semantic failure inserts its specific implementation before scale, never unchanged retries or false success. Preserve usage/raw history.",
+  "context_policy": "Current work is 105-15 through 105-22. Read only current packet/cluster, request-time-mtp-scratch compact note, immediate relevant handoff and cohort freeze. Prior implementation tasks and failed assessments are historical, not instructions to replay. Turbo4 target K/V and full-L GPU Turbo4 MTP, B1024/U256; preserve GPU fused attention without unused F16 scratch. 105-15 is a new corrected-candidate preparation boundary; freeze once before scored rows. Keep original 105-06..14 results in their old cohort, remaining measurements in MATRIX105_SCRATCH_FREEZE; never mix binary identities. No source/config changes between scored rows, no raw transcript loading, no per-token diagnostic/rerank work. Report actual fresh-prefill timing, request-local MTP and memory. A completed low speed or semantic miss is a finding, not an unchanged-retry gate. Preserve usage/raw history externally.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "blocked",
+  "status": "ready",
   "current_phase": "105",
   "current_task": "105-15",
-  "last_updated_utc": "2026-10-09T01:19:45+00:00",
+  "last_updated_utc": "2026-10-11T00:46:48+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-01 through105-05 are complete/deferred as recorded. Current ordered work is105-06 through105-20: freeze the exact benchmark helper, source, binary and all expanded server argv before the first scored row, then run the immutable 15-configuration GPU-only/CPU-F16-KV/ACO context matrix. Task105-21 runs a bounded two-file cold-recall/promotion measurement at the near-full 256K ACO geometry; misses are recorded without repair. Task105-22 aggregates all matrix medians, recall outcomes and the fresh-prefill context curve. Use only the forward105-matrix cluster and current task packet; no historical transcripts.",
+    "active_scope": "105-06 through 105-14 retain their original completed benchmark cohort. Current ordered work is 105-15 through 105-22. Task 105-15 prepares MATRIX105_SCRATCH_FREEZE for the corrected Turbo4 target/GPU-MTP candidate after verifying actual compiled source and loaded DSOs; freeze helper, model, prompts, schedule and expanded argv before scored rows. Tasks 105-15 through 105-20 measure the remaining fixed configurations without code/configuration changes. Task 105-21 measures cold-file recall at near-full 256K; misses are findings without repair. Task 105-22 aggregates medians/curves and labels the two candidate cohorts explicitly. Use only current packet/cluster, compact scratch note and immediate relevant handoff; do not load historical transcripts.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -37449,15 +37449,15 @@
       "cluster": "forward105-matrix",
       "title": "Measure ACO at 64K occupied / 32K hot",
       "packet": ".wiretail/execution/tasks/105-15.md",
-      "status": "blocked",
-      "blocker": "Attempt 4 exhausted the distinct exact-profile graph-init path: the tiny probe succeeded but left only 4 MiB free; no competing CUDA owner exists, no scored data or required receipt was produced, and further campaign work requires documented GPU capacity change.",
+      "status": "todo",
+      "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": ".wiretail/execution/engineering-notes/selected-generation-contract.md",
+      "plan_amendment": ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
       "required_proofs": [
         "aco_64k_32k_hot_speed_curve"
       ],
@@ -37467,6 +37467,7 @@
       "commit": null,
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
+        ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md"
       ],
       "completion_check": [
@@ -37798,7 +37799,7 @@
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
-        ".wiretail/execution/evidence/MATRIX105_FREEZE.md",
+        ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
         ".wiretail/execution/handoffs/105-20.md"
       ],
       "completion_check": [

@@ -9,6 +9,36 @@ campaign, not a code-tuning phase.
 
 ## Immutable campaign rule
 
+### Operator-directed MTP scratch repair: new preparation boundary at 105-15
+
+The request-time allocation blocker was a source defect, not proof that the
+RTX 4080 cannot admit 64K hot. Read only the compact engineering note
+`engineering-notes/request-time-mtp-scratch.md` for the correction and its
+controlled validation. Do not restore the obsolete full-L F16 reservation
+or globally force native/reference attention. No batch, codec or geometry
+change is part of this repair.
+
+105-06 through 105-14 retain their original candidate cohort and
+`MATRIX105_FREEZE.json/.md`; do not overwrite those manifests or historical
+results. Before 105-15's scored campaign, make one new preparation revision
+`MATRIX105_SCRATCH_FREEZE.json/.md` for the already-built corrected candidate
+and the remaining 105-15 through 105-21 runs. Reuse the original model,
+prompts, reasoning modes, request schedule and exact commands below.
+Refresh the build receipt only after verifying compiled source-file hashes;
+record executable and **actual loaded project DSO** hashes, source identity,
+helper hashes and the prior manifest pointer. The executable is a small
+launcher; its hash alone does not identify libllama/libggml-cuda.
+
+Verify one exact managed owner and requested L/H before generation. The
+scratch-fix diagnostics are not the 48-row benchmark and do not complete
+105-15. Freeze once before scored rows, then do not edit code/configuration
+or rebuild within the new cohort. Subsequent tasks use this new manifest.
+105-22 labels both cohorts explicitly; never present measurements across
+the repair boundary as same-binary comparisons. Preserve previous findings
+without rerunning unrelated completed configurations.
+
+### Original preparation boundary (historical cohort)
+
 Task 105-06 is the only preparation boundary. It must validate or repair the
 benchmark helper, request construction, tokenizer/preflight, row parser, and
 launch configuration before any measured row. Before its first measured
