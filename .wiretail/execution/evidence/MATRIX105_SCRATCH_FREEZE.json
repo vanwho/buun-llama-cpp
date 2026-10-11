@@ -1,0 +1,160 @@
+{
+  "schema": "forward105-matrix-freeze-v2",
+  "cohort": "forward105-matrix corrected scratch cohort",
+  "task": "105-15",
+  "created_utc": "2026-10-11",
+  "prior_manifest_pointer": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_FREEZE.json",
+    "sha256": "3a978d416a65b2092346c6a66872642c4deb02949709a492d231954fd21cda53"
+  },
+  "source_identity": {
+    "git_head": "ac9d7e0d7e7a24864b0e0777d0985a3415fb102a",
+    "production_fix_ancestors": [
+      "8d09fe367",
+      "24669529e",
+      "0247624e9",
+      "c6d71b44d",
+      "f5478ee12"
+    ],
+    "production_source_tree_clean": true,
+    "runner_metadata_status": [
+      " M .wiretail/execution/WORK_STATE.json",
+      " M .wiretail/execution/handoffs/105-15.md"
+    ],
+    "source_file_sha256": {
+      "src/llama-kv-cache.cpp": "8a5d25922fc54de8048b13778d136057fa27d6566f492621165eaac19d26565f",
+      "src/llama-context.cpp": "162268c8f0e08b5d02b523fd3ce9c476b6702987dfffb7ea381bc89bfbce6922",
+      "src/llama-graph.cpp": "32f221cb9c0aa3e82ab217374f38470d34cf1bf924bed61d689248138bb4f874",
+      "ggml/src/ggml-cuda/fattn.cu": "74b9fb09a6649597f9256ea05266116ae39411234565b3c0bebf57c97122fbf3",
+      "ggml/src/ggml-cuda/common.cuh": "a6e6ed3e53636a376ff43148e1e6c04a82a583e85f1a943fa5ee171ce75fd04f",
+      "tools/server/server-context.cpp": "714a1e4da34d8cb4ac441603415a10a9798569c72302a2ddb448ba960f3bbe39"
+    }
+  },
+  "build": {
+    "command": "cmake --build build-cuda --parallel 16 --target llama-server",
+    "result": "exit 0",
+    "log": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/incremental-build.log",
+    "build_receipt": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/build-receipt.json",
+    "build_receipt_sha256": "8ee0a94b8fc9c5bfc7f079ebe7a280f144a724e204a2d7a637cba78bfce4f026",
+    "artifacts": {
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "136142968618a512c81e481f780a2c5ae8709c72d1125ce2e26068253e045b4d",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "1f6bd698101c545248fc0c35a8010cb5c37ffce278720d7f286a62ce6729bf7a",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073"
+    },
+    "loaded_project_dsos": {
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "1f6bd698101c545248fc0c35a8010cb5c37ffce278720d7f286a62ce6729bf7a",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073"
+    },
+    "loaded_dso_paths_file": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/loaded-dso-paths.txt",
+    "source_hashes_verified": true
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "configuration": {
+    "exact_execstart": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 128 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "argv_sha256": "f0ec993d52b1e4b04018b21ade7692738c80b01e33dd0d070b95986fb432f9f1",
+    "L": 262144,
+    "H_tokens": 32768,
+    "H_pages": 128,
+    "C_target": 61440,
+    "B": 1024,
+    "U": 256,
+    "target_kv": "turbo4",
+    "target_v": "turbo4",
+    "pager": "selective",
+    "router": "probe-rerank",
+    "draft": "GPU Turbo4 native MTP n_max=2",
+    "reasoning_modes": [
+      "off",
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "warmup_repetitions": 1,
+    "measured_repetitions": 3,
+    "max_tokens_warmup": 40,
+    "max_tokens_measured": 400,
+    "temperature": 0,
+    "seed": 42
+  },
+  "helpers": {
+    "frozen_request_helper": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-06/attempt-01/raw/run_matrix105.py",
+      "sha256": "fe59102934baff94ba8d81adb1c50bbefdc4cf60e8a2bc7e1ab25053fd09544e"
+    },
+    "matrix_runner": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/run_matrix105_15.py",
+      "sha256": "54b3967dbab304c552df3aeaa4dbf3fb30913acbb997270a881e04d886fbb654"
+    },
+    "context_curve_runner": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/run_prefill_curve_10515.py",
+      "sha256": "b6651df3c88857f39a6045b883e27be1e87ebe9a40180da149a226a581f8e8c0"
+    },
+    "source_manifest": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/source-chunk-manifest.json",
+      "sha256": "6b45860dbd1f2ccea51824a87895f17d6c99b1f4f4dc09388c809cadc095b635"
+    },
+    "seed_base": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/seed_base_messages.json",
+      "sha256": "45a4e0d8f5996d0fe3fd4c09e8c5a1b22696835bf521213f6788beb0ccd3725f"
+    },
+    "filled_base": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/filled_base_messages.json",
+      "sha256": "6d559c030d7f1bc9af5e157a9c441c77db74f8a39d248fe1187553cbd9521062"
+    },
+    "prefill_curve": {
+      "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/prefill_curve.json",
+      "sha256": "d67dbd4adc5dc8a5037da6e45bbb8e3db476bcbf136b7e51c00fa6755ef8ef99"
+    }
+  },
+  "preserved_prefix": {
+    "prior_C": 30000,
+    "prior_base_messages_path": "/srv/ai/paged-kv/results/forward/105-matrix/105-14/attempt-01/filled_base_messages.json",
+    "prior_base_sha256": "6c12245f8ac0dff5a9641289178a574734fe474bb12e1b23127e9bb4a20f5557",
+    "new_fixed_source_file": "tools/server/server-context.cpp",
+    "new_source_sha256": "714a1e4da34d8cb4ac441603415a10a9798569c72302a2ddb448ba960f3bbe39",
+    "new_source_start_line": 2348
+  },
+  "context_fill": {
+    "target_C": 61440,
+    "server_reported_prompt_tokens": 61440,
+    "final_same_settings_tokenizer_count": 61440,
+    "curve_points": 18,
+    "append_chunks": 17,
+    "base_messages_sha256": "6d559c030d7f1bc9af5e157a9c441c77db74f8a39d248fe1187553cbd9521062",
+    "source_chunk_manifest_sha256": "6b45860dbd1f2ccea51824a87895f17d6c99b1f4f4dc09388c809cadc095b635",
+    "slot_empty_before_seed_verified": true
+  },
+  "prompt_schedule": {
+    "prompts": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ],
+    "schedule_rows": 48,
+    "canonical_fixture_root": "tools/server/bench/fixtures/repo-context-v1/",
+    "shared_request_helper_sha256": "fe59102934baff94ba8d81adb1c50bbefdc4cf60e8a2bc7e1ab25053fd09544e"
+  },
+  "loaded_service": {
+    "health": {
+      "status": "ok"
+    },
+    "process_cmdline": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-router probe-rerank --kv-page-size 256 --kv-hot-pages 128 --kv-pin-recent 0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "process_service_file": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/target-service.txt",
+    "loaded_hashes_match_build": true,
+    "main_pid": 3142332,
+    "service": "llama-server.service"
+  },
+  "revision": 3,
+  "supersedes": {
+    "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-05/recovery-20261011-r2/raw/MATRIX105_SCRATCH_FREEZE.json",
+    "sha256": "7caa188da300c83de2fb7655fad4473218da6368741c2d4998158b798c20ee91"
+  },
+  "revision_reason": "Fresh corrected-candidate preparation with exact C=61,440 server-reported prompt occupancy; prior revision used the obsolete C=60,000 preparation."
+}
