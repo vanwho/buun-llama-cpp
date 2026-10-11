@@ -78,3 +78,36 @@ validation logs are under
 `/srv/ai/paged-kv/results/forward/long-query-no-victim-20261011/`.
 Managed-service validation remains separate and must use the repaired
 loaded library, not just a new executable file beside an old process.
+
+### Repaired managed-service result
+
+The service was restarted only after its active request finished. The
+new process loaded the repaired library, with the same qwen38-aco profile:
+L=262144/H=65536, B=1024/U=256, P=256, Turbo4 target/draft,
+GPU native draft-MTP n-max=2, CUDA0, and no context shift.
+The executable reports embedded source commit `0247624e9`; subsequent
+commits change only the validation helper and planning documentation.
+
+One fresh raw-completion request with Q=[0,72061), no cached prefix, and
+512 output tokens completed with HTTP 200 and no reservation/decode error.
+It crossed generation page starts 72192 and 72448, including the reported
+failure boundary. Request-local results were:
+
+- Prefill: 72061 tokens in 98.271 seconds, 733.29 tok/s.
+- Decode: 512 tokens in 11.391 seconds, 44.86 tok/s.
+- MTP: 330/361 proposals accepted, 91.41%.
+- Sampled peak GPU memory used: 15497 MiB.
+
+These are single diagnostic measurements, not canonical benchmark medians
+or new recall-quality certification. Both 8080 and 8091 were healthy after
+completion, the slot was idle, and the repaired qwen38-aco profile stayed
+loaded. No second model process or change of L/H/B/U was needed.
+
+Result: `/srv/ai/paged-kv/results/forward/long-query-no-victim-20261011/attempt-01/result.json`.
+SHA-256: `407831ff443ecae3517ee3e2fbf3722887905bfbecc3e7199922dfcbca745202`.
+Loaded libllama SHA-256:
+`d7b8c73d7e43f78c652376c01fec66f3b7e8c02ed113b6ea21671fe283cad08a`.
+Raw prompts, SSE, library identities and memory samples remain local-only.
+The site-specific validation helper commits `37f3e7248` and `490e7150a`
+are separate from the production fix and can be excluded from an upstream
+code submission.
