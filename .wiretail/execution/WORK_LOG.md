@@ -2627,3 +2627,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-16`
 - Commit at update: `d69a259f9`
 - Summary: Measured frozen GPU-only Turbo4 control at exact C=61440/L=65536; all 48 guarded rows, reports, receipt, and service restore verified
+
+## 2026-10-11T19:37:55+00:00 — 105-17 — done
+
+- Branch: `codex/task-105-17`
+- Commit at update: `15745f632`
+- Summary: Measured all 48 CPU-F16 KV control rows at C=61,440/L=65,536, verified report and service restore, and passed the V10 receipt check.
