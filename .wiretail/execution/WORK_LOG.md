@@ -2633,3 +2633,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-17`
 - Commit at update: `15745f632`
 - Summary: Measured all 48 CPU-F16 KV control rows at C=61,440/L=65,536, verified report and service restore, and passed the V10 receipt check.
+
+## 2026-10-11T22:30:17+00:00 — 105-18 — done
+
+- Branch: `codex/task-105-18`
+- Commit at update: `b3df1f558`
+- Summary: Completed exact 128Ki/64Ki ACO matrix and 40-point fill curve; restored managed service and passed receipt validation.
