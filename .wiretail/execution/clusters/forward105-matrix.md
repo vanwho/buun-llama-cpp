@@ -22,8 +22,13 @@ speed, MTP acceptance rate, or answer quality is poor. The protocol explicitly
 records those outcomes without pass thresholds.
 
 For the new 105-15 cohort, the newest production-code candidate is the
-`build-cuda` server whose embedded source commit is `0247624e9` or a later
-build containing that fix. Its validated loaded `libllama.so.0.5.0` hash is
+`build-cuda` server containing `0247624e9` (long-query generation eviction),
+`c6d71b44d` (hybrid attention suffix trim and capture-pin mutation ordering)
+and `f5478ee12` (retain unrelated async capture leases on MTP rollback), or
+later source preserving all three corrections. Read the
+compact `engineering-notes/repeated-prompt-attention-trim.md`; repeated
+requests must not accumulate duplicate logical KV rows. The historical
+pre-trim-fix validated loaded `libllama.so.0.5.0` hash was
 `d7b8c73d7e43f78c652376c01fec66f3b7e8c02ed113b6ea21671fe283cad08a`.
 The later commits `37f3e7248`, `490e7150a`, `62b0c3d2d`, and `8b52cf504`
 only add the local validator, response-timeout handling, and planning/results
