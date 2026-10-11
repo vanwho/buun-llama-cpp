@@ -1072,6 +1072,11 @@ static void test_cuda_async_host_publication() {
         }
         (void) pager->seal_ready_pages(false);
         assert(pager->host_inflight_pages() == 1);
+        // Removing an unrelated empty suffix may release turn pins, but
+        // must not cancel or discard this page's capture ownership.
+        assert(pager->mutate({ llama_kv_pager_mutation_kind::remove,
+                0, -1, 256, 512, 0, 0, pager->residency().epoch(), true }) ==
+                llama_kv_pager_write_status::ok);
         const auto status = pager->mutate({ kind,
                 kind == llama_kv_pager_mutation_kind::keep ? 1 : 0, -1,
                 kind == llama_kv_pager_mutation_kind::remove ? 128 : 0,
@@ -1090,6 +1095,41 @@ static void test_cuda_async_host_publication() {
         }
     }
     std::cout << "async_capture_mutation=pass remove_partial_reappend=1 rewind=1 clear=1 keep=1\n";
+
+    // A turn ending exactly at a full frontier must leave its capture pin
+    // for completion, not consume it as though it were still a write pin.
+    {
+        llama_kv_pager_config config;
+        config.mode = llama_kv_pager_mode::selective;
+        config.hot_pages.automatic = false;
+        config.hot_pages.value = 2;
+        llama_kv_pager_status pager_status;
+        auto pager = llama_kv_pager::create(config, geometry(512), host_resources,
+                pager_backend, pager_status);
+        assert(pager && pager_status == llama_kv_pager_status::ok);
+        pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+        pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+        llama_kv_page_id frontier;
+        frontier.sequence_id = 0;
+        frontier.sequence_generation = 1;
+        frontier.position_begin = 0;
+        frontier.position_end = 1;
+        assert(pager->transition_turn(0, 55, 0,
+                llama_kv_pager_turn_phase::query_provisional, 0, 256,
+                frontier, 0) == llama_kv_pager_turn_status::ok);
+        llama_kv_pager_write_ticket ticket;
+        for (llama_pos pos = 0; pos < 256; ++pos) {
+            assert(pager->begin_write(0, 1, pos, ticket) == llama_kv_pager_write_status::ok);
+            assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+        }
+        (void) pager->seal_ready_pages(false);
+        assert(pager->host_inflight_pages() == 1);
+        assert(pager->clear_turn_state(0, 55, 0) == llama_kv_pager_turn_status::ok);
+        assert(pager->host_inflight_pages() == 0);
+        const auto page = pager->residency().pages().at(0);
+        assert(page.pin_count == 0 && page.host_valid && !page.dirty);
+        assert(pager->host_catalog()->snapshot().live_pages == 1);
+    }
     fixture.release_cuda(backend);
 }
 

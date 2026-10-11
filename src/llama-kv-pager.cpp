@@ -4136,8 +4136,6 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         // none may release a capture pin or reuse its source slot early.
         const auto affects_capture = [&](const page_state & page) {
             if (!page.present) return false;
-            if (mutation.release_sequence_pins && (mutation.sequence_id < 0 ||
-                    page.record.id.sequence_id == mutation.sequence_id)) return true;
             switch (mutation.kind) {
                 case llama_kv_pager_mutation_kind::clear: return true;
                 case llama_kv_pager_mutation_kind::keep:
@@ -4173,6 +4171,11 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                          page.record.id.sequence_id != mutation.sequence_id)) {
                     continue;
                 }
+                // A transient rollback releases turn/write pins, not an
+                // unrelated asynchronous capture's source lease. Keep that
+                // lease until completion instead of globally fencing host
+                // transfers at every speculative rollback.
+                if (page.host_inflight) continue;
                 page.record.pin_count = 0;
                 if (page.record.state == llama_kv_page_state::filling_gpu &&
                         page.valid_rows.size() == snapshot_.geometry.page_tokens &&
@@ -4408,6 +4411,12 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         old.pin_count == 0) {
                     continue;
                 }
+                const auto capturing = std::find_if(next.begin(), next.end(),
+                        [&](const page_state & page) {
+                    return page.present && page.host_inflight &&
+                        page.record.id == old.id;
+                });
+                if (capturing != next.end()) continue;
                 auto released = old;
                 released.pin_count = 0;
                 if (residency_.update(tx, released) != llama_kv_residency_status::ok) {
