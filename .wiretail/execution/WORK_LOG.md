@@ -2615,3 +2615,9 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-10-11 — 105-15 — todo
 
 - Summary: Operator reset the interrupted decimal C=59,998 run. 105-15 now targets exactly C=61,440 (60Ki) with L=262,144 and H=32,768; future 128Ki/192Ki/250Ki targets are 131,072/196,608/256,000, with a 6,144-token reserve at 250Ki. Historical raw attempts remain diagnostic and preserved; the next Wiretail invocation starts task attempt 1.
+
+## 2026-10-11T16:24:22+00:00 — 105-15 — done
+
+- Branch: `codex/task-105-15`
+- Commit at update: `ac9d7e0d7`
+- Summary: Corrected candidate frozen; exact C=61,440 ACO curve and all 48 rows validated; qwen38-aco restored

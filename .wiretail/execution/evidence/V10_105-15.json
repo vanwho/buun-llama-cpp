@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "task": "105-15",
+  "source_commit": "ac9d7e0d7e7a24864b0e0777d0985a3415fb102a",
+  "checks": {
+    "aco_60ki_32ki_hot_speed_curve": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/verify_task15.py"
+      ],
+      "related_commands": [
+        [
+          "cmake",
+          "--build",
+          "build-cuda",
+          "--parallel",
+          "16",
+          "--target",
+          "llama-server"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/run_prefill_curve_10515.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/run_matrix105_15.py"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/MATRIX105_105-15.json",
+          "sha256": "2cb93d45728cbebf6f02c70437eb44c383bb1d569ac82fd2c1c6a17bcb6eab78",
+          "bytes": 201923
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/MATRIX105_105-15.md",
+          "sha256": "d2cdf4746d511cba6252d18fc4ab5ace7097cae2111cb9d196bc75d14a8ac9b2",
+          "bytes": 4952
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/records.json",
+          "sha256": "b3ba5f03f22d7a8957c354942e9d840d02f208c6c2a69e71dd286d3620b05a6c",
+          "bytes": 152120
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/medians.json",
+          "sha256": "1a294184cc526dd0cd67574f612986b3711a9d0a31eb72c4609c8a36fbf179b0",
+          "bytes": 1242
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/prefill_curve.json",
+          "sha256": "d67dbd4adc5dc8a5037da6e45bbb8e3db476bcbf136b7e51c00fa6755ef8ef99",
+          "bytes": 28146
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/filled_base_messages.json",
+          "sha256": "6d559c030d7f1bc9af5e157a9c441c77db74f8a39d248fe1187553cbd9521062",
+          "bytes": 274385
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/matrix-run-summary.json",
+          "sha256": "6fe7a1e7945ee95300ce93bad865fbb2dbdf68f64b075c05773896dabae2295a",
+          "bytes": 2397
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw-artifact-manifest.json",
+          "sha256": "8b094cf66c081607e5364135484077020bd6713037b0d86afdcdf28112ef7a7d",
+          "bytes": 83808
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/source-chunk-manifest.json",
+          "sha256": "6b45860dbd1f2ccea51824a87895f17d6c99b1f4f4dc09388c809cadc095b635",
+          "bytes": 8990
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/context-plan.json",
+          "sha256": "01c2c5db5f082c41dfa662d28e17edb5166018801df8535fbc327532f526b3d3",
+          "bytes": 7482
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/runtime-full-prompt-counts.json",
+          "sha256": "fcbb4036b05b3efac85d1b458e7139f47cc05ad5a2599e45fcece900d762b60f",
+          "bytes": 1038
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/restore-verification.json",
+          "sha256": "5fab4b5d57c00caef89a8608ca52002fa863f907584abff12d649c7f5f055b84",
+          "bytes": 1134
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/matrix.log",
+          "sha256": "226f4ac90b879c1bcdc6f15915ce7a4f8584c0db7ba14ff9c1541cb5b57e4664",
+          "bytes": 2737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/prefill-curve.log",
+          "sha256": "ed5dd8d74491305e431f119801251eb532997f430bde38d64f5a52e910deaf4c",
+          "bytes": 1001
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/verify_task15.py",
+          "sha256": "65f6b3e9b66db6489973aea293b290b08910255f678a089094e55546396ef778",
+          "bytes": 3182
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/verify-task15.log",
+          "sha256": "a80f989ba092ed01e4e49740c500f0ecf777ba8722f9758dfd06b23ebf8ccf1a",
+          "bytes": 176
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_SCRATCH_FREEZE.json",
+          "sha256": "97225ae50ed611924fff25fc99fd518c00b780dce4943bf32bb54c0b857cda68",
+          "bytes": 9167
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_SCRATCH_FREEZE.md",
+          "sha256": "1f3ed4e8cd5342bc1b0f560cf9dae29cb754085b3ad882bb1a5a01cd7224beee",
+          "bytes": 1829
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/incremental-build.log",
+          "sha256": "6ed250a262e10674c111ffebf8d35b5aaa24f53262649d47321a5cc31e756834",
+          "bytes": 5496
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/loaded-dso-sha256.txt",
+          "sha256": "77c5ee19090aae464c6950de28b7e2d3d99a020b6aa66d4e27c5813263fb4432",
+          "bytes": 546
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/loaded-dso-paths.txt",
+          "sha256": "7c32aa40d25b8bedbe4255f55c433c5da8a4e26ee7dca0b8bfea580684718f4a",
+          "bytes": 282
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/target-execstart.txt",
+          "sha256": "638cc2822964d29ca3b8f4fd0cf5b2c8cfd443b0a0c395d23183b3dbcfc3f5c4",
+          "bytes": 932
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/target-service.txt",
+          "sha256": "e647f2db7e6487a7439372fc64263c0220ead0fe93f41486468fe48ebd5959d9",
+          "bytes": 2752
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+          "bytes": 15
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-06/raw/profile-before-service.txt",
+          "sha256": "1d5afdf0446cd4bb9f7cb7fd8677e657d1315ddadef9a7b15e95b07befb3e60a",
+          "bytes": 2841
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-15/attempt-07/raw/task15-execstart.txt",
+          "sha256": "b2f5cc595d392be9f0d3f1f2d9a36326d45f1b3f893c0bc00941dd4767080e99",
+          "bytes": 638
+        }
+      ]
+    }
+  }
+}
