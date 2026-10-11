@@ -1,0 +1,353 @@
+{
+  "schema_version": 1,
+  "task": "105-17",
+  "source_commit": "ac9d7e0d7e7a24864b0e0777d0985a3415fb102a",
+  "checks": {
+    "cpu_kv_64k_control": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/verify_task17.py"
+      ],
+      "related_commands": [
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_prefill_curve_10517.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_matrix105_17.py"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "daemon-reload"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ],
+        [
+          "sudo",
+          "-n",
+          "rm",
+          "/run/systemd/system/llama-server.service.d/105-17.conf"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/create_report_17.py"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/MATRIX105_105-17.json",
+          "sha256": "32dc0947e3041f1b6ac9bbcc73f9225509a591bec116d2df6a0f88addcaef090",
+          "bytes": 202003
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/MATRIX105_105-17.md",
+          "sha256": "ce5c782fcf6ace5c14664b51ffcd20f3047f171921c79a11c91acdba8d964835",
+          "bytes": 4688
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/records.json",
+          "sha256": "bb81d939cb6fd5f601e53f7f2cc3f449dcf270541424c45aee0a5ef0e20a0160",
+          "bytes": 150021
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/medians.json",
+          "sha256": "c07e9e49a276af7145e9b8950d710c87852b09a6a4ff13c1568112732694e987",
+          "bytes": 1212
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/prefill_curve.json",
+          "sha256": "9b7b4329b7011705014d49ca6e7b4aaea03c639eda45f9833af6579299a98c7f",
+          "bytes": 28124
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/filled_base_messages.json",
+          "sha256": "6d559c030d7f1bc9af5e157a9c441c77db74f8a39d248fe1187553cbd9521062",
+          "bytes": 274385
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/matrix-run-summary.json",
+          "sha256": "0dfb2c91cc5658b481252195683b05f66e8597c3789b4cca5cf6aa6df8d9fba9",
+          "bytes": 2289
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/verified-summary.json",
+          "sha256": "7dff116fc998f7eb32e0a1f8c092d40970a661c3c6bd6b046ebf65a5d6862782",
+          "bytes": 369
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/raw-artifact-manifest.json",
+          "sha256": "0b5168426f895a06c3922ea81d12c6b6190e8dddbc5f58445bb34041fa0ec7c7",
+          "bytes": 115904
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/matrix.log",
+          "sha256": "993e98d87913da9c9ac268d37570d4bbff6dab589e29b8c20bf813cd5379e830",
+          "bytes": 2737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/prefill-curve.log",
+          "sha256": "bdbed2749e5ab9057d4484bbb080d0f55cc815055da54a5e01f262535f11ca6d",
+          "bytes": 988
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/runtime-full-prompt-counts.json",
+          "sha256": "fcbb4036b05b3efac85d1b458e7139f47cc05ad5a2599e45fcece900d762b60f",
+          "bytes": 1038
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/source-chunk-manifest.json",
+          "sha256": "35f1a058a644f995a6a4ff2e14a81bb6ee9b70bf01674d545f6b801d01f844a3",
+          "bytes": 8990
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/context-plan.json",
+          "sha256": "6553e6c5785b94af9c2bc67ed1d47400ad42da28e81552b1c33446a3269aa38c",
+          "bytes": 7482
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/restore-verification.json",
+          "sha256": "14ab2da7ef4c10f4439deaa217af5c49d9e3a43ee4bca43631ed041a6ad813b8",
+          "bytes": 2610
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/runtime-identity-before-fill.json",
+          "sha256": "21feb14b3e2fbf914193fe6d7a69bf28994f10d5ffc2180496011a20ad5ecd1c",
+          "bytes": 2198
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/task17-execstart.txt",
+          "sha256": "49d04202ae72c36382666a3241c5061c1f31959ee1ead4a3efa6257fbe41de59",
+          "bytes": 560
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/task-profile-loaded-cmdline.txt",
+          "sha256": "9093174f7c7031cdb92c8a8fc16f5f82937af50d671e2b5a3459efb59529bf98",
+          "bytes": 560
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/task-profile-compute-owners.csv",
+          "sha256": "4a51a7ceb2b0cd62d0a2ff2d4e7a90a1beb01a34016150f9ffbb5a9d4aafe70c",
+          "bytes": 80
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/initial-slot-reset.json",
+          "sha256": "bc7c7ad7d8e74db9350c467f697430be1a19acd61addc32118aee4c2426b195d",
+          "bytes": 342
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_prefill_curve_10517.py",
+          "sha256": "7bd4a276e0743191a6d26aa499160b60796c5ba503dab3f059c40dc733601f61",
+          "bytes": 13352
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_matrix105_17.py",
+          "sha256": "f24e5e70561ab3c7fcfba5492bcc6f5010a2cc3015260447d4158344c447b0b0",
+          "bytes": 9799
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/create_report_17.py",
+          "sha256": "bdfb133f584504df10c61d7ebae87a0f07b948aadf5f145fa55a3d327079e8ee",
+          "bytes": 9352
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/verify_task17.py",
+          "sha256": "3b6203b1a7d393924975b41b16f0d4d38fb03d0a3b250534fff71021e3d5c014",
+          "bytes": 4737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/verify-task17.log",
+          "sha256": "81bdca85f3ad96a0e3c956564eab88d985f196bcfc1b1553384a94b3f419b624",
+          "bytes": 394
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/report-generation.log",
+          "sha256": "f7654dd039506117f200fd7198b3f364ca8d5f2d0566a3becac94862deae044a",
+          "bytes": 288
+        }
+      ]
+    },
+    "cpu_kv_64ki_control": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/verify_task17.py"
+      ],
+      "related_commands": [
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_prefill_curve_10517.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_matrix105_17.py"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "daemon-reload"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ],
+        [
+          "sudo",
+          "-n",
+          "rm",
+          "/run/systemd/system/llama-server.service.d/105-17.conf"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/create_report_17.py"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/MATRIX105_105-17.json",
+          "sha256": "32dc0947e3041f1b6ac9bbcc73f9225509a591bec116d2df6a0f88addcaef090",
+          "bytes": 202003
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/MATRIX105_105-17.md",
+          "sha256": "ce5c782fcf6ace5c14664b51ffcd20f3047f171921c79a11c91acdba8d964835",
+          "bytes": 4688
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/records.json",
+          "sha256": "bb81d939cb6fd5f601e53f7f2cc3f449dcf270541424c45aee0a5ef0e20a0160",
+          "bytes": 150021
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/medians.json",
+          "sha256": "c07e9e49a276af7145e9b8950d710c87852b09a6a4ff13c1568112732694e987",
+          "bytes": 1212
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/prefill_curve.json",
+          "sha256": "9b7b4329b7011705014d49ca6e7b4aaea03c639eda45f9833af6579299a98c7f",
+          "bytes": 28124
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/filled_base_messages.json",
+          "sha256": "6d559c030d7f1bc9af5e157a9c441c77db74f8a39d248fe1187553cbd9521062",
+          "bytes": 274385
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/matrix-run-summary.json",
+          "sha256": "0dfb2c91cc5658b481252195683b05f66e8597c3789b4cca5cf6aa6df8d9fba9",
+          "bytes": 2289
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/verified-summary.json",
+          "sha256": "7dff116fc998f7eb32e0a1f8c092d40970a661c3c6bd6b046ebf65a5d6862782",
+          "bytes": 369
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/raw-artifact-manifest.json",
+          "sha256": "0b5168426f895a06c3922ea81d12c6b6190e8dddbc5f58445bb34041fa0ec7c7",
+          "bytes": 115904
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/matrix.log",
+          "sha256": "993e98d87913da9c9ac268d37570d4bbff6dab589e29b8c20bf813cd5379e830",
+          "bytes": 2737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/prefill-curve.log",
+          "sha256": "bdbed2749e5ab9057d4484bbb080d0f55cc815055da54a5e01f262535f11ca6d",
+          "bytes": 988
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/runtime-full-prompt-counts.json",
+          "sha256": "fcbb4036b05b3efac85d1b458e7139f47cc05ad5a2599e45fcece900d762b60f",
+          "bytes": 1038
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/source-chunk-manifest.json",
+          "sha256": "35f1a058a644f995a6a4ff2e14a81bb6ee9b70bf01674d545f6b801d01f844a3",
+          "bytes": 8990
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/context-plan.json",
+          "sha256": "6553e6c5785b94af9c2bc67ed1d47400ad42da28e81552b1c33446a3269aa38c",
+          "bytes": 7482
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/restore-verification.json",
+          "sha256": "14ab2da7ef4c10f4439deaa217af5c49d9e3a43ee4bca43631ed041a6ad813b8",
+          "bytes": 2610
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/runtime-identity-before-fill.json",
+          "sha256": "21feb14b3e2fbf914193fe6d7a69bf28994f10d5ffc2180496011a20ad5ecd1c",
+          "bytes": 2198
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/task17-execstart.txt",
+          "sha256": "49d04202ae72c36382666a3241c5061c1f31959ee1ead4a3efa6257fbe41de59",
+          "bytes": 560
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/task-profile-loaded-cmdline.txt",
+          "sha256": "9093174f7c7031cdb92c8a8fc16f5f82937af50d671e2b5a3459efb59529bf98",
+          "bytes": 560
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/task-profile-compute-owners.csv",
+          "sha256": "4a51a7ceb2b0cd62d0a2ff2d4e7a90a1beb01a34016150f9ffbb5a9d4aafe70c",
+          "bytes": 80
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/initial-slot-reset.json",
+          "sha256": "bc7c7ad7d8e74db9350c467f697430be1a19acd61addc32118aee4c2426b195d",
+          "bytes": 342
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_prefill_curve_10517.py",
+          "sha256": "7bd4a276e0743191a6d26aa499160b60796c5ba503dab3f059c40dc733601f61",
+          "bytes": 13352
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/run_matrix105_17.py",
+          "sha256": "f24e5e70561ab3c7fcfba5492bcc6f5010a2cc3015260447d4158344c447b0b0",
+          "bytes": 9799
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/create_report_17.py",
+          "sha256": "bdfb133f584504df10c61d7ebae87a0f07b948aadf5f145fa55a3d327079e8ee",
+          "bytes": 9352
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/verify_task17.py",
+          "sha256": "3b6203b1a7d393924975b41b16f0d4d38fb03d0a3b250534fff71021e3d5c014",
+          "bytes": 4737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/verify-task17.log",
+          "sha256": "81bdca85f3ad96a0e3c956564eab88d985f196bcfc1b1553384a94b3f419b624",
+          "bytes": 394
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-17/attempt-01/raw/report-generation.log",
+          "sha256": "f7654dd039506117f200fd7198b3f364ca8d5f2d0566a3becac94862deae044a",
+          "bytes": 288
+        }
+      ]
+    }
+  }
+}
