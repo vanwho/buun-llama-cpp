@@ -82,16 +82,36 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    const bool valid_supported = query(backend, attention);
-    if (require_fused && !valid_supported) {
-        std::fprintf(stderr, "this CUDA device/build does not support fused Turbo4 attention\n");
+    const char * old_env = std::getenv("GGML_TURBO_MMA_FUSED");
+    const bool had_old_env = old_env != nullptr;
+    const std::string saved_env = had_old_env ? old_env : "";
+    if (!set_fused_env(nullptr)) {
+        std::fprintf(stderr, "failed to clear GGML_TURBO_MMA_FUSED for capability check\n");
         ggml_free(ctx);
         ggml_backend_free(backend);
         return 1;
     }
 
+    const bool valid_supported = query(backend, attention);
+    ggml_backend_buffer_type_t cuda_buft = ggml_backend_get_default_buffer_type(backend);
+    const size_t output_bytes = ggml_nbytes(attention);
+    const size_t fused_alloc_bytes = ggml_backend_buft_get_alloc_size(cuda_buft, attention);
     bool ok = true;
+    if (valid_supported && fused_alloc_bytes != output_bytes) {
+        std::fprintf(stderr, "fused Turbo4 descriptor allocation is %zu bytes, expected output-only %zu\n",
+            fused_alloc_bytes, output_bytes);
+        ok = false;
+    }
+    if (require_fused && !valid_supported) {
+        std::fprintf(stderr, "this CUDA device/build does not support fused Turbo4 attention\n");
+        set_fused_env(had_old_env ? saved_env.c_str() : nullptr);
+        ggml_free(ctx);
+        ggml_backend_free(backend);
+        return 1;
+    }
+
     ggml_tensor * saved_mask = attention->src[3];
+    ok &= expect_false(query, nullptr, attention, "null backend");
     attention->src[3] = nullptr;
     ok &= expect_false(query, backend, attention, "null mask");
     attention->src[3] = saved_mask;
@@ -111,14 +131,20 @@ int main(int argc, char ** argv) {
     ok &= expect_false(query, backend, attention, "invalid query stride");
     q->nb[1] = saved_q_nb1;
 
-    const char * old_env = std::getenv("GGML_TURBO_MMA_FUSED");
-    const bool had_old_env = old_env != nullptr;
-    const std::string saved_env = had_old_env ? old_env : "";
     if (!set_fused_env("0")) {
         std::fprintf(stderr, "failed to set GGML_TURBO_MMA_FUSED for capability check\n");
         ok = false;
     } else if (query(backend, attention)) {
         std::fprintf(stderr, "fused Turbo4 capability ignored GGML_TURBO_MMA_FUSED=0\n");
+        ok = false;
+    }
+    const size_t fallback_alloc_bytes = ggml_backend_buft_get_alloc_size(cuda_buft, attention);
+    // Turbo KV's generic VEC path may keep graph allocation output-only; its
+    // fallback dequant buffers are persistent backend scratch, reserved apart
+    // from this tensor's allocation size.
+    if (fallback_alloc_bytes < output_bytes) {
+        std::fprintf(stderr, "fallback allocation %zu is smaller than output %zu\n",
+            fallback_alloc_bytes, output_bytes);
         ok = false;
     }
     if (!set_fused_env(had_old_env ? saved_env.c_str() : nullptr)) {

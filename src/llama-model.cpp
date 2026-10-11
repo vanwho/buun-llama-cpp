@@ -3136,6 +3136,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
         /*.pin_v                 =*/ cparams.vbr_pin_v,
         /*.trace_label           =*/ nullptr,
         /*.compute_backend_for_buft =*/ params.compute_backend_for_buft,
+        /*.graph_scratch_admission =*/ params.ctx_type == LLAMA_CONTEXT_TYPE_MTP,
     };
 
     switch (arch) {

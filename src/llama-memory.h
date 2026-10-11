@@ -147,6 +147,11 @@ struct llama_memory_vbr_params {
     const char * trace_label = nullptr;
 
     std::function<ggml_backend_t(ggml_backend_buffer_type_t)> compute_backend_for_buft;
+
+    // Native MTP admits workspace from its allocated attention graph. A
+    // watermark cannot distinguish encoded fused Turbo4 from materialization.
+    // Other caches retain their pregraph VBR scratch admission.
+    bool graph_scratch_admission = false;
 };
 
 // Resolve the developer environment override with the same precedence for standalone and

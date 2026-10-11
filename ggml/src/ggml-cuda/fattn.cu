@@ -4348,6 +4348,9 @@ static bool ggml_cuda_turbo4_fused_shape_supported(const ggml_tensor * dst) {
 }
 
 bool ggml_backend_cuda_fused_turbo4_attn_v1(ggml_backend_t backend, const ggml_tensor * dst) {
+    if (backend == nullptr) {
+        return false;
+    }
 #if defined(GGML_CUDA_TURBO_FA)
     if (!ggml_cuda_turbo4_fused_shape_supported(dst)) {
         return false;

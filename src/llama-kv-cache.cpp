@@ -7980,8 +7980,11 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
     // non-turbo caches have no pools and skip in O(1).
     // A paged target owns its bounded attention workspace separately. Do not
     // reinstate the unbounded H/L reserve for that cache; ordinary and draft
-    // caches retain the upstream watermark sizing.
-    if (pager_plan_ == nullptr &&
+    // caches retain upstream watermark sizing, except native MTP: its context
+    // admits the allocated FLASH_ATTN_EXT graph before compute. Reserving here
+    // first allocated unused F16 copies for fused Turbo4 as occupancy grew.
+    // This does not bypass dynamic-controller transcode/fence/map admission.
+    if (pager_plan_ == nullptr && !vbr_params_.graph_scratch_admission &&
             (!vbr_pools_.empty() || !vbr_shared_scratch_bindings_.empty())) {
         size_t scratch_cells = vbr_watermark_cells(n_tokens);
         if (n_stream > 1) {
