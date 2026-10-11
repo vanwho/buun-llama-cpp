@@ -2621,3 +2621,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-15`
 - Commit at update: `ac9d7e0d7`
 - Summary: Corrected candidate frozen; exact C=61,440 ACO curve and all 48 rows validated; qwen38-aco restored
+
+## 2026-10-11T17:37:57+00:00 — 105-16 — done
+
+- Branch: `codex/task-105-16`
+- Commit at update: `d69a259f9`
+- Summary: Measured frozen GPU-only Turbo4 control at exact C=61440/L=65536; all 48 guarded rows, reports, receipt, and service restore verified

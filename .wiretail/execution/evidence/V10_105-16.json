@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "task": "105-16",
+  "source_commit": "ac9d7e0d7e7a24864b0e0777d0985a3415fb102a",
+  "checks": {
+    "gpu_only_64k_control": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/verify_task16.py"
+      ],
+      "related_commands": [
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/run_prefill_curve_10516.py"
+        ],
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/run_matrix105_16.py"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "daemon-reload"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ],
+        [
+          "sudo",
+          "-n",
+          "rm",
+          "/run/systemd/system/llama-server.service.d/105-16.conf"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/MATRIX105_105-16.json",
+          "sha256": "06b8a8a08b8be232902bf8b5e29f4b53b67a8b4e5e6d5fef39ca9512db037b97",
+          "bytes": 202763
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/MATRIX105_105-16.md",
+          "sha256": "2b5a7b527d5baf6ff932ca6fd4d8d1c19e105f91f1adfc13806e6848abb94e4e",
+          "bytes": 4692
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/records.json",
+          "sha256": "50df989a3ea05d5543d9310a77b150ae15c8c0c02bdc1d6ec4b1804dfdd2d02d",
+          "bytes": 151093
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/medians.json",
+          "sha256": "8ec8050f276285aa66249d4c947a7e9d9f4465c9540532a35a0ba4692d69a0b6",
+          "bytes": 1214
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/prefill_curve.json",
+          "sha256": "fabee8333ae9fdf8b35161763876942282c6e290bc1c0e434f16266181cd385d",
+          "bytes": 28124
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/filled_base_messages.json",
+          "sha256": "6d559c030d7f1bc9af5e157a9c441c77db74f8a39d248fe1187553cbd9521062",
+          "bytes": 274385
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/matrix-run-summary.json",
+          "sha256": "74d49e330ae170120f049bf25f14124145e0630493b1682340beb3cc52537bbc",
+          "bytes": 2481
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/verified-summary.json",
+          "sha256": "ec64ffa35942ce6f9a2dd04380cf110873f137eeb7a037c4f349811cc7ea8eae",
+          "bytes": 369
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/raw-artifact-manifest.json",
+          "sha256": "8b692f398d62c95db0b14510e359c2fd804b59a1ed5169cf9972ad7bf2cbe9b2",
+          "bytes": 110784
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/matrix.log",
+          "sha256": "96674ac7c979f3d016160d6d4d24288edd0cf76a3b4d7b5d4641514ddb8a8d52",
+          "bytes": 2737
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/prefill-curve.log",
+          "sha256": "8fdd09d9424ce8853e5d591aee2896c47e324ebe69c3268d14be5c3dd2e1ca36",
+          "bytes": 995
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/source-chunk-manifest.json",
+          "sha256": "e91d14a8d61c2ce9c8f56fb9b88bbf7e6fa8338c5685f1c3e7117a90db9c3b1b",
+          "bytes": 8990
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/runtime-full-prompt-counts.json",
+          "sha256": "fcbb4036b05b3efac85d1b458e7139f47cc05ad5a2599e45fcece900d762b60f",
+          "bytes": 1038
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/context-plan.json",
+          "sha256": "6cd172067eb3c2df9ec6645a867a695c17606caa7736118b7aee4aed40738f31",
+          "bytes": 7482
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/restore-verification.json",
+          "sha256": "42f2accd87c93630079391ec7c52837c2a231dd3446da6da4d1b75635ddb1bf2",
+          "bytes": 2474
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/verify_task16.py",
+          "sha256": "2249abfcab11dfeab886b1bb7d1546cb72acc6b8651128ffd8d26c5892038896",
+          "bytes": 4341
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/run_matrix105_16.py",
+          "sha256": "54d99b5ef488a03d67938e3f02f9bfe0fe0ef61b36bad9de60457d1db05f5d5d",
+          "bytes": 9799
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/run_prefill_curve_10516.py",
+          "sha256": "3aefcbdcb234ef7378328affd920a1d5c0ac9c7f94a419bcdefdd06b9e3d7033",
+          "bytes": 13333
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-16/attempt-02/raw/create_report_16.py",
+          "sha256": "4e326e8a7a04bf2da3e3a0ad33be28d9d6d1588fe030c93c8cd310198f65f6bc",
+          "bytes": 9451
+        }
+      ]
+    }
+  }
+}
