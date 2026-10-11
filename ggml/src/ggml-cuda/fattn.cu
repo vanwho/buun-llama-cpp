@@ -4311,6 +4311,61 @@ size_t ggml_cuda_flash_attn_ext_get_alloc_size(int device, const ggml_tensor * d
     return f16_extra.end - (uintptr_t) dst->data;
 }
 
+// Keep boundary-time scratch admission and the actual fused dispatch on one
+// shape predicate. Cache type or model architecture alone cannot establish this.
+static bool ggml_cuda_turbo4_fused_shape_supported(const ggml_tensor * dst) {
+    if (dst == nullptr || dst->op != GGML_OP_FLASH_ATTN_EXT ||
+        dst->src[0] == nullptr || dst->src[1] == nullptr || dst->src[2] == nullptr) {
+        return false;
+    }
+    const ggml_tensor * Q = dst->src[0];
+    const ggml_tensor * K = dst->src[1];
+    const ggml_tensor * V = dst->src[2];
+    const ggml_tensor * mask = dst->src[3];
+    if ((Q->ne[0] != 128 && Q->ne[0] != 256) ||
+        K->type != GGML_TYPE_TURBO4_0 || V->type != GGML_TYPE_TURBO4_0) {
+        return false;
+    }
+    const size_t row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, Q->ne[0]);
+    return K->ne[0] == Q->ne[0] && V->ne[0] == Q->ne[0] && Q->ne[1] >= 1 &&
+        Q->ne[1] <= std::numeric_limits<int32_t>::max() - 64 &&
+        K->ne[2] > 0 && Q->ne[2] % K->ne[2] == 0 &&
+        Q->nb[0] == sizeof(float) && Q->nb[1] % sizeof(float2) == 0 &&
+        Q->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        Q->nb[3] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        K->nb[0] == sizeof(block_turbo4_0) && V->nb[0] == sizeof(block_turbo4_0) &&
+        K->nb[1] >= row_bytes && V->nb[1] >= row_bytes &&
+        K->nb[1] % sizeof(block_turbo4_0) == 0 && V->nb[1] % sizeof(block_turbo4_0) == 0 &&
+        K->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        V->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        K->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        V->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        mask != nullptr && mask->type == GGML_TYPE_F16 &&
+        mask->nb[0] == sizeof(ggml_fp16_t) &&
+        mask->nb[1] % sizeof(ggml_fp16_t) == 0 &&
+        mask->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
+        mask->ne[0] >= K->ne[1] && mask->ne[1] >= Q->ne[1];
+}
+
+bool ggml_backend_cuda_fused_turbo4_attn_v1(ggml_backend_t backend, const ggml_tensor * dst) {
+#if defined(GGML_CUDA_TURBO_FA)
+    if (!ggml_cuda_turbo4_fused_shape_supported(dst)) {
+        return false;
+    }
+    const char * enabled = getenv("GGML_TURBO_MMA_FUSED");
+    if (enabled != nullptr && atoi(enabled) == 0) {
+        return false;
+    }
+    const auto * ctx = static_cast<const ggml_backend_cuda_context *>(backend->context);
+    const int cc = ggml_cuda_info().devices[ctx->device].cc;
+    return turing_mma_available(cc) || amd_wmma_available(cc);
+#else
+    GGML_UNUSED(backend);
+    GGML_UNUSED(dst);
+    return false;
+#endif
+}
+
 void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     ggml_cuda_turbo4_fused_last_dispatch = false;
     ggml_cuda_set_device(ctx.device);
@@ -4359,29 +4414,8 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     const bool t1_fused_ok = !g_turbo_innerq_calibrated;
     const bool turbo1_tcq_matched = K->type == GGML_TYPE_TURBO1_TCQ && V->type == GGML_TYPE_TURBO1_TCQ &&
                                     (Q->ne[0] == 128 || Q->ne[0] == 256) && t1_fused_ok;
-    const ggml_tensor * fused_mask = dst->src[3];
-    const size_t turbo4_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, Q->ne[0]);
     const bool matched_turbo4_fused_capable =
-        K->type == GGML_TYPE_TURBO4_0 && V->type == GGML_TYPE_TURBO4_0 &&
-        (Q->ne[0] == 128 || Q->ne[0] == 256) &&
-        K->ne[0] == Q->ne[0] && V->ne[0] == Q->ne[0] && Q->ne[1] >= 1 &&
-        Q->ne[1] <= std::numeric_limits<int32_t>::max() - 64 &&
-        Q->ne[2] % K->ne[2] == 0 &&
-        Q->nb[0] == sizeof(float) && Q->nb[1] % sizeof(float2) == 0 &&
-        Q->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        Q->nb[3] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        K->nb[0] == sizeof(block_turbo4_0) && V->nb[0] == sizeof(block_turbo4_0) &&
-        K->nb[1] >= turbo4_row_bytes && V->nb[1] >= turbo4_row_bytes &&
-        K->nb[1] % sizeof(block_turbo4_0) == 0 && V->nb[1] % sizeof(block_turbo4_0) == 0 &&
-        K->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        V->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        K->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        V->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        fused_mask != nullptr && fused_mask->type == GGML_TYPE_F16 &&
-        fused_mask->nb[0] == sizeof(ggml_fp16_t) &&
-        fused_mask->nb[1] % sizeof(ggml_fp16_t) == 0 &&
-        fused_mask->nb[1] <= size_t(std::numeric_limits<int32_t>::max()) &&
-        fused_mask->ne[0] >= K->ne[1] && fused_mask->ne[1] >= Q->ne[1];
+        ggml_cuda_turbo4_fused_shape_supported(dst);
     // Asymmetric fused pairs, D=256 only (dense Qwen geometry). Both sides stay WHT-rotated like
     // the matched path (Q pre-rotated below, V un-rotated at graph level). The set = the q6 sweet
     // spot (t8k/t4v) + the ADJACENT-TIER pairs of the dynamic VBR degrade ladder. NOTE the priced

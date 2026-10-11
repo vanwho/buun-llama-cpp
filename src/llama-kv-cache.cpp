@@ -9315,25 +9315,15 @@ bool llama_kv_cache::vbr_scratch_reserve(
     }
     const size_t k_cells = size_t(k_rows);
     const size_t v_cells = size_t(v_rows);
-    size_t submitted_k_cells = k_cells;
-    size_t submitted_v_cells = v_cells;
-    if (pager_plan_ == nullptr) {
-        // Non-paged graphs submit the full cache tensor as their K/V view even
-        // while the memory context reports only the rows populated by the
-        // current batch. Charge that realized view here; using the current
-        // frontier would leave the first full-context graph to grow scratch
-        // during execution. Paged attention keeps its bounded request rows.
-        for (const auto & layer : layers) {
-            if (layer.k != nullptr && layer.k->ne[1] > 0) {
-                submitted_k_cells = std::max(submitted_k_cells,
-                        size_t(layer.k->ne[1]));
-            }
-            if (layer.v != nullptr && layer.v->ne[1] > 0) {
-                submitted_v_cells = std::max(submitted_v_cells,
-                        size_t(layer.v->ne[1]));
-            }
-        }
-    }
+    // get_k()/get_v() expose the occupied, padded prefix for non-paged
+    // attention, including native MTP. Their backing tensors still allocate
+    // full-L encoded KV, but that capacity is not the F16 materialization
+    // width. Inflating these rows to layer.k/v->ne[1] allocated 512 MiB per
+    // side at L=262144 on the first tiny MTP request. Keep the exact submitted
+    // view contract; later occupied-prefix growth reserves scratch before
+    // graph execution as usual. Paged routes likewise supply their own width.
+    const size_t submitted_k_cells = k_cells;
+    const size_t submitted_v_cells = v_cells;
     bool native_turbo4_decode = std::getenv("GGML_TURBO_DECODE_NATIVE") != nullptr &&
         (request.head_dim_k == 0 || (request.head_dim_k >= 64 && request.head_dim_k <= 512)) &&
         (request.head_dim_v == 0 || (request.head_dim_v >= 64 && request.head_dim_v <= 512));
@@ -9468,8 +9458,8 @@ bool llama_kv_cache::vbr_scratch_reserve(
 
     // A native MTP drafter can use a static Turbo4 KV cache: it has the same CUDA fattn scratch
     // consumer but deliberately has no dynamic-VBR pool or shared-owner binding.  Do not let that
-    // controller-free cache skip the boundary reserve and discover the 512 MiB view only inside
-    // graph execution.  Resolve its existing compute backend from the cache tensor's buft and
+    // controller-free cache skip the boundary reserve and grow its scratch inside graph
+    // execution. Resolve its existing compute backend from the cache tensor's buft and
     // reserve the exact submitted view widths supplied by the attention contract.
     if (!native_turbo4_decode && vbr_pools_.empty() && vbr_shared_scratch_bindings_.empty() &&
         (request.materialized_k_bytes_per_row != 0 || request.materialized_v_bytes_per_row != 0)) {

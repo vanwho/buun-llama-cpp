@@ -32,9 +32,10 @@ struct ggml_vbr_vmm_pool;
 // #88: which sides the flash-attention f16 dequant scratch serves for a (K,V) type pair —
 // the SINGLE authoritative copy of the materialize condition, consumed by the fattn
 // prefill/decode paths AND by the KV cache's boundary scratch reserve/estimator. Turbo tiers
-// always materialize; q8_0/bf16 only next to a turbo partner (the mixed pair must become
+// materialize on the non-fused fallback; q8_0/bf16 only next to a turbo partner (the mixed pair must become
 // (F16,F16)); f16 never does. Drift between the kernels and the reserve would re-open the
-// mid-decode abort this predicate exists to prevent — edit HERE only. (Decode additionally
+// mid-decode abort this predicate exists to prevent — edit HERE only. Eligible fused Turbo4
+// attention bypasses these buffers; its exact backend capability query is declared below. (Decode additionally
 // dequants q8_0/bf16 at head dims > 256; that term stays local to fattn.cu, ANDed on top.)
 static inline void ggml_vbr_kv_dequant_sides(enum ggml_type tk, enum ggml_type tv,
                                              bool * need_k, bool * need_v) {
@@ -204,6 +205,14 @@ struct ggml_vbr_cross_domain_iface_v1 {
 
 // proc name resolved via ggml_backend_reg_get_proc_address
 #define GGML_VBR_BACKEND_IFACE_PROC "ggml_backend_vbr_iface"
+
+// Separate optional registry procedure, not an extension of the legacy unversioned
+// vtable. True confirms that this exact FLASH_ATTN_EXT tensor will consume encoded
+// Turbo4 K/V without F16 materialization. False/absence preserves fallback scratch.
+// This inspects tensor metadata and backend capability only: no launch/allocation.
+#define GGML_VBR_FUSED_TURBO4_ATTN_V1_PROC "ggml_backend_vbr_fused_turbo4_attn_v1"
+typedef bool (*ggml_vbr_fused_turbo4_attn_v1_fn)(ggml_backend_t backend,
+                                              const struct ggml_tensor * attention);
 #define GGML_VBR_CROSS_DOMAIN_IFACE_V1_PROC "ggml_backend_vbr_cross_domain_iface_v1"
 
 typedef const struct ggml_vbr_backend_iface * (*ggml_backend_vbr_iface_fn_t)(void);

@@ -2811,7 +2811,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                                            uint32_t rows) {
         scratch.route = route;
         scratch.phase = phase;
-        scratch.context_role = model.arch == LLM_ARCH_DFLASH
+        scratch.context_role = cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP ||
+                model.arch == LLM_ARCH_DFLASH
             ? llama_kv_attention_scratch_context_role::draft
             : llama_kv_attention_scratch_context_role::target;
         scratch.requested_batch_tokens = ubatch.n_tokens;
@@ -2849,6 +2850,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                                      llama_kv_attention_execution_route route,
                                      uint32_t rows) {
         fill_scratch_contract(scratch, route, rows);
+        if (cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP) {
+            // A dense *graph* does not imply F16 CUDA materialization. Native
+            // Turbo4 MTP can use encoded fused attention. Admit its scratch
+            // after the real graph is allocated, using exact op metadata and
+            // the backend's dispatch predicate, still before graph_compute.
+            return true;
+        }
         const bool reserved = mctx == nullptr ||
             mctx->reserve_kv_attention_scratch(scratch);
         if (!reserved) {
@@ -6860,6 +6868,82 @@ bool llama_context::set_adapter_cvec(
     return res;
 }
 
+static bool reserve_mtp_attention_graph_scratch(ggml_backend_sched_t sched, ggml_cgraph * graph) {
+    struct owner_request {
+        ggml_backend_t backend;
+        const ggml_vbr_backend_iface * iface;
+        size_t k_bytes;
+        size_t v_bytes;
+    };
+    std::vector<owner_request> requests;
+    for (int i = 0; i < ggml_graph_n_nodes(graph); ++i) {
+        ggml_tensor * node = ggml_graph_node(graph, i);
+        if (node->op != GGML_OP_FLASH_ATTN_EXT) {
+            continue;
+        }
+        ggml_backend_t backend = ggml_backend_sched_get_tensor_backend(sched, node);
+        if (backend == nullptr) {
+            return false;
+        }
+        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend));
+        const auto get_iface = reinterpret_cast<ggml_backend_vbr_iface_fn_t>(
+                ggml_backend_reg_get_proc_address(reg, GGML_VBR_BACKEND_IFACE_PROC));
+        if (get_iface == nullptr) {
+            // Backends without the VBR interface do not own CUDA's persistent
+            // Turbo4 materialization buffers (e.g. ordinary CPU/F16 MTP).
+            continue;
+        }
+        const auto fused = reinterpret_cast<ggml_vbr_fused_turbo4_attn_v1_fn>(
+                ggml_backend_reg_get_proc_address(reg, GGML_VBR_FUSED_TURBO4_ATTN_V1_PROC));
+        if (fused != nullptr && fused(backend, node)) {
+            LLAMA_LOG_DEBUG("%s: role=draft route=fused-Turbo4 requested_k=0 requested_v=0\n", __func__);
+            continue;
+        }
+        const ggml_tensor * k = node->src[1];
+        const ggml_tensor * v = node->src[2];
+        if (k == nullptr || v == nullptr) {
+            return false;
+        }
+        const int64_t nk = ggml_nelements(k);
+        const int64_t nv = ggml_nelements(v);
+        if (nk < 0 || nv < 0 || uint64_t(nk) > SIZE_MAX / sizeof(uint16_t) ||
+            uint64_t(nv) > SIZE_MAX / sizeof(uint16_t)) {
+            return false;
+        }
+        // Unknown/disabled fused capability retains fallback materialization
+        // for the exact submitted view, never full-L backing. An already-F16
+        // side does not need a second F16 copy. Q8/BF16 stay conservatively
+        // covered for CUDA's device/head-width-dependent decode conversions.
+        bool need_k = false;
+        bool need_v = false;
+        ggml_vbr_kv_dequant_sides(k->type, v->type, &need_k, &need_v);
+        need_k = need_k || k->type == GGML_TYPE_Q8_0 || k->type == GGML_TYPE_BF16;
+        need_v = need_v || v->type == GGML_TYPE_Q8_0 || v->type == GGML_TYPE_BF16;
+        const size_t kb = need_k ? size_t(nk) * sizeof(uint16_t) : 0;
+        const size_t vb = need_v ? size_t(nv) * sizeof(uint16_t) : 0;
+        if (kb == 0 && vb == 0) {
+            continue;
+        }
+        auto owner = std::find_if(requests.begin(), requests.end(),
+                [backend](const owner_request & r) { return r.backend == backend; });
+        if (owner == requests.end()) {
+            requests.push_back({backend, get_iface(), kb, vb});
+        } else {
+            owner->k_bytes = std::max(owner->k_bytes, kb);
+            owner->v_bytes = std::max(owner->v_bytes, vb);
+        }
+    }
+    for (const auto & request : requests) {
+        LLAMA_LOG_DEBUG("%s: role=draft route=materialize requested_k=%zu requested_v=%zu\n",
+                __func__, request.k_bytes, request.v_bytes);
+        if (!request.iface->kv_dequant_scratch_reserve(
+                request.backend, request.k_bytes, request.v_bytes)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
     const bool hotpath_profile = llama_context_hotpath_profile_enabled();
     const int64_t ubatch_start_us = hotpath_profile ? ggml_time_us() : 0;
@@ -7127,6 +7211,17 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         set_inputs_us = ggml_time_us() - set_inputs_start_us;
     }
 
+    if (cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP && !graph_reuse &&
+        !reserve_mtp_attention_graph_scratch(sched.get(), res->get_gf())) {
+        if (mctx) mctx->finish(false);
+        // A failed admission must not become a reusable graph: the next
+        // attempt has to retry reservation, not enter compute without it.
+        gf_res_prev_active = nullptr;
+        last_memory_failure_reason_ = llama_memory_failure_reason::scratch_oom;
+        LLAMA_LOG_ERROR("%s: native MTP graph scratch admission failed\n", __func__);
+        ret = GGML_STATUS_ALLOC_FAILED;
+        return nullptr;
+    }
     const int64_t backend_submit_start_us = hotpath_profile ? ggml_time_us() : 0;
     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
     if (hotpath_profile) {

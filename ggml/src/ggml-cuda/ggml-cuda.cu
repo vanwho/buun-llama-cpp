@@ -10032,6 +10032,9 @@ static void * ggml_backend_cuda_reg_get_proc_address(ggml_backend_reg_t reg, con
     if (strcmp(name, GGML_VBR_BACKEND_IFACE_PROC) == 0) {
         return (void *)ggml_backend_cuda_vbr_iface;
     }
+    if (strcmp(name, GGML_VBR_FUSED_TURBO4_ATTN_V1_PROC) == 0) {
+        return (void *)ggml_backend_cuda_fused_turbo4_attn_v1;
+    }
     if (strcmp(name, GGML_VBR_CROSS_DOMAIN_IFACE_V1_PROC) == 0) {
         return (void *)ggml_backend_cuda_vbr_cross_domain_iface_v1;
     }
