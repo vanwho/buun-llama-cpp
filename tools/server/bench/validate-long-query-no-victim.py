@@ -593,7 +593,9 @@ def main() -> int:
         record = stream_completion(
             base + "/completion", key, payload,
             args.output / "completion.sse", args.output / "progress.jsonl",
-            idle_timeout=180.0, total_timeout=args.timeout, gpu=gpu)
+            # Prefill may not emit SSE tokens until the entire long prompt
+            # finishes. Do not mistake that expected quiet phase for a stall.
+            idle_timeout=args.timeout, total_timeout=args.timeout, gpu=gpu)
     finally:
         gpu.close()
     metrics_after = metric_snapshot(base, key, 10.0)
