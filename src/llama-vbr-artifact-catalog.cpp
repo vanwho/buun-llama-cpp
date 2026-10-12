@@ -155,10 +155,13 @@ struct llama_vbr_selected_page_host_catalog::impl {
     struct owned_page {
         vbr_selected_page_host_view view;
         std::vector<llama_cache_acct_op_id> ops;
+        uint32_t next_free = UINT32_MAX;
     };
     llama_cache_acct_ledger & ledger;
     mutable std::mutex mutex;
     std::vector<owned_page> pages;
+    uint32_t free_head = UINT32_MAX;
+    size_t free_count = 0;
 };
 
 llama_vbr_selected_page_host_catalog::llama_vbr_selected_page_host_catalog(
@@ -232,6 +235,17 @@ vbr_selected_page_host_result llama_vbr_selected_page_host_catalog::publish(
                 result.status = vbr_selected_page_host_status::alias;
                 return result;
             }
+            // Slot erasure and tail replacement retire host versions. Reuse
+            // their empty entries so repeated fills cannot grow the catalog
+            // with the number of requests. Reserve before ledger commits.
+            const size_t additional = fresh.size() -
+                std::min(fresh.size(), impl_->free_count);
+            if (impl_->pages.size() > UINT32_MAX ||
+                additional > UINT32_MAX - impl_->pages.size()) {
+                result.status = vbr_selected_page_host_status::overflow;
+                return result;
+            }
+            impl_->pages.reserve(impl_->pages.size() + additional);
         }
 
         uint64_t payload_total = 0, metadata_total = 0;
@@ -370,14 +384,26 @@ vbr_selected_page_host_result llama_vbr_selected_page_host_catalog::publish(
         }
         {
             std::lock_guard<std::mutex> lock(impl_->mutex);
-            const uint32_t first = uint32_t(impl_->pages.size());
             const size_t ops_per_page = pinned_staging_bytes ? 3 : 2;
-            for (auto & item : fresh) {
-                const size_t offset = (impl_->pages.size() - first) * ops_per_page;
+            uint32_t first = UINT32_MAX;
+            for (size_t i = 0; i < fresh.size(); ++i) {
+                auto & item = fresh[i];
+                const size_t offset = i * ops_per_page;
                 std::vector<llama_cache_acct_op_id> page_ops(
                     committed.begin() + offset,
                     committed.begin() + offset + ops_per_page);
-                impl_->pages.push_back({ std::move(item.view), std::move(page_ops) });
+                uint32_t index;
+                if (impl_->free_head != UINT32_MAX) {
+                    index = impl_->free_head;
+                    auto & retired = impl_->pages[index];
+                    impl_->free_head = retired.next_free;
+                    --impl_->free_count;
+                    retired = { std::move(item.view), std::move(page_ops) };
+                } else {
+                    index = uint32_t(impl_->pages.size());
+                    impl_->pages.push_back({ std::move(item.view), std::move(page_ops) });
+                }
+                if (first == UINT32_MAX) first = index;
             }
             result.page_index = first;
         }
@@ -451,6 +477,17 @@ bool llama_vbr_selected_page_host_catalog::invalidate(
                 return false;
             }
             page.ops.clear();
+            // Releasing ledger charges alone does not release RAM: units own
+            // immutable byte chains through shared_ptr. Drop the catalog's
+            // references only after accounting retirement succeeds. Copies
+            // held by in-flight readers retain their bytes until they finish;
+            // unaffected cold pages keep their canonical backing.
+            page.view.page = {};
+            page.view.metadata_bytes = 0;
+            page.view.pinned_bytes = 0;
+            page.next_free = impl_->free_head;
+            impl_->free_head = uint32_t(&page - impl_->pages.data());
+            ++impl_->free_count;
             return true;
         }
     }

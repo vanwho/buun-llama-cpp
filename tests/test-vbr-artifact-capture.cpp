@@ -1681,9 +1681,90 @@ static void test_selected_page_capture() {
     CHECK(catalog.find(key) != nullptr);
     CHECK(catalog.publish(sealed_capture, budget, false, 4096).status ==
           vbr_selected_page_host_status::alias);
+    // A reader may outlive catalog invalidation, but the catalog must not
+    // retain obsolete payloads after the reader and capture are gone.
+    vbr_selected_page_host_view reader;
+    CHECK(catalog.find_copy(key, reader));
+    std::weak_ptr<const artifact_segment_chain> payload =
+        sealed_capture.pages()[0].units[0].bytes;
+    const auto expected_byte = storage[0].bytes[0];
+    sealed_capture = {};
+    captured = {};
     CHECK(catalog.invalidate(key));
     CHECK(catalog.snapshot().live_pages == 0);
     CHECK(catalog.snapshot().obsolete_pages == 1);
+    CHECK(catalog.snapshot().pageable_bytes == 0);
+    CHECK(catalog.snapshot().metadata_bytes == 0);
+    CHECK(catalog.snapshot().pinned_bytes == 0);
+    CHECK(catalog.find(key) == nullptr);
+    CHECK(!catalog.invalidate(key));
+    CHECK(!payload.expired());
+    uint8_t byte = 0;
+    CHECK(reader.page.units[0].bytes->read(0, &byte, 1));
+    CHECK(byte == expected_byte);
+    reader = {};
+    CHECK(payload.expired());
+
+    // Exercise the same erase/refill lifecycle as isolated benchmark rows.
+    // Each iteration owns new bytes and reuses one bounded catalog entry.
+    for (uint32_t iteration = 0; iteration < 64; ++iteration) {
+        CHECK(vbr_selected_page_capture_transfer(
+                  sealed_request, sources, {}, sealed_snapshot.provider(), *ring,
+                  sealed_capture) == vbr_selected_page_capture_status::ok);
+        const auto refill = catalog.publish(sealed_capture, budget, false, 4096);
+        CHECK(refill.status == vbr_selected_page_host_status::stored);
+        CHECK(refill.page_index == stored.page_index);
+        CHECK(catalog.snapshot().live_pages == 1);
+        CHECK(catalog.snapshot().obsolete_pages == 0);
+        payload = sealed_capture.pages()[0].units[0].bytes;
+        sealed_capture = {};
+        CHECK(catalog.invalidate(key));
+        CHECK(payload.expired());
+        CHECK(catalog.snapshot().obsolete_pages == 1);
+    }
+
+    // A range removal must leave unrelated cold pages and readers intact.
+    CHECK(vbr_selected_page_capture_transfer(
+              request, sources, {}, snapshot.provider(), *ring, captured) ==
+          vbr_selected_page_capture_status::ok);
+    CHECK(catalog.publish(captured, budget, false).status ==
+          vbr_selected_page_host_status::stored);
+    vbr_selected_page_host_key tail_key = key;
+    tail_key.page = captured.pages()[1].identity;
+    std::weak_ptr<const artifact_segment_chain> tail_payload =
+        captured.pages()[1].units[0].bytes;
+    payload = captured.pages()[0].units[0].bytes;
+    const auto tail_bytes = captured.pages()[1].payload_bytes;
+    captured = {};
+    CHECK(catalog.invalidate(key));
+    CHECK(payload.expired());
+    CHECK(catalog.snapshot().live_pages == 1);
+    CHECK(catalog.snapshot().pageable_bytes == tail_bytes);
+    CHECK(!tail_payload.expired());
+    CHECK(catalog.find_copy(tail_key, reader));
+    CHECK(catalog.invalidate(tail_key));
+    CHECK(!tail_payload.expired());
+    reader = {};
+    CHECK(tail_payload.expired());
+    CHECK(catalog.snapshot().live_pages == 0);
+    CHECK(catalog.snapshot().obsolete_pages == 2);
+    for (uint32_t iteration = 0; iteration < 8; ++iteration) {
+        CHECK(vbr_selected_page_capture_transfer(
+                  request, sources, {}, snapshot.provider(), *ring, captured) ==
+              vbr_selected_page_capture_status::ok);
+        CHECK(catalog.publish(captured, budget, false).status ==
+              vbr_selected_page_host_status::stored);
+        CHECK(catalog.snapshot().live_pages == 2);
+        CHECK(catalog.snapshot().obsolete_pages == 0);
+        payload = captured.pages()[0].units[0].bytes;
+        tail_payload = captured.pages()[1].units[0].bytes;
+        captured = {};
+        CHECK(catalog.invalidate(tail_key));
+        CHECK(catalog.invalidate(key));
+        CHECK(payload.expired());
+        CHECK(tail_payload.expired());
+        CHECK(catalog.snapshot().obsolete_pages == 2);
+    }
 }
 
 struct projected_controller_fixture {

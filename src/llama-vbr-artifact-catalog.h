@@ -134,6 +134,9 @@ public:
     // inventory to reconcile resident rows with canonical cold backing without
     // exposing the catalog's mutex-protected storage.
     std::vector<vbr_selected_page_host_view> pages() const noexcept;
+    // Retire accounting and drop catalog ownership of the payload. Immutable
+    // reader copies remain valid until their last reference is released.
+    // Retired slots are reusable; page_index is not a durable page identity.
     bool invalidate(const vbr_selected_page_host_key & key) noexcept;
     vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
 
