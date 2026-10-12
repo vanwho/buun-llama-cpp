@@ -19,11 +19,15 @@ REVISION = "hotpath-v10-20260914"
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def check_plan(root: Path, state: dict) -> list[str]:
+def check_plan(root: Path, state: dict, revision: str | None = None) -> list[str]:
     errors = []
     tasks = state["tasks"]
     positions = {task["id"]: n for n, task in enumerate(tasks)}
-    current = [t for t in tasks if t.get("scope_revision") == state["scope_revision"]]
+    # The state may contain multiple concurrently scheduled scope revisions.
+    # When validating a task receipt, validate the plan cohort that owns that
+    # task rather than assuming the top-level descriptive revision matches it.
+    revision = revision or state["scope_revision"]
+    current = [t for t in tasks if t.get("scope_revision") == revision]
     if not current:
         return ["no current-revision tasks"]
     for task in current:
@@ -35,7 +39,7 @@ def check_plan(root: Path, state: dict) -> list[str]:
         packet = root / task["packet"]
         cluster = root / ".wiretail/execution/clusters" / (task["cluster"] + ".md")
         for path in (packet, cluster):
-            if not path.is_file() or state["scope_revision"] not in path.read_text():
+            if not path.is_file() or task.get("scope_revision") not in path.read_text():
                 errors.append(f"{tid}: absent or stale packet/cluster: {path}")
         contexts = task.get("context_files", [])
         if not contexts:
@@ -50,7 +54,7 @@ def check_plan(root: Path, state: dict) -> list[str]:
                 if path.stem == tid:
                     continue
                 predecessor = next((t for t in tasks if t["id"] == path.stem), None)
-                if (not predecessor or predecessor.get("scope_revision") != state["scope_revision"]
+                if (not predecessor or predecessor.get("scope_revision") != revision
                         or positions[predecessor["id"]] >= positions[tid]):
                     errors.append(f"{tid}: not an earlier current-revision handoff: {text}")
             elif "/evidence/" in text:
@@ -1347,9 +1351,11 @@ def main() -> int:
             return 1
     try:
         state = json.loads((ROOT / ".wiretail/execution/WORK_STATE.json").read_text())
-        errors = check_plan(ROOT, state)
+        task = next((t for t in state["tasks"] if t["id"] == args.task), None) if args.task else None
+        errors = check_plan(ROOT, state, task.get("scope_revision") if task else None)
         if args.task:
-            task = next(t for t in state["tasks"] if t["id"] == args.task)
+            if task is None:
+                raise StopIteration
             errors += check_receipt(ROOT, task, json.loads(args.receipt.read_text()), state)
         if args.review:
             errors += check_review(state, json.loads(args.review.read_text()))
