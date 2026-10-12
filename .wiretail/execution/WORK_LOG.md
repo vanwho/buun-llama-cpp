@@ -2651,3 +2651,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-20`
 - Commit at update: `0d95eeded`
 - Summary: Recorded 250Ki/64Ki ACO matrix with 45 complete and 3 explicit OOM-incomplete rows; exact fill and service restore verified
+
+## 2026-10-12T07:51:27+00:00 — 105-21 — done
+
+- Branch: `codex/task-105-21`
+- Commit at update: `1c628b272`
+- Summary: Recorded two near-full cold-file recall queries; both answers correct and existing telemetry verified both promotions
