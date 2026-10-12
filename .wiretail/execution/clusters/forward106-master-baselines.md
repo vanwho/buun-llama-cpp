@@ -1,10 +1,25 @@
-# Cluster forward106-master-baselines — upstream-master GPU and CPU-KV controls
+# Cluster forward106-master-baselines — ACO promotion-cost prelude and upstream-master controls
 
-Purpose: compare the exact current `origin/master` source against the existing
-ACO results using the original three-prompt speed schedule, then measure fresh
-repository-context prefill and generation at matched context occupancies. This
-is a benchmark-only campaign: do not modify llama.cpp production code, codecs,
-batch sizes, sampling, prompts, or model settings to improve a result.
+Purpose: first quantify the request-level cost of natural cold-page selection
+and promotion on the frozen Phase-105 ACO candidate, then compare the exact
+current `origin/master` source against the existing ACO results using the
+original three-prompt speed schedule and matched fresh repository-context
+prefill. This is a benchmark-only campaign: do not modify llama.cpp production
+code, codecs, batch sizes, sampling, prompts, or model settings to improve a
+result.
+
+## Ordered prelude: task 106-00
+
+Task 106-00 runs before any master fetch/build. It reuses the exact Phase-105
+ACO scratch-fix candidate and measures one identical, source-grounded question
+while its answer page is hot versus definitely cold across the original
+77,824/65,536 profile and L/H pairs 8K/4K, 16K/8K, 32K/16K, 64K/32K,
+128K/64K, 192K/64K and 256K/64K. Its packet is the complete protocol. It owns
+its frozen repo fill, fresh-prefill curves, initial-hot results, matched-C
+hot/cold pairs, request-local counter deltas and total TTFT/wall-time deltas.
+Do not use cumulative `transfer_time_us` as a proxy for end-to-end promotion
+cost. Task 106-01 begins only after 106-00 records and validates its truthful
+result; 106-00 does not alter the later master binary or baseline schedules.
 
 ## Source and binary identity
 

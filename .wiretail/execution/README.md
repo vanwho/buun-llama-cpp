@@ -8,14 +8,15 @@ resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
 Phase105's matrix and final report (105-06 through 105-22) are complete and
-historical. The active sequence is phase106: 106-01 fetches and builds the
-latest fork `origin/master` in an isolated worktree, then measures its
-unpaged GPU-only original baseline and filled 8K/16K/32K/64K rows; 106-02
-reuses that exact build for matched CPU-F16 target-KV/GPU-Turbo4-MTP rows,
-including 128K; 106-03 consolidates the comparison and prefill curves. Read
-only the `forward106-master-baselines` cluster and the current packet, plus
-the named immediate handoff/freeze. Do not reinterpret historical phase105
-results as same-binary controls. Older 105-01a/b/c/d tasks are historical;
+historical. The active sequence is phase106: 106-00 first reuses its frozen ACO
+candidate to measure initial-hot and same-occupancy hot-versus-cold natural
+promotion cost at eight L/H geometries, including request-local counter deltas
+and fresh-prefill curves. Then 106-01 fetches and builds the latest fork
+`origin/master` in an isolated worktree and measures GPU-only controls; 106-02
+reuses that exact build for CPU-F16 target-KV controls; 106-03 consolidates the
+comparison. Read only the `forward106-master-baselines` cluster and the current
+packet, plus the named immediate handoff/freeze. Do not reinterpret historical
+phase105 results as same-binary controls. Older 105-01a/b/c/d tasks are historical;
 105-01d explicitly declined adoption. For every task, read only its current
 packet and cluster, immediate handoff, and explicitly named compact note. The
 105-02 onward selected-generation history is documented in

@@ -7,8 +7,8 @@
   "execution_cookbook": ".wiretail/execution/forward/TESTING.md",
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
-  "scope_revision": "master-baseline-20261012",
-  "context_policy": "Current work is phase106 tasks 106-01 through 106-03. Read only the active task, forward106-master-baselines cluster, named freeze/report and immediate handoff. Build the fetched origin/master SHA once in an isolated detached worktree; preserve that executable/DSO identity for both placements. Benchmark only: no production code/config tuning. Use GPU Turbo4 target KV or ordinary CPU-F16 target KV, always GPU Turbo4 draft-MTP n-max2, B1024/U256, CUDA0, same model/prompts/reasoning/sampling. GPU-only first; CPU-KV with same build next and 128K additional. Context-fill curves use matched repository source and exact C/L schedule. Low speed/acceptance is a finding; repair setup defects within the task, never fabricate measurements or run duplicate models. Keep raw externally and compact reports/receipts in Git.",
+  "scope_revision": "promotion-cost-and-master-baseline-20261012",
+  "context_policy": "Current work is phase106 tasks 106-00 through 106-03. Read only the active task, forward106-master-baselines cluster, named freeze/report and immediate handoff. First reuse the frozen Phase105 ACO build in 106-00 for paired initial-hot and same-C hot/cold promotion-cost measurements across original, 8K/4K, 16K/8K, 32K/16K, 64K/32K, 128K/64K, 192K/64K and 256K/64K geometries, with deterministic repo prefill curves and request-local counter deltas. Then build fetched origin/master once in an isolated worktree for 106-01/02 controls. Benchmark only: no production tuning. Keep Turbo4 target/draft and GPU MTP for ACO/GPU rows, CPU-F16 target KV only for its named control, B1024/U256, CUDA0 and one model owner. Low speed, high promotion cost, semantic misses and unavailable optional counters are findings; repair setup defects without fabricating measurements. Keep raw externally and compact reports/receipts in Git.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "106",
-  "current_task": "106-01",
-  "last_updated_utc": "2026-10-12T18:47:56+00:00",
+  "current_task": "106-00",
+  "last_updated_utc": "2026-10-12T19:36:02+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "Phase105's ACO matrix is complete. Current ordered work is 106-01 through 106-03: fetch and freeze latest origin/master, build once in an isolated clean worktree using --parallel 16, measure empty 77,824 GPU-only original baseline and matched repo-filled GPU-only L/C rows, then use that exact master build for matched CPU-F16 target-KV/GPU-Turbo4-MTP rows including 128K, and aggregate the medians/curves. All rows use the original three prompts, four reasoning modes, SSE, T=0/seed42, one 40-token warmup and three measured 400-token-maximum runs per prompt/mode; B/U=1024/256 and MTP remains enabled. No ACO/pager flags in either control. Keep same source schedule, exact C/L, fresh-prefill curve, model/build identity, and clean single-process lifecycle. Setup issues are repaired in-task; low measured performance is valid data, not a retry gate. Read only active packet, forward106 cluster and named immediate freeze/report; raw logs remain external.",
+    "active_scope": "Phase105's ACO matrix is complete. Current ordered work is 106-00 through 106-03. Task106-00 first reuses the frozen Phase105 ACO candidate for one identical source-grounded question at original-profile, 8K/4K-hot, 16K/8K-hot, 32K/16K-hot, 64K/32K-hot, 128K/64K-hot, 192K/64K-hot and 256K/64K-hot geometry. It records initial-hot, same-C hot/cold, request-local counter deltas, total TTFT/wall penalty and fresh repo prefill curves. Then 106-01 fetches/builds latest origin/master once, 106-02 reuses it for CPU-F16 target-KV controls, and 106-03 aggregates. All work is benchmark-only, uses B/U1024/256 and GPU Turbo4 MTP n-max2 where supported, one model owner and exact frozen identities. Low speed/acceptance, high overhead or wrong recall is valid data; optional telemetry gaps are unavailable rather than retry gates. Read only active packet, forward106 cluster and named immediate freeze/report; raw logs remain external.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -56,7 +56,7 @@
     "attention_path": "GPU-native direct-paged or compressed mature FA chosen by matched shape/preparation/kernel/append timings; reference explicit oracle only",
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
-    "speed_policy": "Phase106 compares latest fetched origin/master GPU-only Turbo4 target KV against ordinary CPU-F16 target-KV, with GPU Turbo4 draft-MTP n-max2 and B/U1024/256 held fixed. Use the exact original three prompts, SSE, T=0/seed42, reasoning off/low/medium/xhigh, one 40-token warmup and three 400-token-maximum measurements per prompt/mode. Report per-prompt medians for decode tok/s, request-local MTP acceptance percent, and fresh prefill tok/s plus actual repository-ingestion curves. Freeze master SHA, model, helpers, prompts, sampling, source selection and full effective launch settings before scored rows. Do not mix in 105 ACO values as same-build controls. Low results are findings, not failed gates.",
+    "speed_policy": "Phase106 begins with the frozen ACO candidate's request-level promotion cost: identical source-grounded prompt, initial-hot and matched-C hot/cold states, three pairs, client TTFT/wall time, server prompt/decode timing, request-local pager counter deltas and fresh repo-fill curves at eight exact L/H geometries. Cold-minus-hot wall/TTFT is authoritative; cumulative transfer_time_us is separate. It then compares latest fetched origin/master GPU-only Turbo4 target KV against ordinary CPU-F16 target-KV, with GPU Turbo4 draft-MTP n-max2 and B/U1024/256 fixed. Master controls use the original three prompts, SSE, T=0/seed42, four reasoning modes, one warmup and three measurements. Freeze identities/settings before scored rows. Low results are findings, not failed gates.",
     "scale_policy": "Finish source repairs and coherent small paired retrieval/MTP proof first. The 105-03 L262144/H51200 trajectory and primary fact are executed, with occupancy-only proof and canonical 0/12. 105-03a validates split-document layout at L16384/H8192; 105-03b owns novel large scale, two additional recalls, and fresh canonical rows. Preserve per-request uncached prefill speed, cached input, decode, draft/accept counts and measured used/free VRAM as a compact curve. Actual fresh-process allocation accounting, not hypothetical duplicate reserve, governs admission. No smaller-H substitution for large proof, concurrent Qwen, forced route, per-token host retrieval or premature full-context diagnostic campaign. Missing optional telemetry is unknown. True execution failures get an ordered owner-specific repair; completed semantic/speed misses are findings, not unchanged retry loops. Fixed batch, <=16K fresh repo chunks and >=4096-token final reserve prevent context shift/compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
@@ -38163,6 +38163,35 @@
       }
     },
     {
+      "id": "106-00",
+      "phase": "106",
+      "cluster": "forward106-master-baselines",
+      "title": "Measure ACO hot-versus-cold natural promotion cost across context sizes",
+      "packet": ".wiretail/execution/tasks/106-00.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "aco-promotion-cost-20261012",
+      "plan_amendment": ".wiretail/execution/clusters/forward106-master-baselines.md",
+      "required_proofs": ["aco_hot_vs_cold_promotion_cost_across_context_sizes"],
+      "depends_on": ["105-22"],
+      "context_files": [
+        ".wiretail/execution/clusters/forward106-master-baselines.md",
+        ".wiretail/execution/evidence/MATRIX105_SCRATCH_FREEZE.md",
+        ".wiretail/execution/handoffs/105-21.md",
+        "tools/server/bench/repo_context.py",
+        "tools/server/bench/run-final-curve.py"
+      ],
+      "completion_check": [
+        "python3", ".wiretail/execution/v10/validate.py", "--task", "106-00",
+        "--receipt", ".wiretail/execution/evidence/V10_106-00.json"
+      ]
+    },
+    {
       "id": "106-01",
       "phase": "106",
       "cluster": "forward106-master-baselines",
@@ -38178,7 +38207,7 @@
       "scope_revision": "master-baseline-20261012",
       "plan_amendment": ".wiretail/execution/clusters/forward106-master-baselines.md",
       "required_proofs": ["latest_master_build_and_gpu_only_context_speed_curves"],
-      "depends_on": ["105-22"],
+      "depends_on": ["106-00"],
       "context_files": [
         ".wiretail/execution/clusters/forward106-master-baselines.md",
         "tools/server/bench/repo_context.py",

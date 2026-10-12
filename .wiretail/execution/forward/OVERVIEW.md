@@ -4,14 +4,17 @@ Revision: `hotpath-v10-20260914`. Current measurement amendment:
 `forward106-master-baselines`.
 
 This remains the architecture contract. The phase105 ACO matrix and aggregate
-are complete historical evidence. Current ordered work is phase106:
-`forward106-master-baselines` fetches/builds the latest fork `origin/master`
-once and measures matched GPU-only Turbo4 and ordinary CPU-F16 target-KV
-controls, keeping GPU Turbo4 draft-MTP n-max2 and B/U1024/256 fixed. It runs
-the empty 77,824 baseline, matched repository-filled 8K/16K/32K/64K rows,
-then CPU offload at 128K, and reports actual per-append prefill curves. This
-is a baseline measurement campaign, not an ACO source change. See the
-current cluster and task packets for its exact commands and schedule.
+are complete historical evidence. Current ordered work is phase106. Task
+106-00 first reuses the exact frozen ACO candidate and measures the total
+TTFT/wall penalty of natural cold-page selection and promotion against a
+matched hot request at eight context/hot-pool geometries, while retaining
+fresh repository-prefill curves. Then `forward106-master-baselines`
+fetches/builds the latest fork `origin/master` once and measures matched
+GPU-only Turbo4 and ordinary CPU-F16 target-KV controls, keeping GPU Turbo4
+draft-MTP n-max2 and B/U1024/256 fixed. It runs the empty 77,824 baseline,
+matched repository-filled 8K/16K/32K/64K rows, then CPU offload at 128K. This
+is a measurement campaign, not an ACO source change. See the current cluster
+and task packets for exact commands and schedules.
 Turbo4 target K/V and GPU Turbo4 MTP remain the ACO architecture; eligible
 fused attention must not reserve unused F16 materialization. 105-01 remains
 deferred, not passed.
