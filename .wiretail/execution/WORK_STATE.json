@@ -38105,7 +38105,7 @@
       "depends_on": [
         "105-21"
       ],
-      "commit": "4192d6d900bc813d652832eba995f5dc57d58fa1",
+      "commit": "e27991a6e58655e21616ed84bdebd7348ec155f2",
       "context_files": [
         ".wiretail/execution/clusters/forward105-matrix.md",
         ".wiretail/execution/engineering-notes/selected-generation-contract.md",
