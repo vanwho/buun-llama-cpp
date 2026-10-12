@@ -2645,3 +2645,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-19`
 - Commit at update: `28240d982`
 - Summary: Completed the exact 192Ki/64Ki ACO matrix, restored managed service, and validated the receipt.
+
+## 2026-10-12T07:27:20+00:00 — 105-20 — done
+
+- Branch: `codex/task-105-20`
+- Commit at update: `0d95eeded`
+- Summary: Recorded 250Ki/64Ki ACO matrix with 45 complete and 3 explicit OOM-incomplete rows; exact fill and service restore verified
