@@ -2669,3 +2669,27 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `plan/attention-aware-kv-paging`
 - Commit at update: `d8c3359e1`
 - Summary: Reopened invalid completion: Frontier completion_check failed when Wiretail resumed
+
+## 2026-10-12T23:22:14+00:00 — 105-21 — todo
+
+- Branch: `codex/task-105-22`
+- Commit at update: `4748bd381`
+- Summary: Reopened invalid completion: Frontier completion_check failed when Wiretail resumed
+
+## 2026-10-12T23:23:00+00:00 — 105-21 — in_progress
+
+- Branch: `codex/task-105-22`
+- Commit at update: `4748bd381`
+- Summary: Task started
+
+## 2026-10-12T23:23:00+00:00 — 105-21 — done
+
+- Branch: `codex/task-105-22`
+- Commit at update: `4748bd381`
+- Summary: Restored prior completed task after correcting revision-scoped validator selection
+
+## 2026-10-12T23:23:10+00:00 — 105-22 — done
+
+- Branch: `codex/task-105-22`
+- Commit at update: `4748bd381`
+- Summary: Completed fixed 15-configuration matrix aggregation and validated revision-scoped receipt proof
