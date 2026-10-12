@@ -2663,3 +2663,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-22`
 - Commit at update: `4192d6d90`
 - Summary: Aggregated 15 fixed matrix configurations, prefill curve and verified recall outcomes; packet proof passed
+
+## 2026-10-12T23:20:49+00:00 — 105-22 — todo
+
+- Branch: `plan/attention-aware-kv-paging`
+- Commit at update: `d8c3359e1`
+- Summary: Reopened invalid completion: Frontier completion_check failed when Wiretail resumed
