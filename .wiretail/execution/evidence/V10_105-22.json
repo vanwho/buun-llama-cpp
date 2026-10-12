@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "105-22",
+  "source_commit": "4192d6d900bc813d652832eba995f5dc57d58fa1",
+  "proof": "complete_context_speed_matrix_recall_and_prefill_curve",
+  "checks": {
+    "complete_context_speed_matrix_recall_and_prefill_curve": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-22/attempt-01/raw/aggregate_matrix105.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-22/attempt-01/MATRIX105_FINAL.json",
+          "sha256": "30c3b2f2ed0933805369e6885824662efe424cbdf52a87d04271be7605dfad82"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-22/attempt-01/MATRIX105_FINAL.md",
+          "sha256": "d59141eb62656f49c25488a41cf24c29a6103e49a23d514c24c453be9942f6db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-22/attempt-01/raw/aggregate-run-summary.json",
+          "sha256": "9d4a209165b79b9e15fa87e8f3bf3a09e324ce8fbb0fb3b50784f1fa4a03092c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_FREEZE.json",
+          "sha256": "3a978d416a65b2092346c6a66872642c4deb02949709a492d231954fd21cda53"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_SCRATCH_FREEZE.json",
+          "sha256": "97225ae50ed611924fff25fc99fd518c00b780dce4943bf32bb54c0b857cda68"
+        }
+      ]
+    }
+  }
+}
