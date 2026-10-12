@@ -1,18 +1,20 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
-Revision: `hotpath-v10-20260914`. Amendment: `request-time-mtp-scratch`.
+Revision: `hotpath-v10-20260914`. Current measurement amendment:
+`forward106-master-baselines`.
 
-This is the architecture contract. The current execution amendment is
-[request-time MTP scratch](../engineering-notes/request-time-mtp-scratch.md).
-The earlier ranking-query repair is implemented history, not work to repeat.
-105-06 through 105-14 are complete in the original frozen benchmark cohort.
-105-15 prepares a separately frozen scratch-corrected candidate; 105-15
-through 105-20 measure the remaining context-size controls without changing
-code or performance settings between rows; 105-21 measures cold-file recall;
-105-22 aggregates medians and the fresh-prefill context curve with explicit
-candidate-cohort labels. Turbo4 target K/V and GPU Turbo4 MTP remain primary;
-eligible fused attention must not reserve unused F16 materialization. See
-`clusters/forward105-matrix.md`. 105-01 remains deferred, not passed.
+This remains the architecture contract. The phase105 ACO matrix and aggregate
+are complete historical evidence. Current ordered work is phase106:
+`forward106-master-baselines` fetches/builds the latest fork `origin/master`
+once and measures matched GPU-only Turbo4 and ordinary CPU-F16 target-KV
+controls, keeping GPU Turbo4 draft-MTP n-max2 and B/U1024/256 fixed. It runs
+the empty 77,824 baseline, matched repository-filled 8K/16K/32K/64K rows,
+then CPU offload at 128K, and reports actual per-append prefill curves. This
+is a baseline measurement campaign, not an ACO source change. See the
+current cluster and task packets for its exact commands and schedule.
+Turbo4 target K/V and GPU Turbo4 MTP remain the ACO architecture; eligible
+fused attention must not reserve unused F16 materialization. 105-01 remains
+deferred, not passed.
 For 105-02 onward the compact
 [selected-generation contract](../engineering-notes/selected-generation-contract.md)
 supersedes earlier conclusions about zero proposals or fully covered parity.
@@ -135,10 +137,10 @@ Historical phase100/101 diagnostics and their old scheduling are not current
 instructions. Their ~212 tok/s row predates subsequent GPU-route repairs;
 neither that row nor a faster but incoherent experimental row certifies the
 current candidate. Preserve existing capacity, storage and transport repairs.
-The next work is precisely105-15 through105-22, not reopening old release
-audits. Source integration and small retrieval/MTP evidence are complete.
-During the matrix, a reproduced setup failure stops the sequence and requires
-a newly frozen campaign; do not patch settings between measured rows.
+The active phase106 tasks own only the master baseline comparison. They do not
+reopen old release audits or change ACO implementation. If a setup mismatch
+occurs, repair it before resuming the same row; preserve measured results and
+do not change performance settings between scored rows.
 
 Primary goal remains 256K full logical/host history, bounded H, natural
 promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill

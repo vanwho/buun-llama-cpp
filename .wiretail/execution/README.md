@@ -7,19 +7,22 @@ Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
-105-01g through105-05 are completed. The current sequence is105-06 through
-105-20: freeze the benchmark harness and exact server configurations once,
-then run the unchanged GPU-only, CPU-F16-KV, ACO and context matrix;105-21
-tests cold-file recall/promotion at near-full 256K occupancy without repair;
-105-22 aggregates the median tables, recall result and fresh-prefill curve.
-Read only the `forward105-matrix` cluster and current task packet for
-that sequence. No source, benchmark, build or performance-config changes are
-allowed between measured configurations.105-01a/b/c/d are historical;
-105-01d explicitly declined adoption. Read current packet/cluster, immediate
-handoff and the compact task-specific engineering note only.105-02 onward
-uses [selected generation](engineering-notes/selected-generation-contract.md).
-No unchanged256K semantic retry. Correct response-local MTP accounting and
-coherent same-map generation precede new ranking tuning or scale work.
+Phase105's matrix and final report (105-06 through 105-22) are complete and
+historical. The active sequence is phase106: 106-01 fetches and builds the
+latest fork `origin/master` in an isolated worktree, then measures its
+unpaged GPU-only original baseline and filled 8K/16K/32K/64K rows; 106-02
+reuses that exact build for matched CPU-F16 target-KV/GPU-Turbo4-MTP rows,
+including 128K; 106-03 consolidates the comparison and prefill curves. Read
+only the `forward106-master-baselines` cluster and the current packet, plus
+the named immediate handoff/freeze. Do not reinterpret historical phase105
+results as same-binary controls. Older 105-01a/b/c/d tasks are historical;
+105-01d explicitly declined adoption. For every task, read only its current
+packet and cluster, immediate handoff, and explicitly named compact note. The
+105-02 onward selected-generation history is documented in
+[selected generation](engineering-notes/selected-generation-contract.md),
+but it is not automatically loaded for the phase106 benchmark tasks. Do not
+repeat unchanged 256K semantic retries. Correct response-local MTP accounting
+and coherent same-map generation precede any new ranking tuning or scale work.
 
 Preserve B1024/U256, Turbo4 target/draft,
 frozen GPU history and inclusive host storage. Never run two Qwen models or

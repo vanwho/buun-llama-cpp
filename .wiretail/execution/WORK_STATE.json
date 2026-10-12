@@ -2,22 +2,22 @@
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
   "canonical_plan": ".wiretail/execution/forward/OVERVIEW.md",
-  "active_plan_amendment": ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
-  "technical_change_spec": ".wiretail/execution/engineering-notes/request-time-mtp-scratch.md",
+  "active_plan_amendment": ".wiretail/execution/clusters/forward106-master-baselines.md",
+  "technical_change_spec": ".wiretail/execution/clusters/forward106-master-baselines.md",
   "execution_cookbook": ".wiretail/execution/forward/TESTING.md",
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
-  "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current work is 105-15 through 105-22. Read only current packet/cluster, request-time-mtp-scratch compact note, long-query-generation-no-victim note, immediate relevant handoff and cohort freeze. Prior implementation tasks and failed assessments are historical, not instructions to replay. Turbo4 target K/V and full-L GPU Turbo4 MTP, B1024/U256; preserve GPU fused attention without unused F16 scratch. 105-15 is a new corrected-candidate preparation boundary; freeze once before scored rows. Keep original 105-06..14 results in their old cohort, remaining measurements in MATRIX105_SCRATCH_FREEZE; never mix binary identities. No source/config changes between scored rows, no raw transcript loading, no per-token diagnostic/rerank work. Report actual fresh-prefill timing, request-local MTP and memory. A completed low speed or semantic miss is a finding, not an unchanged-retry gate. Preserve usage/raw history externally.",
+  "scope_revision": "master-baseline-20261012",
+  "context_policy": "Current work is phase106 tasks 106-01 through 106-03. Read only the active task, forward106-master-baselines cluster, named freeze/report and immediate handoff. Build the fetched origin/master SHA once in an isolated detached worktree; preserve that executable/DSO identity for both placements. Benchmark only: no production code/config tuning. Use GPU Turbo4 target KV or ordinary CPU-F16 target KV, always GPU Turbo4 draft-MTP n-max2, B1024/U256, CUDA0, same model/prompts/reasoning/sampling. GPU-only first; CPU-KV with same build next and 128K additional. Context-fill curves use matched repository source and exact C/L schedule. Low speed/acceptance is a finding; repair setup defects within the task, never fabricate measurements or run duplicate models. Keep raw externally and compact reports/receipts in Git.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "complete",
-  "current_phase": "105",
-  "current_task": "105-22",
-  "last_updated_utc": "2026-10-12T07:59:39+00:00",
+  "status": "ready",
+  "current_phase": "106",
+  "current_task": "106-01",
+  "last_updated_utc": "2026-10-12T18:47:56+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "105-06 through 105-14 retain their original completed benchmark cohort. Current ordered work is 105-15 through 105-22. Task 105-15 prepares MATRIX105_SCRATCH_FREEZE for the newest corrected Turbo4 target/GPU-MTP candidate after an incremental --parallel 16 build identity check and loaded-DSO verification; freeze helper, model, prompts, schedule and expanded argv before scored rows. The long-query generation eviction fix at 0247624e9 is live validated. Tasks 105-15 through 105-20 measure the remaining fixed configurations without code/configuration changes. Poor speeds, MTP rates, or recall are recorded and do not stop later measurements. Repair setup mismatches in the same task and resume missing rows with the frozen identity; do not advance past missing required measurements. Task 105-21 measures cold-file recall at near-full 256K; misses are findings without repair. Task 105-22 aggregates medians/curves and labels the two candidate cohorts explicitly. Use only current packet/cluster, compact relevant notes and immediate handoff; do not load historical transcripts.",
+    "active_scope": "Phase105's ACO matrix is complete. Current ordered work is 106-01 through 106-03: fetch and freeze latest origin/master, build once in an isolated clean worktree using --parallel 16, measure empty 77,824 GPU-only original baseline and matched repo-filled GPU-only L/C rows, then use that exact master build for matched CPU-F16 target-KV/GPU-Turbo4-MTP rows including 128K, and aggregate the medians/curves. All rows use the original three prompts, four reasoning modes, SSE, T=0/seed42, one 40-token warmup and three measured 400-token-maximum runs per prompt/mode; B/U=1024/256 and MTP remains enabled. No ACO/pager flags in either control. Keep same source schedule, exact C/L, fresh-prefill curve, model/build identity, and clean single-process lifecycle. Setup issues are repaired in-task; low measured performance is valid data, not a retry gate. Read only active packet, forward106 cluster and named immediate freeze/report; raw logs remain external.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -56,7 +56,7 @@
     "attention_path": "GPU-native direct-paged or compressed mature FA chosen by matched shape/preparation/kernel/append timings; reference explicit oracle only",
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
-    "speed_policy": "Matrix105 uses the exact three canonical prompts, SSE, T=0 seed42, one 40-token warmup and three 400-token-maximum measured runs for each prompt at request-level reasoning off/low/medium/xhigh; GPU Turbo4 draft-MTP n-max2 stays enabled. Report per-prompt medians for decode tok/s, response-local MTP acceptance percent and fresh executed prefill tok/s, plus context-fill fresh-prefill curve. Freeze both binaries, source, helper, prompts, sampling and all launch settings before first measured row; no code/performance-config edits or rebuilds between configurations. Low results are findings, not failed tests.",
+    "speed_policy": "Phase106 compares latest fetched origin/master GPU-only Turbo4 target KV against ordinary CPU-F16 target-KV, with GPU Turbo4 draft-MTP n-max2 and B/U1024/256 held fixed. Use the exact original three prompts, SSE, T=0/seed42, reasoning off/low/medium/xhigh, one 40-token warmup and three 400-token-maximum measurements per prompt/mode. Report per-prompt medians for decode tok/s, request-local MTP acceptance percent, and fresh prefill tok/s plus actual repository-ingestion curves. Freeze master SHA, model, helpers, prompts, sampling, source selection and full effective launch settings before scored rows. Do not mix in 105 ACO values as same-build controls. Low results are findings, not failed gates.",
     "scale_policy": "Finish source repairs and coherent small paired retrieval/MTP proof first. The 105-03 L262144/H51200 trajectory and primary fact are executed, with occupancy-only proof and canonical 0/12. 105-03a validates split-document layout at L16384/H8192; 105-03b owns novel large scale, two additional recalls, and fresh canonical rows. Preserve per-request uncached prefill speed, cached input, decode, draft/accept counts and measured used/free VRAM as a compact curve. Actual fresh-process allocation accounting, not hypothetical duplicate reserve, governs admission. No smaller-H substitution for large proof, concurrent Qwen, forced route, per-token host retrieval or premature full-context diagnostic campaign. Missing optional telemetry is unknown. True execution failures get an ordered owner-specific repair; completed semantic/speed misses are findings, not unchanged retry loops. Fixed batch, <=16K fresh repo chunks and >=4096-token final reserve prevent context shift/compaction.",
     "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
@@ -38161,6 +38161,91 @@
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
       }
+    },
+    {
+      "id": "106-01",
+      "phase": "106",
+      "cluster": "forward106-master-baselines",
+      "title": "Build latest fork master and measure GPU-only baselines and context curve",
+      "packet": ".wiretail/execution/tasks/106-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "master-baseline-20261012",
+      "plan_amendment": ".wiretail/execution/clusters/forward106-master-baselines.md",
+      "required_proofs": ["latest_master_build_and_gpu_only_context_speed_curves"],
+      "depends_on": ["105-22"],
+      "context_files": [
+        ".wiretail/execution/clusters/forward106-master-baselines.md",
+        "tools/server/bench/repo_context.py",
+        "tools/server/bench/run-final-curve.py",
+        "tools/server/bench/run-occupancy-frontier.py"
+      ],
+      "completion_check": [
+        "python3", ".wiretail/execution/v10/validate.py", "--task", "106-01",
+        "--receipt", ".wiretail/execution/evidence/V10_106-01.json"
+      ]
+    },
+    {
+      "id": "106-02",
+      "phase": "106",
+      "cluster": "forward106-master-baselines",
+      "title": "Measure CPU-F16 target-KV controls on the same master build through 128K",
+      "packet": ".wiretail/execution/tasks/106-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "master-baseline-20261012",
+      "plan_amendment": ".wiretail/execution/clusters/forward106-master-baselines.md",
+      "required_proofs": ["same_master_cpu_kv_context_speed_curves_including_128k"],
+      "depends_on": ["106-01"],
+      "context_files": [
+        ".wiretail/execution/clusters/forward106-master-baselines.md",
+        ".wiretail/execution/evidence/MASTER106_FREEZE.md",
+        ".wiretail/execution/evidence/MASTER106_GPU.md",
+        ".wiretail/execution/handoffs/106-01.md"
+      ],
+      "completion_check": [
+        "python3", ".wiretail/execution/v10/validate.py", "--task", "106-02",
+        "--receipt", ".wiretail/execution/evidence/V10_106-02.json"
+      ]
+    },
+    {
+      "id": "106-03",
+      "phase": "106",
+      "cluster": "forward106-master-baselines",
+      "title": "Aggregate master GPU-only and CPU-KV speed and prefill curves",
+      "packet": ".wiretail/execution/tasks/106-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "master-baseline-20261012",
+      "plan_amendment": ".wiretail/execution/clusters/forward106-master-baselines.md",
+      "required_proofs": ["master_gpu_cpu_baseline_comparison_and_prefill_curves"],
+      "depends_on": ["106-02"],
+      "context_files": [
+        ".wiretail/execution/clusters/forward106-master-baselines.md",
+        ".wiretail/execution/evidence/MASTER106_FREEZE.md",
+        ".wiretail/execution/evidence/MASTER106_GPU.md",
+        ".wiretail/execution/evidence/MASTER106_CPU.md",
+        ".wiretail/execution/handoffs/105-22.md"
+      ],
+      "completion_check": [
+        "python3", ".wiretail/execution/v10/validate.py", "--task", "106-03",
+        "--receipt", ".wiretail/execution/evidence/V10_106-03.json"
+      ]
     }
   ],
   "last_checkpoint_commit": "31137bcce02494737ff4c1416e079eceee99a970",
