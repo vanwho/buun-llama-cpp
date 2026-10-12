@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "task": "105-21",
+  "source_commit": "1c628b27279a944236354d8a1889706e02e0c90e",
+  "checks": {
+    "near_full_256k_cold_file_recall_and_promotion_result": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/create_report_10521.py"
+      ],
+      "related_commands": [
+        [
+          "python3",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/run_recall_10521.py"
+        ],
+        [
+          "python3",
+          "-m",
+          "py_compile",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/run_recall_10521.py",
+          "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/create_report_10521.py"
+        ],
+        [
+          "sudo",
+          "-n",
+          "rm",
+          "--",
+          "/run/systemd/system/llama-server.service.d/105-21.conf"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "daemon-reload"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/MATRIX105_105-21_RECALL.json",
+          "sha256": "53e62178a5c4c6bbda1eb296c1912a37613413deb24d2dacfc478c43c2b74da5",
+          "bytes": 35848
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/MATRIX105_105-21_RECALL.md",
+          "sha256": "0683e557bbb8f9f0f65f54bb6c8328622bd692b312e4db282fa001b9db8d5f6d",
+          "bytes": 4208
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/raw-artifact-manifest.json",
+          "sha256": "6b673eb3aa29afc2923014281c27d2764be25401b4530481e0bb1d545545c0b9",
+          "bytes": 5950
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/query-records.json",
+          "sha256": "2b7f6f530e963a0c7b4aceb5c3f066545d455681a68669cdc85f4e18fbec8ada",
+          "bytes": 3593772
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/selections-and-rubrics.json",
+          "sha256": "03e8b01cf8312a658390909ebf84c39d942da6310e8850012cf4dfe51f05b6f4",
+          "bytes": 2405
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/runtime-identity-task-profile.json",
+          "sha256": "f7d0bcb35942d0fa6fd4cd9058db54e6074e19ac640e2942cf85dab71ec2d739",
+          "bytes": 2611
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/service-restore-verification.json",
+          "sha256": "ccccb91452663f556c05129d7b8ec7b769252ec71d50b8ef187f8ab9ef5bbcda",
+          "bytes": 1938
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/run-recall.stdout",
+          "sha256": "7f0832e4795abddb3d80f5204e95887e623855b5a9584129376cca04b5638a7a",
+          "bytes": 275
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/105-matrix/105-21/attempt-01/raw/run-recall.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ],
+      "result": "Two scheduled rows reported; semantic recall correct for both and existing telemetry verifies cold-page promotion for both. Original managed service restored."
+    }
+  }
+}
