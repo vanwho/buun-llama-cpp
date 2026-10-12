@@ -2657,3 +2657,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-21`
 - Commit at update: `1c628b272`
 - Summary: Recorded two near-full cold-file recall queries; both answers correct and existing telemetry verified both promotions
+
+## 2026-10-12T07:59:28+00:00 — 105-22 — done
+
+- Branch: `codex/task-105-22`
+- Commit at update: `4192d6d90`
+- Summary: Aggregated 15 fixed matrix configurations, prefill curve and verified recall outcomes; packet proof passed
