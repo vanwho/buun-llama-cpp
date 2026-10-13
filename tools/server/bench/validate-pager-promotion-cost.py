@@ -119,7 +119,20 @@ def validate_report(report: Mapping[str, Any]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=pathlib.Path)
+    parser.add_argument("--for-comparison", action="store_true",
+                        help="reject withdrawn cohorts before numerical comparison")
     args = parser.parse_args()
+    execution = pathlib.Path(__file__).resolve().parents[3] / ".wiretail/execution"
+    sys.path.insert(0, str(execution))
+    from result_eligibility import comparison_errors
+    excluded = comparison_errors(args.report, "107-01")
+    if excluded:
+        for error in excluded:
+            print(error, file=sys.stderr)
+        if args.for_comparison:
+            return 1
+        print("Historical execution validation only; these results cannot enter comparisons.",
+              file=sys.stderr)
     try:
         report = json.loads(args.report.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
