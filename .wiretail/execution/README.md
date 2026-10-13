@@ -7,21 +7,20 @@ Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
-Phase105's matrix and final report (105-06 through 105-22) are complete and
-historical. The active sequence is phase106: 106-00 first reuses its frozen ACO
-candidate to measure initial-hot and same-occupancy hot-versus-cold natural
-promotion cost at eight L/H geometries, including request-local counter deltas
-and fresh-prefill curves. Then 106-01 fetches and builds the latest fork
-`origin/master` in an isolated worktree and measures GPU-only controls; 106-02
-reuses that exact build for CPU-F16 target-KV controls; 106-03 consolidates the
-comparison. Read only the `forward106-master-baselines` cluster and the current
-packet, plus the named immediate handoff/freeze. Do not reinterpret historical
-phase105 results as same-binary controls. Older 105-01a/b/c/d tasks are historical;
+Phase105 and phase106 reports are complete historical evidence. 106-00 did not
+obtain paired promotion timing because its page0 target stayed resident.
+The next task is [107-01](tasks/107-01.md): fresh A/B fills with A larger than H,
+choose a source page observed cold, measure cold recall first then identical
+hot recall, three fresh-fill pairs at each of eight sizes. Use the latest
+deployed ACO candidate frozen once and the packet's exact commands. Read only
+`forward107-cold-promotion-timing`, the current packet and bounded named symbols.
+An all-resident skip cannot replace the requested cold timing. Phase106 master
+controls are separate build cohorts. Older 105-01a/b/c/d tasks are historical;
 105-01d explicitly declined adoption. For every task, read only its current
 packet and cluster, immediate handoff, and explicitly named compact note. The
 105-02 onward selected-generation history is documented in
 [selected generation](engineering-notes/selected-generation-contract.md),
-but it is not automatically loaded for the phase106 benchmark tasks. Do not
+but it is not automatically loaded for the phase107 measurement task. Do not
 repeat unchanged 256K semantic retries. Correct response-local MTP accounting
 and coherent same-map generation precede any new ranking tuning or scale work.
 

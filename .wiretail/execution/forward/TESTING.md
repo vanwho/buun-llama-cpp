@@ -1,12 +1,14 @@
 # Minimal testing and honest performance measurement
 
 Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
-Current next implementation is the isolated phase104 experiment in RANKING104.
-Completed phase100/101/102 packets are provenance, not startup instructions.
-103-03's exact-fill campaign is deferred; its partial frontier is evidence,
-not a gate on the ranking experiment. 104-06 uses small paired recall and
-104-07 one safely reserved H-crossing row. Do not repeat full-L fills or use
-ignore-EOS to manufacture exactly C=L during ranking/performance iteration.
+Current next measurement is107-01, scope
+`verified-cold-promotion-cost-20261013`. Its packet supersedes historical
+phase104/105/106 experiment/run order. Fresh A/B fills make A larger than H;
+choose an observed host-backed cold source page, measure cold recall then
+identical hot recall with the question re-evaluated in both conditions.
+Run three fresh-fill pairs at each packet geometry. Production source/config
+stays fixed; helper setup faults are repaired without changing ranking/routes.
+Completed earlier packets are provenance, not startup instructions.
 
 ## Setup once, verify cheaply, keep loaded
 

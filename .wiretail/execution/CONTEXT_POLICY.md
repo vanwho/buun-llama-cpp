@@ -35,14 +35,18 @@ before a standalone Qwen fixture; never load a second Qwen. Restore the
 matching managed candidate and health afterward. External allocations are
 setup issues, not reasons to change H accounting, routes, codecs or B/U.
 
-## Current phase-105 source-directed override
+## Current phase-107 measurement override
 
-Current ordered work is 105-15 through 105-22; earlier implementation work
-is history, not steps to repeat. Start from WORK_STATE current task, its
-packet/cluster, `engineering-notes/request-time-mtp-scratch.md`, and the
-immediate relevant handoff. Keep Turbo4 target K/V and full-L GPU Turbo4
-MTP with B/U=1024/256. Task 105-15 prepares a separately frozen corrected
-candidate; preserve original completed matrix results in their old cohort.
+Current next work is107-01. Read only its packet and
+`forward107-cold-promotion-timing`, then bounded helper/source symbols named
+there. All105/106 campaigns and their raw retry history are provenance.
+Freeze the latest deployed ACO binary once; no rebuild or production changes.
+Keep Turbo4 target K/V and full-L GPU Turbo4 MTP with B/U=1024/256. Fresh
+server per geometry; fresh A/B fills per pair. A exceeds H; choose an actual
+cold interior A source page before timed recall, then measure cold and identical
+hot requests using production final-user query rewind. Cold-preconditioned
+requests are required; an all-resident skip cannot complete the campaign.
+Preserve original completed matrix results in their old cohorts.
 Do not restore the obsolete full-L/early F16 reserve or read old capacity
 assessments as current instructions. The diagnostic memory run does not
 complete the prescribed benchmarks. Source/configuration remains fixed

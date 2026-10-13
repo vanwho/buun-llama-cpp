@@ -1,20 +1,18 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
 Revision: `hotpath-v10-20260914`. Current measurement amendment:
-`forward106-master-baselines`.
+`forward107-cold-promotion-timing` (`verified-cold-promotion-cost-20261013`).
 
 This remains the architecture contract. The phase105 ACO matrix and aggregate
-are complete historical evidence. Current ordered work is phase106. Task
-106-00 first reuses the exact frozen ACO candidate and measures the total
-TTFT/wall penalty of natural cold-page selection and promotion against a
-matched hot request at eight context/hot-pool geometries, while retaining
-fresh repository-prefill curves. Then `forward106-master-baselines`
-fetches/builds the latest fork `origin/master` once and measures matched
-GPU-only Turbo4 and ordinary CPU-F16 target-KV controls, keeping GPU Turbo4
-draft-MTP n-max2 and B/U1024/256 fixed. It runs the empty 77,824 baseline,
-matched repository-filled 8K/16K/32K/64K rows, then CPU offload at 128K. This
-is a measurement campaign, not an ACO source change. See the current cluster
-and task packets for exact commands and schedules.
+are complete historical evidence, as are the phase106 master controls.
+Current next work is107-01. Its A source region exceeds the physical H pool;
+after B pressure, it selects a measured cold interior A source page, then times
+cold recall and identical hot recall at the same reusable prefix. It performs
+three fresh-fill pairs at eight geometries using the latest deployed ACO
+candidate, B1024/U256, GPU Turbo4 target/draft and MTP n-max2. Phase106-00's
+page0 stayed resident, so its missing paired timing is not replaced by its
+successful fill. Read the current107 packet/cluster for exact commands and
+failure handling; old campaign instructions are provenance.
 Turbo4 target K/V and GPU Turbo4 MTP remain the ACO architecture; eligible
 fused attention must not reserve unused F16 materialization. 105-01 remains
 deferred, not passed.
@@ -111,6 +109,8 @@ card, service paths or these counts in portable production logic.
 | 104 | 04e/f/g/h and05 done;04d/06 deferred;06a/b/c/d then07/08 | typed finalization repair, fresh target/MTP sanity, frozen harness, bounded paired outcomes, speed/cost and adoption verdict |
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
 | 105 | 105-01 deferred;a/b/c/d historical, no adoption;105-01e indexed capture verification;105-01f numerical/recall outcomes;105-01g selective main integration;105-02 coherent generation/MTP;105-03 scale;105-04/05 review | verified producer repairs integrated before residual coherence/MTP work and large occupancy; no unchanged failure loops |
+| 106 | 106-00–03 done | historical ACO fill/promotion-precondition outcomes and paired master GPU/CPU baselines |
+| 107 | 107-01 todo | verified cold-source selection and cold-first/hot-second request timing across eight sizes |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
 specified in `OPTIONAL_ADVANCEMENTS.md`. Phase104 is now reserved for the
@@ -140,7 +140,7 @@ Historical phase100/101 diagnostics and their old scheduling are not current
 instructions. Their ~212 tok/s row predates subsequent GPU-route repairs;
 neither that row nor a faster but incoherent experimental row certifies the
 current candidate. Preserve existing capacity, storage and transport repairs.
-The active phase106 tasks own only the master baseline comparison. They do not
+Completed phase106 tasks own only their historical baseline comparison. They do not
 reopen old release audits or change ACO implementation. If a setup mismatch
 occurs, repair it before resuming the same row; preserve measured results and
 do not change performance settings between scored rows.

@@ -2741,3 +2741,8 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-03`
 - Commit at update: `6b4f410bd`
 - Summary: Aggregated and validated paired same-build master GPU/CPU-F16 curves with exact-geometry ACO references and hashed provenance.
+
+## 2026-10-13T15:20:07+00:00 — 107-01 — todo
+
+- Branch: `plan/attention-aware-kv-paging`
+- Summary: Added a fresh promotion-timing task after completed106-03. Each A source region exceeds H; choose a verified host-backed cold interior source page after B pressure, then time cold recall first and byte-identical hot recall with fresh final-user query evaluation. Three fresh-fill pairs per eight exact geometries, latest deployed ACO binary frozen once, B1024/U256 and GPU Turbo4 MTP fixed. Real cold requests required; all-resident skips cannot satisfy completion. Historical usage/results preserved; next runner frontier107-01, ready.
