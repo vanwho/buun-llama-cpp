@@ -1,5 +1,7 @@
 # Cluster forward106-master-baselines — ACO promotion-cost prelude and upstream-master controls
 
+Revision: `aco-promotion-cost-20261012`.
+
 Purpose: first quantify the request-level cost of natural cold-page selection
 and promotion on the frozen Phase-105 ACO candidate, then compare the exact
 current `origin/master` source against the existing ACO results using the

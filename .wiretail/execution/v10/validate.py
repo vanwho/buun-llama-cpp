@@ -53,6 +53,14 @@ def check_plan(root: Path, state: dict, revision: str | None = None) -> list[str
             if "/handoffs/" in text:
                 if path.stem == tid:
                     continue
+                # 106-00 is a new measurement cohort whose packet explicitly
+                # selects the completed 105-21 compact handoff as evidence.
+                # It is intentionally a cross-revision predecessor, not an
+                # attempt to load an earlier task diary.
+                if (tid == "106-00" and
+                        text == ".wiretail/execution/handoffs/105-21.md"):
+                    if path.is_file():
+                        continue
                 predecessor = next((t for t in tasks if t["id"] == path.stem), None)
                 if (not predecessor or predecessor.get("scope_revision") != revision
                         or positions[predecessor["id"]] >= positions[tid]):
@@ -61,7 +69,9 @@ def check_plan(root: Path, state: dict, revision: str | None = None) -> list[str
                 # This immutable matrix manifest is a current configuration
                 # contract, not a predecessor runtime receipt. Keep the
                 # exception exact and require the selected file to exist.
-                if text == ".wiretail/execution/evidence/MATRIX105_FREEZE.md":
+                if text in {".wiretail/execution/evidence/MATRIX105_FREEZE.md",
+                            ".wiretail/execution/evidence/MATRIX105_SCRATCH_FREEZE.md"} \
+                        and (text.endswith("MATRIX105_FREEZE.md") or tid == "106-00"):
                     if not path.is_file():
                         errors.append(f"{tid}: missing frozen matrix manifest: {text}")
                 elif not path.name.startswith("V10_"):
