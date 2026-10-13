@@ -16,6 +16,31 @@ spec.loader.exec_module(validator)
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_task_receipt_plan_check_does_not_validate_unrelated_cohort_peers(self):
+        revision = "test-revision"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = root / ".wiretail/execution/tasks/first.md"
+            cluster = root / ".wiretail/execution/clusters/test-cluster.md"
+            packet.parent.mkdir(parents=True)
+            cluster.parent.mkdir(parents=True)
+            packet.write_text(f"Revision: `{revision}`\n")
+            cluster.write_text(f"Revision: `{revision}`\n")
+            first = {
+                "id": "first", "scope_revision": revision,
+                "recommended_model": "gpt-6-luna", "retry1_reasoning": "high",
+                "packet": ".wiretail/execution/tasks/first.md",
+                "cluster": "test-cluster", "context_files": [
+                    ".wiretail/execution/tasks/first.md"],
+                "required_proofs": ["proof"], "completion_check": ["check"],
+                "depends_on": [],
+            }
+            later = {**first, "id": "later", "packet": "missing.md",
+                     "context_files": ["historical-context.md"]}
+            state = {"scope_revision": revision, "tasks": [first, later]}
+            self.assertFalse(validator.check_plan(root, state, revision, task_id="first"))
+            self.assertTrue(validator.check_plan(root, state, revision))
+
     def test_cli_reports_absent_receipt_as_unmet_proof(self):
         output = io.StringIO()
         argv = ["validate.py", "--task", "105-15", "--receipt",

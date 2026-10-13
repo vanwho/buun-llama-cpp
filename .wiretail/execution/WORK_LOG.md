@@ -2699,3 +2699,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-00`
 - Commit at update: `411645d7c`
 - Summary: Measured all eight exact context geometries with three correct initial-hot requests each; recorded cold precondition unmet at C in every row, validated reports and restored the managed profile.
+
+## 2026-10-13T02:37:53+00:00 — 106-01 — done
+
+- Branch: `codex/task-106-01`
+- Commit at update: `3842af347`
+- Summary: Frozen master GPU-only baseline and four exact-C context rows completed; receipt validated and qwen38-aco restored.

@@ -19,7 +19,8 @@ REVISION = "hotpath-v10-20260914"
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def check_plan(root: Path, state: dict, revision: str | None = None) -> list[str]:
+def check_plan(root: Path, state: dict, revision: str | None = None,
+               task_id: str | None = None) -> list[str]:
     errors = []
     tasks = state["tasks"]
     positions = {task["id"]: n for n, task in enumerate(tasks)}
@@ -28,6 +29,8 @@ def check_plan(root: Path, state: dict, revision: str | None = None) -> list[str
     # task rather than assuming the top-level descriptive revision matches it.
     revision = revision or state["scope_revision"]
     current = [t for t in tasks if t.get("scope_revision") == revision]
+    if task_id is not None:
+        current = [t for t in current if t["id"] == task_id]
     if not current:
         return ["no current-revision tasks"]
     for task in current:
@@ -1362,7 +1365,8 @@ def main() -> int:
     try:
         state = json.loads((ROOT / ".wiretail/execution/WORK_STATE.json").read_text())
         task = next((t for t in state["tasks"] if t["id"] == args.task), None) if args.task else None
-        errors = check_plan(ROOT, state, task.get("scope_revision") if task else None)
+        errors = check_plan(ROOT, state, task.get("scope_revision") if task else None,
+                            task_id=args.task if task else None)
         if args.task:
             if task is None:
                 raise StopIteration
