@@ -2711,3 +2711,15 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-02`
 - Commit at update: `a1c6e174d`
 - Summary: Frozen master lacks independent target/draft KV placement: --no-kv-offload pins CPU-bound draft KV at q8_0, so CPU-F16 target plus GPU Turbo4 draft curves cannot be measured truthfully.
+
+## 2026-10-13T02:47:16+00:00 — 106-02 — todo
+
+- Branch: `codex/task-106-02`
+- Commit at update: `0f8cd9b9b`
+- Summary: Automatic blocker-recovery attempt 1/3; previous blocker: Frozen master lacks independent target/draft KV placement: --no-kv-offload pins CPU-bound draft KV at q8_0, so CPU-F16 target plus GPU Turbo4 draft curves cannot be measured truthfully.
+
+## 2026-10-13T02:50:08+00:00 — 106-02 — blocked
+
+- Branch: `codex/task-106-02`
+- Commit at update: `0f8cd9b9b`
+- Summary: Frozen master has only process-global KV offload; exact required CPU-F16 target/GPU-Turbo4 draft placement is impossible without a new frozen candidate or protocol amendment. Recovery attempt 2 verified this in CLI, startup log, and frozen source.
