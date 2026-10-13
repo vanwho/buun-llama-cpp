@@ -1,0 +1,2184 @@
+{
+  "schema_version": 1,
+  "task": "106-01",
+  "project_checkout_commit": "3842af347301bba5e5355c92d3d687092e801baf",
+  "master_build_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+  "build": {
+    "source_worktree": "/srv/ai/paged-kv/worktrees/master106-d2407c33f959",
+    "source_worktree_clean": true,
+    "build_dir": "/srv/ai/paged-kv/builds/master106-d2407c33f959",
+    "configure_command": "cmake -S /srv/ai/paged-kv/worktrees/master106-d2407c33f959 -B /srv/ai/paged-kv/builds/master106-d2407c33f959 -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=89-real -DGGML_CUDA_FA=ON -DGGML_NATIVE=OFF -DLLAMA_BUILD_TESTS=ON",
+    "build_command": "cmake --build /srv/ai/paged-kv/builds/master106-d2407c33f959 --parallel 16 --target llama-server",
+    "build_retry_environment": {
+      "CPATH": "/tmp/master106-gcc12/shim",
+      "reason": "CUDA 12.4/NVCC GCC AMX intrinsic parser compatibility; GGML_AMX_* disabled; source unchanged"
+    },
+    "configure_log_sha256": "b4f2266e87cae065f877601cff3a04f270967b23ed05aa731a37ac89628852e5",
+    "first_build_log_sha256": "1128c51da306eff8c98d2056448ccbe7540149db274120274fe65083831feffe",
+    "successful_build_log_sha256": "073712ff778aaf9475fcd18ef449e45ec60b3a02cbc0cc299b310e1288d91d76",
+    "executable": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+    "executable_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+    "model": {
+      "path": "/srv/ai/models/text/current.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "gpu": "NVIDIA GeForce RTX 4080, GPU-022c1422-d7bf-7443-27f1-0dab1254f05e, 595.99.02",
+    "loaded_project_dsos": {
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+      "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+    }
+  },
+  "request_schedule": {
+    "prompts": 3,
+    "reasoning_modes": [
+      "off",
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "warmup_per_prompt_mode": 1,
+    "measured_per_prompt_mode": 3,
+    "max_tokens": 400,
+    "temperature": 0,
+    "seed": 42
+  },
+  "rows": [
+    {
+      "label": "gpu-empty-77824",
+      "geometry": {
+        "L_tokens": 77824,
+        "C_tokens": null,
+        "placement": "GPU"
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36,
+        "attempt_records": 48,
+        "runtime_fault_attempts": 0
+      },
+      "medians": {
+        "decode_tok_s": {
+          "off": {
+            "0": 107.33823868003151,
+            "1": 88.86426532017191,
+            "2": 104.83656961639645
+          },
+          "low": {
+            "0": 106.25512467933721,
+            "1": 83.03617281360984,
+            "2": 96.90124864180392
+          },
+          "medium": {
+            "0": 103.53207859719483,
+            "1": 85.28496614144095,
+            "2": 97.68862351098299
+          },
+          "xhigh": {
+            "0": 102.79721294583756,
+            "1": 80.53308774183158,
+            "2": 97.41201424607985
+          }
+        },
+        "mtp_acceptance_percent": {
+          "off": {
+            "0": 93.10344827586206,
+            "1": 67.3913043478261,
+            "2": 88.27160493827161
+          },
+          "low": {
+            "0": 91.48936170212765,
+            "1": 60.38461538461539,
+            "2": 78.70967741935483
+          },
+          "medium": {
+            "0": 87.58620689655173,
+            "1": 63.53276353276353,
+            "2": 79.80456026058631
+          },
+          "xhigh": {
+            "0": 87.09677419354838,
+            "1": 56.36363636363637,
+            "2": 80.32786885245902
+          }
+        },
+        "fresh_prefill_tok_s": {
+          "off": {
+            "0": 234.1627899715882,
+            "1": 219.18964775411794,
+            "2": 215.47412001908486
+          },
+          "low": {
+            "0": 239.32526779672207,
+            "1": 240.02269305461607,
+            "2": 242.47252699671793
+          },
+          "medium": {
+            "0": 222.82881176536128,
+            "1": 197.86151276998203,
+            "2": 206.3344681729083
+          },
+          "xhigh": {
+            "0": 308.97029029965705,
+            "1": 290.28833864084396,
+            "2": 297.97769549308737
+          }
+        }
+      },
+      "source_fill_median_tok_s": null,
+      "fill_curve": [],
+      "curve_points_near_8192_boundaries": [],
+      "tail_adjustments": [],
+      "snapshot": {
+        "occupied_tokens": 0,
+        "base_sha256": null
+      },
+      "runtime_identity": {
+        "capture_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/startup-identity.json",
+        "capture_sha256": "1b9d7970b060a21da9bf0012021a898e5c92b91daee6cbaef76e02e4165b0f3d",
+        "pid": 2543646,
+        "captured_utc": null,
+        "profile": "qwen38-fast",
+        "gpu": "NVIDIA GeForce RTX 4080, GPU-022c1422-d7bf-7443-27f1-0dab1254f05e, 595.99.02",
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "77824",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--device",
+          "CUDA0",
+          "--ctx-checkpoints",
+          "0",
+          "--cache-ram",
+          "0",
+          "--no-cache-idle-slots",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "model_path": "/srv/ai/models/text/current.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+        },
+        "identity_source": "startup /proc and mapped-file capture; exact expanded argv"
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-empty-77824",
+        "row_summary": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-empty-77824/row.json",
+        "row_summary_sha256": "897f106cdb65292cd70546304bbb3a03792ff9fef85b27746393f5382e07dad5",
+        "canonical_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-empty-77824/canonical-schedule.json",
+        "records": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-empty-77824/records.jsonl",
+        "records_sha256": "52280deefdcdd5c23381ff69a3d33f989fa65dc296252b9fcba642bf2e38b5a9",
+        "fill_schedule": null,
+        "fill_schedule_sha256": null,
+        "source_manifest": null,
+        "source_manifest_sha256": null
+      },
+      "runtime_faults": []
+    },
+    {
+      "label": "gpu-8192-6144-r2",
+      "geometry": {
+        "L_tokens": 8192,
+        "C_tokens": 6144,
+        "placement": "GPU"
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36,
+        "attempt_records": 50,
+        "runtime_fault_attempts": 2
+      },
+      "medians": {
+        "decode_tok_s": {
+          "off": {
+            "0": 105.92326058874218,
+            "1": 74.15743802069645,
+            "2": 95.01332448764839
+          },
+          "low": {
+            "0": 104.15124456195772,
+            "1": 79.35672918213443,
+            "2": 96.66018470089728
+          },
+          "medium": {
+            "0": 95.3086411495894,
+            "1": 78.87670089006129,
+            "2": 97.0803392118439
+          },
+          "xhigh": {
+            "0": 100.06346130045634,
+            "1": 78.53875463007185,
+            "2": 90.71525912506839
+          }
+        },
+        "mtp_acceptance_percent": {
+          "off": {
+            "0": 94.9090909090909,
+            "1": 50.806451612903224,
+            "2": 79.54545454545455
+          },
+          "low": {
+            "0": 92.14876033057851,
+            "1": 58.743169398907106,
+            "2": 83.55704697986577
+          },
+          "medium": {
+            "0": 83.55704697986577,
+            "1": 57.567567567567565,
+            "2": 82.66666666666667
+          },
+          "xhigh": {
+            "0": 87.95180722891567,
+            "1": 58.8235294117647,
+            "2": 74.14330218068535
+          }
+        },
+        "fresh_prefill_tok_s": {
+          "off": {
+            "0": 115.00421682128344,
+            "1": 103.91589740037064,
+            "2": 109.75044165701924
+          },
+          "low": {
+            "0": 1726.9628581917182,
+            "1": 1722.2639690270182,
+            "2": 1702.9068562384782
+          },
+          "medium": {
+            "0": 101.51353404632947,
+            "1": 93.41553900766007,
+            "2": 97.03832344546278
+          },
+          "xhigh": {
+            "0": 1695.5859944651402,
+            "1": 1712.687919541703,
+            "2": 1726.5068668581243
+          }
+        }
+      },
+      "source_fill_median_tok_s": 1510.5683108597623,
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cumulative_C_tokens": 3890,
+          "frontier_fresh_tokens": 3890,
+          "evaluated_fresh_tokens": 3890,
+          "elapsed_seconds": 2.5078220929717645,
+          "fresh_prefill_tok_s": 1551.146714474613,
+          "tail_adjustment": false,
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/append-0000.sse",
+          "raw_sha256": "9dcab89ca83a557a4ab249fd1aa529f8c511892cf072f814595562d588cc4d32"
+        },
+        {
+          "append_index": 1,
+          "cumulative_C_tokens": 6144,
+          "frontier_fresh_tokens": 2254,
+          "evaluated_fresh_tokens": 2254,
+          "elapsed_seconds": 1.5333438609959558,
+          "fresh_prefill_tok_s": 1469.9899072449118,
+          "tail_adjustment": false,
+          "source_text_sha256": "1a951f2f6a9fff8693f5f53b3bd7a6e4e61e8db08d2e8d3e0d1a856b466282bf",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/requests/append-0001.json",
+          "request_sha256": "f30a5e8a88098bf4693a137108cca4450acbfc092c0b45b8fdcd2405ac8d5cc2",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/append-0001.sse",
+          "raw_sha256": "4735b7a4e82fca00692d0e8a1c61dbd81363df310524ad9c2c5e29fc057bf139"
+        }
+      ],
+      "curve_points_near_8192_boundaries": [
+        {
+          "boundary_tokens": 6144,
+          "append_index": 1,
+          "cumulative_C_tokens": 6144,
+          "frontier_fresh_tokens": 2254,
+          "evaluated_fresh_tokens": 2254,
+          "elapsed_seconds": 1.5333438609959558,
+          "fresh_prefill_tok_s": 1469.9899072449118,
+          "tail_adjustment": false,
+          "source_text_sha256": "1a951f2f6a9fff8693f5f53b3bd7a6e4e61e8db08d2e8d3e0d1a856b466282bf",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/requests/append-0001.json",
+          "request_sha256": "f30a5e8a88098bf4693a137108cca4450acbfc092c0b45b8fdcd2405ac8d5cc2",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/append-0001.sse",
+          "raw_sha256": "4735b7a4e82fca00692d0e8a1c61dbd81363df310524ad9c2c5e29fc057bf139"
+        }
+      ],
+      "tail_adjustments": [],
+      "snapshot": {
+        "fingerprint": "4c62820ecce3cae4249f788150842801c557a9b89f200f83a89529a57aaf1236",
+        "occupied_tokens": 6144,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-4c62820ecce3cae4.bin",
+        "base_sha256": "aec1319634b0cbdea1a637d02f2c3d7e526ead08606e7ff7fd526eea79478f39",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-4c62820ecce3cae4.bin",
+          "n_saved": 6144,
+          "n_written": 574667341,
+          "timings": {
+            "save_ms": 787.7
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "ace4d034f47d57da6ebcb2751268fa9b",
+            "generation": 1,
+            "n_tokens": 6144,
+            "chunks": 2,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 574640412,
+            "t_ms": 458.436,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-4c62820ecce3cae4.bin",
+          "n_restored": 6144,
+          "n_read": 574667341,
+          "timings": {
+            "restore_ms": 442.532
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "928e3dafbd1eecab94b5adb8b2a1f635",
+            "p": 6144,
+            "n_tokens": 6144,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 574640412,
+            "t_ms": 441.959,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "2de1b2c8fb213b04794b5bd26534ecf76b52f88d6b13f2f2e053a7f0fac486de"
+      },
+      "runtime_identity": {
+        "capture_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-8192-r2.json",
+        "capture_sha256": "eb7db0b63f2645cbb20de7112d882be0376939dc69ad5783a10b61d8da028676",
+        "pid": 2556944,
+        "captured_utc": "2026-10-13T01:20:22Z",
+        "profile": "qwen38-fast",
+        "gpu": "NVIDIA GeForce RTX 4080, GPU-022c1422-d7bf-7443-27f1-0dab1254f05e, 595.99.02",
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "8192",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--device",
+          "CUDA0",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "model_path": "/srv/ai/models/text/current.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+        }
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2",
+        "row_summary": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/row.json",
+        "row_summary_sha256": "6de6bd41ebf70c9038ced1bc19382e6e9f6653036eced05f9145ea916a71a3eb",
+        "canonical_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/canonical-schedule.json",
+        "records": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/records.jsonl",
+        "records_sha256": "c212d70f99ea9bdbc69e043f1de737b0f92a8cedd553f142d93c5f3dfff859db",
+        "fill_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/schedule.jsonl",
+        "fill_schedule_sha256": "38837a9c285e2506fc4b77342016e679fd090704adf33b29709b0150c7a8eb3a",
+        "source_manifest": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/source-manifest.json",
+        "source_manifest_sha256": "2de1b2c8fb213b04794b5bd26534ecf76b52f88d6b13f2f2e053a7f0fac486de"
+      },
+      "runtime_faults": [
+        {
+          "case_index": 37,
+          "reasoning": "xhigh",
+          "prompt_index": 0,
+          "repetition": 1,
+          "status": "runtime_fault",
+          "http_status": 200,
+          "stream_complete": null,
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/requests/case-37-00.json",
+          "request_sha256": "df1cd237f7d21f7ec4e4062eb5d6832990e37ebd236b920478b8f46e1100df2c",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/case-37-00.sse",
+          "raw_sha256": "579e3f1d542f73b3ab26cd373488c07602014c3f4bc8ecef7ff1273c1f2a2038",
+          "error": "incomplete SSE after CUDA illegal-memory-access server restart; see raw CUDA fault log"
+        },
+        {
+          "case_index": 43,
+          "reasoning": "xhigh",
+          "prompt_index": 1,
+          "repetition": 3,
+          "status": "runtime_fault",
+          "http_status": 200,
+          "stream_complete": null,
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/requests/case-43-00.json",
+          "request_sha256": "4b2571b398fe1097e98f9aaac40cc82d611bb6fbe2cc27ede4fe23eb333c3aee",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/case-43-00.sse",
+          "raw_sha256": "b9de967e85bf74c8d56e3a48fece71f3f854cd9f4dd630575b76448a77714367",
+          "error": "incomplete SSE after CUDA illegal-memory-access server restart; see raw CUDA fault log"
+        }
+      ]
+    },
+    {
+      "label": "gpu-16384-14336",
+      "geometry": {
+        "L_tokens": 16384,
+        "C_tokens": 14336,
+        "placement": "GPU"
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36,
+        "attempt_records": 48,
+        "runtime_fault_attempts": 0
+      },
+      "medians": {
+        "decode_tok_s": {
+          "off": {
+            "0": 100.06916868912688,
+            "1": 75.08168609366672,
+            "2": 91.01845894465725
+          },
+          "low": {
+            "0": 101.56757310333107,
+            "1": 82.10646195576412,
+            "2": 89.31265517794036
+          },
+          "medium": {
+            "0": 97.29682947393837,
+            "1": 80.15024052102879,
+            "2": 89.21173051528605
+          },
+          "xhigh": {
+            "0": 98.83367555037731,
+            "1": 78.42187963279939,
+            "2": 84.27856282871807
+          }
+        },
+        "mtp_acceptance_percent": {
+          "off": {
+            "0": 87.87878787878788,
+            "1": 54.48717948717949,
+            "2": 76.04166666666667
+          },
+          "low": {
+            "0": 92.1259842519685,
+            "1": 65.2892561983471,
+            "2": 74.6875
+          },
+          "medium": {
+            "0": 84.73282442748092,
+            "1": 61.1731843575419,
+            "2": 73.83177570093459
+          },
+          "xhigh": {
+            "0": 89.02439024390245,
+            "1": 59.5,
+            "2": 67.75147928994083
+          }
+        },
+        "fresh_prefill_tok_s": {
+          "off": {
+            "0": 116.47565835218708,
+            "1": 106.55036102813995,
+            "2": 111.05339518888034
+          },
+          "low": {
+            "0": 1733.1112241613305,
+            "1": 1735.217649022394,
+            "2": 1735.0570845231339
+          },
+          "medium": {
+            "0": 112.33145751877929,
+            "1": 101.61532068706474,
+            "2": 104.22581781327045
+          },
+          "xhigh": {
+            "0": 1740.0541036185373,
+            "1": 1740.6999846906367,
+            "2": 1739.8569131626991
+          }
+        }
+      },
+      "source_fill_median_tok_s": 1455.5932152806085,
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cumulative_C_tokens": 3890,
+          "frontier_fresh_tokens": 3890,
+          "evaluated_fresh_tokens": 3890,
+          "elapsed_seconds": 2.312684745993465,
+          "fresh_prefill_tok_s": 1690.1278718596316,
+          "tail_adjustment": false,
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0000.sse",
+          "raw_sha256": "31ddd6b4add30ce7e1b7904498feadb1fbad1bba42a5dc8491816087f8a6bba4"
+        },
+        {
+          "append_index": 1,
+          "cumulative_C_tokens": 7985,
+          "frontier_fresh_tokens": 4095,
+          "evaluated_fresh_tokens": 4095,
+          "elapsed_seconds": 2.4630844419589266,
+          "fresh_prefill_tok_s": 1671.090942850322,
+          "tail_adjustment": false,
+          "source_text_sha256": "cc555bcaacdad9ec69d001109c5d8c8190f0f7d0de8c45ad8a27e4b9ae0f4fa1",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0001.json",
+          "request_sha256": "ae8058afb4b70e210c2d19cf9807c0a324fd3bd5bc3a89e309d61986e160d2aa",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0001.sse",
+          "raw_sha256": "434bc686982367215bf8fc2338b6cc01160359f6043374b4773736c76467450d"
+        },
+        {
+          "append_index": 2,
+          "cumulative_C_tokens": 9257,
+          "frontier_fresh_tokens": 1272,
+          "evaluated_fresh_tokens": 1272,
+          "elapsed_seconds": 0.960543088032864,
+          "fresh_prefill_tok_s": 1350.7701619968461,
+          "tail_adjustment": false,
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0002.sse",
+          "raw_sha256": "6aaeec427424bae6f4fa7a172d563aa0f13a19569629dd04872f85d7acd614a6"
+        },
+        {
+          "append_index": 3,
+          "cumulative_C_tokens": 9388,
+          "frontier_fresh_tokens": 131,
+          "evaluated_fresh_tokens": 131,
+          "elapsed_seconds": 0.3396292679826729,
+          "fresh_prefill_tok_s": 401.6470595449431,
+          "tail_adjustment": false,
+          "source_text_sha256": "595457aa2499c5f307e6119f4b5b00b6808d32db382c1a0af8a1b41f24b78b68",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0003.json",
+          "request_sha256": "43b160dcc5983e27b9802837ba09c1e1933c7deabc70a23af19d4d628570e7b9",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0003.sse",
+          "raw_sha256": "6deb808d85066cf6b552e2ce541e3a092980695628fd81ce286dd2a43548e00f"
+        },
+        {
+          "append_index": 4,
+          "cumulative_C_tokens": 9586,
+          "frontier_fresh_tokens": 198,
+          "evaluated_fresh_tokens": 198,
+          "elapsed_seconds": 0.37906772998394445,
+          "fresh_prefill_tok_s": 542.3067758218823,
+          "tail_adjustment": false,
+          "source_text_sha256": "65835d0df3fb3500b29961415682ef3a657e3e7cb255476b8999b5e168c645a5",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0004.json",
+          "request_sha256": "498ff9e7f8f5908c4e29f623d89046b11a82c98e59d0d83b183c2144268b5873",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0004.sse",
+          "raw_sha256": "676f990b50dc3cb9090348008bc36ad76134b5a29288182b2242104edab023dc"
+        },
+        {
+          "append_index": 5,
+          "cumulative_C_tokens": 11732,
+          "frontier_fresh_tokens": 2146,
+          "evaluated_fresh_tokens": 2146,
+          "elapsed_seconds": 1.49080759199569,
+          "fresh_prefill_tok_s": 1455.5932152806085,
+          "tail_adjustment": false,
+          "source_text_sha256": "7105db7f568d3a43dd985fedff04358ee24ef5611485ea08a2556f8a352ac650",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0005.json",
+          "request_sha256": "7eb7342dab9084a43e22ef7da2d25c2984afcab63aecb2b1f1f6e1eaf9437b41",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0005.sse",
+          "raw_sha256": "b485c81b2ca2652263397ad80709c800aae28c748dd6dcf4f0090c8a1c598405"
+        },
+        {
+          "append_index": 6,
+          "cumulative_C_tokens": 14336,
+          "frontier_fresh_tokens": 2604,
+          "evaluated_fresh_tokens": 2604,
+          "elapsed_seconds": 1.7984919470036402,
+          "fresh_prefill_tok_s": 1462.434965449693,
+          "tail_adjustment": false,
+          "source_text_sha256": "777a9081e530e6301736ef3d36904613eee66780b627fc805b10adf478bcd68a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0006.json",
+          "request_sha256": "667ff9228fc2704189efd069b3fb00b1cb0aed90fdcd0d373c381f388c7b760c",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0006.sse",
+          "raw_sha256": "c1cf4b1bc1c5eadc5410189d3f2639821c0023e42f2c6a6aee1b68b43b895c0e"
+        }
+      ],
+      "curve_points_near_8192_boundaries": [
+        {
+          "boundary_tokens": 8192,
+          "append_index": 2,
+          "cumulative_C_tokens": 9257,
+          "frontier_fresh_tokens": 1272,
+          "evaluated_fresh_tokens": 1272,
+          "elapsed_seconds": 0.960543088032864,
+          "fresh_prefill_tok_s": 1350.7701619968461,
+          "tail_adjustment": false,
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0002.sse",
+          "raw_sha256": "6aaeec427424bae6f4fa7a172d563aa0f13a19569629dd04872f85d7acd614a6"
+        },
+        {
+          "boundary_tokens": 14336,
+          "append_index": 6,
+          "cumulative_C_tokens": 14336,
+          "frontier_fresh_tokens": 2604,
+          "evaluated_fresh_tokens": 2604,
+          "elapsed_seconds": 1.7984919470036402,
+          "fresh_prefill_tok_s": 1462.434965449693,
+          "tail_adjustment": false,
+          "source_text_sha256": "777a9081e530e6301736ef3d36904613eee66780b627fc805b10adf478bcd68a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/requests/append-0006.json",
+          "request_sha256": "667ff9228fc2704189efd069b3fb00b1cb0aed90fdcd0d373c381f388c7b760c",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/raw/append-0006.sse",
+          "raw_sha256": "c1cf4b1bc1c5eadc5410189d3f2639821c0023e42f2c6a6aee1b68b43b895c0e"
+        }
+      ],
+      "tail_adjustments": [],
+      "snapshot": {
+        "fingerprint": "e78396b41b23dd8d7954f9200e02c0e23631d01109c3930480817ceb03e97227",
+        "occupied_tokens": 14336,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-e78396b41b23dd8d.bin",
+        "base_sha256": "9177fa8c9f61bb18d10d0d32b2c894a35cf8fee93f1df20bfe27a31b49ed414d",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-e78396b41b23dd8d.bin",
+          "n_saved": 14336,
+          "n_written": 713310068,
+          "timings": {
+            "save_ms": 600.242
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "766598d49b6189ccd881eec9cfc4c521",
+            "generation": 1,
+            "n_tokens": 14336,
+            "chunks": 4,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 713249892,
+            "t_ms": 233.271,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-e78396b41b23dd8d.bin",
+          "n_restored": 14336,
+          "n_read": 713310068,
+          "timings": {
+            "restore_ms": 401.438
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "0e541c1ae3155ad384b6d098943d74e7",
+            "p": 14336,
+            "n_tokens": 14336,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 713249892,
+            "t_ms": 401.21,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2"
+      },
+      "runtime_identity": {
+        "capture_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-16384.json",
+        "capture_sha256": "e80ca1ae10515d529fa4e94b13261b517f50c35525500b1c4d24b3b7283af865",
+        "pid": 2563260,
+        "captured_utc": "2026-10-13T01:28:07Z",
+        "profile": "qwen38-fast",
+        "gpu": "NVIDIA GeForce RTX 4080, GPU-022c1422-d7bf-7443-27f1-0dab1254f05e, 595.99.02",
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "16384",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--device",
+          "CUDA0",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "model_path": "/srv/ai/models/text/current.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+        }
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336",
+        "row_summary": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/row.json",
+        "row_summary_sha256": "ed7ef6ebb735aca16d1cb53682720c6465be112fde028cf7e76ea44e171970f9",
+        "canonical_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/canonical-schedule.json",
+        "records": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/records.jsonl",
+        "records_sha256": "f0a14bc4662de4f3eb16a82e859d148cd6229a7df8091894f1f4763c719be8aa",
+        "fill_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/schedule.jsonl",
+        "fill_schedule_sha256": "a61839dc216dd35861d63fc5e57e5c70c6a805c2b78b96372b91dbd5af9bc370",
+        "source_manifest": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/source-manifest.json",
+        "source_manifest_sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2"
+      },
+      "runtime_faults": []
+    },
+    {
+      "label": "gpu-32768-30000-r2",
+      "geometry": {
+        "L_tokens": 32768,
+        "C_tokens": 30000,
+        "placement": "GPU"
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36,
+        "attempt_records": 49,
+        "runtime_fault_attempts": 1
+      },
+      "medians": {
+        "decode_tok_s": {
+          "off": {
+            "0": 96.00464161571638,
+            "1": 76.48108223048965,
+            "2": 90.09959053236213
+          },
+          "low": {
+            "0": 93.742582867446,
+            "1": 72.86379797454312,
+            "2": 85.80641470691839
+          },
+          "medium": {
+            "0": 92.15850625668615,
+            "1": 74.27267832028019,
+            "2": 86.80838843164003
+          },
+          "xhigh": {
+            "0": 94.45249039733015,
+            "1": 71.15084880883546,
+            "2": 72.40536990161398
+          }
+        },
+        "mtp_acceptance_percent": {
+          "off": {
+            "0": 89.39393939393939,
+            "1": 60.0,
+            "2": 80.3921568627451
+          },
+          "low": {
+            "0": 88.65546218487395,
+            "1": 57.30769230769231,
+            "2": 76.7515923566879
+          },
+          "medium": {
+            "0": 83.46153846153847,
+            "1": 57.5,
+            "2": 76.19047619047619
+          },
+          "xhigh": {
+            "0": 90.11627906976744,
+            "1": 55.10204081632653,
+            "2": 56.98924731182796
+          }
+        },
+        "fresh_prefill_tok_s": {
+          "off": {
+            "0": 115.30720635098116,
+            "1": 105.56986613740972,
+            "2": 108.71928680147859
+          },
+          "low": {
+            "0": 1611.3237881744667,
+            "1": 1609.9318084775673,
+            "2": 1613.3296592991692
+          },
+          "medium": {
+            "0": 156.15948416996198,
+            "1": 141.7671272410598,
+            "2": 146.20620115956643
+          },
+          "xhigh": {
+            "0": 1613.9901111508022,
+            "1": 1612.805558134507,
+            "2": 1613.5099789885815
+          }
+        }
+      },
+      "source_fill_median_tok_s": 1352.1845434251088,
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cumulative_C_tokens": 3890,
+          "frontier_fresh_tokens": 3890,
+          "evaluated_fresh_tokens": 3890,
+          "elapsed_seconds": 2.301498382992577,
+          "fresh_prefill_tok_s": 1701.3809615033033,
+          "tail_adjustment": false,
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0000.sse",
+          "raw_sha256": "43cf4495d4d1c334d9da3bb1a0beaf4c7ca50d0e04a316275b9a8db4e79fd6b4"
+        },
+        {
+          "append_index": 1,
+          "cumulative_C_tokens": 7985,
+          "frontier_fresh_tokens": 4095,
+          "evaluated_fresh_tokens": 4095,
+          "elapsed_seconds": 2.46191098599229,
+          "fresh_prefill_tok_s": 1675.8199035840858,
+          "tail_adjustment": false,
+          "source_text_sha256": "cc555bcaacdad9ec69d001109c5d8c8190f0f7d0de8c45ad8a27e4b9ae0f4fa1",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0001.json",
+          "request_sha256": "ae8058afb4b70e210c2d19cf9807c0a324fd3bd5bc3a89e309d61986e160d2aa",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0001.sse",
+          "raw_sha256": "a058900733b4b7c6d1e4d9ee2ffc81b1bc35599d49fe9e44da3d8354aa4b61e0"
+        },
+        {
+          "append_index": 2,
+          "cumulative_C_tokens": 9257,
+          "frontier_fresh_tokens": 1272,
+          "evaluated_fresh_tokens": 1272,
+          "elapsed_seconds": 0.9602575190365314,
+          "fresh_prefill_tok_s": 1352.1845434251088,
+          "tail_adjustment": false,
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0002.sse",
+          "raw_sha256": "ed6f95780df33850d0baa284cb8e7830ab74ab73131d78f8b3d201ec83cdeb63"
+        },
+        {
+          "append_index": 3,
+          "cumulative_C_tokens": 9388,
+          "frontier_fresh_tokens": 131,
+          "evaluated_fresh_tokens": 131,
+          "elapsed_seconds": 0.3438764439779334,
+          "fresh_prefill_tok_s": 404.2336532230691,
+          "tail_adjustment": false,
+          "source_text_sha256": "595457aa2499c5f307e6119f4b5b00b6808d32db382c1a0af8a1b41f24b78b68",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0003.json",
+          "request_sha256": "43b160dcc5983e27b9802837ba09c1e1933c7deabc70a23af19d4d628570e7b9",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0003.sse",
+          "raw_sha256": "3b3ed783383836e9d1fb36f6410e91639c3ff96359a9afe6c331f6ee9a05eef1"
+        },
+        {
+          "append_index": 4,
+          "cumulative_C_tokens": 9586,
+          "frontier_fresh_tokens": 198,
+          "evaluated_fresh_tokens": 198,
+          "elapsed_seconds": 0.38366847403813154,
+          "fresh_prefill_tok_s": 543.788724348552,
+          "tail_adjustment": false,
+          "source_text_sha256": "65835d0df3fb3500b29961415682ef3a657e3e7cb255476b8999b5e168c645a5",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0004.json",
+          "request_sha256": "498ff9e7f8f5908c4e29f623d89046b11a82c98e59d0d83b183c2144268b5873",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0004.sse",
+          "raw_sha256": "5dbaf84dd443aed429bb3f51bd50d3385be389165ce4a390ef06af5f4b618305"
+        },
+        {
+          "append_index": 5,
+          "cumulative_C_tokens": 11732,
+          "frontier_fresh_tokens": 2146,
+          "evaluated_fresh_tokens": 2146,
+          "elapsed_seconds": 1.4923615640145727,
+          "fresh_prefill_tok_s": 1459.556148023206,
+          "tail_adjustment": false,
+          "source_text_sha256": "7105db7f568d3a43dd985fedff04358ee24ef5611485ea08a2556f8a352ac650",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0005.json",
+          "request_sha256": "7eb7342dab9084a43e22ef7da2d25c2984afcab63aecb2b1f1f6e1eaf9437b41",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0005.sse",
+          "raw_sha256": "8e55724b126f447ed7a44e4c0a57f155c295eafebd36da8cd3b9d09543b7a87d"
+        },
+        {
+          "append_index": 6,
+          "cumulative_C_tokens": 14847,
+          "frontier_fresh_tokens": 3115,
+          "evaluated_fresh_tokens": 3115,
+          "elapsed_seconds": 2.100522623048164,
+          "fresh_prefill_tok_s": 1500.4361621010537,
+          "tail_adjustment": false,
+          "source_text_sha256": "c318a2567aad19a11af394f6c8f93f60d2f4db2a8c6a371c990f293fdae9228c",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0006.json",
+          "request_sha256": "3b8106e4abde5c4e78db681d033cd23bfeaa9250d9c7a04b90017d069f598946",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0006.sse",
+          "raw_sha256": "9e09539d427290c4ca0e84d13a8f5e29d32de8b7bfd8ea448258426d1d60f720"
+        },
+        {
+          "append_index": 7,
+          "cumulative_C_tokens": 18071,
+          "frontier_fresh_tokens": 3224,
+          "evaluated_fresh_tokens": 3224,
+          "elapsed_seconds": 2.234850150998682,
+          "fresh_prefill_tok_s": 1460.7694594065579,
+          "tail_adjustment": false,
+          "source_text_sha256": "67dcb3374af7c61a749d67beb7113c657495f30e52f3ccfb98bce6c1a231efa6",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0007.json",
+          "request_sha256": "a1ad793ecb8504eab92eaef0511fa1338c601203d1c6d1c08985bc94dfab1c25",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0007.sse",
+          "raw_sha256": "85be961b13bd46daf332e9a8fc29ef42026c36d4998e5753eeaa43f28632dc07"
+        },
+        {
+          "append_index": 8,
+          "cumulative_C_tokens": 18349,
+          "frontier_fresh_tokens": 278,
+          "evaluated_fresh_tokens": 278,
+          "elapsed_seconds": 0.47846951097017154,
+          "fresh_prefill_tok_s": 618.9179622014778,
+          "tail_adjustment": false,
+          "source_text_sha256": "60ee720a3b95eef9d4817cebc0910297f2fc021aa2b3d1307c680a0f3065625a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0008.json",
+          "request_sha256": "b564c960fc0d3d73f118bddedf37e636e67a8a1bede10b615f53f123c5803250",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0008.sse",
+          "raw_sha256": "a63bcdc76e2bf08e7ac1f52ba59ddcb579b38997c1a419e46d7ec1074bf839c3"
+        },
+        {
+          "append_index": 9,
+          "cumulative_C_tokens": 18461,
+          "frontier_fresh_tokens": 112,
+          "evaluated_fresh_tokens": 112,
+          "elapsed_seconds": 0.361990840989165,
+          "fresh_prefill_tok_s": 338.3788029849844,
+          "tail_adjustment": false,
+          "source_text_sha256": "d6f89494a34be51bdf478b035472573c0146aee3b92406f0766dd719726cafe8",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0009.json",
+          "request_sha256": "6dd196ff71c48bbdeab42e20f0850f47f6a2286ccceba3d1281c59b5a506f7fa",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0009.sse",
+          "raw_sha256": "c5e735cf593becc096e10eb41a8b68ddf43143fc55ef478bf01468e22f935d97"
+        },
+        {
+          "append_index": 10,
+          "cumulative_C_tokens": 22557,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 2.8790872339741327,
+          "fresh_prefill_tok_s": 1436.119168439318,
+          "tail_adjustment": false,
+          "source_text_sha256": "e9ba7c1315921b543a93df544eed17b5314f9944a17abc4a00802a04e697d2e5",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0010.json",
+          "request_sha256": "dc5b2cd2b39b97b404f9b7439ceb4116058fc0a6a279f48df77dbc02c82dba8d",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0010.sse",
+          "raw_sha256": "a081b94b0c518972ed6ea9078d51c3fe66fb396a96a437930b10fc4dff7b8795"
+        },
+        {
+          "append_index": 11,
+          "cumulative_C_tokens": 26653,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.061945817025844,
+          "fresh_prefill_tok_s": 1353.3905638675778,
+          "tail_adjustment": false,
+          "source_text_sha256": "e628381763e0342c8f8e7147ae275ae4f835ef5da6d5e9860cb01600d0952b7f",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0011.json",
+          "request_sha256": "ab20d5b1c76ec3f29e61c3ac4db2ea13c4036e7fb4ac04b9894ec5fca7dfa69e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0011.sse",
+          "raw_sha256": "92f707e0f0bbb3c2d56b0c4e14bd243c7c97ad1e61b3faed289ea04b1125c866"
+        },
+        {
+          "append_index": 12,
+          "cumulative_C_tokens": 27984,
+          "frontier_fresh_tokens": 1331,
+          "evaluated_fresh_tokens": 1331,
+          "elapsed_seconds": 1.2633551180479117,
+          "fresh_prefill_tok_s": 1087.592457615762,
+          "tail_adjustment": false,
+          "source_text_sha256": "6eabadec949c520096e7ad93f489152f177ac653dfb5b162410c1d0b8d0c1c77",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0012.json",
+          "request_sha256": "a62af8d60957aaa6dc302c3a3e351a66a35bd352ed3ae8eb15876287a97b66b9",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0012.sse",
+          "raw_sha256": "95357381b24375f4cf68f349d294094babd139645bbe37e7b67e625a8b6946b4"
+        },
+        {
+          "append_index": 13,
+          "cumulative_C_tokens": 29302,
+          "frontier_fresh_tokens": 1318,
+          "evaluated_fresh_tokens": 1318,
+          "elapsed_seconds": 1.2722483109682798,
+          "fresh_prefill_tok_s": 1067.9570742837882,
+          "tail_adjustment": false,
+          "source_text_sha256": "4aaf0e53b6a416429d64cc6630c7343a25111554ff9234f1fc8859b00010d6ef",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0013.json",
+          "request_sha256": "66a8ad62e6761f161195980d4e027f89e030034dc64ddcf63be6678927412688",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0013.sse",
+          "raw_sha256": "7a5f8e9ead255050d3726e1838f6a8f05770c49b3a85b434311bbb276ca3a0fb"
+        },
+        {
+          "append_index": 14,
+          "cumulative_C_tokens": 30000,
+          "frontier_fresh_tokens": 698,
+          "evaluated_fresh_tokens": 698,
+          "elapsed_seconds": 0.8030644129612483,
+          "fresh_prefill_tok_s": 914.7068613498348,
+          "tail_adjustment": false,
+          "source_text_sha256": "355006a4354756b03e246c34f89568a38424416b3b789558febbc3491a92974d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0014.json",
+          "request_sha256": "c502d0d12d98a3e8dceb70619e4bf34ceb1c75d07754289a1ed99e7f79f69474",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0014.sse",
+          "raw_sha256": "2c0a398e4e152f6fdbcb85d79c2954489d785f0e687ae1da9c10bdef0779a52a"
+        }
+      ],
+      "curve_points_near_8192_boundaries": [
+        {
+          "boundary_tokens": 8192,
+          "append_index": 2,
+          "cumulative_C_tokens": 9257,
+          "frontier_fresh_tokens": 1272,
+          "evaluated_fresh_tokens": 1272,
+          "elapsed_seconds": 0.9602575190365314,
+          "fresh_prefill_tok_s": 1352.1845434251088,
+          "tail_adjustment": false,
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0002.sse",
+          "raw_sha256": "ed6f95780df33850d0baa284cb8e7830ab74ab73131d78f8b3d201ec83cdeb63"
+        },
+        {
+          "boundary_tokens": 16384,
+          "append_index": 7,
+          "cumulative_C_tokens": 18071,
+          "frontier_fresh_tokens": 3224,
+          "evaluated_fresh_tokens": 3224,
+          "elapsed_seconds": 2.234850150998682,
+          "fresh_prefill_tok_s": 1460.7694594065579,
+          "tail_adjustment": false,
+          "source_text_sha256": "67dcb3374af7c61a749d67beb7113c657495f30e52f3ccfb98bce6c1a231efa6",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0007.json",
+          "request_sha256": "a1ad793ecb8504eab92eaef0511fa1338c601203d1c6d1c08985bc94dfab1c25",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0007.sse",
+          "raw_sha256": "85be961b13bd46daf332e9a8fc29ef42026c36d4998e5753eeaa43f28632dc07"
+        },
+        {
+          "boundary_tokens": 24576,
+          "append_index": 11,
+          "cumulative_C_tokens": 26653,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.061945817025844,
+          "fresh_prefill_tok_s": 1353.3905638675778,
+          "tail_adjustment": false,
+          "source_text_sha256": "e628381763e0342c8f8e7147ae275ae4f835ef5da6d5e9860cb01600d0952b7f",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0011.json",
+          "request_sha256": "ab20d5b1c76ec3f29e61c3ac4db2ea13c4036e7fb4ac04b9894ec5fca7dfa69e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0011.sse",
+          "raw_sha256": "92f707e0f0bbb3c2d56b0c4e14bd243c7c97ad1e61b3faed289ea04b1125c866"
+        },
+        {
+          "boundary_tokens": 30000,
+          "append_index": 14,
+          "cumulative_C_tokens": 30000,
+          "frontier_fresh_tokens": 698,
+          "evaluated_fresh_tokens": 698,
+          "elapsed_seconds": 0.8030644129612483,
+          "fresh_prefill_tok_s": 914.7068613498348,
+          "tail_adjustment": false,
+          "source_text_sha256": "355006a4354756b03e246c34f89568a38424416b3b789558febbc3491a92974d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/append-0014.json",
+          "request_sha256": "c502d0d12d98a3e8dceb70619e4bf34ceb1c75d07754289a1ed99e7f79f69474",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/append-0014.sse",
+          "raw_sha256": "2c0a398e4e152f6fdbcb85d79c2954489d785f0e687ae1da9c10bdef0779a52a"
+        }
+      ],
+      "tail_adjustments": [],
+      "snapshot": {
+        "fingerprint": "f11685d7d92929baa3bf3f85adb20cfaad70e328b77fb7ca1c0348a86e91a055",
+        "occupied_tokens": 30000,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-f11685d7d92929ba.bin",
+        "base_sha256": "12ba28eb6221840382600bff908b07cde9322f06badf45ddf45456652de4927e",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-f11685d7d92929ba.bin",
+          "n_saved": 30000,
+          "n_written": 978410228,
+          "timings": {
+            "save_ms": 795.099
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "92cf7142a7ac0abeff71ec2ec33df7f3",
+            "generation": 1,
+            "n_tokens": 30000,
+            "chunks": 8,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 978286452,
+            "t_ms": 288.042,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-f11685d7d92929ba.bin",
+          "n_restored": 30000,
+          "n_read": 978410228,
+          "timings": {
+            "restore_ms": 449.516
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "988611ca522d2c5fd4213f6191077c7f",
+            "p": 30000,
+            "n_tokens": 30000,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 978286452,
+            "t_ms": 449.226,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d"
+      },
+      "runtime_identity": {
+        "capture_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-32768-r2.json",
+        "capture_sha256": "857dbf2e4e3e243f9f188ec765d298d2dea531cb97aa23bf26fef7da4c6fd8e6",
+        "pid": 2570683,
+        "captured_utc": "2026-10-13T01:37:19Z",
+        "profile": "qwen38-fast",
+        "gpu": "NVIDIA GeForce RTX 4080, GPU-022c1422-d7bf-7443-27f1-0dab1254f05e, 595.99.02",
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "32768",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--device",
+          "CUDA0",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "model_path": "/srv/ai/models/text/current.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+        }
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2",
+        "row_summary": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/row.json",
+        "row_summary_sha256": "47f8a872912f33c84fb046aae66b6cd0be9782a55e0190ef3e0a6940a49d6e46",
+        "canonical_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/canonical-schedule.json",
+        "records": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/records.jsonl",
+        "records_sha256": "daa5f1aca07943edccb4759d182c1db312d54a6b0a782474e51c4919710f70fb",
+        "fill_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/schedule.jsonl",
+        "fill_schedule_sha256": "af0fc092794bdb38242fb3e749fc7c4231f8361ab39f3b152b6949ce41484e37",
+        "source_manifest": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/source-manifest.json",
+        "source_manifest_sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d"
+      },
+      "runtime_faults": [
+        {
+          "case_index": 13,
+          "reasoning": "low",
+          "prompt_index": 0,
+          "repetition": 1,
+          "status": "runtime_fault",
+          "http_status": 200,
+          "stream_complete": false,
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/requests/case-13-00.json",
+          "request_sha256": "1e2dd3caf4ed0bfcf70646985caa81c2903edc3a9e968ef471253e6fa2af96ec",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/case-13-00.sse",
+          "raw_sha256": "b376f37a7329b3b24266f82a3faaceb05df510c0fbd3ea145455e3659b55721f",
+          "error": "SSE error [500]: got exception: DFlash target argmax row lookup failed"
+        }
+      ]
+    },
+    {
+      "label": "gpu-65536-61440-r4",
+      "geometry": {
+        "L_tokens": 65536,
+        "C_tokens": 61440,
+        "placement": "GPU"
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36,
+        "attempt_records": 48,
+        "runtime_fault_attempts": 0
+      },
+      "medians": {
+        "decode_tok_s": {
+          "off": {
+            "0": 91.90989279442107,
+            "1": 74.48093675492154,
+            "2": 82.23817283183269
+          },
+          "low": {
+            "0": 86.24159144483413,
+            "1": 65.70245594382394,
+            "2": 78.18563857189523
+          },
+          "medium": {
+            "0": 86.50717521632728,
+            "1": 69.11664082732099,
+            "2": 81.07641848680517
+          },
+          "xhigh": {
+            "0": 89.17666368494474,
+            "1": 71.05991472810234,
+            "2": 77.79106139761878
+          }
+        },
+        "mtp_acceptance_percent": {
+          "off": {
+            "0": 94.26229508196721,
+            "1": 67.56756756756756,
+            "2": 79.72027972027972
+          },
+          "low": {
+            "0": 90.36697247706422,
+            "1": 57.196969696969695,
+            "2": 77.31629392971246
+          },
+          "medium": {
+            "0": 86.66666666666667,
+            "1": 59.01639344262295,
+            "2": 78.13504823151125
+          },
+          "xhigh": {
+            "0": 95.51282051282051,
+            "1": 65.88921282798835,
+            "2": 76.7515923566879
+          }
+        },
+        "fresh_prefill_tok_s": {
+          "off": {
+            "0": 104.50446919894058,
+            "1": 96.38169811258047,
+            "2": 98.29394476535597
+          },
+          "low": {
+            "0": 1365.5302117342296,
+            "1": 1365.013520619069,
+            "2": 1364.979817839628
+          },
+          "medium": {
+            "0": 96.5804096297107,
+            "1": 87.7583589836932,
+            "2": 90.06198194257261
+          },
+          "xhigh": {
+            "0": 1364.874283988508,
+            "1": 1364.7739223341596,
+            "2": 1364.6190119492794
+          }
+        }
+      },
+      "source_fill_median_tok_s": 1110.2200210609976,
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cumulative_C_tokens": 3890,
+          "frontier_fresh_tokens": 3890,
+          "evaluated_fresh_tokens": 3890,
+          "elapsed_seconds": 2.184510349004995,
+          "fresh_prefill_tok_s": 1792.5879024740018,
+          "tail_adjustment": false,
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0000.sse",
+          "raw_sha256": "65ca0a35623e860cf2cf5375396bb0b02c74d2912365377f26d08721fcad6551"
+        },
+        {
+          "append_index": 1,
+          "cumulative_C_tokens": 7985,
+          "frontier_fresh_tokens": 4095,
+          "evaluated_fresh_tokens": 4095,
+          "elapsed_seconds": 2.4287768070353195,
+          "fresh_prefill_tok_s": 1698.3906970494038,
+          "tail_adjustment": false,
+          "source_text_sha256": "cc555bcaacdad9ec69d001109c5d8c8190f0f7d0de8c45ad8a27e4b9ae0f4fa1",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0001.json",
+          "request_sha256": "ae8058afb4b70e210c2d19cf9807c0a324fd3bd5bc3a89e309d61986e160d2aa",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0001.sse",
+          "raw_sha256": "eef1ee3be356fdb9069ac965ab1ec16ddc46f26d69b81d6fdada6c5c90300343"
+        },
+        {
+          "append_index": 2,
+          "cumulative_C_tokens": 9257,
+          "frontier_fresh_tokens": 1272,
+          "evaluated_fresh_tokens": 1272,
+          "elapsed_seconds": 0.940391379990615,
+          "fresh_prefill_tok_s": 1378.528550821861,
+          "tail_adjustment": false,
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0002.sse",
+          "raw_sha256": "385df07244cd60b8b1b94df018a65adf356973e9e48bc27a49b9aafc22d07e77"
+        },
+        {
+          "append_index": 3,
+          "cumulative_C_tokens": 9388,
+          "frontier_fresh_tokens": 131,
+          "evaluated_fresh_tokens": 131,
+          "elapsed_seconds": 0.33088497002609074,
+          "fresh_prefill_tok_s": 418.701577641975,
+          "tail_adjustment": false,
+          "source_text_sha256": "595457aa2499c5f307e6119f4b5b00b6808d32db382c1a0af8a1b41f24b78b68",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0003.json",
+          "request_sha256": "43b160dcc5983e27b9802837ba09c1e1933c7deabc70a23af19d4d628570e7b9",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0003.sse",
+          "raw_sha256": "ff276534bb4f2a3b9ffcefff9321349a230b63133cb02383bdcb916e9f760c25"
+        },
+        {
+          "append_index": 4,
+          "cumulative_C_tokens": 9586,
+          "frontier_fresh_tokens": 198,
+          "evaluated_fresh_tokens": 198,
+          "elapsed_seconds": 0.35771110199857503,
+          "fresh_prefill_tok_s": 573.4326897178885,
+          "tail_adjustment": false,
+          "source_text_sha256": "65835d0df3fb3500b29961415682ef3a657e3e7cb255476b8999b5e168c645a5",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0004.json",
+          "request_sha256": "498ff9e7f8f5908c4e29f623d89046b11a82c98e59d0d83b183c2144268b5873",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0004.sse",
+          "raw_sha256": "33dac623fed4c5bae8f94ead95c1b6ffc2e0bb83882bd836ed5f1e2a3452116a"
+        },
+        {
+          "append_index": 5,
+          "cumulative_C_tokens": 11732,
+          "frontier_fresh_tokens": 2146,
+          "evaluated_fresh_tokens": 2146,
+          "elapsed_seconds": 1.4671640320448205,
+          "fresh_prefill_tok_s": 1484.0232381718993,
+          "tail_adjustment": false,
+          "source_text_sha256": "7105db7f568d3a43dd985fedff04358ee24ef5611485ea08a2556f8a352ac650",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0005.json",
+          "request_sha256": "7eb7342dab9084a43e22ef7da2d25c2984afcab63aecb2b1f1f6e1eaf9437b41",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0005.sse",
+          "raw_sha256": "7c0556e621b235c31d95180c1871e70897201f2b924a0cd9e36575955b1cab7a"
+        },
+        {
+          "append_index": 6,
+          "cumulative_C_tokens": 14847,
+          "frontier_fresh_tokens": 3115,
+          "evaluated_fresh_tokens": 3115,
+          "elapsed_seconds": 2.0813980440143496,
+          "fresh_prefill_tok_s": 1513.5701402494014,
+          "tail_adjustment": false,
+          "source_text_sha256": "c318a2567aad19a11af394f6c8f93f60d2f4db2a8c6a371c990f293fdae9228c",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0006.json",
+          "request_sha256": "3b8106e4abde5c4e78db681d033cd23bfeaa9250d9c7a04b90017d069f598946",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0006.sse",
+          "raw_sha256": "62d91d333406e402a4e94f873db49f7d941a05c58f6fe5cd82d309921bd3019b"
+        },
+        {
+          "append_index": 7,
+          "cumulative_C_tokens": 18071,
+          "frontier_fresh_tokens": 3224,
+          "evaluated_fresh_tokens": 3224,
+          "elapsed_seconds": 2.202575066999998,
+          "fresh_prefill_tok_s": 1481.5767947574975,
+          "tail_adjustment": false,
+          "source_text_sha256": "67dcb3374af7c61a749d67beb7113c657495f30e52f3ccfb98bce6c1a231efa6",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0007.json",
+          "request_sha256": "a1ad793ecb8504eab92eaef0511fa1338c601203d1c6d1c08985bc94dfab1c25",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0007.sse",
+          "raw_sha256": "d74d91834c3132ddcd4abc975400d2f3db53d4a716c94892ccd70a34bfb0f997"
+        },
+        {
+          "append_index": 8,
+          "cumulative_C_tokens": 18349,
+          "frontier_fresh_tokens": 278,
+          "evaluated_fresh_tokens": 278,
+          "elapsed_seconds": 0.46539621899137273,
+          "fresh_prefill_tok_s": 632.5225819662807,
+          "tail_adjustment": false,
+          "source_text_sha256": "60ee720a3b95eef9d4817cebc0910297f2fc021aa2b3d1307c680a0f3065625a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0008.json",
+          "request_sha256": "b564c960fc0d3d73f118bddedf37e636e67a8a1bede10b615f53f123c5803250",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0008.sse",
+          "raw_sha256": "6a930258567b6a9944f8b9e2201c4b597a1944325110ff387fbc8d338a946259"
+        },
+        {
+          "append_index": 9,
+          "cumulative_C_tokens": 18461,
+          "frontier_fresh_tokens": 112,
+          "evaluated_fresh_tokens": 112,
+          "elapsed_seconds": 0.34692650503711775,
+          "fresh_prefill_tok_s": 349.4452556566451,
+          "tail_adjustment": false,
+          "source_text_sha256": "d6f89494a34be51bdf478b035472573c0146aee3b92406f0766dd719726cafe8",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0009.json",
+          "request_sha256": "6dd196ff71c48bbdeab42e20f0850f47f6a2286ccceba3d1281c59b5a506f7fa",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0009.sse",
+          "raw_sha256": "91b5927fb4c0ffb6c5e57c2c79c3f39a3e1eabaf70852ed4d97649572192ec9e"
+        },
+        {
+          "append_index": 10,
+          "cumulative_C_tokens": 22557,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 2.9540024870075285,
+          "fresh_prefill_tok_s": 1450.9716125339007,
+          "tail_adjustment": false,
+          "source_text_sha256": "e9ba7c1315921b543a93df544eed17b5314f9944a17abc4a00802a04e697d2e5",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0010.json",
+          "request_sha256": "dc5b2cd2b39b97b404f9b7439ceb4116058fc0a6a279f48df77dbc02c82dba8d",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0010.sse",
+          "raw_sha256": "c74ad0790af1044241c7131e2f4f3c7e3717ad70b65aa81f769f41dcad91a0f6"
+        },
+        {
+          "append_index": 11,
+          "cumulative_C_tokens": 26653,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.016924553026911,
+          "fresh_prefill_tok_s": 1373.5231942998787,
+          "tail_adjustment": false,
+          "source_text_sha256": "e628381763e0342c8f8e7147ae275ae4f835ef5da6d5e9860cb01600d0952b7f",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0011.json",
+          "request_sha256": "ab20d5b1c76ec3f29e61c3ac4db2ea13c4036e7fb4ac04b9894ec5fca7dfa69e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0011.sse",
+          "raw_sha256": "d8f517a2046f87ec197db9cf0f2156a09038de831383751be3df693e0652fb85"
+        },
+        {
+          "append_index": 12,
+          "cumulative_C_tokens": 27984,
+          "frontier_fresh_tokens": 1331,
+          "evaluated_fresh_tokens": 1331,
+          "elapsed_seconds": 1.2248107269988395,
+          "fresh_prefill_tok_s": 1118.797649768423,
+          "tail_adjustment": false,
+          "source_text_sha256": "6eabadec949c520096e7ad93f489152f177ac653dfb5b162410c1d0b8d0c1c77",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0012.json",
+          "request_sha256": "a62af8d60957aaa6dc302c3a3e351a66a35bd352ed3ae8eb15876287a97b66b9",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0012.sse",
+          "raw_sha256": "8ff8b95387e8bdae5404daceead9913ceadde234ced263017b7a11dfaf9a04f2"
+        },
+        {
+          "append_index": 13,
+          "cumulative_C_tokens": 29302,
+          "frontier_fresh_tokens": 1318,
+          "evaluated_fresh_tokens": 1318,
+          "elapsed_seconds": 1.2328958139987662,
+          "fresh_prefill_tok_s": 1101.8334910565898,
+          "tail_adjustment": false,
+          "source_text_sha256": "4aaf0e53b6a416429d64cc6630c7343a25111554ff9234f1fc8859b00010d6ef",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0013.json",
+          "request_sha256": "66a8ad62e6761f161195980d4e027f89e030034dc64ddcf63be6678927412688",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0013.sse",
+          "raw_sha256": "44cd01b69d02f7f90bec23ebf93e9414f9cccae4e5abbc702fc430af90aff16d"
+        },
+        {
+          "append_index": 14,
+          "cumulative_C_tokens": 30984,
+          "frontier_fresh_tokens": 1682,
+          "evaluated_fresh_tokens": 1682,
+          "elapsed_seconds": 1.4950949000194669,
+          "fresh_prefill_tok_s": 1154.4530521281538,
+          "tail_adjustment": false,
+          "source_text_sha256": "e4dd717f353387f8b15a35d7db0a81da5b3e746f0e5d4280225badf97ac2c8b0",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0014.json",
+          "request_sha256": "022a634aab558c64bc5cdce9330553b6fa08ce177be189c4c2596db9c3356e04",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0014.sse",
+          "raw_sha256": "9f786f0db7c2946421cae6cdab32320fdd5b0e3dd4fb8f5c396bcb86f212fed2"
+        },
+        {
+          "append_index": 15,
+          "cumulative_C_tokens": 35080,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.2899063659715466,
+          "fresh_prefill_tok_s": 1260.5400195297534,
+          "tail_adjustment": false,
+          "source_text_sha256": "b454bb1ac823d6223ccb2d1f8cddf317cbe5ef0855fd076d722be87c43e535de",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0015.json",
+          "request_sha256": "b379d760dae0d06c139166db6beca7af56b2e96d9caed890fac8741692e0bd75",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0015.sse",
+          "raw_sha256": "a830699db0639128eee3c5f9522a3210f9c9c57a9f7ed7b1a035572e9ab0dd81"
+        },
+        {
+          "append_index": 16,
+          "cumulative_C_tokens": 39176,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.445319391961675,
+          "fresh_prefill_tok_s": 1203.8967928906602,
+          "tail_adjustment": false,
+          "source_text_sha256": "c26b42aa74f3edf05533d339988582ef14400cc2500e733a11d412261b1b12c0",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0016.json",
+          "request_sha256": "20a23f88f28425e4efed75c3c87f82523dcd8df41075778d63ffaebd024243cd",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0016.sse",
+          "raw_sha256": "e6d03953bcc3fff3b889991705fd52a9cb2f55dc514b1d2382251000e779cbe3"
+        },
+        {
+          "append_index": 17,
+          "cumulative_C_tokens": 41953,
+          "frontier_fresh_tokens": 2777,
+          "evaluated_fresh_tokens": 2777,
+          "elapsed_seconds": 2.546304424991831,
+          "fresh_prefill_tok_s": 1110.2200210609976,
+          "tail_adjustment": false,
+          "source_text_sha256": "04d15e395791878856861a11e664e1a7b3f28d73a137f02723119dccfbd59e1a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0017.json",
+          "request_sha256": "e1e45ac9dc0dfa5a77056d01a5242c1a5ebc0a43dd9fa66896428a903ed2f507",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0017.sse",
+          "raw_sha256": "7dcee1b8af7913b3a63f914e03b3fa3a2c8e24b6c8f495f820b04c5f8a35ce51"
+        },
+        {
+          "append_index": 18,
+          "cumulative_C_tokens": 45243,
+          "frontier_fresh_tokens": 3290,
+          "evaluated_fresh_tokens": 3290,
+          "elapsed_seconds": 3.0337933559785597,
+          "fresh_prefill_tok_s": 1102.20414026737,
+          "tail_adjustment": false,
+          "source_text_sha256": "1b2ed37fcaff1c6022a6200e4e9f3417e27e356614b38ae695b66234a96f83d7",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0018.json",
+          "request_sha256": "5e4e9566c4c72ad368a7247a497c07c5fc2aed7cee51353a89eebbd6245d122a",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0018.sse",
+          "raw_sha256": "ccd6d85933af7a8d0089590aaaf48582a30b74ee0f570eef43251ecfde7a0800"
+        },
+        {
+          "append_index": 19,
+          "cumulative_C_tokens": 49339,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.7658339529880323,
+          "fresh_prefill_tok_s": 1102.6153735163416,
+          "tail_adjustment": false,
+          "source_text_sha256": "63f28641166d2191d393489fc3d3c59d273da9e7845c147707b67957070f4972",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0019.json",
+          "request_sha256": "e4190931875623e0c7f6f014bed262e1c8c74be691f2cac8aa5f5c60c60abd7e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0019.sse",
+          "raw_sha256": "a7c2df01580d63402dfe8ea656fb770549599ad5afcf23744ea8d500a9679ba1"
+        },
+        {
+          "append_index": 20,
+          "cumulative_C_tokens": 53435,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.8923353850259446,
+          "fresh_prefill_tok_s": 1067.1682913452807,
+          "tail_adjustment": false,
+          "source_text_sha256": "62c1506c497e6a625e3bc643b4ec7cde11dfaeb90ea5669033f317a0057e509a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0020.json",
+          "request_sha256": "4b2c031916b0654bd5e66a26d54ff4c82dd527889e27c0d1fb9adc4dae3c63d1",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0020.sse",
+          "raw_sha256": "a59bdffd1b971f38755e800244502e8382319df46b3dfb9e805b40459b182faf"
+        },
+        {
+          "append_index": 21,
+          "cumulative_C_tokens": 55661,
+          "frontier_fresh_tokens": 2226,
+          "evaluated_fresh_tokens": 2226,
+          "elapsed_seconds": 2.3635407999972813,
+          "fresh_prefill_tok_s": 966.5070149912793,
+          "tail_adjustment": false,
+          "source_text_sha256": "52d9d8d46d25bdb766b7c4c4be9dbe445b9431e0325dca32f98b75501c7b2984",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0021.json",
+          "request_sha256": "6581cbb11a2fb9c1b28551c3181b7f1dba6c14811379bf7082b84dc15d488eae",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0021.sse",
+          "raw_sha256": "120a3146e20063db5ce0ae787c194f998a967f62cf26198965300129cf0b39f5"
+        },
+        {
+          "append_index": 22,
+          "cumulative_C_tokens": 59757,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 4.096027355990373,
+          "fresh_prefill_tok_s": 1014.8284875438227,
+          "tail_adjustment": false,
+          "source_text_sha256": "ed2c2bab71a09e5da1be56b3d817354f81e4f67b9851c897bc2bd4e4342a2a69",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0022.json",
+          "request_sha256": "36289fea6e8e6d0890f4f760acdb48c0e3303d5d05351b0e5f0ebc810073dce6",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0022.sse",
+          "raw_sha256": "71f85495abae3609a3ed463aaf8c4b4733c5e646bb81da90fdabbb586383f0eb"
+        },
+        {
+          "append_index": 23,
+          "cumulative_C_tokens": 60752,
+          "frontier_fresh_tokens": 995,
+          "evaluated_fresh_tokens": 995,
+          "elapsed_seconds": 1.2971212859847583,
+          "fresh_prefill_tok_s": 804.008568549609,
+          "tail_adjustment": false,
+          "source_text_sha256": "b499141500b3e41b5c1d0e2b131f85e64cd51646f97eeb8783229ef004d0bc6d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0023.json",
+          "request_sha256": "31d754957454fd07733baa27da92d47c895212a71baaf5780126714ed723c488",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0023.sse",
+          "raw_sha256": "2322f9e2af4447e0faeaf26667014e73de08545bccfb884d4d9a9e9fa06f3b72"
+        },
+        {
+          "append_index": 24,
+          "cumulative_C_tokens": 61438,
+          "frontier_fresh_tokens": 686,
+          "evaluated_fresh_tokens": 686,
+          "elapsed_seconds": 1.0499451300129294,
+          "fresh_prefill_tok_s": 690.7885462022742,
+          "tail_adjustment": false,
+          "source_text_sha256": "4c3d34b61daa5ef4130a26b131345174505e928847395a5fdf878ed07f6b8294",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0024.json",
+          "request_sha256": "216658ab0447494753ba06a1122120e76a4a9649e54e2348e5ac5e5860faca3e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0024.sse",
+          "raw_sha256": "57ae37e5feb4fbbc43d1436427cb2dfbfdf2ed7ad9228a4905dc30284dfbea60"
+        },
+        {
+          "append_index": 25,
+          "cumulative_C_tokens": 61440,
+          "frontier_fresh_tokens": 2,
+          "evaluated_fresh_tokens": 2,
+          "elapsed_seconds": 0.19890719099203125,
+          "fresh_prefill_tok_s": 14.514209411013383,
+          "tail_adjustment": true,
+          "source_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0025.json",
+          "request_sha256": "93db09cae1d22f0294711c3aeab3d922416875441128d2eecac529fa6fbe8ed5",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0025.sse",
+          "raw_sha256": "25921bf663b6ab6cc6a4823967574f09b3d26e10a1d1f41c9942520ca9edc56d"
+        }
+      ],
+      "curve_points_near_8192_boundaries": [
+        {
+          "boundary_tokens": 8192,
+          "append_index": 2,
+          "cumulative_C_tokens": 9257,
+          "frontier_fresh_tokens": 1272,
+          "evaluated_fresh_tokens": 1272,
+          "elapsed_seconds": 0.940391379990615,
+          "fresh_prefill_tok_s": 1378.528550821861,
+          "tail_adjustment": false,
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0002.sse",
+          "raw_sha256": "385df07244cd60b8b1b94df018a65adf356973e9e48bc27a49b9aafc22d07e77"
+        },
+        {
+          "boundary_tokens": 16384,
+          "append_index": 7,
+          "cumulative_C_tokens": 18071,
+          "frontier_fresh_tokens": 3224,
+          "evaluated_fresh_tokens": 3224,
+          "elapsed_seconds": 2.202575066999998,
+          "fresh_prefill_tok_s": 1481.5767947574975,
+          "tail_adjustment": false,
+          "source_text_sha256": "67dcb3374af7c61a749d67beb7113c657495f30e52f3ccfb98bce6c1a231efa6",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0007.json",
+          "request_sha256": "a1ad793ecb8504eab92eaef0511fa1338c601203d1c6d1c08985bc94dfab1c25",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0007.sse",
+          "raw_sha256": "d74d91834c3132ddcd4abc975400d2f3db53d4a716c94892ccd70a34bfb0f997"
+        },
+        {
+          "boundary_tokens": 24576,
+          "append_index": 11,
+          "cumulative_C_tokens": 26653,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.016924553026911,
+          "fresh_prefill_tok_s": 1373.5231942998787,
+          "tail_adjustment": false,
+          "source_text_sha256": "e628381763e0342c8f8e7147ae275ae4f835ef5da6d5e9860cb01600d0952b7f",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0011.json",
+          "request_sha256": "ab20d5b1c76ec3f29e61c3ac4db2ea13c4036e7fb4ac04b9894ec5fca7dfa69e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0011.sse",
+          "raw_sha256": "d8f517a2046f87ec197db9cf0f2156a09038de831383751be3df693e0652fb85"
+        },
+        {
+          "boundary_tokens": 32768,
+          "append_index": 15,
+          "cumulative_C_tokens": 35080,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.2899063659715466,
+          "fresh_prefill_tok_s": 1260.5400195297534,
+          "tail_adjustment": false,
+          "source_text_sha256": "b454bb1ac823d6223ccb2d1f8cddf317cbe5ef0855fd076d722be87c43e535de",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0015.json",
+          "request_sha256": "b379d760dae0d06c139166db6beca7af56b2e96d9caed890fac8741692e0bd75",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0015.sse",
+          "raw_sha256": "a830699db0639128eee3c5f9522a3210f9c9c57a9f7ed7b1a035572e9ab0dd81"
+        },
+        {
+          "boundary_tokens": 40960,
+          "append_index": 17,
+          "cumulative_C_tokens": 41953,
+          "frontier_fresh_tokens": 2777,
+          "evaluated_fresh_tokens": 2777,
+          "elapsed_seconds": 2.546304424991831,
+          "fresh_prefill_tok_s": 1110.2200210609976,
+          "tail_adjustment": false,
+          "source_text_sha256": "04d15e395791878856861a11e664e1a7b3f28d73a137f02723119dccfbd59e1a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0017.json",
+          "request_sha256": "e1e45ac9dc0dfa5a77056d01a5242c1a5ebc0a43dd9fa66896428a903ed2f507",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0017.sse",
+          "raw_sha256": "7dcee1b8af7913b3a63f914e03b3fa3a2c8e24b6c8f495f820b04c5f8a35ce51"
+        },
+        {
+          "boundary_tokens": 49152,
+          "append_index": 19,
+          "cumulative_C_tokens": 49339,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 3.7658339529880323,
+          "fresh_prefill_tok_s": 1102.6153735163416,
+          "tail_adjustment": false,
+          "source_text_sha256": "63f28641166d2191d393489fc3d3c59d273da9e7845c147707b67957070f4972",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0019.json",
+          "request_sha256": "e4190931875623e0c7f6f014bed262e1c8c74be691f2cac8aa5f5c60c60abd7e",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0019.sse",
+          "raw_sha256": "a7c2df01580d63402dfe8ea656fb770549599ad5afcf23744ea8d500a9679ba1"
+        },
+        {
+          "boundary_tokens": 57344,
+          "append_index": 22,
+          "cumulative_C_tokens": 59757,
+          "frontier_fresh_tokens": 4096,
+          "evaluated_fresh_tokens": 4096,
+          "elapsed_seconds": 4.096027355990373,
+          "fresh_prefill_tok_s": 1014.8284875438227,
+          "tail_adjustment": false,
+          "source_text_sha256": "ed2c2bab71a09e5da1be56b3d817354f81e4f67b9851c897bc2bd4e4342a2a69",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0022.json",
+          "request_sha256": "36289fea6e8e6d0890f4f760acdb48c0e3303d5d05351b0e5f0ebc810073dce6",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0022.sse",
+          "raw_sha256": "71f85495abae3609a3ed463aaf8c4b4733c5e646bb81da90fdabbb586383f0eb"
+        },
+        {
+          "boundary_tokens": 61440,
+          "append_index": 25,
+          "cumulative_C_tokens": 61440,
+          "frontier_fresh_tokens": 2,
+          "evaluated_fresh_tokens": 2,
+          "elapsed_seconds": 0.19890719099203125,
+          "fresh_prefill_tok_s": 14.514209411013383,
+          "tail_adjustment": true,
+          "source_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0025.json",
+          "request_sha256": "93db09cae1d22f0294711c3aeab3d922416875441128d2eecac529fa6fbe8ed5",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0025.sse",
+          "raw_sha256": "25921bf663b6ab6cc6a4823967574f09b3d26e10a1d1f41c9942520ca9edc56d"
+        }
+      ],
+      "tail_adjustments": [
+        {
+          "append_index": 25,
+          "cumulative_C_tokens": 61440,
+          "frontier_fresh_tokens": 2,
+          "evaluated_fresh_tokens": 2,
+          "elapsed_seconds": 0.19890719099203125,
+          "fresh_prefill_tok_s": 14.514209411013383,
+          "tail_adjustment": true,
+          "source_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/requests/append-0025.json",
+          "request_sha256": "93db09cae1d22f0294711c3aeab3d922416875441128d2eecac529fa6fbe8ed5",
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/raw/append-0025.sse",
+          "raw_sha256": "25921bf663b6ab6cc6a4823967574f09b3d26e10a1d1f41c9942520ca9edc56d"
+        }
+      ],
+      "snapshot": {
+        "fingerprint": "c127cc5054d452d5fc37926936801b6e5ff7c18f6b44dda53330e62394dccf2f",
+        "occupied_tokens": 61440,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-c127cc5054d452d5.bin",
+        "base_sha256": "2a22a1334a1cd4d861e0dbcff432d0d7823830577cf9f6ef3f884f95202b66c4",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-c127cc5054d452d5.bin",
+          "n_saved": 61440,
+          "n_written": 1510505386,
+          "timings": {
+            "save_ms": 1146.83
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "3f833d5241b1b817e222988873290833",
+            "generation": 1,
+            "n_tokens": 61440,
+            "chunks": 15,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 1510254192,
+            "t_ms": 419.205,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-c127cc5054d452d5.bin",
+          "n_restored": 61440,
+          "n_read": 1510505386,
+          "timings": {
+            "restore_ms": 544.541
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "473a998dd4ce85387a11f4d7f4767e35",
+            "p": 61440,
+            "n_tokens": 61440,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 1510254192,
+            "t_ms": 544.108,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024"
+      },
+      "runtime_identity": {
+        "capture_path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-65536-r4.json",
+        "capture_sha256": "4afff22447a8c6dbd32bfc6f2ad46f27949da482d690a06298a978942ee2161e",
+        "pid": 2587190,
+        "captured_utc": "2026-10-13T02:07:48Z",
+        "profile": "qwen38-fast",
+        "gpu": "NVIDIA GeForce RTX 4080, GPU-022c1422-d7bf-7443-27f1-0dab1254f05e, 595.99.02",
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "<L>",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--device",
+          "CUDA0",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "model_path": "/srv/ai/models/text/current.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+          "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+        }
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4",
+        "row_summary": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/row.json",
+        "row_summary_sha256": "c5369600a677e405e97719f2fcb51ed7e2ea77d12208b8e9f2d2e722d63b4276",
+        "canonical_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/canonical-schedule.json",
+        "records": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/records.jsonl",
+        "records_sha256": "95709db4e75f93a2888a7b462fb030ef582538d26ce7e1c0b614cfe089eb47db",
+        "fill_schedule": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/schedule.jsonl",
+        "fill_schedule_sha256": "e973bf21b50efc270ede7c41a78174194485547941586381b0183d4b910a060b",
+        "source_manifest": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/source-manifest.json",
+        "source_manifest_sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024"
+      },
+      "runtime_faults": []
+    }
+  ],
+  "excluded_incomplete_attempts": [
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144",
+      "reason": "failed snapshot path; setup attempt"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r1",
+      "reason": "snapshot saved at C=6,143; wrong occupancy"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000",
+      "reason": "fresh-token bound failure"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r1",
+      "reason": "snapshot saved at C=30,001; wrong occupancy"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440",
+      "reason": "fill stopped at C=61,438; no canonical cases"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r1",
+      "reason": "fill stopped at C=61,438; no canonical cases"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r2",
+      "reason": "source-tail exact-token search failed; no canonical cases"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r3",
+      "reason": "source-tail exact-token search failed; no canonical cases"
+    }
+  ],
+  "runtime_notes": [
+    "The valid 8K row contains two incomplete CUDA illegal-memory-access attempts, each targeted retry passed.",
+    "The valid 32K row contains one incomplete DFlash target-argmax attempt, its targeted retry passed.",
+    "The 65K row uses a recorded deterministic two-token assistant closure after the source tokenizer skipped the exact frontier; raw source appends remain intact.",
+    "Fresh-prefill rates are upstream timings.prompt_per_second when timings.prompt_n is positive; cached cache_n is not subtracted from prompt_n."
+  ],
+  "runtime_fault_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-8192-r2-cuda-fault.log",
+      "sha256": "c824d3c533b28514bb4f332701d826430ac2768b9b4222dcf17293cbaf2befb7"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/case-37-00.sse",
+      "sha256": "579e3f1d542f73b3ab26cd373488c07602014c3f4bc8ecef7ff1273c1f2a2038"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/case-43-00.sse",
+      "sha256": "b9de967e85bf74c8d56e3a48fece71f3f854cd9f4dd630575b76448a77714367"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/case-13-00.sse",
+      "sha256": "b376f37a7329b3b24266f82a3faaceb05df510c0fbd3ea145455e3659b55721f"
+    }
+  ]
+}

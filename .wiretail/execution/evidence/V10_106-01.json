@@ -1,0 +1,402 @@
+{
+  "checks": {
+    "latest_master_build_and_gpu_only_context_speed_curves": {
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_GPU.json",
+          "sha256": "24ff919b52c9d74f2685fee17f24cea97ba68c3bf09b60f5051a798fc313b414"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_GPU.md",
+          "sha256": "83898dcf70d442d1d77c2cea8224182bf56e83be9893ef223998466fb492b901"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_FREEZE.json",
+          "sha256": "25f5493519030155b4f61124d5fc8cf9d9f26167fd9dfd81db7d9cd7659afbb5"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_FREEZE.md",
+          "sha256": "bdc53ec751b3029f8b2e56b00301f1dc62b75dfe414a2a680943aa88e56f5fbf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/build-master106-report-final.log",
+          "sha256": "c166c659fad7ebea48f5e84a47cd2d83bc92f53b9793f736eac17d404059bfb8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/helper-tests-final.log",
+          "sha256": "728ff8ee461b7661060ab63cfe9c9edbd7f6c346784af704f46ab23d3d453729"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/pycompile-final.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/cmake-configure.log",
+          "sha256": "b4f2266e87cae065f877601cff3a04f270967b23ed05aa731a37ac89628852e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/cmake-build.log",
+          "sha256": "1128c51da306eff8c98d2056448ccbe7540149db274120274fe65083831feffe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/cmake-build-amx-shim.log",
+          "sha256": "073712ff778aaf9475fcd18ef449e45ec60b3a02cbc0cc299b310e1288d91d76"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/master-help.txt",
+          "sha256": "ec44881e8ebf24f3a99124d1814b59cded86b7db7750d1b5cb603c3992c327db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/startup-identity.json",
+          "sha256": "1b9d7970b060a21da9bf0012021a898e5c92b91daee6cbaef76e02e4165b0f3d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/startup-argv.txt",
+          "sha256": "efa0917dae6962f1c02a3de8771b3cd3e1badb6cfb8d6ad74e4dd8602b6ec739"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/master-server-compat.sh",
+          "sha256": "02044bf05b3cb600fcc9c638618e37907dca913a3d514e0c872ec2f9e53470c1"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-master-context-matrix.py",
+          "sha256": "a4d0eda29bc6e5c32ffb4ef93c82a2c095f79ea520d04963f26a28f5039ad74c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/test_master_context_matrix.py",
+          "sha256": "06034c4a299bd642f21d028b9ad5e3f6ba1f62090eaf08ac4323b4547491cddf"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/build-master106-report.py",
+          "sha256": "912fed790d130a9e84e24851eb60e4513efce8e36ec2498459a0447401032432"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+          "sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-empty-77824/row.json",
+          "sha256": "897f106cdb65292cd70546304bbb3a03792ff9fef85b27746393f5382e07dad5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-empty-77824/records.jsonl",
+          "sha256": "52280deefdcdd5c23381ff69a3d33f989fa65dc296252b9fcba642bf2e38b5a9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/row.json",
+          "sha256": "6de6bd41ebf70c9038ced1bc19382e6e9f6653036eced05f9145ea916a71a3eb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/records.jsonl",
+          "sha256": "c212d70f99ea9bdbc69e043f1de737b0f92a8cedd553f142d93c5f3dfff859db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-8192-r2.json",
+          "sha256": "eb7db0b63f2645cbb20de7112d882be0376939dc69ad5783a10b61d8da028676"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/schedule.jsonl",
+          "sha256": "38837a9c285e2506fc4b77342016e679fd090704adf33b29709b0150c7a8eb3a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/source-manifest.json",
+          "sha256": "2de1b2c8fb213b04794b5bd26534ecf76b52f88d6b13f2f2e053a7f0fac486de"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/base.json",
+          "sha256": "8f1b85d9c7dca77556036bc6ee3ca974bd5bd3774084848c1f896a2ffe02ab3d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/base-messages.json",
+          "sha256": "04b4d40355979eaa5e7394ba184a306eddb77effc459b68a2456f322055c258e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-4c62820ecce3cae4.bin",
+          "sha256": "aec1319634b0cbdea1a637d02f2c3d7e526ead08606e7ff7fd526eea79478f39"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/row.json",
+          "sha256": "ed7ef6ebb735aca16d1cb53682720c6465be112fde028cf7e76ea44e171970f9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/records.jsonl",
+          "sha256": "f0a14bc4662de4f3eb16a82e859d148cd6229a7df8091894f1f4763c719be8aa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-16384.json",
+          "sha256": "e80ca1ae10515d529fa4e94b13261b517f50c35525500b1c4d24b3b7283af865"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/schedule.jsonl",
+          "sha256": "a61839dc216dd35861d63fc5e57e5c70c6a805c2b78b96372b91dbd5af9bc370"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/source-manifest.json",
+          "sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/base.json",
+          "sha256": "0900c90a69160e14da48165e9f760b95284c611331548c47a5ab29a2923fbc9a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/base-messages.json",
+          "sha256": "ff84be60a6757523a8bcadf3731bbcc58b050a816654e7f03c505d340b7fc87a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-16384-14336/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-e78396b41b23dd8d.bin",
+          "sha256": "9177fa8c9f61bb18d10d0d32b2c894a35cf8fee93f1df20bfe27a31b49ed414d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/row.json",
+          "sha256": "47f8a872912f33c84fb046aae66b6cd0be9782a55e0190ef3e0a6940a49d6e46"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/records.jsonl",
+          "sha256": "daa5f1aca07943edccb4759d182c1db312d54a6b0a782474e51c4919710f70fb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-32768-r2.json",
+          "sha256": "857dbf2e4e3e243f9f188ec765d298d2dea531cb97aa23bf26fef7da4c6fd8e6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/schedule.jsonl",
+          "sha256": "af0fc092794bdb38242fb3e749fc7c4231f8361ab39f3b152b6949ce41484e37"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/source-manifest.json",
+          "sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/base.json",
+          "sha256": "a3a3c9a8262e3e3482fce8ce2ff705d2b39e53b7b33bb6c89a622df709a5ea94"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/base-messages.json",
+          "sha256": "4d7372644751f64ab282da4be653a66b7df78b2d5971157ef1b6ae2ecb53873d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-f11685d7d92929ba.bin",
+          "sha256": "12ba28eb6221840382600bff908b07cde9322f06badf45ddf45456652de4927e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/row.json",
+          "sha256": "c5369600a677e405e97719f2fcb51ed7e2ea77d12208b8e9f2d2e722d63b4276"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/records.jsonl",
+          "sha256": "95709db4e75f93a2888a7b462fb030ef582538d26ce7e1c0b614cfe089eb47db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/runtime-identities/gpu-65536-r4.json",
+          "sha256": "4afff22447a8c6dbd32bfc6f2ad46f27949da482d690a06298a978942ee2161e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/schedule.jsonl",
+          "sha256": "e973bf21b50efc270ede7c41a78174194485547941586381b0183d4b910a060b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/source-manifest.json",
+          "sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/base.json",
+          "sha256": "c1b329d0adf780777192969f23a97c145f635b4111ae06f6333279513e8a9c3b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/base-messages.json",
+          "sha256": "7908384a7e5e9514d1ed53232bba06402f1293290e82e9a506c2c47aa89e3791"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-65536-61440-r4/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state/base-c127cc5054d452d5.bin",
+          "sha256": "2a22a1334a1cd4d861e0dbcff432d0d7823830577cf9f6ef3f884f95202b66c4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-8192-r2-cuda-fault.log",
+          "sha256": "c824d3c533b28514bb4f332701d826430ac2768b9b4222dcf17293cbaf2befb7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/case-37-00.sse",
+          "sha256": "579e3f1d542f73b3ab26cd373488c07602014c3f4bc8ecef7ff1273c1f2a2038"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-8192-6144-r2/raw/case-43-00.sse",
+          "sha256": "b9de967e85bf74c8d56e3a48fece71f3f854cd9f4dd630575b76448a77714367"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/gpu-32768-30000-r2/raw/case-13-00.sse",
+          "sha256": "b376f37a7329b3b24266f82a3faaceb05df510c0fbd3ea145455e3659b55721f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-8192-6144-driver.log",
+          "sha256": "89ec5bac564848f8df93f0ffdc62b2f73d3d1abbb3e51c2e394d80fd5be3da1c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-8192-6144-r1-driver.log",
+          "sha256": "0ed496b5279f611ef1820c0cd695d591bd2ba1ea7b3f5d1f337f9e25e26c3a9f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-8192-6144-r2-driver.log",
+          "sha256": "9d88238322349829d38fc09e48a386cfc242ed7c502707b9ba9c2d2d9627fe50"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-32768-30000-driver.log",
+          "sha256": "0be92aff33a6cfa6fa001b80bda25d9d87965542886b3f5d8f737e0fa77a79a3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-32768-30000-r1-driver.log",
+          "sha256": "ef4700de95fb9ac79bac6131c06a91be6e7e6e3e0d0898706cff0b7155f3f5c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-32768-30000-r2-driver.log",
+          "sha256": "816a9d179e9f87b69479f6d49bce6bb4db25273b9deda9a048aa363644207873"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-32768-30000-r2-resume-driver.log",
+          "sha256": "be8367b05ccba6682d526b7e8724d7d414c4b76e4e8afd5c3b38677520d1cccc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-65536-61440-driver.log",
+          "sha256": "f3bac1636e263e6fcbb4dfe38f6aae251670891405d30e4350106c92ee03688b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-65536-61440-r1-driver.log",
+          "sha256": "0801c6a5d902a497622c47443661b664af2d707ddbb1f7bb13e79da27fcf24e3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-65536-61440-r2-driver.log",
+          "sha256": "1772fbbefe6f01d4f7137defd2a6dff887d2364373ac37be80377b351abe66ab"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-65536-61440-r3-driver.log",
+          "sha256": "c37324112b220b71b24bd4f69daf79b8c62e57fecd4067911971daeed2a83bcd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/gpu-65536-61440-r4-driver.log",
+          "sha256": "4d3af32bb6a1249fb16281aa9d59b1c8c3e53831dad619db14b35dbe900782c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0",
+          "sha256": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0",
+          "sha256": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0",
+          "sha256": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0",
+          "sha256": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0",
+          "sha256": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so",
+          "sha256": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0",
+          "sha256": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0",
+          "sha256": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/build-master106-report.py"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "summary": {
+        "master_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+        "rows": [
+          {
+            "C_tokens": null,
+            "L_tokens": 77824,
+            "cases": 48,
+            "measured": 36,
+            "warmups": 12
+          },
+          {
+            "C_tokens": 6144,
+            "L_tokens": 8192,
+            "cases": 48,
+            "measured": 36,
+            "warmups": 12
+          },
+          {
+            "C_tokens": 14336,
+            "L_tokens": 16384,
+            "cases": 48,
+            "measured": 36,
+            "warmups": 12
+          },
+          {
+            "C_tokens": 30000,
+            "L_tokens": 32768,
+            "cases": 48,
+            "measured": 36,
+            "warmups": 12
+          },
+          {
+            "C_tokens": 61440,
+            "L_tokens": 65536,
+            "cases": 48,
+            "measured": 36,
+            "warmups": 12
+          }
+        ]
+      },
+      "supporting_commands": [
+        {
+          "artifact": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/helper-tests-final.log",
+          "command": [
+            "python3",
+            "-m",
+            "unittest",
+            "tools.server.bench.test_master_context_matrix",
+            "-v"
+          ],
+          "exit_code": 0
+        },
+        {
+          "artifact": "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/pycompile-final.log",
+          "command": [
+            "python3",
+            "-m",
+            "py_compile",
+            "tools/server/bench/run-master-context-matrix.py",
+            "tools/server/bench/test_master_context_matrix.py",
+            "tools/server/bench/build-master106-report.py"
+          ],
+          "exit_code": 0
+        }
+      ]
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+  "task": "106-01"
+}
