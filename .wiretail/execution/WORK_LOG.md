@@ -2746,3 +2746,9 @@ receives `PROJECT_ROOT` from the shared runner.
 
 - Branch: `plan/attention-aware-kv-paging`
 - Summary: Added a fresh promotion-timing task after completed106-03. Each A source region exceeds H; choose a verified host-backed cold interior source page after B pressure, then time cold recall first and byte-identical hot recall with fresh final-user query evaluation. Three fresh-fill pairs per eight exact geometries, latest deployed ACO binary frozen once, B1024/U256 and GPU Turbo4 MTP fixed. Real cold requests required; all-resident skips cannot satisfy completion. Historical usage/results preserved; next runner frontier107-01, ready.
+
+## 2026-10-13T19:28:03+00:00 — 107-01 — done
+
+- Branch: `codex/task-107-01`
+- Commit at update: `ecab48df0`
+- Summary: Completed eight cold-preconditioned geometries: 24 requests, 21 responses, 3 captured 8K runtime faults, zero target promotions or valid pairs; report validator and receipt pass.

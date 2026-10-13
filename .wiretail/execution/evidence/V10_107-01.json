@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "task": "107-01",
+  "source_commit": "ecab48df0fee2306bd206553eddf08b42f200c7f",
+  "status": "completed_with_captured_runtime_faults_and_router_misses",
+  "candidate": {
+    "path": {
+      "schema": "aco107-freeze-v1",
+      "task": "107-01",
+      "candidate_path": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/llama-server",
+      "candidate_sha256": "6e438ffbdb919b42e61e057f027b0bd10473f3443e6789c23453e7aba02fd881",
+      "artifacts": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/llama-server": "6e438ffbdb919b42e61e057f027b0bd10473f3443e6789c23453e7aba02fd881",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-base.so.0.25.3": "0bd16c3547be28fab7644712f926ae5edbdb6888c1a8fff6e3db6874691080ec",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-cpu.so.0.25.3": "3f7b5cb0730f22b3deff8f03f096506cb6c7e7f2e8d3cc407ed2c1e2459cd3ea",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-cuda.so.0.25.3": "fd646e6e98dc049a1fb5c677946b20b2daf86c109de634818551ed7847174f7b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml.so.0.25.3": "58ffcbaf83ac7ec4997314153dae2720b539193ef324b2eaadb65b1a9502664c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama-common.so.0.5.0": "c2ec90e5cd09d7ceae6d96b888b15f1d7b2a65f23a5906cea362845ad2e56402",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama-server-impl.so": "86aa2407415c9102d87b5762bb460a9d236e602b0f1a0689ae3da09f85cf22a5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama.so.0.5.0": "4ff4aa7b3261aa7a2f0ff695e41c1ebb8fa6d09fb1a69aad206df6fd6b067f32",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libmtmd.so.0.5.0": "ff8bba033b4dd8e89d63bc39480ba4b63031aad908aac5bd6a688a3fdc0b4702"
+      },
+      "model": {
+        "path": "/srv/ai/models/text/current.gguf",
+        "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+      },
+      "source_provenance": {
+        "git_head": "ecab48df0fee2306bd206553eddf08b42f200c7f",
+        "source_sha256": {
+          "tools/server/server-context.cpp": "714a1e4da34d8cb4ac441603415a10a9798569c72302a2ddb448ba960f3bbe39",
+          "src/llama-kv-cache.cpp": "8a5d25922fc54de8048b13778d136057fa27d6566f492621165eaac19d26565f",
+          "tools/server/bench/run-pager-promotion-cost.py": "870d9b407faec71196679bc90e8c55dec666843717e52df5a649906ec4440037"
+        },
+        "premasurement_update": "Corrected prompt renderer field before any scored request; candidate binary, DSOs, model, and production source remain identical."
+      },
+      "build_provenance": {
+        "cmake_cache": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/CMakeCache.txt",
+        "cmake_cache_sha256": "14ad6aca7c5dd7cd890af3836ec7b8e02bcdcb0a5b88cbfb5013355312f69701",
+        "compile_commands": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/compile_commands.json",
+        "compile_commands_sha256": "73a39fade6becc7c967a30fbfb5f641f2087d412ed4837a7e828ca1260f97ae6"
+      },
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-base.so.0.25.3": "0bd16c3547be28fab7644712f926ae5edbdb6888c1a8fff6e3db6874691080ec",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-cpu.so.0.25.3": "3f7b5cb0730f22b3deff8f03f096506cb6c7e7f2e8d3cc407ed2c1e2459cd3ea",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-cuda.so.0.25.3": "fd646e6e98dc049a1fb5c677946b20b2daf86c109de634818551ed7847174f7b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml.so.0.25.3": "58ffcbaf83ac7ec4997314153dae2720b539193ef324b2eaadb65b1a9502664c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama-common.so.0.5.0": "c2ec90e5cd09d7ceae6d96b888b15f1d7b2a65f23a5906cea362845ad2e56402",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama-server-impl.so": "86aa2407415c9102d87b5762bb460a9d236e602b0f1a0689ae3da09f85cf22a5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama.so.0.5.0": "4ff4aa7b3261aa7a2f0ff695e41c1ebb8fa6d09fb1a69aad206df6fd6b067f32",
+        "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libmtmd.so.0.5.0": "ff8bba033b4dd8e89d63bc39480ba4b63031aad908aac5bd6a688a3fdc0b4702"
+      },
+      "managed_argv": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-aco-turbo4-mtp -ngl 999 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-page-size 256 --kv-router probe-rerank --kv-hot-pages 256 --kv-pin-recent 0 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "created_utc": "2026-10-13T15:46:47Z",
+      "freeze_revision": 8,
+      "premeasurement_update": "The 64K setup measured mapped A source tokens and found the template wrapper left it below H+1024. A fill now extends from tracked source until the actual mapped source minimum is met; no 64K recall was sent. Candidate executable, DSOs, model, production sources and serving configuration are unchanged.",
+      "premeasurement_updated_utc": "2026-10-13T16:20:34Z"
+    },
+    "freeze_revision": 8
+  },
+  "result": {
+    "geometries": 8,
+    "cold_preconditioned_http_requests": 24,
+    "completed_sse_responses": 21,
+    "captured_runtime_faults": 3,
+    "physical_target_promotions": 0,
+    "valid_hot_cold_pairs": 0,
+    "missing_promotion_penalties": 24
+  },
+  "checks": {
+    "verified_cold_requests_and_matched_hot_controls_across_context_sizes": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-pager-promotion-cost.py",
+        "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/ACO107_PROMOTION_COST.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/ACO107_PROMOTION_COST.json",
+          "sha256": "7944fab3ddde6b5e95ab99846e909fffb3344e3c577ddc5e0d80bf9eafbb93e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw-artifact-manifest.json",
+          "sha256": "b6989b6ff1f7e58f74acd2cf5b875b0175d29d1b988f3380b78072238c105693"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/ACO107_FREEZE.json",
+          "sha256": "9abbd6611ece75dd5e183b0e62ac173f30b882b85c7a5307b9bb9c4898137da8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/report-validator.log",
+          "sha256": "3eb069bd499e52e45c9985a5a04484a72a0f5891494b686a4e2b320cd8f0ab0c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep1-cold.request.json",
+          "sha256": "7189a574bf509cc52a115af0c0fb26a6e8fb94ea2aa1e4f06f533288bfafdaf8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep1-cold.sse",
+          "sha256": "b2f95ad3a3f7f73de8a41dedb46906962d19ff13f9ffd4249e1d9291ea71f1af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep2-cold.request.json",
+          "sha256": "7189a574bf509cc52a115af0c0fb26a6e8fb94ea2aa1e4f06f533288bfafdaf8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep2-cold.sse",
+          "sha256": "b2f95ad3a3f7f73de8a41dedb46906962d19ff13f9ffd4249e1d9291ea71f1af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep3-cold.request.json",
+          "sha256": "7189a574bf509cc52a115af0c0fb26a6e8fb94ea2aa1e4f06f533288bfafdaf8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep3-cold.sse",
+          "sha256": "b2f95ad3a3f7f73de8a41dedb46906962d19ff13f9ffd4249e1d9291ea71f1af"
+        }
+      ]
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/ACO107_PROMOTION_COST.json",
+      "sha256": "7944fab3ddde6b5e95ab99846e909fffb3344e3c577ddc5e0d80bf9eafbb93e5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw-artifact-manifest.json",
+      "sha256": "b6989b6ff1f7e58f74acd2cf5b875b0175d29d1b988f3380b78072238c105693"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/ACO107_FREEZE.json",
+      "sha256": "9abbd6611ece75dd5e183b0e62ac173f30b882b85c7a5307b9bb9c4898137da8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/report-validator.log",
+      "sha256": "3eb069bd499e52e45c9985a5a04484a72a0f5891494b686a4e2b320cd8f0ab0c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep1-cold.request.json",
+      "sha256": "7189a574bf509cc52a115af0c0fb26a6e8fb94ea2aa1e4f06f533288bfafdaf8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep1-cold.sse",
+      "sha256": "b2f95ad3a3f7f73de8a41dedb46906962d19ff13f9ffd4249e1d9291ea71f1af"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep2-cold.request.json",
+      "sha256": "7189a574bf509cc52a115af0c0fb26a6e8fb94ea2aa1e4f06f533288bfafdaf8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep2-cold.sse",
+      "sha256": "b2f95ad3a3f7f73de8a41dedb46906962d19ff13f9ffd4249e1d9291ea71f1af"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep3-cold.request.json",
+      "sha256": "7189a574bf509cc52a115af0c0fb26a6e8fb94ea2aa1e4f06f533288bfafdaf8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01/raw/attempt-20261013T162037Z-3862002/8K-4K-hot/rep3-cold.sse",
+      "sha256": "b2f95ad3a3f7f73de8a41dedb46906962d19ff13f9ffd4249e1d9291ea71f1af"
+    }
+  ]
+}
