@@ -2705,3 +2705,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-01`
 - Commit at update: `3842af347`
 - Summary: Frozen master GPU-only baseline and four exact-C context rows completed; receipt validated and qwen38-aco restored.
+
+## 2026-10-13T02:47:06+00:00 — 106-02 — blocked
+
+- Branch: `codex/task-106-02`
+- Commit at update: `a1c6e174d`
+- Summary: Frozen master lacks independent target/draft KV placement: --no-kv-offload pins CPU-bound draft KV at q8_0, so CPU-F16 target plus GPU Turbo4 draft curves cannot be measured truthfully.
