@@ -2735,3 +2735,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-02`
 - Commit at update: `60b059187`
 - Summary: Completed same-binary GPU and CPU-F16 context matrices through 128K; all 11 rows passed 48/48, receipts and state validation pass, managed service restored healthy.
+
+## 2026-10-13T09:49:33+00:00 — 106-03 — done
+
+- Branch: `codex/task-106-03`
+- Commit at update: `6b4f410bd`
+- Summary: Aggregated and validated paired same-build master GPU/CPU-F16 curves with exact-geometry ACO references and hashed provenance.
