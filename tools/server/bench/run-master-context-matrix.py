@@ -7,8 +7,11 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
+import re
 import statistics
+import subprocess
 import sys
 import time
 from typing import Any, Mapping
@@ -29,9 +32,15 @@ GEOMETRIES = {77824: None, 8192: 6144, 16384: 14336, 32768: 30000,
 SAFETY_TOKENS = 1536
 MTP_REPLAY_TOKENS = 3
 MODEL = "qwen38-fast-turbo4-mtp"
-SERVER_BIN = pathlib.Path("/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server")
-SLOT_STATE = pathlib.Path("/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state")
-SOURCE_WORKTREE = pathlib.Path("/srv/ai/paged-kv/worktrees/master106-d2407c33f959")
+SERVER_BIN = pathlib.Path(os.environ.get(
+    "MASTER106_SERVER_BIN",
+    "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server"))
+SLOT_STATE = pathlib.Path(os.environ.get(
+    "MASTER106_SLOT_STATE",
+    "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state"))
+SOURCE_WORKTREE = pathlib.Path(os.environ.get(
+    "MASTER106_SOURCE_WORKTREE",
+    "/srv/ai/paged-kv/worktrees/master106-d2407c33f959"))
 
 
 def load_final_curve():
@@ -69,7 +78,10 @@ def argv_for_row(context_tokens: int, placement: str) -> list[str]:
     argv.extend(("-b", "1024", "-ub", "256", "--poll", "0", "--host", "0.0.0.0",
                  "--port", "8080", "--api-key-file", "/srv/ai/config/llama/api-keys",
                  "--metrics", "--reasoning-preserve", "--no-context-shift",
-                 "--spec-type", "draft-mtp", "--spec-draft-n-max", "2",
+                 "--cache-ram", "12288", "--ctx-checkpoints", "8",
+                 "--checkpoint-min-step", "8192", "--slot-save-path", str(SLOT_STATE),
+                 "--cache-idle-slots", "--kv-unified",
+                 "--spec-draft-kv-device", "gpu", "--spec-type", "draft-mtp", "--spec-draft-n-max", "2",
                  "--spec-draft-type-k", "turbo4", "--spec-draft-type-v", "turbo4"))
     return argv
 
@@ -119,6 +131,93 @@ def key_from(path: pathlib.Path) -> str:
     raise ValueError("API key file contains no key")
 
 
+def capture_live_identity(expected_argv: list[str], startup_log: pathlib.Path) -> dict[str, Any]:
+    """Bind a row to the live 8080 process and independently logged KV residency."""
+    listeners = subprocess.run(["ss", "-tlnpH", "sport = :8080"], check=True,
+                               capture_output=True, text=True).stdout
+    pids = sorted(set(re.findall(r"pid=(\d+)", listeners)))
+    if len(pids) != 1:
+        raise RuntimeError(f"expected one server process on 8080, found {pids}")
+    pid = pids[0]
+    proc = pathlib.Path("/proc") / pid
+    observed_argv = [x.decode() for x in (proc / "cmdline").read_bytes().split(b"\0") if x]
+    executable = pathlib.Path(os.readlink(proc / "exe")).resolve()
+    validate_live_identity(expected_argv, observed_argv, SERVER_BIN.resolve(), executable)
+    loaded = {}
+    for line in (proc / "maps").read_text().splitlines():
+        fields = line.split()
+        if len(fields) >= 6 and fields[-1].startswith("/"):
+            path = pathlib.Path(fields[-1].removesuffix(" (deleted)"))
+            if path.name.startswith(("libggml", "libllama", "libmtmd")) and path.is_file():
+                loaded[str(path.resolve())] = hashlib.sha256(path.read_bytes()).hexdigest()
+    text = startup_log.read_text(errors="replace")
+    cpu_target = "--no-kv-offload" in observed_argv
+    required = ("MASTER106 native MTP draft K/V device=gpu offload_kqv=true "
+                "type_k=turbo4 type_v=turbo4",)
+    missing = [marker for marker in required if marker not in text]
+    target_rows = re.findall(
+        r"MASTER106 target KV residency device=([^\s]+) host=(true|false) context_bytes=(\d+)", text)
+    draft_rows = re.findall(
+        r"MASTER106 draft KV residency device=([^\s]+) host=(true|false) context_bytes=(\d+)", text)
+    if missing or not residency_rows_match(target_rows, draft_rows, cpu_target):
+        raise RuntimeError("startup residency evidence missing or mismatched: "
+                           f"markers={missing}, target_rows={target_rows}, draft_rows={draft_rows}")
+    target_k = observed_argv[observed_argv.index("-ctk") + 1]
+    target_v = observed_argv[observed_argv.index("-ctv") + 1]
+    if cpu_target and (target_k != "f16" or target_v != "f16"):
+        raise RuntimeError("live target KV is not CPU F16")
+    if not cpu_target and (target_k != "turbo4" or target_v != "turbo4"):
+        raise RuntimeError("live target KV is not GPU Turbo4")
+    return {"argv": observed_argv, "executable": str(executable),
+            "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+            "loaded_project_dsos": loaded,
+            "target_kv": "cpu-f16" if cpu_target else "gpu-turbo4",
+            "draft_kv": "gpu-turbo4", "residency_markers": list(required),
+            "target_residency_rows": [list(row) for row in target_rows],
+            "draft_residency_rows": [list(row) for row in draft_rows]}
+
+
+def residency_rows_match(target_rows: list[tuple[str, str, str]],
+                         draft_rows: list[tuple[str, str, str]],
+                         cpu_target: bool) -> bool:
+    expected_target_device = "CPU" if cpu_target else "CUDA0"
+    valid_target = any(
+        (device == expected_target_device or (cpu_target and device == "unknown")) and
+        host == ("true" if cpu_target else "false") and int(size) > 0
+        for device, host, size in target_rows)
+    valid_draft = any(device == "CUDA0" and host == "false" and int(size) > 0
+                      for device, host, size in draft_rows)
+    return valid_target and valid_draft
+
+
+def validate_live_identity(expected_argv: list[str], observed_argv: list[str],
+                           expected_executable: pathlib.Path,
+                           observed_executable: pathlib.Path) -> None:
+    if observed_argv != expected_argv:
+        raise RuntimeError("live argv mismatch")
+    if observed_executable.resolve() != expected_executable.resolve():
+        raise RuntimeError("live executable mismatch")
+
+
+def validate_source_replay(actual: Mapping[str, Any], expected: Mapping[str, Any],
+                           *, allow_suffix: bool = False) -> None:
+    """Require the frozen inventory and selected source prefix to remain exact."""
+    old = expected.get("selected_ranges", [])
+    new = actual.get("selected_ranges", [])
+    fixture_only = old and all(item.get("kind") == "fixture_seed" for item in old)
+    if not fixture_only:
+        if actual.get("git_identity", {}).get("commit") != expected.get("git_identity", {}).get("commit"):
+            raise ValueError("source replay base commit changed")
+        for key in ("inventory", "source_schedule"):
+            if actual.get(key) != expected.get(key):
+                raise ValueError(f"source replay {key} changed")
+    if actual.get("fixture_sha256") != expected.get("fixture_sha256"):
+        raise ValueError("source replay fixture changed")
+    if (len(new) < len(old) or (not allow_suffix and len(new) != len(old)) or
+            new[:len(old)] != old):
+        raise ValueError("source replay selected range prefix changed")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context-tokens", type=int, required=True)
@@ -126,6 +225,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--placement", choices=("gpu", "cpu"), required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
+    parser.add_argument("--startup-log", type=pathlib.Path,
+                        default=pathlib.Path(os.environ["MASTER106_STARTUP_LOG"])
+                        if os.environ.get("MASTER106_STARTUP_LOG") else None)
+    parser.add_argument("--source-manifest", type=pathlib.Path)
+    parser.add_argument("--append-reference", type=pathlib.Path)
+    parser.add_argument("--request-reference", type=pathlib.Path)
+    parser.add_argument("--preserve-prefix-tokens", type=int)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8080")
     parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
@@ -157,15 +263,28 @@ def validate_resume(output: pathlib.Path, identity: Mapping[str, Any], *, resume
     if cfg_path.exists():
         prior = json.loads(cfg_path.read_text(encoding="utf-8"))
         if prior.get("fingerprint") != fingerprint or prior.get("identity") != identity:
-            raise ValueError("resume refused: source/server geometry fingerprint changed")
+            old_identity = prior.get("identity", {})
+            changed = sorted(key for key in set(old_identity) | set(identity)
+                             if old_identity.get(key) != identity.get(key))
+            raise ValueError("resume refused: source/server geometry fingerprint changed; "
+                             f"identity fields differ={changed}")
         if not resume:
             raise ValueError("output exists; use --resume only for the same fingerprint")
         return fingerprint
     if resume:
         raise ValueError("resume requested without a matching run-config.json")
-    # A row directory is immutable once it contains artifacts, even if its
-    # config was removed or damaged. Attempt files themselves are also x-created.
-    if any(output.iterdir()):
+    # Startup identity captures and driver-failure logs are immutable diagnostics
+    # from attempts rejected before a fingerprint could be written. Permit only
+    # those known files so a corrected preflight can resume without deleting
+    # evidence; any request, response, config, or unknown artifact still refuses.
+    for item in output.iterdir():
+        if item.is_file() and re.fullmatch(r"driver-failure-\d+\.log", item.name):
+            continue
+        if item.is_dir() and item.name == "runtime-captures":
+            children = list(item.iterdir())
+            if all(child.is_file() and re.fullmatch(r"runtime-[^/]+-\d+\.json", child.name)
+                   for child in children):
+                continue
         raise ValueError("refusing to overwrite artifacts in an unconfigured output directory")
     cfg_path.write_text(json.dumps({"identity": identity, "fingerprint": fingerprint},
                                    indent=2) + "\n", encoding="utf-8")
@@ -224,6 +343,11 @@ def _exact_tail_rewrite(renderer: ServerPromptRenderer,
     raise RuntimeError("source continuation cannot render the exact remaining frontier")
 
 
+def _tail_target_for_frontier(current_goal: int, occupied: int) -> int | None:
+    """Allow exact closure at either the final C or a preserved prefix C."""
+    return current_goal if 0 < current_goal - occupied <= 16 else None
+
+
 def _append_request(final, endpoint: str, key: str, messages: list[dict[str, str]],
                     maximum: int, raw: pathlib.Path) -> dict[str, Any]:
     payload = {"model": MODEL, "messages": messages, "max_tokens": maximum,
@@ -241,7 +365,8 @@ def _append_request(final, endpoint: str, key: str, messages: list[dict[str, str
 
 def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  output: pathlib.Path, context_tokens: int, target_tokens: int,
-                 fingerprint: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
+                 fingerprint: str, append_reference: pathlib.Path | None = None,
+                 preserve_prefix_tokens: int | None = None) -> tuple[list[dict[str, str]], dict[str, Any]]:
     manifest = repo_context.load_manifest()
     prompts = repo_context.load_prompts()
     seed = repo_context.a_b_a_messages(manifest, prompts)
@@ -289,7 +414,10 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         # Keep a one-token tail unfilled until the final chunk. The server's
         # usage count can exceed apply-template's delta by one at a turn
         # boundary, so the live prefill closes the exact target safely.
-        remaining_frontier = target_tokens - occupied
+        current_goal = target_tokens
+        if preserve_prefix_tokens is not None and occupied < preserve_prefix_tokens:
+            current_goal = preserve_prefix_tokens
+        remaining_frontier = current_goal - occupied
         # Preserve one token of live-tokenizer headroom while there is room for
         # another chunk. At the minimum two-token tail, however, reserving that
         # token makes the next user turn impossible to render at all.
@@ -302,24 +430,25 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             selected_text, rendered_tokens = _split_to_budget(
                 renderer, history, text, budget, reserve_limit)
         except RuntimeError:
-            if target_tokens - occupied > 16:
+            tail_target = _tail_target_for_frontier(current_goal, occupied)
+            if tail_target is None:
                 raise
             try:
                 messages, selected_text = _exact_tail_rewrite(
-                    renderer, history, text, target_tokens)
-                rendered_tokens = target_tokens
+                    renderer, history, text, tail_target)
+                rendered_tokens = tail_target
             except RuntimeError:
                 # A tokenizer can skip the last frontier count for every
                 # source prefix in the current chunk. Replace the final
                 # one-token assistant completion with a fixed, explicit
                 # closure turn whose rendered input reaches the requested C.
-                # This changes two frontier tokens and keeps source bytes and
-                # the full source append history intact in their raw records.
+                # This also closes an intermediate preserved prefix before
+                # continuing with the remaining source suffix.
                 messages = history[:-1] + [{"role": "assistant", "content": "Done."}]
                 rendered_tokens = len(renderer(messages).token_ids)
-                if rendered_tokens != target_tokens:
+                if rendered_tokens != tail_target:
                     raise RuntimeError(
-                        f"tail closure renders C={rendered_tokens}, expected {target_tokens}")
+                        f"tail closure renders C={rendered_tokens}, expected {tail_target}")
                 selected_text = ""
                 tail_bridge = True
             rewritten_tail = True
@@ -345,8 +474,14 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                    "temperature": 0, "seed": 42, "stream": True,
                    "stream_options": {"include_usage": True},
                    "chat_template_kwargs": {"enable_thinking": False}}
-        _write_unique(req_path, json.dumps(payload, ensure_ascii=False,
-                                           separators=(",", ":")).encode())
+        request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+        if append_reference is not None:
+            reference = append_reference / "requests" / req_path.name
+            if reference.is_file() and request_bytes != reference.read_bytes():
+                raise RuntimeError(f"frozen append request mismatch at {req_path.name}")
+            if not reference.is_file() and context_tokens != 131072:
+                raise RuntimeError(f"frozen append reference missing: {reference}")
+        _write_unique(req_path, request_bytes)
         start = time.monotonic()
         response = _append_request(final, endpoint, key, messages, 1, raw_path)
         elapsed = time.monotonic() - start
@@ -458,15 +593,30 @@ def main() -> int:
     endpoint = args.endpoint.rstrip("/")
     renderer = ServerPromptRenderer(endpoint, MODEL, key,
         request_options=request_options(chat_template_kwargs={"enable_thinking": False}))
+    if args.startup_log is None or not args.startup_log.is_file():
+        raise SystemExit("--startup-log with the captured server startup is required")
+    live = capture_live_identity(argv_for_row(args.context_tokens, args.placement),
+                                 args.startup_log)
+    captures = output / "runtime-captures"
+    captures.mkdir(parents=True, exist_ok=True)
+    capture_path = captures / f"runtime-{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}.json"
+    capture = {**live, "process_pid": int(re.search(
+        r"pid=(\d+)", subprocess.run(["ss", "-tlnpH", "sport = :8080"],
+            check=True, capture_output=True, text=True).stdout).group(1)),
+        "startup_log": str(args.startup_log),
+        "startup_log_sha256": hashlib.sha256(args.startup_log.read_bytes()).hexdigest(),
+        "captured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    _write_unique(capture_path, json.dumps(capture, indent=2).encode())
     source_identity = repo_context.git_identity(root=SOURCE_WORKTREE)
     source_inventory = repo_context.tracked_inventory(root=SOURCE_WORKTREE)
     identity = {"geometry": geometry, "argv": argv_for_row(args.context_tokens, args.placement),
+                "live_runtime": live,
                 "model_sha256": hashlib.sha256(pathlib.Path("/srv/ai/models/text/current.gguf").read_bytes()).hexdigest(),
                 "template_id": renderer.template_id, "repo_context_git": source_identity,
                 "repo_context_inventory": [{"path": item.path, "sha256": item.sha256,
                                             "byte_length": item.byte_length}
                                            for item in source_inventory],
-                "binary_sha256": hashlib.sha256(SERVER_BIN.read_bytes()).hexdigest()}
+                "binary_sha256": live["executable_sha256"]}
     try:
         fingerprint = validate_resume(output, identity, resume=args.resume)
     except ValueError as error:
@@ -474,7 +624,8 @@ def main() -> int:
     completed = _existing_complete(output, fingerprint) if args.resume else {}
     if geometry["target_tokens"] is not None and not (output / "base.json").exists():
         history, base = fill_context(final, renderer, endpoint, key, output,
-            args.context_tokens, args.target_tokens, fingerprint)
+            args.context_tokens, args.target_tokens, fingerprint, args.append_reference,
+            args.preserve_prefix_tokens)
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
     elif (output / "base.json").exists():
         base = json.loads((output / "base.json").read_text())
@@ -486,12 +637,40 @@ def main() -> int:
         history = json.loads(history_path.read_text())
     else:
         history, base = [], {"occupied_tokens": 0, "base_sha256": None}
+    if args.source_manifest is not None and geometry["target_tokens"] is not None:
+        actual_manifest = json.loads((output / "source-manifest.json").read_text())
+        expected_manifest = json.loads(args.source_manifest.read_text())
+        try:
+            validate_source_replay(actual_manifest, expected_manifest,
+                                   allow_suffix=args.context_tokens == 131072)
+        except ValueError as error:
+            raise SystemExit(f"source replay refused: {error}")
     cases = canonical_schedule()
     schedule_path = output / "canonical-schedule.json"
     if not schedule_path.exists():
         schedule_path.write_text(json.dumps(cases, indent=2, ensure_ascii=False) + "\n")
     elif json.loads(schedule_path.read_text()) != cases:
         raise SystemExit("resume refused: canonical request schedule changed")
+    prepared = {}
+    for case in cases:
+        messages = ([{"role": "user", "content": case["prompt"]}]
+                    if geometry["target_tokens"] is None else
+                    history + [{"role": "user", "content": case["prompt"]}])
+        payload = canonical_payload(case, messages)
+        renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
+            request_options=request_options(chat_template_kwargs={
+                "enable_thinking": case["reasoning"] != "off"}))
+        rendered = len(renderer_mode(messages).token_ids)
+        reserve = args.context_tokens - rendered - int(case["max_tokens"]) - MTP_REPLAY_TOKENS
+        if reserve < SAFETY_TOKENS:
+            raise RuntimeError(f"canonical case {case['case_index']} violates context reserve: {reserve}")
+        request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+        if args.request_reference is not None:
+            matches = sorted((args.request_reference / "requests").glob(
+                f"case-{case['case_index']:02d}-*.json"))
+            if not matches or any(request_bytes != item.read_bytes() for item in matches):
+                raise RuntimeError(f"frozen canonical request mismatch: case {case['case_index']}")
+        prepared[case["case_index"]] = (payload, rendered)
     for case in cases:
         if case["case_index"] in completed:
             continue
@@ -506,23 +685,17 @@ def main() -> int:
             if not cleared.get("ok"):
                 raise RuntimeError(f"canonical slot erase failed: {cleared}")
             restore_status, restored = _post(endpoint, key, "/slots/0?action=restore", {"filename": filename})
-            if restore_status != 200 or not restored.get("n_restored"):
+            if (restore_status != 200 or
+                    restored.get("n_restored") != int(base["occupied_tokens"])):
                 raise RuntimeError(f"canonical snapshot restore failed: {restored}")
             messages = history + [{"role": "user", "content": case["prompt"]}]
-        payload = canonical_payload(case, messages)
-        renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
-            request_options=request_options(chat_template_kwargs={
-                "enable_thinking": case["reasoning"] != "off"}))
-        rendered = len(renderer_mode(messages).token_ids)
-        reserve = args.context_tokens - rendered - int(case["max_tokens"]) - MTP_REPLAY_TOKENS
-        if reserve < SAFETY_TOKENS:
-            raise RuntimeError(f"canonical case {case['case_index']} violates context reserve: {reserve}")
+        payload, rendered = prepared[case["case_index"]]
         attempt = sum(1 for p in (output / "requests").glob(f"case-{case['case_index']:02d}-*.json"))
         suffix = f"{attempt:02d}"
         request_path = output / "requests" / f"case-{case['case_index']:02d}-{suffix}.json"
         raw_path = output / "raw" / f"case-{case['case_index']:02d}-{suffix}.sse"
-        _write_unique(request_path, json.dumps(payload, ensure_ascii=False,
-                                               separators=(",", ":")).encode())
+        request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+        _write_unique(request_path, request_bytes)
         before = final.snapshot(endpoint, key)
         start = time.monotonic()
         status, response, error = final._stream_completion(

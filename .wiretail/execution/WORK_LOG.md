@@ -2705,3 +2705,33 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-01`
 - Commit at update: `3842af347`
 - Summary: Frozen master GPU-only baseline and four exact-C context rows completed; receipt validated and qwen38-aco restored.
+
+## 2026-10-13T02:47:06+00:00 — 106-02 — blocked
+
+- Branch: `codex/task-106-02`
+- Commit at update: `a1c6e174d`
+- Summary: Frozen master lacks independent target/draft KV placement: --no-kv-offload pins CPU-bound draft KV at q8_0, so CPU-F16 target plus GPU Turbo4 draft curves cannot be measured truthfully.
+
+## 2026-10-13T02:47:16+00:00 — 106-02 — todo
+
+- Branch: `codex/task-106-02`
+- Commit at update: `0f8cd9b9b`
+- Summary: Automatic blocker-recovery attempt 1/3; previous blocker: Frozen master lacks independent target/draft KV placement: --no-kv-offload pins CPU-bound draft KV at q8_0, so CPU-F16 target plus GPU Turbo4 draft curves cannot be measured truthfully.
+
+## 2026-10-13T02:50:08+00:00 — 106-02 — blocked
+
+- Branch: `codex/task-106-02`
+- Commit at update: `0f8cd9b9b`
+- Summary: Frozen master has only process-global KV offload; exact required CPU-F16 target/GPU-Turbo4 draft placement is impossible without a new frozen candidate or protocol amendment. Recovery attempt 2 verified this in CLI, startup log, and frozen source.
+
+## 2026-10-13T02:50:14+00:00 — 106-02 — todo
+
+- Branch: `codex/task-106-02`
+- Commit at update: `9308ff6bd`
+- Summary: Automatic blocker-recovery attempt 2/3; previous blocker: Frozen master has only process-global KV offload; exact required CPU-F16 target/GPU-Turbo4 draft placement is impossible without a new frozen candidate or protocol amendment. Recovery attempt 2 verified this in CLI, startup log, and frozen source.
+
+## 2026-10-13T09:42:57+00:00 — 106-02 — done
+
+- Branch: `codex/task-106-02`
+- Commit at update: `60b059187`
+- Summary: Completed same-binary GPU and CPU-F16 context matrices through 128K; all 11 rows passed 48/48, receipts and state validation pass, managed service restored healthy.

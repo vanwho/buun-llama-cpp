@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "task": "106-02",
+  "cohort": "master106-draftkv-20261013",
+  "protocol_revision": "master-baseline-patched-draftkv-20261013",
+  "base_master_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+  "source_worktree": "/srv/ai/paged-kv/worktrees/master106-draftkv-20261013",
+  "source_dirty_paths": [
+    "common/arg.cpp",
+    "common/common.cpp",
+    "common/common.h",
+    "common/speculative.cpp",
+    "tests/test-arg-parser.cpp",
+    "tools/server/server-context.cpp"
+  ],
+  "patch_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/master106-draftkv-20261013.patch",
+  "patch_sha256": "4caf807505c4a34cc6e0ce0d21fc8b81f79b4906359f7f08a961543e45f94937",
+  "build_dir": "/srv/ai/paged-kv/builds/master106-draftkv-20261013",
+  "configure_command": "cmake -S <source> -B <build> -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=89-real -DGGML_CUDA_FA=ON -DGGML_NATIVE=OFF -DGGML_AMX_BF16=OFF -DGGML_AMX_INT8=OFF -DGGML_AMX_TILE=OFF -DLLAMA_BUILD_TESTS=ON",
+  "configure_retry_environment": {
+    "CPATH": "/tmp/master106-gcc12/shim"
+  },
+  "build_command": "CPATH=/tmp/master106-gcc12/shim cmake --build <build> --parallel 16 --target llama-server test-arg-parser",
+  "build_log": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-build-residency-logging.log",
+  "build_log_sha256": "8b2e903f1724619083a504fd6fbb9f416e55939a13201be309327b68f3c6d557",
+  "configure_log": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-configure-retry.log",
+  "configure_log_sha256": "2431cb8ccc3c128fc5cc498ef97c283cba51c0570a8a2191a5cb44c074cb34c9",
+  "model_path": "/srv/ai/models/text/current.gguf",
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "build": {
+    "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+    "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+    "loaded_project_dsos": {
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2"
+    }
+  },
+  "helper_hashes": {
+    "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-master-context-matrix.py": "3616a0c56c280e6a5a02238c818873cb49cd6311d8893a903ada66dc3ad83e3e",
+    "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/test_master_context_matrix.py": "112103a997f7fed036c96b1e432bdcb4de8119abeb80d088d971f479de346dd5",
+    "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/build-master106-cohort-report.py": "14cfa7fb6f1fc7a66ae83ff4bd2726ef0a23b66a697012ec995c7ae2a4423ee3",
+    "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/build-master106-cohort-run-report.py": "2ae84bc3ac9f06eb3a1f58388208e759fd3ee4cacc29c6adc09aacebb3adc25e"
+  },
+  "unchanged_original_freeze_json_sha256": "25f5493519030155b4f61124d5fc8cf9d9f26167fd9dfd81db7d9cd7659afbb5",
+  "unchanged_original_gpu_json_sha256": "24ff919b52c9d74f2685fee17f24cea97ba68c3bf09b60f5051a798fc313b414",
+  "offline_test_artifacts": {
+    "helper_regressions": {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-helper-tests-prefix-closure.log",
+      "sha256": "d63e8a17f3894b19210a00b21e5403ef6f1d1c7ef0062beff620739682ba5af3"
+    },
+    "cpp_argument_parser": {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-placement-parser-residency.log",
+      "sha256": "f957cb9e0691e363999cb77d336e2ac9ddc595cf5f9f9e8da89187fb3f7678c0"
+    },
+    "candidate_help": {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/candidate-help.txt",
+      "sha256": "4932884d4ed0ab69b0a8d2a4f01b67fbd598baf300461da40f02913ab98c54e4"
+    },
+    "python_compile": {
+      "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-pycompile-prefix-closure.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "lifecycle_runner": {
+    "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-run-cohort.py",
+    "sha256": "9a9251376a53d8747ff45c14eb8867b0fc834fb724b63c76fb51e8bbd24b1e41"
+  },
+  "helper_amendment": {
+    "reason": "128K preserved-prefix frontier at 61,438 tokens could not close C=61,440; apply exact tail closure to the intermediate preserve-prefix target.",
+    "previous_runner_sha256": "ab29e5f3f41d70705ce34817a0bfeb332595e4ff0b992c9dd806c962920ea8aa",
+    "failure_artifact": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/driver-failure-00.log",
+    "regression_log": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-helper-tests-prefix-closure.log",
+    "source_changed_after_scored_rows": true,
+    "server_binary_unchanged": true
+  }
+}

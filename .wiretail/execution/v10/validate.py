@@ -77,6 +77,14 @@ def check_plan(root: Path, state: dict, revision: str | None = None,
                         and (text.endswith("MATRIX105_FREEZE.md") or tid == "106-00"):
                     if not path.is_file():
                         errors.append(f"{tid}: missing frozen matrix manifest: {text}")
+                elif (tid == "106-02" and text in {
+                        ".wiretail/execution/evidence/MASTER106_FREEZE.md",
+                        ".wiretail/execution/evidence/MASTER106_GPU.md"}):
+                    # 106-02's packet explicitly selects these immutable
+                    # predecessor baseline contracts for its same-master
+                    # comparison; the task receipt must preserve their hashes.
+                    if not path.is_file():
+                        errors.append(f"{tid}: missing selected baseline evidence: {text}")
                 elif not path.name.startswith("V10_"):
                     errors.append(f"{tid}: historical evidence loaded: {text}")
             elif not path.is_file():
