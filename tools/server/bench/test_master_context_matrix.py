@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import json
 import tempfile
 import unittest
 
@@ -64,6 +65,62 @@ class MasterContextMatrixTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "refusing to overwrite"):
                     matrix.validate_resume(dirty, identity, resume=False)
                 self.assertEqual((dirty / "raw.sse").read_bytes(), b"keep")
+            with tempfile.TemporaryDirectory() as diagnostic_only:
+                retry = pathlib.Path(diagnostic_only)
+                (retry / "driver-failure-00.log").write_text("preflight failure")
+                captures = retry / "runtime-captures"
+                captures.mkdir()
+                (captures / "runtime-20261013T032947-2678228.json").write_text("{}")
+                matrix.validate_resume(retry, identity, resume=False)
+                self.assertTrue((retry / "driver-failure-00.log").is_file())
+                self.assertTrue((retry / "run-config.json").is_file())
+
+    def test_cpu_host_residency_accepts_unknown_host_device_only(self) -> None:
+        self.assertTrue(matrix.residency_rows_match(
+            [("unknown", "true", "5570953216")],
+            [("CUDA0", "false", "82313216")], True))
+        self.assertFalse(matrix.residency_rows_match(
+            [("CUDA0", "false", "5570953216")],
+            [("CUDA0", "false", "82313216")], True))
+        self.assertTrue(matrix.residency_rows_match(
+            [("CUDA0", "false", "1000")],
+            [("CUDA0", "false", "100")], False))
+
+    def test_live_identity_rejects_argv_and_binary_mismatch(self) -> None:
+        executable = pathlib.Path("/frozen/bin/llama-server")
+        argv = [str(executable), "-c", "8192"]
+        matrix.validate_live_identity(argv, argv, executable, executable)
+        with self.assertRaisesRegex(RuntimeError, "argv mismatch"):
+            matrix.validate_live_identity(argv, [*argv, "--no-kv-offload"], executable, executable)
+        with self.assertRaisesRegex(RuntimeError, "executable mismatch"):
+            matrix.validate_live_identity(argv, argv, executable, pathlib.Path("/other/server"))
+
+    def test_frozen_source_ranges_replay_and_allow_only_suffix(self) -> None:
+        baseline = {"git_identity": {"commit": "base"}, "fixture_sha256": "f",
+                    "inventory": [{"path": "a", "sha256": "1"}],
+                    "source_schedule": [{"path": "a", "sha256": "1"}],
+                    "selected_ranges": [{"path": "a", "sha256": "1", "end": 3}]}
+        matrix.validate_source_replay(baseline, baseline)
+        extended = {**baseline, "selected_ranges": baseline["selected_ranges"] +
+                    [{"path": "b", "sha256": "2", "end": 4}]}
+        matrix.validate_source_replay(extended, baseline, allow_suffix=True)
+        with self.assertRaisesRegex(ValueError, "selected range"):
+            matrix.validate_source_replay(extended, baseline)
+        changed = {**baseline, "selected_ranges": [{"path": "a", "sha256": "different"}]}
+        with self.assertRaisesRegex(ValueError, "selected range"):
+            matrix.validate_source_replay(changed, baseline)
+
+    def test_preserved_prefix_can_use_exact_tail_closure(self) -> None:
+        self.assertEqual(matrix._tail_target_for_frontier(61440, 61438), 61440)
+        self.assertEqual(matrix._tail_target_for_frontier(126976, 126976), None)
+        self.assertEqual(matrix._tail_target_for_frontier(126976, 126950), None)
+
+    def test_cohort_report_inputs_are_explicit_and_do_not_target_freeze(self) -> None:
+        report = pathlib.Path(__file__).with_name("build-master106-cohort-report.py")
+        source = report.read_text(encoding="utf-8")
+        for option in ("--gpu-json", "--cpu-json", "--freeze-json", "--output-json", "--output-md"):
+            self.assertIn(option, source)
+        self.assertNotIn("MASTER106_FREEZE.json", source)
 
 
 if __name__ == "__main__":
