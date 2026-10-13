@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "task": "106-00",
+  "source_commit": "411645d7c127010b13756a1c824c8182e6e7aaa2",
+  "proof": "aco_hot_vs_cold_promotion_cost_across_context_sizes",
+  "checks": {
+    "aco_hot_vs_cold_promotion_cost_across_context_sizes": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion-cost.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/ACO106_PROMOTION_COST.json",
+          "sha256": "81a7f74da737f060bb9fcd7d3bc0e43af2da34568c8f5c57bad460ff6e7aa1db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/ACO106_PROMOTION_COST.md",
+          "sha256": "2479127f95ea9efec3c407fe9ece6d0273bef360e90720c0bcf06d6a98161f86"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw-artifact-manifest.json",
+          "sha256": "adf1d0b9037b9c9da31e7738f73bb94ba89c3730546d9e5c9f09ddb8e54d19ba"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/request-counter-snapshots.json",
+          "sha256": "4cfe486754e69dceb959e77871415c717fd8a88c06c8b4dcea16807214a07d02"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/frozen-selection.json",
+          "sha256": "ddb8623592db7ec75904ba7dd3a4346360d3e1604212f7e58f4d598884355070"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/source-schedule-manifest.json",
+          "sha256": "b9d6d46be3ab3c04ceef49ca79b8b8d0db5c2afa4001e7124aebd8b2f182c3dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/service-restore-verification.json",
+          "sha256": "2a18df757f2f3c6f4d6060d1126abaf48f4c49116bf207227b9885c7a373e491"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/validation/unit-tests.log",
+          "sha256": "f96e1015bfa688e3ced81855e9e71fee7a14d97eb90b3a9018848c720dd23362"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/validation/pycompile.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/validation/git-diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MATRIX105_SCRATCH_FREEZE.json",
+          "sha256": "97225ae50ed611924fff25fc99fd518c00b780dce4943bf32bb54c0b857cda68"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/tasks/106-00.md",
+          "sha256": "73d9bd75c3a154f49f1a33e39f9cfdaa3913b901d2df71be0e2d5675251ae745"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/clusters/forward106-master-baselines.md",
+          "sha256": "4efd2c0ab96071f837d778b35aaf159572c34e9b1d7580354d976471d00ded1c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-pager-promotion-cost.py",
+          "sha256": "3bad9e5ac7b6f1e040533b674831580d1b8de5f193e47fa7db9bfc11b8027896"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/test_pager_promotion_cost.py",
+          "sha256": "f8e6431d41abb305db1b85da19b898f3ee040d1ca4151a58ec4b377f61ffb08c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/v10/validate.py",
+          "sha256": "7f3a7b36842a1942a9497e0d365907c0fefecfccc0fa93731e04d90e68cf7e26"
+        }
+      ]
+    }
+  },
+  "outcome_summary": {
+    "geometry_count": 8,
+    "exact_C_rows": 8,
+    "cold_precondition_not_met_rows": 8,
+    "paired_estimates_available": 0,
+    "service_restore": "restored"
+  },
+  "measurement_identity": {
+    "candidate": {
+      "source_identity": {
+        "git_head": "ac9d7e0d7e7a24864b0e0777d0985a3415fb102a",
+        "production_fix_ancestors": [
+          "8d09fe367",
+          "24669529e",
+          "0247624e9",
+          "c6d71b44d",
+          "f5478ee12"
+        ],
+        "production_source_tree_clean": true,
+        "runner_metadata_status": [
+          " M .wiretail/execution/WORK_STATE.json",
+          " M .wiretail/execution/handoffs/105-15.md"
+        ],
+        "source_file_sha256": {
+          "src/llama-kv-cache.cpp": "8a5d25922fc54de8048b13778d136057fa27d6566f492621165eaac19d26565f",
+          "src/llama-context.cpp": "162268c8f0e08b5d02b523fd3ce9c476b6702987dfffb7ea381bc89bfbce6922",
+          "src/llama-graph.cpp": "32f221cb9c0aa3e82ab217374f38470d34cf1bf924bed61d689248138bb4f874",
+          "ggml/src/ggml-cuda/fattn.cu": "74b9fb09a6649597f9256ea05266116ae39411234565b3c0bebf57c97122fbf3",
+          "ggml/src/ggml-cuda/common.cuh": "a6e6ed3e53636a376ff43148e1e6c04a82a583e85f1a943fa5ee171ce75fd04f",
+          "tools/server/server-context.cpp": "714a1e4da34d8cb4ac441603415a10a9798569c72302a2ddb448ba960f3bbe39"
+        }
+      },
+      "artifacts": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "136142968618a512c81e481f780a2c5ae8709c72d1125ce2e26068253e045b4d",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "1f6bd698101c545248fc0c35a8010cb5c37ffce278720d7f286a62ce6729bf7a",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073"
+      },
+      "loaded_project_dsos_expected": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "1f6bd698101c545248fc0c35a8010cb5c37ffce278720d7f286a62ce6729bf7a",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073"
+      },
+      "build_receipt_path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/build-receipt.json",
+      "build_receipt_sha256": "8ee0a94b8fc9c5bfc7f079ebe7a280f144a724e204a2d7a637cba78bfce4f026",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "freeze_sha256": "97225ae50ed611924fff25fc99fd518c00b780dce4943bf32bb54c0b857cda68"
+    },
+    "adapter": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-pager-promotion-cost.py",
+      "sha256": "3bad9e5ac7b6f1e040533b674831580d1b8de5f193e47fa7db9bfc11b8027896"
+    },
+    "frozen_selection": {
+      "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/frozen-selection.json",
+      "sha256": "ddb8623592db7ec75904ba7dd3a4346360d3e1604212f7e58f4d598884355070",
+      "source_schedule_path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/source-schedule-manifest.json",
+      "source_schedule_sha256": "b9d6d46be3ab3c04ceef49ca79b8b8d0db5c2afa4001e7124aebd8b2f182c3dc"
+    },
+    "request_counter_snapshots": {
+      "path": "/srv/ai/paged-kv/results/forward/106-promotion-cost/106-00/raw/attempt-20261012T234251Z-1596621/request-counter-snapshots.json",
+      "sha256": "4cfe486754e69dceb959e77871415c717fd8a88c06c8b4dcea16807214a07d02",
+      "count": 240
+    },
+    "service_restore": {
+      "status": "restored",
+      "health": true,
+      "prior": {
+        "pid": 1595050,
+        "cmdline": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-aco-turbo4-mtp -ngl 999 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-page-size 256 --kv-router probe-rerank --kv-hot-pages 256 --kv-pin-recent 0 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "loaded_project_dsos": {}
+      },
+      "current": {
+        "pid": 2505487,
+        "cmdline": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-aco-turbo4-mtp -ngl 999 --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --kv-pager selective --kv-page-size 256 --kv-router probe-rerank --kv-hot-pages 256 --kv-pin-recent 0 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "loaded_project_dsos": {}
+      },
+      "service_show": "MainPID=2505487\nExecStart={ path=/srv/ai/scripts/start-primary-llama-profile.sh ; argv[]=/srv/ai/scripts/start-primary-llama-profile.sh ; ignore_errors=no ; start_time=[Tue 2026-10-13 02:42:26 CEST] ; stop_time=[n/a] ; pid=2505487 ; code=(null) ; status=0/0 }\n"
+    }
+  },
+  "local_verification": {
+    "pycompile": "pass",
+    "deterministic_regressions": "3/3 passed",
+    "git_diff_check": "pass"
+  },
+  "deferred_verification": []
+}

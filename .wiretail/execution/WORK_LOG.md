@@ -2693,3 +2693,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-105-22`
 - Commit at update: `4748bd381`
 - Summary: Completed fixed 15-configuration matrix aggregation and validated revision-scoped receipt proof
+
+## 2026-10-13T00:47:14+00:00 — 106-00 — done
+
+- Branch: `codex/task-106-00`
+- Commit at update: `411645d7c`
+- Summary: Measured all eight exact context geometries with three correct initial-hot requests each; recorded cold precondition unmet at C in every row, validated reports and restored the managed profile.
