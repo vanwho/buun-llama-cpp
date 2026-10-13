@@ -64,6 +64,12 @@ def check_plan(root: Path, state: dict, revision: str | None = None,
                         text == ".wiretail/execution/handoffs/105-21.md"):
                     if path.is_file():
                         continue
+                # 106-03 explicitly consumes the compact 105-22 aggregate
+                # handoff to identify its bounded MATRIX105 result artifact.
+                if (tid == "106-03" and
+                        text == ".wiretail/execution/handoffs/105-22.md"):
+                    if path.is_file():
+                        continue
                 predecessor = next((t for t in tasks if t["id"] == path.stem), None)
                 if (not predecessor or predecessor.get("scope_revision") != revision
                         or positions[predecessor["id"]] >= positions[tid]):
@@ -85,6 +91,14 @@ def check_plan(root: Path, state: dict, revision: str | None = None,
                     # comparison; the task receipt must preserve their hashes.
                     if not path.is_file():
                         errors.append(f"{tid}: missing selected baseline evidence: {text}")
+                elif (tid == "106-03" and text in {
+                        ".wiretail/execution/evidence/MASTER106_FREEZE.md",
+                        ".wiretail/execution/evidence/MASTER106_GPU.md",
+                        ".wiretail/execution/evidence/MASTER106_CPU.md"}):
+                    # 106-03's packet explicitly selects these compact
+                    # reports/manifests for the bounded comparison.
+                    if not path.is_file():
+                        errors.append(f"{tid}: missing selected master comparison evidence: {text}")
                 elif not path.name.startswith("V10_"):
                     errors.append(f"{tid}: historical evidence loaded: {text}")
             elif not path.is_file():
