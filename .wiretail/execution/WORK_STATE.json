@@ -38506,7 +38506,7 @@
         "--receipt",
         ".wiretail/execution/evidence/V10_106-03.json"
       ],
-      "commit": "6b4f410bdeecedaf69a896d19526bfb26b4b34e4",
+      "commit": "ec2c679c48892e1044f5665388b71bed7f3724d7",
       "token_usage": {
         "schema_version": 2,
         "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
