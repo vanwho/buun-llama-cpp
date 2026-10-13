@@ -3,6 +3,19 @@
 Revision: `aco-promotion-cost-20261012`.
 Master baseline scope revision: `master-baseline-20261012`.
 
+Recovery amendment (2026-10-13): the unchanged upstream master binary frozen
+by 106-01 cannot independently place native-MTP draft K/V on CUDA when target
+KV uses `--no-kv-offload`. Tasks 106-01/02 therefore use a separately named
+`master106-draftkv-20261013` patched-master cohort for the paired comparison.
+The patch is limited to explicit draft-KV placement, including embedded native
+MTP context construction. The original `MASTER106_FREEZE`, GPU matrix, and
+receipts remain immutable historical evidence and are never relabeled. The
+replacement candidate is based on master `d2407c33f9595d1badccfd9a82a33c4c5ceda490`;
+both GPU and CPU placements must use the exact same replacement binary and
+model. 106-01's original result remains intact; its paired GPU controls are
+replayed under the replacement cohort and published as a separate supporting
+matrix referenced by 106-02.
+
 Purpose: first quantify the request-level cost of natural cold-page selection
 and promotion on the frozen Phase-105 ACO candidate, then compare the exact
 current `origin/master` source against the existing ACO results using the

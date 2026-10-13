@@ -1,0 +1,2615 @@
+{
+  "schema_version": 1,
+  "cohort": "master106-draftkv-20261013",
+  "task": "106-02",
+  "phase": "gpu",
+  "base_master_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "build": {
+    "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+    "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+    "loaded_project_dsos": {
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+      "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2"
+    }
+  },
+  "rows": [
+    {
+      "label": "gpu-77824",
+      "geometry": {
+        "L_tokens": 77824,
+        "C_tokens": null
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36
+      },
+      "runtime_faults": [],
+      "medians": {
+        "decode_tok_s_medians": {
+          "off": {
+            "0": 108.62990774990705,
+            "1": 89.87771637366716,
+            "2": 105.82970488630866
+          },
+          "low": {
+            "0": 107.75216030928922,
+            "1": 84.01137636979524,
+            "2": 97.9636090972101
+          },
+          "medium": {
+            "0": 104.75875162225095,
+            "1": 86.40798123885656,
+            "2": 98.66173638226947
+          },
+          "xhigh": {
+            "0": 104.07955106203998,
+            "1": 81.2908147632457,
+            "2": 98.66615231679995
+          }
+        },
+        "mtp_acceptance_percent_medians": {
+          "off": {
+            "0": 93.10344827586206,
+            "1": 67.3913043478261,
+            "2": 88.27160493827161
+          },
+          "low": {
+            "0": 91.48936170212765,
+            "1": 60.38461538461539,
+            "2": 78.70967741935483
+          },
+          "medium": {
+            "0": 87.58620689655173,
+            "1": 63.53276353276353,
+            "2": 79.80456026058631
+          },
+          "xhigh": {
+            "0": 87.09677419354838,
+            "1": 56.36363636363637,
+            "2": 80.32786885245902
+          }
+        },
+        "fresh_prefill_tok_s_medians": {
+          "off": {
+            "0": 249.85008994603237,
+            "1": 231.15646724427245,
+            "2": 238.5780746749374
+          },
+          "low": {
+            "0": 278.6385145684706,
+            "1": 264.5375402818527,
+            "2": 265.69624277045267
+          },
+          "medium": {
+            "0": 234.71423541837814,
+            "1": 215.74414470391275,
+            "2": 221.9092732471301
+          },
+          "xhigh": {
+            "0": 333.4889615153739,
+            "1": 318.41685042962513,
+            "2": 322.9145890911854
+          }
+        }
+      },
+      "fill_curve": [],
+      "runtime_identity": {
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--device",
+          "CUDA0",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "77824",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-draft-kv-device",
+          "gpu",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+        "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76"
+        },
+        "target_kv": "gpu-turbo4",
+        "draft_kv": "gpu-turbo4",
+        "residency_markers": [
+          "MASTER106 native MTP draft K/V device=gpu offload_kqv=true type_k=turbo4 type_v=turbo4"
+        ],
+        "target_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "1785724928"
+          ]
+        ],
+        "draft_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "82313216"
+          ]
+        ],
+        "process_pid": 2678962,
+        "startup_log_sha256": "05fdc8d3d9004c0d3909cf4cd866a790a7d04c1422dadf8a4cff771cbbb290f8",
+        "capture_sha256": "09a6c482b95b05ddbf0f61445337349375b0dfdf32febab0c7f6db4f89c595d8"
+      },
+      "snapshot": {
+        "occupied_tokens": 0,
+        "base_sha256": null
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824",
+        "row_summary_sha256": "11665932e5bc40a36a0af7f811c555027aabcdecc4cf8a4d1ace226bcf5b615c",
+        "run_config_sha256": "f2721861d91705c192797a575a9b08f52b59f94d1ea74aa743348f5311e7536a",
+        "records_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824/records.jsonl",
+        "records_sha256": "6e062a140f4f253c805c2639458a8bb2e514a5d0e83592badd0ad1ea179da4d3",
+        "source_manifest_sha256": null,
+        "append_schedule_sha256": null
+      }
+    },
+    {
+      "label": "gpu-8192-6144",
+      "geometry": {
+        "L_tokens": 8192,
+        "C_tokens": 6144
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36
+      },
+      "runtime_faults": [],
+      "medians": {
+        "decode_tok_s_medians": {
+          "off": {
+            "0": 107.3258644573857,
+            "1": 75.1957043401156,
+            "2": 96.24160840712662
+          },
+          "low": {
+            "0": 104.98642806262805,
+            "1": 80.22253207644664,
+            "2": 98.42660508137833
+          },
+          "medium": {
+            "0": 98.85019142005113,
+            "1": 79.79462184248781,
+            "2": 98.2785005804343
+          },
+          "xhigh": {
+            "0": 101.14233165901372,
+            "1": 80.33067704493526,
+            "2": 91.62793912689827
+          }
+        },
+        "mtp_acceptance_percent_medians": {
+          "off": {
+            "0": 94.9090909090909,
+            "1": 50.806451612903224,
+            "2": 79.54545454545455
+          },
+          "low": {
+            "0": 92.14876033057851,
+            "1": 58.743169398907106,
+            "2": 83.55704697986577
+          },
+          "medium": {
+            "0": 83.55704697986577,
+            "1": 57.567567567567565,
+            "2": 82.66666666666667
+          },
+          "xhigh": {
+            "0": 87.95180722891567,
+            "1": 58.8235294117647,
+            "2": 74.14330218068535
+          }
+        },
+        "fresh_prefill_tok_s_medians": {
+          "off": {
+            "0": 120.52505094922608,
+            "1": 109.3541543643243,
+            "2": 113.36210049001683
+          },
+          "low": {
+            "0": 1742.3119257811622,
+            "1": 1743.0249492577952,
+            "2": 1743.7965625027234
+          },
+          "medium": {
+            "0": 117.33135510145377,
+            "1": 104.71948268575554,
+            "2": 107.90376472514308
+          },
+          "xhigh": {
+            "0": 1743.8266237474575,
+            "1": 1741.2317743695392,
+            "2": 1742.1270712811681
+          }
+        }
+      },
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cache_n": 0,
+          "completion_tokens": 1,
+          "cumulative_tokens": 3890,
+          "elapsed_seconds": 2.267456775996834,
+          "fingerprint": "d26ee426737a507c1ed997d10c8fc9a5f14bc63283d7d19b82c2425f8a5e13a7",
+          "fresh_prefill_tok_s": 1726.595203083548,
+          "fresh_tokens": 3890,
+          "prompt_n": 3890,
+          "prompt_tokens": 3890,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/raw/append-0000.sse",
+          "raw_sha256": "375cbbee9d86d2fcf6948a989732f33950ac5e61fbc61cb7d4397a55417823ee",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "timings": {
+            "cache_n": 0,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2252.989,
+            "prompt_n": 3890,
+            "prompt_per_second": 1726.595203083548,
+            "prompt_per_token_ms": 0.5791745501285347
+          }
+        },
+        {
+          "append_index": 1,
+          "cache_n": 3890,
+          "completion_tokens": 1,
+          "cumulative_tokens": 6144,
+          "elapsed_seconds": 1.4684704010142013,
+          "fingerprint": "d26ee426737a507c1ed997d10c8fc9a5f14bc63283d7d19b82c2425f8a5e13a7",
+          "fresh_prefill_tok_s": 1552.6153371393304,
+          "fresh_tokens": 2254,
+          "prompt_n": 2254,
+          "prompt_tokens": 6144,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/raw/append-0001.sse",
+          "raw_sha256": "e28bf6a47f75f7f4d667412cafdee1718c76d42843705154658c8eded7f5e46b",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/requests/append-0001.json",
+          "request_sha256": "f30a5e8a88098bf4693a137108cca4450acbfc092c0b45b8fdcd2405ac8d5cc2",
+          "source_text_sha256": "1a951f2f6a9fff8693f5f53b3bd7a6e4e61e8db08d2e8d3e0d1a856b466282bf",
+          "timings": {
+            "cache_n": 3890,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1451.744,
+            "prompt_n": 2254,
+            "prompt_per_second": 1552.6153371393304,
+            "prompt_per_token_ms": 0.6440745341614906
+          }
+        }
+      ],
+      "runtime_identity": {
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--device",
+          "CUDA0",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "8192",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-draft-kv-device",
+          "gpu",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+        "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2"
+        },
+        "target_kv": "gpu-turbo4",
+        "draft_kv": "gpu-turbo4",
+        "residency_markers": [
+          "MASTER106 native MTP draft K/V device=gpu offload_kqv=true type_k=turbo4 type_v=turbo4"
+        ],
+        "target_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "609222656"
+          ]
+        ],
+        "draft_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "8781824"
+          ]
+        ],
+        "process_pid": 2680820,
+        "startup_log_sha256": "3f3abc0f18826a4a57d9553e5cbe6d9cd3deb1f6fb959754f284bff20ba82943",
+        "capture_sha256": "97b13d9f59f661654c5631e138c3e72122ed28be051070dccbd31add026c165e"
+      },
+      "snapshot": {
+        "fingerprint": "d26ee426737a507c1ed997d10c8fc9a5f14bc63283d7d19b82c2425f8a5e13a7",
+        "occupied_tokens": 6144,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state/base-d26ee426737a507c.bin",
+        "base_sha256": "ec1f7c291ac0f1b6b4a0c1d237d7f414e9253acddab2c3364da7a531d1eb755a",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-d26ee426737a507c.bin",
+          "n_saved": 6144,
+          "n_written": 574667341,
+          "timings": {
+            "save_ms": 498.876
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "762ce03bd274df529a543c9fb2ecd519",
+            "generation": 1,
+            "n_tokens": 6144,
+            "chunks": 2,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 574640412,
+            "t_ms": 187.0,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-d26ee426737a507c.bin",
+          "n_restored": 6144,
+          "n_read": 574667341,
+          "timings": {
+            "restore_ms": 377.11
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "a789b3e667503dbd309f16de05c3fbf4",
+            "p": 6144,
+            "n_tokens": 6144,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 574640412,
+            "t_ms": 376.927,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "11a77cbf000c97bfe148fd874c62872873364939de3612e0b8acc917df64bd0a"
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144",
+        "row_summary_sha256": "eca91a7b55023b81e53fad6788416e070b40e6d2506c989859b2181454fdd4c0",
+        "run_config_sha256": "33e370573d2286f4cea8b9c6de348027a83d7d955392e40663b01c6ba65b937b",
+        "records_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/records.jsonl",
+        "records_sha256": "3d14229a984c770da71a1f18849452ddc1efa21361972e19c1875c7f1786da69",
+        "source_manifest_sha256": "11a77cbf000c97bfe148fd874c62872873364939de3612e0b8acc917df64bd0a",
+        "append_schedule_sha256": "4a4c595c5ac20a343af10ea7ab85474656a498cfddab5bd38fd7df32979928a6"
+      }
+    },
+    {
+      "label": "gpu-16384-14336",
+      "geometry": {
+        "L_tokens": 16384,
+        "C_tokens": 14336
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36
+      },
+      "runtime_faults": [],
+      "medians": {
+        "decode_tok_s_medians": {
+          "off": {
+            "0": 100.34779885449127,
+            "1": 75.59111552422206,
+            "2": 91.35998779853387
+          },
+          "low": {
+            "0": 101.93464041214348,
+            "1": 82.37984100098026,
+            "2": 89.48202689574066
+          },
+          "medium": {
+            "0": 97.50241891624266,
+            "1": 80.349769190757,
+            "2": 89.3063981655257
+          },
+          "xhigh": {
+            "0": 98.95150635142258,
+            "1": 78.40458484235307,
+            "2": 84.2661746704749
+          }
+        },
+        "mtp_acceptance_percent_medians": {
+          "off": {
+            "0": 87.87878787878788,
+            "1": 54.48717948717949,
+            "2": 76.04166666666667
+          },
+          "low": {
+            "0": 92.1259842519685,
+            "1": 65.2892561983471,
+            "2": 74.6875
+          },
+          "medium": {
+            "0": 84.73282442748092,
+            "1": 61.1731843575419,
+            "2": 73.83177570093459
+          },
+          "xhigh": {
+            "0": 89.02439024390245,
+            "1": 59.5,
+            "2": 67.75147928994083
+          }
+        },
+        "fresh_prefill_tok_s_medians": {
+          "off": {
+            "0": 117.22121775084453,
+            "1": 107.59938596617074,
+            "2": 110.78827645606174
+          },
+          "low": {
+            "0": 1739.9949384602332,
+            "1": 1742.038831708447,
+            "2": 1737.5306376321014
+          },
+          "medium": {
+            "0": 109.6417544095438,
+            "1": 98.7058952095914,
+            "2": 103.62064837940878
+          },
+          "xhigh": {
+            "0": 1741.772996534949,
+            "1": 1738.3902477344873,
+            "2": 1739.9273039604814
+          }
+        }
+      },
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cache_n": 0,
+          "completion_tokens": 1,
+          "cumulative_tokens": 3890,
+          "elapsed_seconds": 2.2728980949614197,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 1722.464479151538,
+          "fresh_tokens": 3890,
+          "prompt_n": 3890,
+          "prompt_tokens": 3890,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0000.sse",
+          "raw_sha256": "2efaaa6f4ad4e34f775676fa1aa6599a66b657c509f82a55fe51d0af4aba20da",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "timings": {
+            "cache_n": 0,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.002,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2258.392,
+            "prompt_n": 3890,
+            "prompt_per_second": 1722.464479151538,
+            "prompt_per_token_ms": 0.5805634961439589
+          }
+        },
+        {
+          "append_index": 1,
+          "cache_n": 3890,
+          "completion_tokens": 1,
+          "cumulative_tokens": 7985,
+          "elapsed_seconds": 2.4567347670090385,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 1675.0548943508725,
+          "fresh_tokens": 4095,
+          "prompt_n": 4095,
+          "prompt_tokens": 7985,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0001.sse",
+          "raw_sha256": "4c32cb6a07aeea0ee2d409c0be44a83fad426f329fffbcbbc96ce365c3e63e50",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0001.json",
+          "request_sha256": "ae8058afb4b70e210c2d19cf9807c0a324fd3bd5bc3a89e309d61986e160d2aa",
+          "source_text_sha256": "cc555bcaacdad9ec69d001109c5d8c8190f0f7d0de8c45ad8a27e4b9ae0f4fa1",
+          "timings": {
+            "cache_n": 3890,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2444.696,
+            "prompt_n": 4095,
+            "prompt_per_second": 1675.0548943508725,
+            "prompt_per_token_ms": 0.5969953601953601
+          }
+        },
+        {
+          "append_index": 2,
+          "cache_n": 7985,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9257,
+          "elapsed_seconds": 0.9539184540044516,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 1352.5252987092529,
+          "fresh_tokens": 1272,
+          "prompt_n": 1272,
+          "prompt_tokens": 9257,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0002.sse",
+          "raw_sha256": "9ed6d887f2424ae44edc33027bb4ffa22116419e7338e9c0d73019adfe6c0a99",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "timings": {
+            "cache_n": 7985,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 940.463,
+            "prompt_n": 1272,
+            "prompt_per_second": 1352.5252987092529,
+            "prompt_per_token_ms": 0.7393577044025157
+          }
+        },
+        {
+          "append_index": 3,
+          "cache_n": 9257,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9388,
+          "elapsed_seconds": 0.34769068501191214,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 399.52423068712073,
+          "fresh_tokens": 131,
+          "prompt_n": 131,
+          "prompt_tokens": 9388,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0003.sse",
+          "raw_sha256": "38223bc6b227aee03bf1178e195d1fb0ea6fffa29c36db7d1641a83c45934cd8",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0003.json",
+          "request_sha256": "43b160dcc5983e27b9802837ba09c1e1933c7deabc70a23af19d4d628570e7b9",
+          "source_text_sha256": "595457aa2499c5f307e6119f4b5b00b6808d32db382c1a0af8a1b41f24b78b68",
+          "timings": {
+            "cache_n": 9257,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 327.89,
+            "prompt_n": 131,
+            "prompt_per_second": 399.52423068712073,
+            "prompt_per_token_ms": 2.502977099236641
+          }
+        },
+        {
+          "append_index": 4,
+          "cache_n": 9388,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9586,
+          "elapsed_seconds": 0.38049607403809205,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 548.5402733836069,
+          "fresh_tokens": 198,
+          "prompt_n": 198,
+          "prompt_tokens": 9586,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0004.sse",
+          "raw_sha256": "51466b56478b26b754c3c11af96ae5aae055534773752d8d477a1a3e786bdfd6",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0004.json",
+          "request_sha256": "498ff9e7f8f5908c4e29f623d89046b11a82c98e59d0d83b183c2144268b5873",
+          "source_text_sha256": "65835d0df3fb3500b29961415682ef3a657e3e7cb255476b8999b5e168c645a5",
+          "timings": {
+            "cache_n": 9388,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 360.958,
+            "prompt_n": 198,
+            "prompt_per_second": 548.5402733836069,
+            "prompt_per_token_ms": 1.8230202020202022
+          }
+        },
+        {
+          "append_index": 5,
+          "cache_n": 9586,
+          "completion_tokens": 1,
+          "cumulative_tokens": 11732,
+          "elapsed_seconds": 1.495105292997323,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 1456.3913933105077,
+          "fresh_tokens": 2146,
+          "prompt_n": 2146,
+          "prompt_tokens": 11732,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0005.sse",
+          "raw_sha256": "4f836af5b57dfe8436f6c47fb48c39b7149bca8513d55f03ecea36b12b783e2c",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0005.json",
+          "request_sha256": "7eb7342dab9084a43e22ef7da2d25c2984afcab63aecb2b1f1f6e1eaf9437b41",
+          "source_text_sha256": "7105db7f568d3a43dd985fedff04358ee24ef5611485ea08a2556f8a352ac650",
+          "timings": {
+            "cache_n": 9586,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1473.505,
+            "prompt_n": 2146,
+            "prompt_per_second": 1456.3913933105077,
+            "prompt_per_token_ms": 0.6866286113699908
+          }
+        },
+        {
+          "append_index": 6,
+          "cache_n": 11732,
+          "completion_tokens": 1,
+          "cumulative_tokens": 14336,
+          "elapsed_seconds": 1.7995091030024923,
+          "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+          "fresh_prefill_tok_s": 1469.7424394902407,
+          "fresh_tokens": 2604,
+          "prompt_n": 2604,
+          "prompt_tokens": 14336,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/raw/append-0006.sse",
+          "raw_sha256": "25858d51a652a7059c1ebee1f37282a8a0717f1f5abbb80ef92e053856e30d21",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/requests/append-0006.json",
+          "request_sha256": "667ff9228fc2704189efd069b3fb00b1cb0aed90fdcd0d373c381f388c7b760c",
+          "source_text_sha256": "777a9081e530e6301736ef3d36904613eee66780b627fc805b10adf478bcd68a",
+          "timings": {
+            "cache_n": 11732,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1771.739,
+            "prompt_n": 2604,
+            "prompt_per_second": 1469.7424394902407,
+            "prompt_per_token_ms": 0.6803913210445469
+          }
+        }
+      ],
+      "runtime_identity": {
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--device",
+          "CUDA0",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "16384",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-draft-kv-device",
+          "gpu",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+        "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76"
+        },
+        "target_kv": "gpu-turbo4",
+        "draft_kv": "gpu-turbo4",
+        "residency_markers": [
+          "MASTER106 native MTP draft K/V device=gpu offload_kqv=true type_k=turbo4 type_v=turbo4"
+        ],
+        "target_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "747634688"
+          ]
+        ],
+        "draft_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "17432576"
+          ]
+        ],
+        "process_pid": 2684291,
+        "startup_log_sha256": "fec27b533262415e61895e6d436a69c6b3612b26406b6755bb18c268982a9e60",
+        "capture_sha256": "d81b01314007f8df587198b377afbc051a2f9ae810d5e5e29bc16814f6a7b260"
+      },
+      "snapshot": {
+        "fingerprint": "80a126d1b34f1bfcde3ec71e31924d3e1ab48abaa1e4c0abbca14f35ddf9fa38",
+        "occupied_tokens": 14336,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state/base-80a126d1b34f1bfc.bin",
+        "base_sha256": "b0613029ff24446c52e83ca098d0bf318e3b942f8565899f43fca3f339a2682b",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-80a126d1b34f1bfc.bin",
+          "n_saved": 14336,
+          "n_written": 713310068,
+          "timings": {
+            "save_ms": 593.92
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "e7d7953f24bf9143676b002e1209ee57",
+            "generation": 1,
+            "n_tokens": 14336,
+            "chunks": 4,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 713249892,
+            "t_ms": 222.009,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-80a126d1b34f1bfc.bin",
+          "n_restored": 14336,
+          "n_read": 713310068,
+          "timings": {
+            "restore_ms": 419.72
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "a5b379def4a2e80dc7a62ccc7baef23a",
+            "p": 14336,
+            "n_tokens": 14336,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 713249892,
+            "t_ms": 419.501,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2"
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336",
+        "row_summary_sha256": "a1e0568be69e92cf64715e037289741191e35820ccfc226bc7ca4dd84689c3cf",
+        "run_config_sha256": "8599a9f1c9c77a1f062fa435a5178ddbb3225f01b61f38be72fe6ae88f161fc8",
+        "records_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/records.jsonl",
+        "records_sha256": "63d33817a1da77828477d9e755294af2750c0063966a01ecff06c78c0948a9fc",
+        "source_manifest_sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2",
+        "append_schedule_sha256": "c2c335e92b7bebf9e20e134a94f7d0b6acc555f55aee1b64e8b86a0343a13b37"
+      }
+    },
+    {
+      "label": "gpu-32768-30000",
+      "geometry": {
+        "L_tokens": 32768,
+        "C_tokens": 30000
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36
+      },
+      "runtime_faults": [],
+      "medians": {
+        "decode_tok_s_medians": {
+          "off": {
+            "0": 96.04849196037583,
+            "1": 76.44768459075296,
+            "2": 90.13502633569266
+          },
+          "low": {
+            "0": 93.7740046487964,
+            "1": 72.85574953290063,
+            "2": 85.78484858974224
+          },
+          "medium": {
+            "0": 92.17662209603795,
+            "1": 74.3094834454024,
+            "2": 86.81745487777016
+          },
+          "xhigh": {
+            "0": 94.48305564500826,
+            "1": 71.13983805524009,
+            "2": 72.36558002826065
+          }
+        },
+        "mtp_acceptance_percent_medians": {
+          "off": {
+            "0": 89.39393939393939,
+            "1": 60.0,
+            "2": 80.3921568627451
+          },
+          "low": {
+            "0": 88.65546218487395,
+            "1": 57.30769230769231,
+            "2": 76.7515923566879
+          },
+          "medium": {
+            "0": 83.46153846153847,
+            "1": 57.5,
+            "2": 76.19047619047619
+          },
+          "xhigh": {
+            "0": 90.11627906976744,
+            "1": 55.10204081632653,
+            "2": 56.98924731182796
+          }
+        },
+        "fresh_prefill_tok_s_medians": {
+          "off": {
+            "0": 110.08182749176889,
+            "1": 101.00670011110736,
+            "2": 103.78861941048062
+          },
+          "low": {
+            "0": 1608.9990474785584,
+            "1": 1607.194379086561,
+            "2": 1610.9445835384818
+          },
+          "medium": {
+            "0": 104.86931929663133,
+            "1": 138.2675081232161,
+            "2": 143.77503668742315
+          },
+          "xhigh": {
+            "0": 1612.1341331194042,
+            "1": 1611.203474155482,
+            "2": 1612.1764328230781
+          }
+        }
+      },
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cache_n": 0,
+          "completion_tokens": 1,
+          "cumulative_tokens": 3890,
+          "elapsed_seconds": 2.2907231430290267,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1708.9924193665304,
+          "fresh_tokens": 3890,
+          "prompt_n": 3890,
+          "prompt_tokens": 3890,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0000.sse",
+          "raw_sha256": "65d9a3c4b3bf67323d3071fca0dfc676bf44f6580ac5a22ebb8f40b8ccaec40e",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "timings": {
+            "cache_n": 0,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.002,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2276.195,
+            "prompt_n": 3890,
+            "prompt_per_second": 1708.9924193665304,
+            "prompt_per_token_ms": 0.5851401028277635
+          }
+        },
+        {
+          "append_index": 1,
+          "cache_n": 3890,
+          "completion_tokens": 1,
+          "cumulative_tokens": 7985,
+          "elapsed_seconds": 2.470634551020339,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1669.7268131214842,
+          "fresh_tokens": 4095,
+          "prompt_n": 4095,
+          "prompt_tokens": 7985,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0001.sse",
+          "raw_sha256": "5ba503970dfb972e7529606c780a8c69504134e1591ecbf23178bcfd02f43f37",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0001.json",
+          "request_sha256": "ae8058afb4b70e210c2d19cf9807c0a324fd3bd5bc3a89e309d61986e160d2aa",
+          "source_text_sha256": "cc555bcaacdad9ec69d001109c5d8c8190f0f7d0de8c45ad8a27e4b9ae0f4fa1",
+          "timings": {
+            "cache_n": 3890,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2452.497,
+            "prompt_n": 4095,
+            "prompt_per_second": 1669.7268131214842,
+            "prompt_per_token_ms": 0.5989003663003662
+          }
+        },
+        {
+          "append_index": 2,
+          "cache_n": 7985,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9257,
+          "elapsed_seconds": 0.9658691969816573,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1343.469912399847,
+          "fresh_tokens": 1272,
+          "prompt_n": 1272,
+          "prompt_tokens": 9257,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0002.sse",
+          "raw_sha256": "52c3e79bab823b486716015dbb885f8df40fa6715d796d6a2d70e306ab8e377c",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "timings": {
+            "cache_n": 7985,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 946.802,
+            "prompt_n": 1272,
+            "prompt_per_second": 1343.469912399847,
+            "prompt_per_token_ms": 0.7443411949685534
+          }
+        },
+        {
+          "append_index": 3,
+          "cache_n": 9257,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9388,
+          "elapsed_seconds": 0.35642553999787197,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 391.50172290643707,
+          "fresh_tokens": 131,
+          "prompt_n": 131,
+          "prompt_tokens": 9388,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0003.sse",
+          "raw_sha256": "2bd7da16448bdb7021739f6b6138e5939385ce7e04f79d43c331a0f6135888ea",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0003.json",
+          "request_sha256": "43b160dcc5983e27b9802837ba09c1e1933c7deabc70a23af19d4d628570e7b9",
+          "source_text_sha256": "595457aa2499c5f307e6119f4b5b00b6808d32db382c1a0af8a1b41f24b78b68",
+          "timings": {
+            "cache_n": 9257,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 334.609,
+            "prompt_n": 131,
+            "prompt_per_second": 391.50172290643707,
+            "prompt_per_token_ms": 2.554267175572519
+          }
+        },
+        {
+          "append_index": 4,
+          "cache_n": 9388,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9586,
+          "elapsed_seconds": 0.3860153410350904,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 540.8476557805142,
+          "fresh_tokens": 198,
+          "prompt_n": 198,
+          "prompt_tokens": 9586,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0004.sse",
+          "raw_sha256": "88db4ff6738bffd31335652ba44de9a70254f095d9e6524590b6407fcdde24b8",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0004.json",
+          "request_sha256": "498ff9e7f8f5908c4e29f623d89046b11a82c98e59d0d83b183c2144268b5873",
+          "source_text_sha256": "65835d0df3fb3500b29961415682ef3a657e3e7cb255476b8999b5e168c645a5",
+          "timings": {
+            "cache_n": 9388,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 366.092,
+            "prompt_n": 198,
+            "prompt_per_second": 540.8476557805142,
+            "prompt_per_token_ms": 1.848949494949495
+          }
+        },
+        {
+          "append_index": 5,
+          "cache_n": 9586,
+          "completion_tokens": 1,
+          "cumulative_tokens": 11732,
+          "elapsed_seconds": 1.5041299069998786,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1448.1125613980157,
+          "fresh_tokens": 2146,
+          "prompt_n": 2146,
+          "prompt_tokens": 11732,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0005.sse",
+          "raw_sha256": "d8d2bbc19e64561e1c60fbd25d8da98c482e10e55c4204e2f12202c397c6432c",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0005.json",
+          "request_sha256": "7eb7342dab9084a43e22ef7da2d25c2984afcab63aecb2b1f1f6e1eaf9437b41",
+          "source_text_sha256": "7105db7f568d3a43dd985fedff04358ee24ef5611485ea08a2556f8a352ac650",
+          "timings": {
+            "cache_n": 9586,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1481.929,
+            "prompt_n": 2146,
+            "prompt_per_second": 1448.1125613980157,
+            "prompt_per_token_ms": 0.6905540540540541
+          }
+        },
+        {
+          "append_index": 6,
+          "cache_n": 11732,
+          "completion_tokens": 1,
+          "cumulative_tokens": 14847,
+          "elapsed_seconds": 2.1107146939611994,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1493.0817350808059,
+          "fresh_tokens": 3115,
+          "prompt_n": 3115,
+          "prompt_tokens": 14847,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0006.sse",
+          "raw_sha256": "5cdc7ae95a059f161551c73a8f3cec5bf0ba82732e462e8a8ad55c5980a6a487",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0006.json",
+          "request_sha256": "3b8106e4abde5c4e78db681d033cd23bfeaa9250d9c7a04b90017d069f598946",
+          "source_text_sha256": "c318a2567aad19a11af394f6c8f93f60d2f4db2a8c6a371c990f293fdae9228c",
+          "timings": {
+            "cache_n": 11732,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2086.289,
+            "prompt_n": 3115,
+            "prompt_per_second": 1493.0817350808059,
+            "prompt_per_token_ms": 0.66975569823435
+          }
+        },
+        {
+          "append_index": 7,
+          "cache_n": 14847,
+          "completion_tokens": 1,
+          "cumulative_tokens": 18071,
+          "elapsed_seconds": 2.244916527008172,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1453.4909932248565,
+          "fresh_tokens": 3224,
+          "prompt_n": 3224,
+          "prompt_tokens": 18071,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0007.sse",
+          "raw_sha256": "20da56c84677dcd969318b5799c979b9acd27a95caba1079af9076217ce38f16",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0007.json",
+          "request_sha256": "a1ad793ecb8504eab92eaef0511fa1338c601203d1c6d1c08985bc94dfab1c25",
+          "source_text_sha256": "67dcb3374af7c61a749d67beb7113c657495f30e52f3ccfb98bce6c1a231efa6",
+          "timings": {
+            "cache_n": 14847,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2218.108,
+            "prompt_n": 3224,
+            "prompt_per_second": 1453.4909932248565,
+            "prompt_per_token_ms": 0.6879987593052109
+          }
+        },
+        {
+          "append_index": 8,
+          "cache_n": 18071,
+          "completion_tokens": 1,
+          "cumulative_tokens": 18349,
+          "elapsed_seconds": 0.48658161802450195,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 606.9524437477348,
+          "fresh_tokens": 278,
+          "prompt_n": 278,
+          "prompt_tokens": 18349,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0008.sse",
+          "raw_sha256": "bf83360cc3af8c209b2bfdaf08cab46c8c0a7aab53353b87f119aa6141cc5900",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0008.json",
+          "request_sha256": "b564c960fc0d3d73f118bddedf37e636e67a8a1bede10b615f53f123c5803250",
+          "source_text_sha256": "60ee720a3b95eef9d4817cebc0910297f2fc021aa2b3d1307c680a0f3065625a",
+          "timings": {
+            "cache_n": 18071,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 458.026,
+            "prompt_n": 278,
+            "prompt_per_second": 606.9524437477348,
+            "prompt_per_token_ms": 1.6475755395683453
+          }
+        },
+        {
+          "append_index": 9,
+          "cache_n": 18349,
+          "completion_tokens": 1,
+          "cumulative_tokens": 18461,
+          "elapsed_seconds": 0.3712303609936498,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 327.6846737196892,
+          "fresh_tokens": 112,
+          "prompt_n": 112,
+          "prompt_tokens": 18461,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0009.sse",
+          "raw_sha256": "a0effcc909df037924f4721b241fcacf5285c2d6a92b8459050f7570d2b402e8",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0009.json",
+          "request_sha256": "6dd196ff71c48bbdeab42e20f0850f47f6a2286ccceba3d1281c59b5a506f7fa",
+          "source_text_sha256": "d6f89494a34be51bdf478b035472573c0146aee3b92406f0766dd719726cafe8",
+          "timings": {
+            "cache_n": 18349,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 341.792,
+            "prompt_n": 112,
+            "prompt_per_second": 327.6846737196892,
+            "prompt_per_token_ms": 3.0517142857142856
+          }
+        },
+        {
+          "append_index": 10,
+          "cache_n": 18461,
+          "completion_tokens": 1,
+          "cumulative_tokens": 22557,
+          "elapsed_seconds": 2.89819780603284,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1429.5765996180348,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 22557,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0010.sse",
+          "raw_sha256": "5b8da3102250bd094bad1c6d51653204e79d07d28dcab9de781da7df0f61c678",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0010.json",
+          "request_sha256": "dc5b2cd2b39b97b404f9b7439ceb4116058fc0a6a279f48df77dbc02c82dba8d",
+          "source_text_sha256": "e9ba7c1315921b543a93df544eed17b5314f9944a17abc4a00802a04e697d2e5",
+          "timings": {
+            "cache_n": 18461,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2865.184,
+            "prompt_n": 4096,
+            "prompt_per_second": 1429.5765996180348,
+            "prompt_per_token_ms": 0.6995078125
+          }
+        },
+        {
+          "append_index": 11,
+          "cache_n": 22557,
+          "completion_tokens": 1,
+          "cumulative_tokens": 26653,
+          "elapsed_seconds": 3.0683210539864376,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1347.8831882834202,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 26653,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0011.sse",
+          "raw_sha256": "f0157bc6678402e48e059d21ca5109a96c9639c7be9f1d440716063ebbdeb2d0",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0011.json",
+          "request_sha256": "ab20d5b1c76ec3f29e61c3ac4db2ea13c4036e7fb4ac04b9894ec5fca7dfa69e",
+          "source_text_sha256": "e628381763e0342c8f8e7147ae275ae4f835ef5da6d5e9860cb01600d0952b7f",
+          "timings": {
+            "cache_n": 22557,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3038.839,
+            "prompt_n": 4096,
+            "prompt_per_second": 1347.8831882834202,
+            "prompt_per_token_ms": 0.741904052734375
+          }
+        },
+        {
+          "append_index": 12,
+          "cache_n": 26653,
+          "completion_tokens": 1,
+          "cumulative_tokens": 27984,
+          "elapsed_seconds": 1.2668601190089248,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1076.080769927302,
+          "fresh_tokens": 1331,
+          "prompt_n": 1331,
+          "prompt_tokens": 27984,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0012.sse",
+          "raw_sha256": "cb494376a7223e16fb241b1cd287b95d1db1297ffab6c6cc977e8498f6ec46b1",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0012.json",
+          "request_sha256": "a62af8d60957aaa6dc302c3a3e351a66a35bd352ed3ae8eb15876287a97b66b9",
+          "source_text_sha256": "6eabadec949c520096e7ad93f489152f177ac653dfb5b162410c1d0b8d0c1c77",
+          "timings": {
+            "cache_n": 26653,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1236.896,
+            "prompt_n": 1331,
+            "prompt_per_second": 1076.080769927302,
+            "prompt_per_token_ms": 0.9292982719759579
+          }
+        },
+        {
+          "append_index": 13,
+          "cache_n": 27984,
+          "completion_tokens": 1,
+          "cumulative_tokens": 29302,
+          "elapsed_seconds": 1.286056062032003,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 1056.087204918578,
+          "fresh_tokens": 1318,
+          "prompt_n": 1318,
+          "prompt_tokens": 29302,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0013.sse",
+          "raw_sha256": "1e7fa5cfd5a63c4a3436495a5f518e836193eeb1cfd77b6c891833a37543ec2f",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0013.json",
+          "request_sha256": "66a8ad62e6761f161195980d4e027f89e030034dc64ddcf63be6678927412688",
+          "source_text_sha256": "4aaf0e53b6a416429d64cc6630c7343a25111554ff9234f1fc8859b00010d6ef",
+          "timings": {
+            "cache_n": 27984,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1248.003,
+            "prompt_n": 1318,
+            "prompt_per_second": 1056.087204918578,
+            "prompt_per_token_ms": 0.946891502276176
+          }
+        },
+        {
+          "append_index": 14,
+          "cache_n": 29302,
+          "completion_tokens": 1,
+          "cumulative_tokens": 30000,
+          "elapsed_seconds": 0.8023751419968903,
+          "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+          "fresh_prefill_tok_s": 906.901023057114,
+          "fresh_tokens": 698,
+          "prompt_n": 698,
+          "prompt_tokens": 30000,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/raw/append-0014.sse",
+          "raw_sha256": "e95370e58e66f194bf6a551920944c45880c2549fa08e279601aaa5c7fc6ca03",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/requests/append-0014.json",
+          "request_sha256": "c502d0d12d98a3e8dceb70619e4bf34ceb1c75d07754289a1ed99e7f79f69474",
+          "source_text_sha256": "355006a4354756b03e246c34f89568a38424416b3b789558febbc3491a92974d",
+          "timings": {
+            "cache_n": 29302,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 769.654,
+            "prompt_n": 698,
+            "prompt_per_second": 906.901023057114,
+            "prompt_per_token_ms": 1.1026561604584528
+          }
+        }
+      ],
+      "runtime_identity": {
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--device",
+          "CUDA0",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "32768",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-draft-kv-device",
+          "gpu",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+        "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76"
+        },
+        "target_kv": "gpu-turbo4",
+        "draft_kv": "gpu-turbo4",
+        "residency_markers": [
+          "MASTER106 native MTP draft K/V device=gpu offload_kqv=true type_k=turbo4 type_v=turbo4"
+        ],
+        "target_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "1024458752"
+          ]
+        ],
+        "draft_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "34734080"
+          ]
+        ],
+        "process_pid": 2689930,
+        "startup_log_sha256": "9e26538447786acad3ceebe11b8c906a129a1ce5661479f328b5f6685b5a356a",
+        "capture_sha256": "c9d6c5de4451b57b278f143d3bea39a21305983333f24c129da40a77dee1009a"
+      },
+      "snapshot": {
+        "fingerprint": "bb9087f1984b479f363c3830e5916cd7f85958e412d027eda0b291b1b403bc17",
+        "occupied_tokens": 30000,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state/base-bb9087f1984b479f.bin",
+        "base_sha256": "3c9111a0f6fa582689211b90860fad07514dce374f4f253dad87701adf61536e",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-bb9087f1984b479f.bin",
+          "n_saved": 30000,
+          "n_written": 978410228,
+          "timings": {
+            "save_ms": 795.692
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "dc2b5226a14a933fcbe357442e311715",
+            "generation": 1,
+            "n_tokens": 30000,
+            "chunks": 8,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 978286452,
+            "t_ms": 296.226,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-bb9087f1984b479f.bin",
+          "n_restored": 30000,
+          "n_read": 978410228,
+          "timings": {
+            "restore_ms": 467.933
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "9f0a0998af853eb862806b3a4f938d99",
+            "p": 30000,
+            "n_tokens": 30000,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 978286452,
+            "t_ms": 467.652,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d"
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000",
+        "row_summary_sha256": "9e215b9228aad595c9ecb205a4dd7da9684b6e2f47c76afb4a9fea2febdfa5e4",
+        "run_config_sha256": "1b97cb56fd7f1636c35c413ff544be22f9cf91a25882a4a547551f8d5f005b70",
+        "records_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/records.jsonl",
+        "records_sha256": "0e435ecf228564d5946b79a2b245aeb8425816748b965a6fd96f2952a7108268",
+        "source_manifest_sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d",
+        "append_schedule_sha256": "e564499f7e7f45abf0a4620215ce6250879661f06c7ebe171330b98137eed54e"
+      }
+    },
+    {
+      "label": "gpu-65536-61440",
+      "geometry": {
+        "L_tokens": 65536,
+        "C_tokens": 61440
+      },
+      "completion": {
+        "unique_cases": 48,
+        "warmups": 12,
+        "measured": 36
+      },
+      "runtime_faults": [],
+      "medians": {
+        "decode_tok_s_medians": {
+          "off": {
+            "0": 91.80035092770513,
+            "1": 74.31852490186088,
+            "2": 82.18807245044734
+          },
+          "low": {
+            "0": 86.22040188850856,
+            "1": 65.6715639333634,
+            "2": 78.1968856473438
+          },
+          "medium": {
+            "0": 86.52075258282912,
+            "1": 69.10919460594941,
+            "2": 81.0947589209316
+          },
+          "xhigh": {
+            "0": 89.14721071337405,
+            "1": 69.05993675563687,
+            "2": 77.77444242157256
+          }
+        },
+        "mtp_acceptance_percent_medians": {
+          "off": {
+            "0": 94.26229508196721,
+            "1": 67.56756756756756,
+            "2": 79.72027972027972
+          },
+          "low": {
+            "0": 90.36697247706422,
+            "1": 57.196969696969695,
+            "2": 77.31629392971246
+          },
+          "medium": {
+            "0": 86.66666666666667,
+            "1": 59.01639344262295,
+            "2": 78.13504823151125
+          },
+          "xhigh": {
+            "0": 95.51282051282051,
+            "1": 62.60623229461756,
+            "2": 76.7515923566879
+          }
+        },
+        "fresh_prefill_tok_s_medians": {
+          "off": {
+            "0": 99.05740686282097,
+            "1": 90.90054226875216,
+            "2": 94.16136747415271
+          },
+          "low": {
+            "0": 1364.0901428916584,
+            "1": 1364.3148938252777,
+            "2": 1364.5025130516135
+          },
+          "medium": {
+            "0": 95.2157270990307,
+            "1": 86.48967249244016,
+            "2": 88.5902133125779
+          },
+          "xhigh": {
+            "0": 1364.2634092075848,
+            "1": 1364.328046311694,
+            "2": 1364.6758092920245
+          }
+        }
+      },
+      "fill_curve": [
+        {
+          "append_index": 0,
+          "cache_n": 0,
+          "completion_tokens": 1,
+          "cumulative_tokens": 3890,
+          "elapsed_seconds": 2.32026589801535,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1686.9534747772268,
+          "fresh_tokens": 3890,
+          "prompt_n": 3890,
+          "prompt_tokens": 3890,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0000.sse",
+          "raw_sha256": "62d113fae46a4dce519f9a871bd0f642b740ec8ce5581399950e98e7b9caf640",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0000.json",
+          "request_sha256": "a6b40d818ac33665e5d1b9a7ec376aa3d502b23942b0cca3bcfac747ca159ca3",
+          "source_text_sha256": "a7553bbdc8435643d3eb934fc7097ab4b197ff164157a6bade8fe71a325c18a7",
+          "timings": {
+            "cache_n": 0,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.002,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2305.932,
+            "prompt_n": 3890,
+            "prompt_per_second": 1686.9534747772268,
+            "prompt_per_token_ms": 0.5927845758354755
+          }
+        },
+        {
+          "append_index": 1,
+          "cache_n": 3890,
+          "completion_tokens": 1,
+          "cumulative_tokens": 7985,
+          "elapsed_seconds": 2.473309504974168,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1667.6168757126568,
+          "fresh_tokens": 4095,
+          "prompt_n": 4095,
+          "prompt_tokens": 7985,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0001.sse",
+          "raw_sha256": "d61fc51d5a5a9441ec5141003c0743f921703264d477b96c7f43d4bee147f809",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0001.json",
+          "request_sha256": "ae8058afb4b70e210c2d19cf9807c0a324fd3bd5bc3a89e309d61986e160d2aa",
+          "source_text_sha256": "cc555bcaacdad9ec69d001109c5d8c8190f0f7d0de8c45ad8a27e4b9ae0f4fa1",
+          "timings": {
+            "cache_n": 3890,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2455.6,
+            "prompt_n": 4095,
+            "prompt_per_second": 1667.6168757126568,
+            "prompt_per_token_ms": 0.5996581196581197
+          }
+        },
+        {
+          "append_index": 2,
+          "cache_n": 7985,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9257,
+          "elapsed_seconds": 0.9665663489722647,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1341.8684040627386,
+          "fresh_tokens": 1272,
+          "prompt_n": 1272,
+          "prompt_tokens": 9257,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0002.sse",
+          "raw_sha256": "9432dfe4c02a0b86057bcdf482928021246297455cfad96778c12dbe89e2b569",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0002.json",
+          "request_sha256": "8c25fde53035cc303ce6241de51fb3afaa3bc6d096898ee75d734fc0ebd35334",
+          "source_text_sha256": "357926370b1600944412df6586f8e00d9573db66ad919e87cdaedc5321c5e53d",
+          "timings": {
+            "cache_n": 7985,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 947.932,
+            "prompt_n": 1272,
+            "prompt_per_second": 1341.8684040627386,
+            "prompt_per_token_ms": 0.7452295597484276
+          }
+        },
+        {
+          "append_index": 3,
+          "cache_n": 9257,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9388,
+          "elapsed_seconds": 0.3439855530159548,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 395.67237119505137,
+          "fresh_tokens": 131,
+          "prompt_n": 131,
+          "prompt_tokens": 9388,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0003.sse",
+          "raw_sha256": "cc9f103733beb261c6497cf6d34390462f3e595cff26f818b400cf1c7a95c103",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0003.json",
+          "request_sha256": "43b160dcc5983e27b9802837ba09c1e1933c7deabc70a23af19d4d628570e7b9",
+          "source_text_sha256": "595457aa2499c5f307e6119f4b5b00b6808d32db382c1a0af8a1b41f24b78b68",
+          "timings": {
+            "cache_n": 9257,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 331.082,
+            "prompt_n": 131,
+            "prompt_per_second": 395.67237119505137,
+            "prompt_per_token_ms": 2.5273435114503817
+          }
+        },
+        {
+          "append_index": 4,
+          "cache_n": 9388,
+          "completion_tokens": 1,
+          "cumulative_tokens": 9586,
+          "elapsed_seconds": 0.39047580503392965,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 534.4663299708742,
+          "fresh_tokens": 198,
+          "prompt_n": 198,
+          "prompt_tokens": 9586,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0004.sse",
+          "raw_sha256": "6a06a3cf70d8a92d4544ff42eb8ebe72b8d4f01ef70ce64bfcbd01c7b52e0530",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0004.json",
+          "request_sha256": "498ff9e7f8f5908c4e29f623d89046b11a82c98e59d0d83b183c2144268b5873",
+          "source_text_sha256": "65835d0df3fb3500b29961415682ef3a657e3e7cb255476b8999b5e168c645a5",
+          "timings": {
+            "cache_n": 9388,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 370.463,
+            "prompt_n": 198,
+            "prompt_per_second": 534.4663299708742,
+            "prompt_per_token_ms": 1.8710252525252526
+          }
+        },
+        {
+          "append_index": 5,
+          "cache_n": 9586,
+          "completion_tokens": 1,
+          "cumulative_tokens": 11732,
+          "elapsed_seconds": 1.504204417055007,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1441.8234968855672,
+          "fresh_tokens": 2146,
+          "prompt_n": 2146,
+          "prompt_tokens": 11732,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0005.sse",
+          "raw_sha256": "8468e52c1caa771051f924ff2017cb273a4c4f04e40f4b2b3e3ede73288fe95c",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0005.json",
+          "request_sha256": "7eb7342dab9084a43e22ef7da2d25c2984afcab63aecb2b1f1f6e1eaf9437b41",
+          "source_text_sha256": "7105db7f568d3a43dd985fedff04358ee24ef5611485ea08a2556f8a352ac650",
+          "timings": {
+            "cache_n": 9586,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1488.393,
+            "prompt_n": 2146,
+            "prompt_per_second": 1441.8234968855672,
+            "prompt_per_token_ms": 0.6935661696178937
+          }
+        },
+        {
+          "append_index": 6,
+          "cache_n": 11732,
+          "completion_tokens": 1,
+          "cumulative_tokens": 14847,
+          "elapsed_seconds": 2.110925740969833,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1493.1955343147358,
+          "fresh_tokens": 3115,
+          "prompt_n": 3115,
+          "prompt_tokens": 14847,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0006.sse",
+          "raw_sha256": "35b03a60d410a54bea27e26003a78b7cf74f7834f5145770a915278d6bc7a188",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0006.json",
+          "request_sha256": "3b8106e4abde5c4e78db681d033cd23bfeaa9250d9c7a04b90017d069f598946",
+          "source_text_sha256": "c318a2567aad19a11af394f6c8f93f60d2f4db2a8c6a371c990f293fdae9228c",
+          "timings": {
+            "cache_n": 11732,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2086.13,
+            "prompt_n": 3115,
+            "prompt_per_second": 1493.1955343147358,
+            "prompt_per_token_ms": 0.6697046548956662
+          }
+        },
+        {
+          "append_index": 7,
+          "cache_n": 14847,
+          "completion_tokens": 1,
+          "cumulative_tokens": 18071,
+          "elapsed_seconds": 2.253702692047227,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1448.7843063945134,
+          "fresh_tokens": 3224,
+          "prompt_n": 3224,
+          "prompt_tokens": 18071,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0007.sse",
+          "raw_sha256": "731e95e7c7b34060f9ffd99a7873c9a2a7b97f7a9a29f9ce04c7d56934d97bc0",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0007.json",
+          "request_sha256": "a1ad793ecb8504eab92eaef0511fa1338c601203d1c6d1c08985bc94dfab1c25",
+          "source_text_sha256": "67dcb3374af7c61a749d67beb7113c657495f30e52f3ccfb98bce6c1a231efa6",
+          "timings": {
+            "cache_n": 14847,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2225.314,
+            "prompt_n": 3224,
+            "prompt_per_second": 1448.7843063945134,
+            "prompt_per_token_ms": 0.6902338709677419
+          }
+        },
+        {
+          "append_index": 8,
+          "cache_n": 18071,
+          "completion_tokens": 1,
+          "cumulative_tokens": 18349,
+          "elapsed_seconds": 0.48429850599495694,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 609.4793774540863,
+          "fresh_tokens": 278,
+          "prompt_n": 278,
+          "prompt_tokens": 18349,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0008.sse",
+          "raw_sha256": "0b65ba2f8d560ac45091f26c6b0ea797de660d9bf3ae6a1f36a928f3d3c9ef89",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0008.json",
+          "request_sha256": "b564c960fc0d3d73f118bddedf37e636e67a8a1bede10b615f53f123c5803250",
+          "source_text_sha256": "60ee720a3b95eef9d4817cebc0910297f2fc021aa2b3d1307c680a0f3065625a",
+          "timings": {
+            "cache_n": 18071,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 456.127,
+            "prompt_n": 278,
+            "prompt_per_second": 609.4793774540863,
+            "prompt_per_token_ms": 1.6407446043165468
+          }
+        },
+        {
+          "append_index": 9,
+          "cache_n": 18349,
+          "completion_tokens": 1,
+          "cumulative_tokens": 18461,
+          "elapsed_seconds": 0.3699112129979767,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 328.2032046698627,
+          "fresh_tokens": 112,
+          "prompt_n": 112,
+          "prompt_tokens": 18461,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0009.sse",
+          "raw_sha256": "d6c00ae7772091910bcbbd6d519f8efa5a37533b4359afcb0e74e6838fc5a011",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0009.json",
+          "request_sha256": "6dd196ff71c48bbdeab42e20f0850f47f6a2286ccceba3d1281c59b5a506f7fa",
+          "source_text_sha256": "d6f89494a34be51bdf478b035472573c0146aee3b92406f0766dd719726cafe8",
+          "timings": {
+            "cache_n": 18349,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 341.252,
+            "prompt_n": 112,
+            "prompt_per_second": 328.2032046698627,
+            "prompt_per_token_ms": 3.0468928571428573
+          }
+        },
+        {
+          "append_index": 10,
+          "cache_n": 18461,
+          "completion_tokens": 1,
+          "cumulative_tokens": 22557,
+          "elapsed_seconds": 2.8961564330384135,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1430.26997393319,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 22557,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0010.sse",
+          "raw_sha256": "36f08e3eccb3833b7c9e14b177c5a60388cf96cd5da0c8f885a052fb948f1374",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0010.json",
+          "request_sha256": "dc5b2cd2b39b97b404f9b7439ceb4116058fc0a6a279f48df77dbc02c82dba8d",
+          "source_text_sha256": "e9ba7c1315921b543a93df544eed17b5314f9944a17abc4a00802a04e697d2e5",
+          "timings": {
+            "cache_n": 18461,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2863.795,
+            "prompt_n": 4096,
+            "prompt_per_second": 1430.26997393319,
+            "prompt_per_token_ms": 0.699168701171875
+          }
+        },
+        {
+          "append_index": 11,
+          "cache_n": 22557,
+          "completion_tokens": 1,
+          "cumulative_tokens": 26653,
+          "elapsed_seconds": 3.067038035020232,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1348.3486350274377,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 26653,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0011.sse",
+          "raw_sha256": "2395078ba8486a3c75ce5caaa3e507946d4e4c8e1691283cc47c0c7de6d588b8",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0011.json",
+          "request_sha256": "ab20d5b1c76ec3f29e61c3ac4db2ea13c4036e7fb4ac04b9894ec5fca7dfa69e",
+          "source_text_sha256": "e628381763e0342c8f8e7147ae275ae4f835ef5da6d5e9860cb01600d0952b7f",
+          "timings": {
+            "cache_n": 22557,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3037.79,
+            "prompt_n": 4096,
+            "prompt_per_second": 1348.3486350274377,
+            "prompt_per_token_ms": 0.74164794921875
+          }
+        },
+        {
+          "append_index": 12,
+          "cache_n": 26653,
+          "completion_tokens": 1,
+          "cumulative_tokens": 27984,
+          "elapsed_seconds": 1.2783073600148782,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1072.4625302863901,
+          "fresh_tokens": 1331,
+          "prompt_n": 1331,
+          "prompt_tokens": 27984,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0012.sse",
+          "raw_sha256": "a2e17261f95d035ef1eded429bae0e62bf46fa24cdabad2d04abca024f0a7f91",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0012.json",
+          "request_sha256": "a62af8d60957aaa6dc302c3a3e351a66a35bd352ed3ae8eb15876287a97b66b9",
+          "source_text_sha256": "6eabadec949c520096e7ad93f489152f177ac653dfb5b162410c1d0b8d0c1c77",
+          "timings": {
+            "cache_n": 26653,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1241.069,
+            "prompt_n": 1331,
+            "prompt_per_second": 1072.4625302863901,
+            "prompt_per_token_ms": 0.9324335086401202
+          }
+        },
+        {
+          "append_index": 13,
+          "cache_n": 27984,
+          "completion_tokens": 1,
+          "cumulative_tokens": 29302,
+          "elapsed_seconds": 1.2870971029624343,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1055.479967102339,
+          "fresh_tokens": 1318,
+          "prompt_n": 1318,
+          "prompt_tokens": 29302,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0013.sse",
+          "raw_sha256": "2aa65f63443a1bee8a07a2a6653266cd0fe6668b41dd01990beb391bfa14f86a",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0013.json",
+          "request_sha256": "66a8ad62e6761f161195980d4e027f89e030034dc64ddcf63be6678927412688",
+          "source_text_sha256": "4aaf0e53b6a416429d64cc6630c7343a25111554ff9234f1fc8859b00010d6ef",
+          "timings": {
+            "cache_n": 27984,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1248.721,
+            "prompt_n": 1318,
+            "prompt_per_second": 1055.479967102339,
+            "prompt_per_token_ms": 0.9474362670713202
+          }
+        },
+        {
+          "append_index": 14,
+          "cache_n": 29302,
+          "completion_tokens": 1,
+          "cumulative_tokens": 30984,
+          "elapsed_seconds": 1.5248162090429105,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1136.2584670508688,
+          "fresh_tokens": 1682,
+          "prompt_n": 1682,
+          "prompt_tokens": 30984,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0014.sse",
+          "raw_sha256": "80b2b4a649cb21749c812e2936e90537621a1ff64eb3b5af61669b67b1bb3b21",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0014.json",
+          "request_sha256": "022a634aab558c64bc5cdce9330553b6fa08ce177be189c4c2596db9c3356e04",
+          "source_text_sha256": "e4dd717f353387f8b15a35d7db0a81da5b3e746f0e5d4280225badf97ac2c8b0",
+          "timings": {
+            "cache_n": 29302,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1480.297,
+            "prompt_n": 1682,
+            "prompt_per_second": 1136.2584670508688,
+            "prompt_per_token_ms": 0.8800814506539834
+          }
+        },
+        {
+          "append_index": 15,
+          "cache_n": 30984,
+          "completion_tokens": 1,
+          "cumulative_tokens": 35080,
+          "elapsed_seconds": 3.3657431509927846,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1232.6048045105633,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 35080,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0015.sse",
+          "raw_sha256": "5bece073c4f342ae820032c53a6ca615f952c4b355a4e3d52097156c154f442e",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0015.json",
+          "request_sha256": "b379d760dae0d06c139166db6beca7af56b2e96d9caed890fac8741692e0bd75",
+          "source_text_sha256": "b454bb1ac823d6223ccb2d1f8cddf317cbe5ef0855fd076d722be87c43e535de",
+          "timings": {
+            "cache_n": 30984,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3323.044,
+            "prompt_n": 4096,
+            "prompt_per_second": 1232.6048045105633,
+            "prompt_per_token_ms": 0.8112900390625
+          }
+        },
+        {
+          "append_index": 16,
+          "cache_n": 35080,
+          "completion_tokens": 1,
+          "cumulative_tokens": 39176,
+          "elapsed_seconds": 3.492356352042407,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1189.7666128715553,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 39176,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0016.sse",
+          "raw_sha256": "cd1739c792e040f362680056f1bb708ba1e50c567b45bd82c041411b8bffccb9",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0016.json",
+          "request_sha256": "20a23f88f28425e4efed75c3c87f82523dcd8df41075778d63ffaebd024243cd",
+          "source_text_sha256": "c26b42aa74f3edf05533d339988582ef14400cc2500e733a11d412261b1b12c0",
+          "timings": {
+            "cache_n": 35080,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3442.692,
+            "prompt_n": 4096,
+            "prompt_per_second": 1189.7666128715553,
+            "prompt_per_token_ms": 0.8405009765625
+          }
+        },
+        {
+          "append_index": 17,
+          "cache_n": 39176,
+          "completion_tokens": 1,
+          "cumulative_tokens": 41953,
+          "elapsed_seconds": 2.5754090509726666,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1096.0519632039134,
+          "fresh_tokens": 2777,
+          "prompt_n": 2777,
+          "prompt_tokens": 41953,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0017.sse",
+          "raw_sha256": "132866087021507df82220faeb69471e7eb2fc548820497af508090bcb1f0659",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0017.json",
+          "request_sha256": "e1e45ac9dc0dfa5a77056d01a5242c1a5ebc0a43dd9fa66896428a903ed2f507",
+          "source_text_sha256": "04d15e395791878856861a11e664e1a7b3f28d73a137f02723119dccfbd59e1a",
+          "timings": {
+            "cache_n": 39176,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2533.639,
+            "prompt_n": 2777,
+            "prompt_per_second": 1096.0519632039134,
+            "prompt_per_token_ms": 0.9123655023406554
+          }
+        },
+        {
+          "append_index": 18,
+          "cache_n": 41953,
+          "completion_tokens": 1,
+          "cumulative_tokens": 45243,
+          "elapsed_seconds": 3.0705752900103107,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1089.2214748124984,
+          "fresh_tokens": 3290,
+          "prompt_n": 3290,
+          "prompt_tokens": 45243,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0018.sse",
+          "raw_sha256": "475dcd72325b9eb69e9c89637fbc7ad161e809f8e79d692b00788d5f87b38950",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0018.json",
+          "request_sha256": "5e4e9566c4c72ad368a7247a497c07c5fc2aed7cee51353a89eebbd6245d122a",
+          "source_text_sha256": "1b2ed37fcaff1c6022a6200e4e9f3417e27e356614b38ae695b66234a96f83d7",
+          "timings": {
+            "cache_n": 41953,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3020.506,
+            "prompt_n": 3290,
+            "prompt_per_second": 1089.2214748124984,
+            "prompt_per_token_ms": 0.9180869300911854
+          }
+        },
+        {
+          "append_index": 19,
+          "cache_n": 45243,
+          "completion_tokens": 1,
+          "cumulative_tokens": 49339,
+          "elapsed_seconds": 3.8104192960308865,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1091.6649409512142,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 49339,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0019.sse",
+          "raw_sha256": "415628ffcbc2f77cd7892e188ba093378602f5bfd6e6338f9bcef1cb21c70fc1",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0019.json",
+          "request_sha256": "e4190931875623e0c7f6f014bed262e1c8c74be691f2cac8aa5f5c60c60abd7e",
+          "source_text_sha256": "63f28641166d2191d393489fc3d3c59d273da9e7845c147707b67957070f4972",
+          "timings": {
+            "cache_n": 45243,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3752.067,
+            "prompt_n": 4096,
+            "prompt_per_second": 1091.6649409512142,
+            "prompt_per_token_ms": 0.916031982421875
+          }
+        },
+        {
+          "append_index": 20,
+          "cache_n": 49339,
+          "completion_tokens": 1,
+          "cumulative_tokens": 53435,
+          "elapsed_seconds": 3.9401511419564486,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1054.4249033744172,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 53435,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0020.sse",
+          "raw_sha256": "21b79eeda886101e892cb82e2bd47c50fc80e743e14dcff65e86a5c84b541650",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0020.json",
+          "request_sha256": "4b2c031916b0654bd5e66a26d54ff4c82dd527889e27c0d1fb9adc4dae3c63d1",
+          "source_text_sha256": "62c1506c497e6a625e3bc643b4ec7cde11dfaeb90ea5669033f317a0057e509a",
+          "timings": {
+            "cache_n": 49339,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 3884.582,
+            "prompt_n": 4096,
+            "prompt_per_second": 1054.4249033744172,
+            "prompt_per_token_ms": 0.94838427734375
+          }
+        },
+        {
+          "append_index": 21,
+          "cache_n": 53435,
+          "completion_tokens": 1,
+          "cumulative_tokens": 55661,
+          "elapsed_seconds": 2.3796303950366564,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 956.3655017567738,
+          "fresh_tokens": 2226,
+          "prompt_n": 2226,
+          "prompt_tokens": 55661,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0021.sse",
+          "raw_sha256": "45303565509b1d4439d572a28031cb68d05735e5091295b7649de1fe3a60b446",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0021.json",
+          "request_sha256": "6581cbb11a2fb9c1b28551c3181b7f1dba6c14811379bf7082b84dc15d488eae",
+          "source_text_sha256": "52d9d8d46d25bdb766b7c4c4be9dbe445b9431e0325dca32f98b75501c7b2984",
+          "timings": {
+            "cache_n": 53435,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 2327.562,
+            "prompt_n": 2226,
+            "prompt_per_second": 956.3655017567738,
+            "prompt_per_token_ms": 1.0456253369272237
+          }
+        },
+        {
+          "append_index": 22,
+          "cache_n": 55661,
+          "completion_tokens": 1,
+          "cumulative_tokens": 59757,
+          "elapsed_seconds": 4.13872694602469,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 1004.7327425622549,
+          "fresh_tokens": 4096,
+          "prompt_n": 4096,
+          "prompt_tokens": 59757,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0022.sse",
+          "raw_sha256": "022cf2bb98e07e6330cde457ecbfd72c44b78a8903e7b5e833898bfa23af9add",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0022.json",
+          "request_sha256": "36289fea6e8e6d0890f4f760acdb48c0e3303d5d05351b0e5f0ebc810073dce6",
+          "source_text_sha256": "ed2c2bab71a09e5da1be56b3d817354f81e4f67b9851c897bc2bd4e4342a2a69",
+          "timings": {
+            "cache_n": 55661,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 4076.706,
+            "prompt_n": 4096,
+            "prompt_per_second": 1004.7327425622549,
+            "prompt_per_token_ms": 0.99528955078125
+          }
+        },
+        {
+          "append_index": 23,
+          "cache_n": 59757,
+          "completion_tokens": 1,
+          "cumulative_tokens": 60752,
+          "elapsed_seconds": 1.3337527730036527,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 784.0146118260922,
+          "fresh_tokens": 995,
+          "prompt_n": 995,
+          "prompt_tokens": 60752,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0023.sse",
+          "raw_sha256": "44685b3f634501a815f904ab975161b76d51351027b9e2d031fb3d0d914d5ac2",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0023.json",
+          "request_sha256": "31d754957454fd07733baa27da92d47c895212a71baaf5780126714ed723c488",
+          "source_text_sha256": "b499141500b3e41b5c1d0e2b131f85e64cd51646f97eeb8783229ef004d0bc6d",
+          "timings": {
+            "cache_n": 59757,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1269.109,
+            "prompt_n": 995,
+            "prompt_per_second": 784.0146118260922,
+            "prompt_per_token_ms": 1.275486432160804
+          }
+        },
+        {
+          "append_index": 24,
+          "cache_n": 60752,
+          "completion_tokens": 1,
+          "cumulative_tokens": 61438,
+          "elapsed_seconds": 1.0829136229585856,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 672.3690620059533,
+          "fresh_tokens": 686,
+          "prompt_n": 686,
+          "prompt_tokens": 61438,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0024.sse",
+          "raw_sha256": "a745c0d7a48bd1b89c9567409f19c647ec431f5a63df1790b76328d0fc722c67",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0024.json",
+          "request_sha256": "216658ab0447494753ba06a1122120e76a4a9649e54e2348e5ac5e5860faca3e",
+          "source_text_sha256": "4c3d34b61daa5ef4130a26b131345174505e928847395a5fdf878ed07f6b8294",
+          "timings": {
+            "cache_n": 60752,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 1020.273,
+            "prompt_n": 686,
+            "prompt_per_second": 672.3690620059533,
+            "prompt_per_token_ms": 1.4872784256559768
+          }
+        },
+        {
+          "append_index": 25,
+          "cache_n": 61438,
+          "completion_tokens": 1,
+          "cumulative_tokens": 61440,
+          "elapsed_seconds": 0.2119775169994682,
+          "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+          "fresh_prefill_tok_s": 13.498646760662243,
+          "fresh_tokens": 2,
+          "prompt_n": 2,
+          "prompt_tokens": 61440,
+          "raw_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/raw/append-0025.sse",
+          "raw_sha256": "a2443f7ce87cb94e2077b25080e8bf4a20f1092adc25bf8fe65a041e4889a4b5",
+          "request_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/requests/append-0025.json",
+          "request_sha256": "93db09cae1d22f0294711c3aeab3d922416875441128d2eecac529fa6fbe8ed5",
+          "source_text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "tail_rewrite": true,
+          "timings": {
+            "cache_n": 61438,
+            "kv_bpv": 4.125,
+            "predicted_ms": 0.001,
+            "predicted_n": 1,
+            "predicted_per_second": 0.0,
+            "predicted_per_token_ms": 0.0,
+            "prompt_ms": 148.163,
+            "prompt_n": 2,
+            "prompt_per_second": 13.498646760662243,
+            "prompt_per_token_ms": 74.0815
+          }
+        }
+      ],
+      "runtime_identity": {
+        "argv": [
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+          "-m",
+          "/srv/ai/models/text/current.gguf",
+          "--alias",
+          "qwen38-fast-turbo4-mtp",
+          "-ngl",
+          "999",
+          "--device",
+          "CUDA0",
+          "--fit",
+          "off",
+          "-fa",
+          "on",
+          "-c",
+          "65536",
+          "-np",
+          "1",
+          "-ctk",
+          "turbo4",
+          "-ctv",
+          "turbo4",
+          "-b",
+          "1024",
+          "-ub",
+          "256",
+          "--poll",
+          "0",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8080",
+          "--api-key-file",
+          "/srv/ai/config/llama/api-keys",
+          "--metrics",
+          "--reasoning-preserve",
+          "--no-context-shift",
+          "--cache-ram",
+          "12288",
+          "--ctx-checkpoints",
+          "8",
+          "--checkpoint-min-step",
+          "8192",
+          "--slot-save-path",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state",
+          "--cache-idle-slots",
+          "--kv-unified",
+          "--spec-draft-kv-device",
+          "gpu",
+          "--spec-type",
+          "draft-mtp",
+          "--spec-draft-n-max",
+          "2",
+          "--spec-draft-type-k",
+          "turbo4",
+          "--spec-draft-type-v",
+          "turbo4"
+        ],
+        "executable": "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/llama-server",
+        "executable_sha256": "5e6055febf59618df1d24692ab7392aff66bd36a1e71bcdec33d8ec76ac5ded8",
+        "loaded_project_dsos": {
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cuda.so.0.26.0": "7693b95f1c5bd007643a85d587a7c41a31b4597688502f08f6280a04607f8903",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-cpu.so.0.26.0": "a3973694a7eb13fd37c1e5f4f308e2b686929ae794a77135139a05f7168cb9e6",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml-base.so.0.26.0": "a439532b707c4523f827e9a860f79549dda35409184ec9571590816781cbebdf",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama.so.0.6.0": "26ced2d8f30ba427cd6188d0043daa08a7e2c99e4e6113a1b31f5eabbd9902eb",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-common.so.0.6.0": "e3b8903a3ed66180cf4c94b1f2dd35d2ad2ac1ab2d178b10969e610fb61563f9",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libmtmd.so.0.6.0": "dbd436f1aa607396b3abe44a55fdc6cf855255e671ae34d7ce7c7c2a20a888f0",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libllama-server-impl.so": "31810c6799530853430d928977272c8b5a15147551ed9eaae7f1b40b288a26b2",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013/bin/libggml.so.0.26.0": "d8b351a4794b455f45fbab20e7096308c99b46cb39b3c3838efad1fe15196e76"
+        },
+        "target_kv": "gpu-turbo4",
+        "draft_kv": "gpu-turbo4",
+        "residency_markers": [
+          "MASTER106 native MTP draft K/V device=gpu offload_kqv=true type_k=turbo4 type_v=turbo4"
+        ],
+        "target_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "1578106880"
+          ]
+        ],
+        "draft_residency_rows": [
+          [
+            "CUDA0",
+            "false",
+            "69337088"
+          ]
+        ],
+        "process_pid": 2700516,
+        "startup_log_sha256": "18ff64352b4f7d1fbf1ced48278fd91f74357aa0e9e7f481ab909f73fa5c0799",
+        "capture_sha256": "5e59f370302a651f3de84b2ea87bcbf660174c1ce12cfe2d86d7a787658d1f90"
+      },
+      "snapshot": {
+        "fingerprint": "fd7142849763cf07cefb084d1ce7995ab5f16883d4b596aecc054bf5a892127d",
+        "occupied_tokens": 61440,
+        "base_file": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/slot-state/base-fd7142849763cf07.bin",
+        "base_sha256": "c2e74e82de80f3edb7e5070fa0289f85c3acdb7649190df8dcafc63e6a46e979",
+        "save": {
+          "id_slot": 0,
+          "filename": "base-fd7142849763cf07.bin",
+          "n_saved": 61440,
+          "n_written": 1510505386,
+          "timings": {
+            "save_ms": 1207.489
+          },
+          "resume": {
+            "outcome": "saved",
+            "entry": "5541311453b5ed75ec1426bb64d79a91",
+            "generation": 1,
+            "n_tokens": 61440,
+            "chunks": 15,
+            "chunks_kept": 0,
+            "tail_states": 3,
+            "bytes_written": 1510254192,
+            "t_ms": 437.825,
+            "event": "slot_file_save",
+            "slot": 0
+          }
+        },
+        "restore": {
+          "id_slot": 0,
+          "filename": "base-fd7142849763cf07.bin",
+          "n_restored": 61440,
+          "n_read": 1510505386,
+          "timings": {
+            "restore_ms": 587.435
+          },
+          "resume": {
+            "outcome": "installed_full",
+            "entry": "5aeb4ae807e8b1201d3b488057decda9",
+            "p": 61440,
+            "n_tokens": 61440,
+            "checkpoints": 2,
+            "checkpoints_dropped": 0,
+            "bytes_read": 1510254192,
+            "t_ms": 587.063,
+            "slot": 0
+          }
+        },
+        "source_manifest_sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024"
+      },
+      "raw": {
+        "row_directory": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440",
+        "row_summary_sha256": "928a037c0698bc791f86d4a8af5fe6031c26fa908c2f83cbad36e34cf04c874b",
+        "run_config_sha256": "a9e7fcdf8341c4ec5b5d690b5f93196792d8d64286fcc66e4f7a2b8c710232a4",
+        "records_path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/records.jsonl",
+        "records_sha256": "1c982363124a47065fe62e296013b7a45b651ccf7bc2c1ab8fb5ffd8217bd54a",
+        "source_manifest_sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024",
+        "append_schedule_sha256": "1f0a0a1b871fc40f661870b581a4e2efac903e182038a9bcfb3b4ba02b625b42"
+      }
+    }
+  ],
+  "freeze_json_sha256": "e875ec283b18f8d43c08844cb77be83310ab5bbcc1dba7f6d546f8633874f772",
+  "original_master_freeze_sha256": "25f5493519030155b4f61124d5fc8cf9d9f26167fd9dfd81db7d9cd7659afbb5",
+  "original_master_gpu_json_sha256": "24ff919b52c9d74f2685fee17f24cea97ba68c3bf09b60f5051a798fc313b414",
+  "paired_patched_gpu_json_sha256": null
+}

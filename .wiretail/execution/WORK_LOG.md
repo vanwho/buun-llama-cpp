@@ -2729,3 +2729,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-106-02`
 - Commit at update: `9308ff6bd`
 - Summary: Automatic blocker-recovery attempt 2/3; previous blocker: Frozen master has only process-global KV offload; exact required CPU-F16 target/GPU-Turbo4 draft placement is impossible without a new frozen candidate or protocol amendment. Recovery attempt 2 verified this in CLI, startup log, and frozen source.
+
+## 2026-10-13T09:42:57+00:00 — 106-02 — done
+
+- Branch: `codex/task-106-02`
+- Commit at update: `60b059187`
+- Summary: Completed same-binary GPU and CPU-F16 context matrices through 128K; all 11 rows passed 48/48, receipts and state validation pass, managed service restored healthy.

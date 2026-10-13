@@ -1,0 +1,483 @@
+{
+  "schema_version": 1,
+  "task": "106-02",
+  "source_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+  "checks": {
+    "same_master_cpu_kv_context_speed_curves_including_128k": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/build-master106-cohort-report.py",
+        "--gpu-json",
+        ".wiretail/execution/evidence/MASTER106_PATCHED_GPU.json",
+        "--cpu-json",
+        ".wiretail/execution/evidence/MASTER106_CPU.json",
+        "--freeze-json",
+        ".wiretail/execution/evidence/MASTER106_PATCHED_FREEZE.json",
+        "--output-json",
+        ".wiretail/execution/evidence/MASTER106_COHORT.json",
+        "--output-md",
+        ".wiretail/execution/evidence/MASTER106_COHORT.md"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_FREEZE.json",
+          "sha256": "25f5493519030155b4f61124d5fc8cf9d9f26167fd9dfd81db7d9cd7659afbb5"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_FREEZE.md",
+          "sha256": "bdc53ec751b3029f8b2e56b00301f1dc62b75dfe414a2a680943aa88e56f5fbf"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_GPU.json",
+          "sha256": "24ff919b52c9d74f2685fee17f24cea97ba68c3bf09b60f5051a798fc313b414"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_GPU.md",
+          "sha256": "83898dcf70d442d1d77c2cea8224182bf56e83be9893ef223998466fb492b901"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_PATCHED_FREEZE.json",
+          "sha256": "e875ec283b18f8d43c08844cb77be83310ab5bbcc1dba7f6d546f8633874f772"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_PATCHED_FREEZE.md",
+          "sha256": "af5fac1b5899412eec2bf4c7ef820c23403472d7efd555287c355d8757a72e67"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_PATCHED_GPU.json",
+          "sha256": "8b079c5d65898b857ef67f394fb6958bd38ac7f93db20e6c1c11fff202eb82e3"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_PATCHED_GPU.md",
+          "sha256": "751039601dc2625360c896c2b1a3ebd548e89c836dac52432173a81a556fe628"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_CPU.json",
+          "sha256": "e40a6a911a041b01c4bfa5272cfeeadac8e97267e1f78ab52c2f8a72d0e2746c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_CPU.md",
+          "sha256": "6f099e224a0b8bfc50c5f59351590a37c1229ebead077208943645c990284a50"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_COHORT.json",
+          "sha256": "9d26556e9f3b1a2297c1c1d32d152ae48721dab22af57f602feb35e5afe8b0b2"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/MASTER106_COHORT.md",
+          "sha256": "baf923a1b288a1b71d617865b6d4aa17835465a55218a190fecb037b47a19aef"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/master106-draftkv-20261013.patch",
+          "sha256": "4caf807505c4a34cc6e0ce0d21fc8b81f79b4906359f7f08a961543e45f94937"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-build-residency-logging.log",
+          "sha256": "8b2e903f1724619083a504fd6fbb9f416e55939a13201be309327b68f3c6d557"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-build-final.log",
+          "sha256": "15f65af09e290c9500205316a178a72e8eaf8d62f864eee1c71bf9e2ec062046"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-placement-parser-test.log",
+          "sha256": "ddc92516f2c7a640bf17e6ad9f67ab12f975fe20626d9dc37c34456b8a083774"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-placement-parser-residency.log",
+          "sha256": "f957cb9e0691e363999cb77d336e2ac9ddc595cf5f9f9e8da89187fb3f7678c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-helper-tests-prefix-closure.log",
+          "sha256": "d63e8a17f3894b19210a00b21e5403ef6f1d1c7ef0062beff620739682ba5af3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-pycompile-prefix-closure.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-gpu-report-rebound.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-cpu-report.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-combined-report.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-lifecycle-gpu-01.jsonl",
+          "sha256": "633afb32fa9ddf42f8a3f1d1d159df283e3dabd23ff5878b5bc69d3566fb045c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-lifecycle-cpu-07.jsonl",
+          "sha256": "daaea157be0f0729bcf9f7ea9d12eea41d1aa7b5a666f74bff9c1e60015d91e3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-run-cohort.py",
+          "sha256": "9a9251376a53d8747ff45c14eb8867b0fc834fb724b63c76fb51e8bbd24b1e41"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-cpu-prefix-closure-resume.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/raw/attempt3-cpu-resume.log",
+          "sha256": "92494988facb8eeffb690669e9db13e45ab74ad4bc3ffe581ed848caf62f10c5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824/row.json",
+          "sha256": "11665932e5bc40a36a0af7f811c555027aabcdecc4cf8a4d1ace226bcf5b615c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824/records.jsonl",
+          "sha256": "6e062a140f4f253c805c2639458a8bb2e514a5d0e83592badd0ad1ea179da4d3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824/run-config.json",
+          "sha256": "f2721861d91705c192797a575a9b08f52b59f94d1ea74aa743348f5311e7536a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-77824/driver-output.log",
+          "sha256": "11665932e5bc40a36a0af7f811c555027aabcdecc4cf8a4d1ace226bcf5b615c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/row.json",
+          "sha256": "eca91a7b55023b81e53fad6788416e070b40e6d2506c989859b2181454fdd4c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/records.jsonl",
+          "sha256": "3d14229a984c770da71a1f18849452ddc1efa21361972e19c1875c7f1786da69"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/run-config.json",
+          "sha256": "33e370573d2286f4cea8b9c6de348027a83d7d955392e40663b01c6ba65b937b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/schedule.jsonl",
+          "sha256": "4a4c595c5ac20a343af10ea7ab85474656a498cfddab5bd38fd7df32979928a6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/source-manifest.json",
+          "sha256": "11a77cbf000c97bfe148fd874c62872873364939de3612e0b8acc917df64bd0a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-8192-6144/driver-output.log",
+          "sha256": "eca91a7b55023b81e53fad6788416e070b40e6d2506c989859b2181454fdd4c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/row.json",
+          "sha256": "a1e0568be69e92cf64715e037289741191e35820ccfc226bc7ca4dd84689c3cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/records.jsonl",
+          "sha256": "63d33817a1da77828477d9e755294af2750c0063966a01ecff06c78c0948a9fc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/run-config.json",
+          "sha256": "8599a9f1c9c77a1f062fa435a5178ddbb3225f01b61f38be72fe6ae88f161fc8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/schedule.jsonl",
+          "sha256": "c2c335e92b7bebf9e20e134a94f7d0b6acc555f55aee1b64e8b86a0343a13b37"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/source-manifest.json",
+          "sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-16384-14336/driver-output.log",
+          "sha256": "a1e0568be69e92cf64715e037289741191e35820ccfc226bc7ca4dd84689c3cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/row.json",
+          "sha256": "9e215b9228aad595c9ecb205a4dd7da9684b6e2f47c76afb4a9fea2febdfa5e4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/records.jsonl",
+          "sha256": "0e435ecf228564d5946b79a2b245aeb8425816748b965a6fd96f2952a7108268"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/run-config.json",
+          "sha256": "1b97cb56fd7f1636c35c413ff544be22f9cf91a25882a4a547551f8d5f005b70"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/schedule.jsonl",
+          "sha256": "e564499f7e7f45abf0a4620215ce6250879661f06c7ebe171330b98137eed54e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/source-manifest.json",
+          "sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-32768-30000/driver-output.log",
+          "sha256": "9e215b9228aad595c9ecb205a4dd7da9684b6e2f47c76afb4a9fea2febdfa5e4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/row.json",
+          "sha256": "928a037c0698bc791f86d4a8af5fe6031c26fa908c2f83cbad36e34cf04c874b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/records.jsonl",
+          "sha256": "1c982363124a47065fe62e296013b7a45b651ccf7bc2c1ab8fb5ffd8217bd54a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/run-config.json",
+          "sha256": "a9e7fcdf8341c4ec5b5d690b5f93196792d8d64286fcc66e4f7a2b8c710232a4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/schedule.jsonl",
+          "sha256": "1f0a0a1b871fc40f661870b581a4e2efac903e182038a9bcfb3b4ba02b625b42"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/source-manifest.json",
+          "sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu/gpu-65536-61440/driver-output.log",
+          "sha256": "928a037c0698bc791f86d4a8af5fe6031c26fa908c2f83cbad36e34cf04c874b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-77824/row.json",
+          "sha256": "e3416b1b2ebabad8a79f33c00444b431e3654d2f4dbe7dd0b5bbc16764113bae"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-77824/records.jsonl",
+          "sha256": "df4b6253152e53e6967400b2462fda2e3857028b2cc2af9ad28011113b59bda4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-77824/run-config.json",
+          "sha256": "b7e1f482e6808831683c4324d9bbeda8090350c79cba6954b7ec9a4b316891d6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-77824/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-77824/driver-output.log",
+          "sha256": "e3416b1b2ebabad8a79f33c00444b431e3654d2f4dbe7dd0b5bbc16764113bae"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/row.json",
+          "sha256": "0541accbe4c61cd439873fe76652cb7e6679732328bb9deb8a726fd72bbc6208"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/records.jsonl",
+          "sha256": "685cdf19506fe1931ac5bf1a2d23b4619671b18b793ca441c1173cd86e1880ed"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/run-config.json",
+          "sha256": "ab32508a127c92892b170cede9dfc5a9cc02e5f6f29c946db6538e6290682d3f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/schedule.jsonl",
+          "sha256": "25451fd440e3705b91dacd03488b3fb5716ce6c48286186b8ff86c34d7310e19"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/source-manifest.json",
+          "sha256": "11a77cbf000c97bfe148fd874c62872873364939de3612e0b8acc917df64bd0a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-8192-6144/driver-output.log",
+          "sha256": "0541accbe4c61cd439873fe76652cb7e6679732328bb9deb8a726fd72bbc6208"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/row.json",
+          "sha256": "916ff20a6ef805c5647e8d92d6e52d879056e5d243d89e2c857bd30f236668e7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/records.jsonl",
+          "sha256": "857fe5df93723e80371ddddb662714017d19d82c0b55a5af08122d18956ef54a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/run-config.json",
+          "sha256": "d59bcb7651bf2dc822218a5e144efd4c339b9cda67f0f18fc8e15e77ab55b0fa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/schedule.jsonl",
+          "sha256": "4a0d82f788c777138c1b4045796339dbaaa2bb7e7e5249155c4488fa41e898fd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/source-manifest.json",
+          "sha256": "68d5bc7d29afd5dc8c20d59057e104f8bdf46bf5fe894bf6899e8fcbc75b6fa2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-16384-14336/driver-output.log",
+          "sha256": "916ff20a6ef805c5647e8d92d6e52d879056e5d243d89e2c857bd30f236668e7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/row.json",
+          "sha256": "089409ac07c49748c202a50912d990089ab9f6b4f10bf6f4ba8d5320664a5b48"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/records.jsonl",
+          "sha256": "8e55039bbb3741dbea9b2cd81a44901e7f31b2b3278c2d0ab2afbbdc704f0b5d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/run-config.json",
+          "sha256": "c155dd3e5199f4f22536a0ea58a76a1f82f5ccec4af09ba7b5e565c277483f2c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/schedule.jsonl",
+          "sha256": "2e3080b8d8de35362cc30bd8575de6f4b0905c917e1c0493ea40d8eaa70eee68"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/source-manifest.json",
+          "sha256": "f2c37f083a83d5a5d63b8a172384cc5419c6d12575905f412036e5aa9472575d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-32768-30000/driver-output.log",
+          "sha256": "089409ac07c49748c202a50912d990089ab9f6b4f10bf6f4ba8d5320664a5b48"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/row.json",
+          "sha256": "c6ec9faa2c39046bbb71d682f9db136bdf7dcb15ba0b9bcdf785a5cea8a5a392"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/records.jsonl",
+          "sha256": "e5c76dc54ec8da7c5b17d1195b49a255067cd1c76a1354932ba37e79a38d890e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/run-config.json",
+          "sha256": "9f5b4576b6cb869a07e6be27e7b799b95482bfff74caca5689df74e5ac7d680d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/schedule.jsonl",
+          "sha256": "ec28ab4a0121367077d9e612d87f7621a3a92bc59d756c74454b65f83ddbb500"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/source-manifest.json",
+          "sha256": "e93cf4d1d5e8f7c24838408142da4ead596fd5b1dbba340c83e405eb71cb0024"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-65536-61440/driver-output.log",
+          "sha256": "c6ec9faa2c39046bbb71d682f9db136bdf7dcb15ba0b9bcdf785a5cea8a5a392"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/row.json",
+          "sha256": "ef22377cc6d9a041f89cd475690050fa8a922ca98031b901325c06fce03af603"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/records.jsonl",
+          "sha256": "ddac1d7855fb28f1a98fc106a00ca6f629279c075e75af616eab68bd3b4776d5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/run-config.json",
+          "sha256": "fd0c42f339b30179349f41fa0568864f933e1e7ea85e311f307beb2b0da7a8ea"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/canonical-schedule.json",
+          "sha256": "14f16318a5ba97e3bfc90c8ec7929c76ffd90ab5dca80369896bbc2455c584e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/schedule.jsonl",
+          "sha256": "33f8c04b4f544c8f062c6654080fa4d2f2b91e644584bcee8fd948e86e9d9db1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/source-manifest.json",
+          "sha256": "5b12fd6cc1b9862cf215eedc48403278aaab482952abfe7e8e5a3fb81675038a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu/cpu-131072-126976/driver-output.log",
+          "sha256": "ef22377cc6d9a041f89cd475690050fa8a922ca98031b901325c06fce03af603"
+        }
+      ],
+      "supporting_commands": [
+        [
+          "python3",
+          "tools/server/bench/build-master106-cohort-run-report.py",
+          "--phase",
+          "gpu",
+          "--result-root",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/paired-gpu",
+          "--freeze-json",
+          ".wiretail/execution/evidence/MASTER106_PATCHED_FREEZE.json",
+          "--original-freeze-json",
+          ".wiretail/execution/evidence/MASTER106_FREEZE.json",
+          "--original-gpu-json",
+          ".wiretail/execution/evidence/MASTER106_GPU.json",
+          "--output-json",
+          ".wiretail/execution/evidence/MASTER106_PATCHED_GPU.json",
+          "--output-md",
+          ".wiretail/execution/evidence/MASTER106_PATCHED_GPU.md"
+        ],
+        [
+          "python3",
+          "tools/server/bench/build-master106-cohort-run-report.py",
+          "--phase",
+          "cpu",
+          "--result-root",
+          "/srv/ai/paged-kv/results/forward/106-master/106-02/cpu",
+          "--freeze-json",
+          ".wiretail/execution/evidence/MASTER106_PATCHED_FREEZE.json",
+          "--original-freeze-json",
+          ".wiretail/execution/evidence/MASTER106_FREEZE.json",
+          "--original-gpu-json",
+          ".wiretail/execution/evidence/MASTER106_GPU.json",
+          "--paired-gpu-json",
+          ".wiretail/execution/evidence/MASTER106_PATCHED_GPU.json",
+          "--output-json",
+          ".wiretail/execution/evidence/MASTER106_CPU.json",
+          "--output-md",
+          ".wiretail/execution/evidence/MASTER106_CPU.md"
+        ],
+        [
+          "python3",
+          "-m",
+          "unittest",
+          "tools.server.bench.test_master_context_matrix"
+        ],
+        [
+          "cmake",
+          "--build",
+          "/srv/ai/paged-kv/builds/master106-draftkv-20261013",
+          "--parallel",
+          "16",
+          "--target",
+          "llama-server",
+          "test-arg-parser"
+        ]
+      ]
+    }
+  }
+}
