@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import statistics
 import sys
@@ -30,7 +31,9 @@ SAFETY_TOKENS = 1536
 MTP_REPLAY_TOKENS = 3
 MODEL = "qwen38-fast-turbo4-mtp"
 SERVER_BIN = pathlib.Path("/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server")
-SLOT_STATE = pathlib.Path("/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state")
+SLOT_STATE = pathlib.Path(os.environ.get(
+    "MASTER106_SLOT_STATE",
+    "/srv/ai/paged-kv/results/forward/106-master/106-01/raw/slot-state"))
 SOURCE_WORKTREE = pathlib.Path("/srv/ai/paged-kv/worktrees/master106-d2407c33f959")
 
 
