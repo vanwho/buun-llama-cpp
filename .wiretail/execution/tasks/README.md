@@ -1,5 +1,11 @@
 # Active task contract — V10
 
+Next task:107-02, scope `natural-aba-promotion-timing-20261013`, Luna High.
+Its packet/cluster/compact note supersede the old next-task descriptions below.
+The entire107-01 cohort is invalidated and excluded from comparisons by
+`../evidence/RESULT_EXCLUSIONS.json`; historical completion and usage remain.
+Read only the explicit context list; do not reload107-01's recipe or raw runs.
+
 Current execution:105-01e/f/g ->105-02/03/04/05.105-01 is deferred, not passed.
 105-01a/b/c/d are historical; d decided no-adoption. Source-indexed capture
 is supplied; e verifies, f checks numerical paths/recall outcomes, g integrates.

@@ -1,13 +1,17 @@
 # Minimal testing and honest performance measurement
 
 Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
-Current next measurement is107-01, scope
-`verified-cold-promotion-cost-20261013`. Its packet supersedes historical
-phase104/105/106 experiment/run order. Fresh A/B fills make A larger than H;
-choose an observed host-backed cold source page, measure cold recall then
-identical hot recall with the question re-evaluated in both conditions.
-Run three fresh-fill pairs at each packet geometry. Production source/config
-stays fixed; helper setup faults are repaired without changing ranking/routes.
+Current next measurement is107-02, scope
+`natural-aba-promotion-timing-20261013`. All107-01 results are withdrawn from
+comparisons; consult `evidence/RESULT_EXCLUSIONS.json` via
+`result_eligibility.py`, preserving raw files and usage for provenance only.
+Use the successful Python/Bash/Python conversation, actual assistant replies,
+and repository pressure at larger sizes. One fresh fill per geometry, one cold
+recall and two identical target-hot repeats. Observe real source transitions
+and native witness identity separately; secondary-transfer repeats are mixed
+controls, not isolated transfer cost. Capture HTTP wall around only the request,
+prompt/decode stages and response-local MTP. Fix helper/setup faults in-run;
+never continue measured work from failed fill responses or tune production.
 Completed earlier packets are provenance, not startup instructions.
 
 ## Setup once, verify cheaply, keep loaded

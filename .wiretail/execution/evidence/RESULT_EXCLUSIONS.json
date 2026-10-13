@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "policy": "Exclude every listed cohort from numerical comparisons, aggregates, baselines, rankings, and promotion-rate conclusions. Preserve raw artifacts and token accounting for provenance.",
+  "excluded_cohorts": [
+    {
+      "task": "107-01",
+      "status": "invalidated",
+      "comparison_eligible": false,
+      "invalidated_utc": "2026-10-13T21:31:26Z",
+      "replacement_task": "107-02",
+      "receipt": ".wiretail/execution/evidence/V10_107-01.json",
+      "result_root": "/srv/ai/paged-kv/results/forward/107-cold-promotion-cost/107-01",
+      "reason": "The preparation helper continued after failed fill responses; the promotion classifier expected unavailable flat counter aliases and ignored actual page transitions and native natural_proof. The reported zero-promotion counts and comparisons are unreliable. The entire 107-01 cohort is withdrawn, including successful timing rows; do not cherry-pick them."
+    }
+  ]
+}

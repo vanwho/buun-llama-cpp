@@ -1,6 +1,13 @@
 {
   "schema_version": 1,
   "task": "107-01",
+  "comparison_eligible": false,
+  "results_status": "invalidated",
+  "results_invalidation": {
+    "replacement_task": "107-02",
+    "registry": ".wiretail/execution/evidence/RESULT_EXCLUSIONS.json",
+    "reason": "All 107-01 run results are withdrawn from comparisons. Historical completion/checks record execution only; the cohort has failed-fill handling and promotion-classification defects. Preserve its raw artifacts and usage."
+  },
   "source_commit": "ecab48df0fee2306bd206553eddf08b42f200c7f",
   "status": "completed_with_captured_runtime_faults_and_router_misses",
   "candidate": {

@@ -1,5 +1,9 @@
 # Active cluster contract — V10
 
+Current isolated measurement cluster: `forward107-natural-aba-timing`, task107-02.
+`forward107-cold-promotion-timing` is historical and its107-01 cohort is invalidated.
+Never reuse its session/recipe or include its results in comparisons.
+
 New `*-v10` clusters are context areas: group consecutive tasks that share
 stable source/design context and benefit from the same Codex prompt-cache
 prefix. There is no fixed task-count cap. Keep a cohesive sequence together

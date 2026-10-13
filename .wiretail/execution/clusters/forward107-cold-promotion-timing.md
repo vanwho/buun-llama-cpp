@@ -1,5 +1,10 @@
 # Phase 107 — Paired cold-page promotion timing
 
+**Historical, invalidated measurement cohort:** 107-01 results must not enter
+comparisons. Do not load this recipe for new work. The active replacement is
+`forward107-natural-aba-timing`, task 107-02; the exclusion registry is
+`evidence/RESULT_EXCLUSIONS.json`.
+
 Revision: `verified-cold-promotion-cost-20261013`.
 Task: `107-01`. Execution/assessment: GPT-6 Luna High.
 

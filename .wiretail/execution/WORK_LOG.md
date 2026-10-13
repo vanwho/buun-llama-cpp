@@ -2752,3 +2752,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-107-01`
 - Commit at update: `ecab48df0`
 - Summary: Completed eight cold-preconditioned geometries: 24 requests, 21 responses, 3 captured 8K runtime faults, zero target promotions or valid pairs; report validator and receipt pass.
+
+## 2026-10-13T21:31:26+00:00 — 107-01 results invalidated;107-02 todo
+
+- Branch: `plan/attention-aware-kv-paging`
+- Summary: Operator invalidated every107-01 result for numerical comparisons. Added exclusion registry, receipt/state eligibility flags and report/handoff banners; raw artifacts and every historical usage total remain unchanged. Historical done status records execution only.
+- Next:107-02 is ready in a fresh Luna High cluster. Its literal argv manifest covers eight sizes; the task reproduces the successful Python/Bash/Python conversation, actual replies and repository pressure, then two identical target-hot repeats with HTTP wall, prompt/decode/MTP, per-page transitions and mixed-control classification. No production changes/builds or endless settling/semantic retries. Preserve the manual run/report helpers as references, and keep raw external.
+- Publication: all execution files/manual benchmark helpers are project-only. The separate benchmark-validator eligibility commit is also measurement infrastructure to exclude from a future production upstream PR.

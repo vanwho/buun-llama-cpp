@@ -9,12 +9,17 @@ resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
 Phase105 and phase106 reports are complete historical evidence. 106-00 did not
 obtain paired promotion timing because its page0 target stayed resident.
-The next task is [107-01](tasks/107-01.md): fresh A/B fills with A larger than H,
-choose a source page observed cold, measure cold recall first then identical
-hot recall, three fresh-fill pairs at each of eight sizes. Use the latest
-deployed ACO candidate frozen once and the packet's exact commands. Read only
-`forward107-cold-promotion-timing`, the current packet and bounded named symbols.
-An all-resident skip cannot replace the requested cold timing. Phase106 master
+The next task is [107-02](tasks/107-02.md): the successful Python/Bash/Python
+conversation at eight sizes, repository pressure at larger sizes, then two
+identical-body target-hot repeats. Freeze the latest deployed ACO candidate;
+use the packet's literal commands and `fixtures/107-02-server-commands.json`.
+Read only `forward107-natural-aba-timing`, its packet and compact107-02 note.
+All107-01 results are invalidated and excluded from comparisons via
+`evidence/RESULT_EXCLUSIONS.json`; old completion/usage remain accounting only.
+Run `result_eligibility.py` before importing a cohort into comparisons. Missing
+flat counters/singleton witnesses must not erase observed page movement.
+Secondary-transfer repeats are mixed controls: retain actual wall/prompt/decode/
+MTP timings without calling them pure promotion cost. Phase106 master
 controls are separate build cohorts. Older 105-01a/b/c/d tasks are historical;
 105-01d explicitly declined adoption. For every task, read only its current
 packet and cluster, immediate handoff, and explicitly named compact note. The

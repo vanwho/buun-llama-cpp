@@ -37,15 +37,20 @@ setup issues, not reasons to change H accounting, routes, codecs or B/U.
 
 ## Current phase-107 measurement override
 
-Current next work is107-01. Read only its packet and
-`forward107-cold-promotion-timing`, then bounded helper/source symbols named
-there. All105/106 campaigns and their raw retry history are provenance.
+Current next work is107-02. Read only its packet,
+`forward107-natural-aba-timing`, the compact107-02 note and command manifest,
+then bounded named helper symbols. All107-01 results are invalidated and
+excluded from comparisons; do not load its recipe/raw history. All105/106
+campaigns and their raw retry history are provenance.
 Freeze the latest deployed ACO binary once; no rebuild or production changes.
 Keep Turbo4 target K/V and full-L GPU Turbo4 MTP with B/U=1024/256. Fresh
-server per geometry; fresh A/B fills per pair. A exceeds H; choose an actual
-cold interior A source page before timed recall, then measure cold and identical
-hot requests using production final-user query rewind. Cold-preconditioned
-requests are required; an all-resident skip cannot complete the campaign.
+server/fill per geometry. Use the successful two-Python-file/Bash/Python
+conversation with actual replies and larger repository-pressure turns.
+Measure source-page coldness and its actual transition, then two identical
+target-hot repeats. A singleton witness for another page does not erase real
+movement. Record mixed secondary transfers and missing telemetry honestly;
+no endless settling or semantic retries. Capture HTTP wall around the request,
+server prompt/decode and response-local MTP. No failed fill enters a timed row.
 Preserve original completed matrix results in their old cohorts.
 Do not restore the obsolete full-L/early F16 reserve or read old capacity
 assessments as current instructions. The diagnostic memory run does not

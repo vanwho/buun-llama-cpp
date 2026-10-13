@@ -1,14 +1,16 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
 Revision: `hotpath-v10-20260914`. Current measurement amendment:
-`forward107-cold-promotion-timing` (`verified-cold-promotion-cost-20261013`).
+`forward107-natural-aba-timing` (`natural-aba-promotion-timing-20261013`).
 
 This remains the architecture contract. The phase105 ACO matrix and aggregate
 are complete historical evidence, as are the phase106 master controls.
-Current next work is107-01. Its A source region exceeds the physical H pool;
-after B pressure, it selects a measured cold interior A source page, then times
-cold recall and identical hot recall at the same reusable prefix. It performs
-three fresh-fill pairs at eight geometries using the latest deployed ACO
+Current next work is107-02. The entire107-01 cohort is invalidated and excluded
+from comparisons; preserve its raw files/usage as historical accounting only.
+Use the successful Python/Bash/Python conversation, with repository pressure
+at larger sizes, actual earlier replies, then two byte-identical target-hot
+repeats. Measure wall/prompt/decode/MTP and actual page movement at eight
+geometries, with mixed controls labelled honestly. Use the latest deployed ACO
 candidate, B1024/U256, GPU Turbo4 target/draft and MTP n-max2. Phase106-00's
 page0 stayed resident, so its missing paired timing is not replaced by its
 successful fill. Read the current107 packet/cluster for exact commands and
@@ -110,7 +112,7 @@ card, service paths or these counts in portable production logic.
 | 103 follow-up | 103-04–05 after104-08 | main summary/review consumes experiment verdict; adoption is separately scheduled, never silently merged |
 | 105 | 105-01 deferred;a/b/c/d historical, no adoption;105-01e indexed capture verification;105-01f numerical/recall outcomes;105-01g selective main integration;105-02 coherent generation/MTP;105-03 scale;105-04/05 review | verified producer repairs integrated before residual coherence/MTP work and large occupancy; no unchanged failure loops |
 | 106 | 106-00–03 done | historical ACO fill/promotion-precondition outcomes and paired master GPU/CPU baselines |
-| 107 | 107-01 todo | verified cold-source selection and cold-first/hot-second request timing across eight sizes |
+| 107 | 107-01 results invalidated;107-02 todo | successful natural A/B/A workload, eight sizes, actual page transitions and cold/target-hot request timing with mixed-control classification |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
 specified in `OPTIONAL_ADVANCEMENTS.md`. Phase104 is now reserved for the
