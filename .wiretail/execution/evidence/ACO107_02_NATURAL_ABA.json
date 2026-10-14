@@ -1,0 +1,424 @@
+{
+  "artifacts": {
+    "report": {
+      "bytes": 1370500,
+      "path": "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/ACO107_02_NATURAL_ABA.json",
+      "sha256": "881694c0ef718478c251520364ecd61ff359cb4be5a50832978ba52e820df6e7"
+    },
+    "report_markdown": {
+      "bytes": 908,
+      "path": "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/ACO107_02_NATURAL_ABA.md",
+      "sha256": "aa9e519b14794741a5c37733ae158d008eb2aad4195a089cc4f11feca69b8dda"
+    },
+    "report_validation_output": {
+      "bytes": 40,
+      "path": "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/report-validator.stdout",
+      "sha256": "4a6c7ef9cf49a4dad2cde94ae95ccd75500fdbf534a173aba031640486349caa"
+    }
+  },
+  "candidate": {
+    "loaded_dsos_before": {
+      "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-base.so.0.25.3": "0bd16c3547be28fab7644712f926ae5edbdb6888c1a8fff6e3db6874691080ec",
+      "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-cpu.so.0.25.3": "3f7b5cb0730f22b3deff8f03f096506cb6c7e7f2e8d3cc407ed2c1e2459cd3ea",
+      "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml-cuda.so.0.25.3": "fd646e6e98dc049a1fb5c677946b20b2daf86c109de634818551ed7847174f7b",
+      "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libggml.so.0.25.3": "58ffcbaf83ac7ec4997314153dae2720b539193ef324b2eaadb65b1a9502664c",
+      "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/libllama.so.0.5.0": "4ff4aa7b3261aa7a2f0ff695e41c1ebb8fa6d09fb1a69aad206df6fd6b067f32"
+    },
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-aco-latest-155fc9816/bin/llama-server",
+    "sha256": "6e438ffbdb919b42e61e057f027b0bd10473f3443e6789c23453e7aba02fd881",
+    "source_commit": "d4ab69d3ffc2423d4d788a0b01c9a39235d4a728"
+  },
+  "finding": "Only the 8K row produced a natural cold-to-resident target transition and exact-body H1/H2 repeats. The other seven source pages remained resident after their one permitted pressure attempt; each is retained as resident_control with its actual occupancy and request evidence.",
+  "rows": [
+    {
+      "cold_decode_ms": 1801.59,
+      "cold_http_wall_ms": 2447.37905,
+      "cold_prompt_ms": 638.308,
+      "cold_useful_h2d_bytes": 34603008,
+      "context_tokens": 8192,
+      "fill_turns": 0,
+      "hot_tokens": 4096,
+      "matching_full_target_witness": true,
+      "name": "8K-4K-hot",
+      "natural_witness": {
+        "attention_layer": 3,
+        "candidate_authenticated": true,
+        "candidate_was_cold": true,
+        "catalogue_epoch": 17670,
+        "content_version": 256,
+        "draft_event_sequence": 160,
+        "draft_graph_used": true,
+        "draft_use_epoch": 18266,
+        "draft_use_query_generation": 103,
+        "h2d_aligned_bytes": 34603008,
+        "h2d_completed": true,
+        "h2d_event_sequence": 37,
+        "h2d_queued": true,
+        "h2d_useful_bytes": 34603008,
+        "host_ready": true,
+        "logical_page": 4,
+        "mapping_published": true,
+        "page_generation": 8,
+        "physical_slot": 4,
+        "promotion_published": true,
+        "publication_event_sequence": 38,
+        "published_epoch": 17728,
+        "query_commit_admitted": true,
+        "query_generation": 103,
+        "query_position": 5556,
+        "selected_in_last_graph": true,
+        "selector_event_sequence": 36,
+        "selector_published": true,
+        "selector_rank": 0,
+        "sequence_generation": 1,
+        "sequence_id": 0,
+        "target_event_sequence": 44,
+        "target_graph_used": true,
+        "target_use_epoch": 17857,
+        "target_use_query_generation": 103
+      },
+      "occupancy_before_A2": 5501,
+      "physical_classification": "natural_target_promotion",
+      "repeats": [
+        {
+          "http_wall_ms": 2281.40289,
+          "sample_classification": "target_hot_mixed_control",
+          "stage": "H1",
+          "useful_h2d_bytes": 4325376
+        },
+        {
+          "http_wall_ms": 2275.135446,
+          "sample_classification": "target_hot_mixed_control",
+          "stage": "H2",
+          "useful_h2d_bytes": 4325376
+        }
+      ],
+      "request_stages": [
+        "A1",
+        "B",
+        "A2"
+      ],
+      "resident_reason": null,
+      "semantic_recall": "pass",
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": false
+        }
+      ],
+      "status": "completed",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": false
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 16384,
+      "fill_turns": 3,
+      "hot_tokens": 8192,
+      "matching_full_target_witness": null,
+      "name": "16K-8K-hot",
+      "natural_witness": null,
+      "occupancy_before_A2": 14865,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 32768,
+      "fill_turns": 8,
+      "hot_tokens": 16384,
+      "matching_full_target_witness": null,
+      "name": "32K-16K-hot",
+      "natural_witness": null,
+      "occupancy_before_A2": 31234,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 65536,
+      "fill_turns": 16,
+      "hot_tokens": 32768,
+      "matching_full_target_witness": null,
+      "name": "64K-32K-hot",
+      "natural_witness": null,
+      "occupancy_before_A2": 64008,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 77824,
+      "fill_turns": 19,
+      "hot_tokens": 65536,
+      "matching_full_target_witness": null,
+      "name": "original-profile",
+      "natural_witness": null,
+      "occupancy_before_A2": 76280,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 131072,
+      "fill_turns": 33,
+      "hot_tokens": 65536,
+      "matching_full_target_witness": null,
+      "name": "128K-64K-hot",
+      "natural_witness": null,
+      "occupancy_before_A2": 129533,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 196608,
+      "fill_turns": 50,
+      "hot_tokens": 65536,
+      "matching_full_target_witness": null,
+      "name": "192K-64K-hot",
+      "natural_witness": null,
+      "occupancy_before_A2": 195092,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    },
+    {
+      "cold_decode_ms": null,
+      "cold_http_wall_ms": null,
+      "cold_prompt_ms": null,
+      "cold_useful_h2d_bytes": null,
+      "context_tokens": 262144,
+      "fill_turns": 68,
+      "hot_tokens": 65536,
+      "matching_full_target_witness": null,
+      "name": "256K-64K-hot",
+      "natural_witness": null,
+      "occupancy_before_A2": 260602,
+      "physical_classification": null,
+      "repeats": [],
+      "request_stages": [
+        "A1",
+        "B",
+        "B-pressure-extra"
+      ],
+      "resident_reason": "target source pages remained resident or lacked valid host-backed cold page",
+      "semantic_recall": null,
+      "source_page_before": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ],
+      "status": "resident_control",
+      "target_page_before_A2": [
+        {
+          "host_backed": true,
+          "logical_page_id": 4,
+          "position_begin": 1024,
+          "position_end": 1280,
+          "resident": true
+        }
+      ]
+    }
+  ],
+  "schema": "aco107-02-compact-evidence-v1",
+  "scope_revision": "natural-aba-promotion-timing-20261013",
+  "service_restore": {
+    "health": true,
+    "preserved_ports": {
+      "8091": "untouched",
+      "8092": "untouched"
+    },
+    "status": "restored"
+  },
+  "task": "107-02"
+}
