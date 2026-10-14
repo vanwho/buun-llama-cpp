@@ -1,0 +1,38 @@
+{
+  "checks": {
+    "natural_aba_promotion_timing_across_context_sizes": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/ACO107_02_NATURAL_ABA.json",
+          "sha256": "881694c0ef718478c251520364ecd61ff359cb4be5a50832978ba52e820df6e7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/ACO107_02_NATURAL_ABA.md",
+          "sha256": "aa9e519b14794741a5c37733ae158d008eb2aad4195a089cc4f11feca69b8dda"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/report-validator.stdout",
+          "sha256": "4a6c7ef9cf49a4dad2cde94ae95ccd75500fdbf534a173aba031640486349caa"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO107_02_NATURAL_ABA.json",
+          "sha256": "4e333bf3c3fd1fd723d4074e3f61f86e59fc5f9dd2ff2d31171ff6c8997c5d7e"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO107_02_NATURAL_ABA.md",
+          "sha256": "383f13b84852b68378d7f385e9f67c588346e0700501103ff9c80fbb5bdd3e66"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/validate-natural-aba-promotion-cost.py",
+        "/srv/ai/paged-kv/results/forward/107-natural-aba/107-02/attempt-01/ACO107_02_NATURAL_ABA.json"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "d4ab69d3ffc2423d4d788a0b01c9a39235d4a728",
+  "task": "107-02"
+}
