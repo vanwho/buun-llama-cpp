@@ -2,6 +2,7 @@
 #include "ggml-impl.h"
 #include "ggml-backend.h"
 #include "ggml-backend-impl.h"
+#include "ggml-backend-meta-step-cache.h"
 #include "ggml-alloc.h"
 #include "ggml-cpp.h"
 
@@ -166,6 +167,32 @@ static bool ggml_backend_meta_device_supports_op(ggml_backend_dev_t dev, const g
         [op](ggml_backend_dev_t simple_dev) { return ggml_backend_dev_supports_op(simple_dev, op); });
 }
 
+// Host-weight expert matmuls (CPU-resident experts during prefill) are offloaded when every simple
+// device would offload them; calculate_split_state gives the scheduler's weight copy the weight's
+// expert split, found by name. Dense weights, sidecar operands (src[3]+, e.g. EXL3 scales) and copy
+// names that GGML_MAX_NAME would truncate have no split rule for their copy, so they stay on the host.
+static bool ggml_backend_meta_device_offload_op(ggml_backend_dev_t dev, const ggml_tensor * op) {
+    GGML_ASSERT(ggml_backend_dev_is_meta(dev));
+    const ggml_backend_meta_device_context * meta_dev_ctx = (const ggml_backend_meta_device_context *) dev->context;
+    if (op->op != GGML_OP_MUL_MAT_ID || op->src[3] != nullptr) {
+        return false;
+    }
+    // The copy is named "Meta(<dev>,<dev>...)#<weight>#<n>", as the meta backend names itself. Size the
+    // weight as the layer's longest expert name, so gate/up/down of one layer all offload or none do.
+    const char * weight = op->src[0]->name;
+    const char * ffn    = strstr(weight, "ffn_");
+    size_t name_len = strlen("Meta()") + meta_dev_ctx->simple_devs.size() - 1 + strlen("##0") +
+        (ffn ? size_t(ffn - weight) + strlen("ffn_gate_up_exps.weight") : strlen(weight));
+    for (ggml_backend_dev_t simple_dev : meta_dev_ctx->simple_devs) {
+        name_len += strlen(ggml_backend_dev_name(simple_dev));
+    }
+    if (name_len >= GGML_MAX_NAME) {
+        return false;
+    }
+    return std::all_of(meta_dev_ctx->simple_devs.begin(), meta_dev_ctx->simple_devs.end(),
+        [op](ggml_backend_dev_t simple_dev) { return ggml_backend_dev_offload_op(simple_dev, op); });
+}
+
 static bool ggml_backend_meta_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {
     GGML_ASSERT(ggml_backend_dev_is_meta(dev));
     ggml_backend_dev_t dev_buft = ggml_backend_buft_get_device(buft);
@@ -197,7 +224,7 @@ static const ggml_backend_device_i ggml_backend_meta_device_iface = {
     /* .buffer_from_host_ptr = */ nullptr,
     /* .supports_op          = */ ggml_backend_meta_device_supports_op,
     /* .supports_buft        = */ ggml_backend_meta_device_supports_buft,
-    /* .offload_op           = */ nullptr,
+    /* .offload_op           = */ ggml_backend_meta_device_offload_op,
     /* .event_new            = */ nullptr,
     /* .event_free           = */ nullptr,
     /* .event_synchronize    = */ nullptr,
@@ -298,6 +325,8 @@ ggml_backend_buffer_type_t ggml_backend_meta_buft_simple_buft(ggml_backend_buffe
 
 static ggml_backend_buffer_t ggml_backend_meta_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size);
 
+static ggml_backend_buffer_t ggml_backend_meta_buffer_type_alloc_buffer_n(ggml_backend_buffer_type_t buft, ggml_tensor ** tensors, int n_tensors);
+
 static size_t ggml_backend_meta_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
     const size_t n_simple_bufts = ggml_backend_meta_buft_n_bufts(buft);
     size_t max_alignment = 1;
@@ -339,12 +368,14 @@ static bool ggml_backend_meta_buffer_type_is_host(ggml_backend_buffer_type_t buf
 }
 
 static const struct ggml_backend_buffer_type_i ggml_backend_meta_buffer_type_iface = {
-    /* .get_name         = */ ggml_backend_meta_buffer_type_get_name,
-    /* .alloc_buffer     = */ ggml_backend_meta_buffer_type_alloc_buffer,
-    /* .get_alignment    = */ ggml_backend_meta_buffer_type_get_alignment,
-    /* .get_max_size     = */ ggml_backend_meta_buffer_type_get_max_size,
-    /* .get_alloc_size   = */ ggml_backend_meta_buffer_type_get_alloc_size,
-    /* .is_host          = */ ggml_backend_meta_buffer_type_is_host,
+    /* .get_name            = */ ggml_backend_meta_buffer_type_get_name,
+    /* .alloc_buffer        = */ ggml_backend_meta_buffer_type_alloc_buffer,
+    /* .alloc_buffer_n      = */ ggml_backend_meta_buffer_type_alloc_buffer_n,
+    /* .get_alignment       = */ ggml_backend_meta_buffer_type_get_alignment,
+    /* .get_max_size        = */ ggml_backend_meta_buffer_type_get_max_size,
+    /* .get_alloc_size      = */ ggml_backend_meta_buffer_type_get_alloc_size,
+    /* .get_alloc_size_n    = */ NULL,
+    /* .is_host             = */ ggml_backend_meta_buffer_type_is_host,
 };
 
 bool ggml_backend_buft_is_meta(ggml_backend_buffer_type_t buft) {
@@ -499,6 +530,15 @@ struct ggml_tensor * ggml_backend_meta_buffer_simple_tensor(const struct ggml_te
 static bool ggml_backend_meta_split_state_has_sources(const ggml_tensor * tensor) {
     return ggml_nelements(tensor) != 0 &&
         (ggml_backend_buffer_get_usage(tensor->buffer) == GGML_BACKEND_BUFFER_USAGE_COMPUTE || tensor->view_src != nullptr);
+}
+
+static const ggml_tensor * ggml_backend_meta_split_state_source(const ggml_tensor * tensor, size_t i) {
+    // ggml_view_tensor is an OP_NONE full view, not an operation with src[0].
+    // Resolve it through the iterative dependency stack too.
+    if (tensor->op == GGML_OP_NONE && tensor->view_src != nullptr) {
+        return i == 0 ? tensor->view_src : nullptr;
+    }
+    return tensor->src[i];
 }
 
 static struct ggml_backend_meta_split_state ggml_backend_meta_calculate_split_state(
@@ -919,14 +959,19 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_calculate_split_st
         return {GGML_BACKEND_SPLIT_AXIS_0, {0}, {1}, 1};
     };
 
+    // The model's name-based split rules, as registered on the meta device.
+    auto user_split_state = [&](const ggml_tensor * t) -> ggml_backend_meta_split_state {
+        ggml_backend_dev_t dev = ggml_backend_buft_get_device(ggml_backend_buffer_get_type(tensor->buffer));
+        const ggml_backend_meta_device_context * dev_ctx = (const ggml_backend_meta_device_context *) dev->context;
+        return dev_ctx->get_split_state(t, dev_ctx->get_split_state_ud);
+    };
+
     auto calculate_split_state = [&]() -> ggml_backend_meta_split_state {
         if (ggml_nelements(tensor) == 0) {
             return {GGML_BACKEND_SPLIT_AXIS_UNKNOWN, {0}, {1}, 1};
         }
         if (!ggml_backend_meta_split_state_has_sources(tensor)) {
-            ggml_backend_dev_t dev = ggml_backend_buft_get_device(ggml_backend_buffer_get_type(tensor->buffer));
-            const ggml_backend_meta_device_context * dev_ctx = (const ggml_backend_meta_device_context *) dev->context;
-            ggml_backend_meta_split_state ret = dev_ctx->get_split_state(tensor, dev_ctx->get_split_state_ud);
+            ggml_backend_meta_split_state ret = user_split_state(tensor);
             if (ret.axis >= 0 && ret.axis < GGML_MAX_DIMS) {
                 const int64_t granularity = ret.axis == GGML_BACKEND_SPLIT_AXIS_0 ? ggml_blck_size(tensor->type) : 1;
                 int64_t ne_sum = 0;
@@ -947,7 +992,22 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_calculate_split_st
         ggml_backend_meta_split_state split_state;
         switch (tensor->op) {
             case GGML_OP_NONE: {
+                if (tensor->view_src != nullptr) {
+                    return src_ss[0];
+                }
                 split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+                // A scheduler copy of a host-resident expert weight ("<backend>#<weight>#<n>") keeps the
+                // weight's expert split, so each device uploads and runs only its own experts.
+                const char * first = strchr(tensor->name, '#');
+                const char * last  = strrchr(tensor->name, '#');
+                if (first != nullptr && last > first + 1) {
+                    ggml_tensor weight = *tensor;
+                    snprintf(weight.name, sizeof(weight.name), "%.*s", int(last - first - 1), first + 1);
+                    const ggml_backend_meta_split_state ss = user_split_state(&weight);
+                    if (ss.axis == GGML_BACKEND_SPLIT_AXIS_2) {
+                        return ss; // skip the ratio take-over below: a copy has no split source to take it from
+                    }
+                }
             } break;
             case GGML_OP_DUP: {
                 split_state = handle_generic(src_ss, /*scalar_only =*/ true);
@@ -1284,7 +1344,7 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_get_split_state(co
     std::vector<frame> parents;
     for (;;) {
         if (current.next_src < current.src_ss.size()) {
-            const auto * src = current.tensor->src[current.next_src];
+            const auto * src = ggml_backend_meta_split_state_source(current.tensor, current.next_src);
             if (src == nullptr || src == current.tensor) {
                 ++current.next_src;
             } else if (const auto * cached = ggml_backend_meta_find_split_state(src, true)) {
@@ -1307,7 +1367,8 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_get_split_state(co
             const size_t n_bufs = buf_ctx->bufs.size();
             std::string srcs_info;
             for (size_t i = 0; i < current.src_ss.size(); i++) {
-                if (tensor->src[i] == nullptr || tensor->src[i] == tensor) {
+                const auto * src = ggml_backend_meta_split_state_source(tensor, i);
+                if (src == nullptr || src == tensor) {
                     continue;
                 }
                 if (!srcs_info.empty()) {
@@ -1322,7 +1383,7 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_get_split_state(co
                     }
                     ne_info += std::to_string(split_state.ne[j]) + "x" + std::to_string(split_state.nr[0]);
                 }
-                srcs_info += std::string(tensor->src[i]->name) + "[" + ggml_op_name(tensor->src[i]->op) + ", " + axis_name + ", {" + ne_info + "}]";
+                srcs_info += std::string(src->name) + "[" + ggml_op_name(src->op) + ", " + axis_name + ", {" + ne_info + "}]";
             }
             std::string ne_info;
             for (size_t j = 0; j < n_bufs; j++) {
@@ -1787,18 +1848,19 @@ static ggml_backend_buffer_t ggml_backend_meta_buffer_type_alloc_buffer(ggml_bac
     return ggml_backend_buffer_init(buft, ggml_backend_meta_buffer_iface, buf_ctx, max_size);
 }
 
-ggml_backend_buffer_t ggml_backend_meta_alloc_ctx_tensors_from_buft_ext(
-        struct ggml_context * ctx, ggml_backend_buffer_type_t buft, ggml_backend_meta_alloc_simple_t alloc, void * userdata) {
+static ggml_backend_buffer_t ggml_backend_meta_alloc_tensors_ext(
+        ggml_backend_buffer_type_t buft, ggml_tensor ** tensors, int n_tensors,
+        ggml_backend_meta_alloc_simple_t alloc, void * userdata) {
     const size_t n_simple_bufts = ggml_backend_meta_buft_n_bufts(buft);
 
     constexpr size_t compute_headroom = 16; // Maximum number of views per statically allocated tensor that can be created between evals.
     const ggml_init_params params_static = {
-        /*.mem_size   =*/ ggml_get_mem_size(ctx),
+        /*.mem_size   =*/ n_tensors * ggml_tensor_overhead(),
         /*.mem_buffer =*/ nullptr,
         /*.no_alloc   =*/ true,
     };
     const ggml_init_params params_compute = {
-        /*.mem_size   =*/ compute_headroom*ggml_get_mem_size(ctx),
+        /*.mem_size   =*/ compute_headroom * n_tensors * ggml_tensor_overhead(),
         /*.mem_buffer =*/ nullptr,
         /*.no_alloc   =*/ true,
     };
@@ -1810,7 +1872,8 @@ ggml_backend_buffer_t ggml_backend_meta_alloc_ctx_tensors_from_buft_ext(
     ggml_backend_meta_buffer_context * meta_buf_ctx = new ggml_backend_meta_buffer_context(stc_static, stc_compute_0, stc_compute_1, bufs);
 
     ggml_backend_buffer_t meta_buf = ggml_backend_buffer_init(buft, ggml_backend_meta_buffer_iface, meta_buf_ctx, 0);
-    for (ggml_tensor * t = ggml_get_first_tensor(ctx); t != nullptr; t = ggml_get_next_tensor(ctx, t)) {
+    for (int i = 0; i < n_tensors; i++) {
+        ggml_tensor * t = tensors[i];
         t->buffer = meta_buf;
         ggml_backend_meta_buffer_init_tensor_impl(meta_buf_ctx->stc_static, t);
         t->data = (void *) 0x2000000000000000; // FIXME
@@ -1862,8 +1925,18 @@ ggml_backend_buffer_t ggml_backend_meta_alloc_ctx_tensors_from_buft_ext(
     return meta_buf;
 }
 
-struct ggml_backend_buffer * ggml_backend_meta_alloc_ctx_tensors_from_buft(struct ggml_context * ctx, ggml_backend_buffer_type_t buft) {
-    return ggml_backend_meta_alloc_ctx_tensors_from_buft_ext(ctx, buft, /*alloc =*/ nullptr, /*userdata =*/ nullptr);
+static ggml_backend_buffer_t ggml_backend_meta_buffer_type_alloc_buffer_n(
+        ggml_backend_buffer_type_t buft, ggml_tensor ** tensors, int n_tensors) {
+    return ggml_backend_meta_alloc_tensors_ext(buft, tensors, n_tensors, nullptr, nullptr);
+}
+
+ggml_backend_buffer_t ggml_backend_meta_alloc_ctx_tensors_from_buft_ext(
+        ggml_context * ctx, ggml_backend_buffer_type_t buft, ggml_backend_meta_alloc_simple_t alloc, void * userdata) {
+    std::vector<ggml_tensor *> tensors;
+    for (ggml_tensor * t = ggml_get_first_tensor(ctx); t != nullptr; t = ggml_get_next_tensor(ctx, t)) {
+        tensors.push_back(t);
+    }
+    return ggml_backend_meta_alloc_tensors_ext(buft, tensors.data(), int(tensors.size()), alloc, userdata);
 }
 
 //
@@ -1989,6 +2062,7 @@ struct ggml_backend_meta_context {
         std::vector<void *>   steps;              // one per backend
         std::vector<uint64_t> epochs;             // per backend, at capture
         int64_t               last_used = 0;
+        size_t                nodes = 0;          // original GGML graph size, for retention budgeting
     };
     std::vector<step_record> step_records;
     ggml_backend_meta_thread_pool pool; // per-device launch/issue workers
@@ -2016,7 +2090,7 @@ struct ggml_backend_meta_context {
     void step_record_add(step_record rec) {
         // Bound successful and failed captures alike. Invalid overrides keep
         // the default; zero must not try to evict from an empty cache.
-        static const size_t max_records = []() -> size_t {
+        static const size_t records_override = []() -> size_t {
             if (const char * value = getenv("GGML_META_STEP_RECORDS")) {
                 size_t parsed = 0;
                 const char * end = value + strlen(value);
@@ -2024,11 +2098,15 @@ struct ggml_backend_meta_context {
                 if (result.ec == std::errc{} && result.ptr == end && parsed > 0) {
                     return parsed;
                 }
-                GGML_LOG_WARN("invalid GGML_META_STEP_RECORDS value '%s'; using 16\n", value);
+                GGML_LOG_WARN("invalid GGML_META_STEP_RECORDS value '%s'; using automatic budget\n", value);
             }
-            return 16;
+            return 0;
         }();
-        if (step_records.size() >= max_records) {
+        size_t nodes = rec.nodes;
+        for (const auto & existing : step_records) {
+            nodes += existing.nodes;
+        }
+        while (ggml_backend_meta_step_cache_over_budget(step_records.size() + 1, nodes, records_override)) {
             auto oldest = std::min_element(step_records.begin(), step_records.end(),
                     [](const step_record & a, const step_record & b) { return a.last_used < b.last_used; });
             for (size_t j = 0; j < oldest->steps.size(); j++) {
@@ -2036,6 +2114,7 @@ struct ggml_backend_meta_context {
                     step_free(backend_configs[j].backend, oldest->steps[j]);
                 }
             }
+            nodes -= oldest->nodes;
             step_records.erase(oldest);
         }
         rec.last_used = ggml_time_us();
@@ -2243,7 +2322,7 @@ static uint64_t ggml_backend_meta_graph_signature(const ggml_cgraph * cgraph) {
             mix(&data, sizeof(data));
         }
     };
-    auto mix_tensor = [&](const ggml_tensor * t) {
+    auto mix_descriptor = [&](const ggml_tensor * t) {
         const int32_t type = t->type;
         const int32_t op   = t->op;
         mix_storage(t);
@@ -2255,8 +2334,18 @@ static uint64_t ggml_backend_meta_graph_signature(const ggml_cgraph * cgraph) {
         mix(&t->flags, sizeof(t->flags));
         mix_storage(t->view_src);
         mix(&t->view_offs, sizeof(t->view_offs));
+    };
+    auto mix_tensor = [&](const ggml_tensor * t) {
+        mix_descriptor(t);
         for (int k = 0; k < GGML_MAX_SRC; k++) {
-            mix_storage(t->src[k]);
+            // Scheduler subgraphs need not list their inputs as leaves. A
+            // weight staging address can recur with a different quantization
+            // type or layout; addresses alone must not select its old kernel.
+            if (t->src[k]) {
+                mix_descriptor(t->src[k]);
+            } else {
+                mix_storage(nullptr);
+            }
         }
     };
     mix(&cgraph->n_nodes, sizeof(cgraph->n_nodes));
@@ -2754,20 +2843,22 @@ static enum ggml_status ggml_backend_meta_graph_compute(ggml_backend_t backend, 
             if (node->flags & GGML_TENSOR_FLAG_COMPUTE) {
                 continue;
             }
-            ggml_tensor * node_zero = get_node_aux(node);
-            node_zero->op = GGML_OP_SCALE; // FIXME 0.0f * NaN == NaN
-            node_zero->src[0] = node;
-            ggml_set_op_params_f32(node_zero, 0, 0.0f);
-            node_zero->data = node->data;
-            node_zero->buffer = node->buffer;
-            node_zero->flags |= GGML_TENSOR_FLAG_COMPUTE;
+            if (ggml_nelements(node) > 0) {
+                ggml_tensor * node_zero = get_node_aux(node);
+                node_zero->op = GGML_OP_FILL;
+                node_zero->src[0] = node; // only used for the shape, the data is not read
+                ggml_set_op_params_f32(node_zero, 0, 0.0f);
+                node_zero->data = node->data;
+                node_zero->buffer = node->buffer;
+                node_zero->flags |= GGML_TENSOR_FLAG_COMPUTE;
 
-            step_cgraphs[j] = get_cgraph_aux();
-            step_cgraphs[j]->nodes[0] = node_zero;
-            step_cgraphs[j]->n_nodes = 1;
-            const ggml_status status = ggml_backend_graph_compute_async(bcj.backend, step_cgraphs[j]);
-            if (status != GGML_STATUS_SUCCESS) {
-                return status;
+                step_cgraphs[j] = get_cgraph_aux();
+                step_cgraphs[j]->nodes[0] = node_zero;
+                step_cgraphs[j]->n_nodes = 1;
+                const ggml_status status = ggml_backend_graph_compute_async(bcj.backend, step_cgraphs[j]);
+                if (status != GGML_STATUS_SUCCESS) {
+                    return status;
+                }
             }
         }
         std::fill(step_cgraphs.begin(), step_cgraphs.end(), nullptr);
@@ -3092,11 +3183,10 @@ static enum ggml_status ggml_backend_meta_graph_compute(ggml_backend_t backend, 
                 if (capture_ok) {
                     // keep the recent shapes (decode at each KV size, prefill chunks, batches with a slot
                     // missing all alternate in a server); evict the least recently used
-                    // GGML_META_STEP_RECORDS raises the cap: a busy server with many slot-occupancy /
-                    // KV-extent shape variants churns 16 (each re-record = a slow uncaptured step + capture)
                     ggml_backend_meta_context::step_record rec;
                     rec.sig   = step_sig;
                     rec.valid = true;
+                    rec.nodes = cgraph->n_nodes;
                     rec.steps = steps;
                     rec.epochs.resize(n_backends);
                     for (size_t j = 0; j < n_backends; j++) {
@@ -3104,8 +3194,8 @@ static enum ggml_status ggml_backend_meta_graph_compute(ggml_backend_t backend, 
                     }
                     backend_ctx->step_record_add(std::move(rec));
                     if (getenv("GGML_META_DEBUG") != nullptr) {
-                        fprintf(stderr, "ggml_backend_meta: recorded step graph for signature %016" PRIx64 " (%zu subgraphs x %zu devices, %zu records)\n",
-                                step_sig, backend_ctx->n_subgraphs, n_backends, backend_ctx->step_records.size());
+                        fprintf(stderr, "ggml_backend_meta: recorded step graph for signature %016" PRIx64 " (%zu subgraphs x %zu devices, %zu records, %d GGML nodes)\n",
+                                step_sig, backend_ctx->n_subgraphs, n_backends, backend_ctx->step_records.size(), cgraph->n_nodes);
                     }
                     // capture recorded the work without executing it: run this compute via replay
                     if (launch_steps(steps)) {

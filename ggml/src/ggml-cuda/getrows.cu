@@ -3,6 +3,39 @@
 #include "convert.cuh"
 #include "turbo-quant-cuda.cuh"
 
+// Pool four selected F16 rows without materializing the gathered F32 members.
+// Keep the graph's left-associated FP32 additions (not a parallel reduction).
+static __global__ void get_rows_mean4_f16(
+        const char * keys, const char * ids, float * dst,
+        int64_t dim, int64_t blocks, int64_t streams,
+        size_t key_row, size_t key_stream, size_t ids_stream, float bias) {
+    const int64_t block = blockIdx.x;
+    for (int64_t stream = blockIdx.y; stream < streams; stream += gridDim.y) {
+        const int32_t * rows = (const int32_t *) (ids + stream*ids_stream) + 4*block;
+        const char * base = keys + stream*key_stream;
+        for (int64_t d = threadIdx.x; d < dim; d += blockDim.x) {
+            float value = __half2float(((const half *) (base + rows[0]*key_row))[d]);
+#pragma unroll
+            for (int member = 1; member < 4; ++member) {
+                value = __fadd_rn(value, __half2float(((const half *) (base + rows[member]*key_row))[d]));
+            }
+            dst[(stream*blocks + block)*dim + d] = __fmaf_rn(value, .25f, bias);
+        }
+    }
+}
+
+void ggml_cuda_op_get_rows_mean4(ggml_backend_cuda_context & ctx,
+        const ggml_tensor * gather, ggml_tensor * dst) {
+    const ggml_tensor * keys = gather->src[0];
+    const ggml_tensor * ids = gather->src[1];
+    const dim3 grid(dst->ne[1], MIN(dst->ne[2], UINT16_MAX));
+    const int threads = (int) MIN(GGML_PAD(dst->ne[0], 32), 256);
+    get_rows_mean4_f16<<<grid, threads, 0, ctx.stream()>>>(
+        (const char *) keys->data, (const char *) ids->data, (float *) dst->data,
+        dst->ne[0], dst->ne[1], dst->ne[2], keys->nb[1], keys->nb[2], ids->nb[1],
+        ggml_get_op_params_f32(dst, 1));
+}
+
 template<int qk, int qr, dequantize_kernel_t dequantize_kernel, typename dst_t>
 static __global__ void k_get_rows(
         const void * __restrict__ src0, const int32_t * __restrict__ src1, dst_t * __restrict__ dst,
@@ -103,6 +136,41 @@ static __global__ void k_get_rows_float(
                 dst_row[i00] = ggml_cuda_cast<dst_t>(src0_row[i00]);
             }
         }
+    }
+}
+
+// Rows narrower than a warp: a block per row would leave most threads idle, so give each
+// thread one element instead.
+template<typename src0_t, typename dst_t>
+static __global__ void k_get_rows_float_narrow(
+        const src0_t * src0_ptr, const int32_t * src1_ptr, dst_t * dst_ptr,
+        const int ne00, const int64_t ne10, const int64_t ne11, const uint3 ne12_fdv,
+        const size_t s1, const size_t s2, const size_t s3,
+        const size_t nb01, const size_t nb02, const size_t nb03,
+        const size_t s10, const size_t s11, const size_t s12) {
+
+    ggml_cuda_pdl_lc();
+    ggml_cuda_pdl_sync();
+    const int64_t i = (int64_t) blockIdx.x*blockDim.x + threadIdx.x;
+    if (i >= ne10*ne00) {
+        return;
+    }
+    const int64_t i10 = i / ne00;
+    const int     i00 = i % ne00;
+    for (int64_t z = blockIdx.z; z < ne11*(int64_t)ne12_fdv.z; z += gridDim.z) {
+        const uint2 dm = fast_div_modulo((uint32_t)z, ne12_fdv);
+        const int i11 = dm.x;
+        const int i12 = dm.y;
+
+        const int i01 = src1_ptr[i10*s10 + i11*s11 + i12*s12];
+        const src0_t * src0_row = (const src0_t *)((const char *) src0_ptr + i01*nb01 + i11*nb02 + i12*nb03);
+        dst_t v;
+        if constexpr (std::is_same<src0_t, uint8_t>::value) {
+            v = ggml_cuda_cast<dst_t>(ggml_cuda_e4m3_to_fp32(src0_row[i00]));
+        } else {
+            v = ggml_cuda_cast<dst_t>(src0_row[i00]);
+        }
+        dst_ptr[i10*s1 + i11*s2 + i12*s3 + i00] = v;
     }
 }
 
@@ -264,7 +332,8 @@ static void get_rows_cuda_float(
         const int64_t ne00v = ne00 / VEC;
         const int64_t vec_block_num_y = (ne00v + CUDA_GET_ROWS_BLOCK_SIZE - 1) / CUDA_GET_ROWS_BLOCK_SIZE;
         const bool enough_blocks = vec_block_num_y * ne10 * ne11 * ne12 >= 128;
-        const bool can_vec = VEC > 1 && enough_blocks &&
+        // a block per row idles nearly all its threads on rows narrower than a warp
+        const bool can_vec = VEC > 1 && enough_blocks && ne00 >= 32 &&
             (ne00 % VEC == 0) &&
             (nb01 % 16 == 0) && (nb02 % 16 == 0) && (nb03 % 16 == 0) &&
             (nb1  % 16 == 0) && (nb2  % 16 == 0) && (nb3  % 16 == 0) &&
@@ -282,6 +351,18 @@ static void get_rows_cuda_float(
                 s10, s11, s12);
             return;
         }
+    }
+
+    if (ne00 < 32) {
+        const dim3 block_nums((ne10*ne00 + CUDA_GET_ROWS_BLOCK_SIZE - 1) / CUDA_GET_ROWS_BLOCK_SIZE, 1, MIN(ne11*ne12, UINT16_MAX));
+        const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params{block_nums, block_dims, 0, stream};
+        ggml_cuda_kernel_launch(k_get_rows_float_narrow<src0_t, dst_t>, launch_params,
+            src0_d, src1_d, dst_d,
+            (int) ne00, ne10, ne11, ne12_fdv,
+            s1, s2, s3,
+            nb01, nb02, nb03,
+            s10, s11, s12);
+        return;
     }
 
     const int block_num_y = (ne00 + CUDA_GET_ROWS_BLOCK_SIZE - 1) / CUDA_GET_ROWS_BLOCK_SIZE;

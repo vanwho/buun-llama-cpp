@@ -3,12 +3,108 @@
 
 #ifdef GGML_CUDA_USE_CUB
 #    include <cub/cub.cuh>
-#    if (CCCL_MAJOR_VERSION >= 3 && CCCL_MINOR_VERSION >= 2)
+// DeviceTopK has a race condition before CCCL 3.4.3.
+// https://github.com/NVIDIA/cccl/pull/10627
+#    if (CCCL_MAJOR_VERSION > 3 || \
+         (CCCL_MAJOR_VERSION == 3 && CCCL_MINOR_VERSION > 4) || \
+         (CCCL_MAJOR_VERSION == 3 && CCCL_MINOR_VERSION == 4 && CCCL_PATCH_VERSION >= 3))
 #        define CUB_TOP_K_AVAILABLE
 #        include <cuda/iterator>
 using namespace cub;
-#    endif  // CCCL_MAJOR_VERSION >= 3 && CCCL_MINOR_VERSION >= 2
+#    endif  // CCCL >= 3.4.3
 #endif      // GGML_CUDA_USE_CUB
+
+#if defined(GGML_CUDA_USE_CUB) && !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+namespace {
+// Keep score keys in registers across radix passes, then write the k survivors unordered.
+constexpr int register_top_k_threads=1024;
+__device__ uint32_t register_top_k_ordered(uint32_t b) {
+    // CUB treats signed zeros as equivalent. Otherwise preserve radix bit order.
+    if (!(b & 0x7fffffffU)) b=0;
+    return b ^ ((b >> 31) ? 0xffffffffU : 0x80000000U);
+}
+
+template<int items>
+__global__ __launch_bounds__(register_top_k_threads, 1)
+void register_top_k_select(const float * values, int * dst, int n, int k) {
+    using Scan=cub::BlockScan<int,register_top_k_threads>;
+    __shared__ union { unsigned hist[32][256]; Scan::TempStorage scan; } scratch;
+    __shared__ uint32_t prefix;
+    __shared__ int rank;
+    const int t=threadIdx.x, row=blockIdx.x;
+    uint32_t keys[items];
+#pragma unroll
+    for(int j=0;j<items;++j) {
+        int i=t*items+j;
+        keys[j]=i<n ? register_top_k_ordered(__float_as_uint(values[size_t(row)*n+i])) : 0;
+    }
+    if(!t) {prefix=0;rank=k;}
+    uint32_t mask=0;
+    __syncthreads();
+    for(int shift=24;shift>=0;shift-=8) {
+        for(int h=t;h<32*256;h+=register_top_k_threads) scratch.hist[h/256][h%256]=0;
+        __syncthreads();
+        const uint32_t pre=prefix;
+#pragma unroll
+        for(int j=0;j<items;++j) {
+            if(t*items+j<n && (keys[j]&mask)==pre)
+                atomicAdd(&scratch.hist[t/32][(keys[j]>>shift)&255],1U);
+        }
+        __syncthreads();
+        // thread t owns digit 255 - t; a suffix sum from the top digit finds the one holding the rank-th key
+        int count=0;
+        if(t<256) for(int w=0;w<32;++w) count+=scratch.hist[w][255-t];
+        const int need=rank;
+        __syncthreads();
+        int above;
+        Scan(scratch.scan).ExclusiveSum(count,above);
+        if(t<256 && above<need && above+count>=need) {
+            prefix=pre|uint32_t(255-t)<<shift;
+            rank=need-above;
+        }
+        mask|=0xffU<<shift;
+        __syncthreads();
+    }
+    int ng=0,ne=0;
+#pragma unroll
+    for(int j=0;j<items;++j) if(t*items+j<n) {ng+=keys[j]>prefix;ne+=keys[j]==prefix;}
+    int bg,be,total;
+    Scan(scratch.scan).ExclusiveSum(ng,bg,total);
+    __syncthreads();
+    Scan(scratch.scan).ExclusiveSum(ne,be);
+    __syncthreads();
+#pragma unroll
+    for(int j=0;j<items;++j) {
+        const int i=t*items+j;
+        if(i>=n) continue;
+        int pos=-1;
+        if(keys[j]>prefix) pos=bg++;
+        else if(keys[j]==prefix) pos=total+be++;
+        if(pos>=0 && pos<k) dst[size_t(row)*k+pos]=i;
+    }
+}
+void register_top_k_launch(const float * values,int * dst,int n,int rows,int k,cudaStream_t stream) {
+    if(n<=8192)register_top_k_select<8><<<rows,register_top_k_threads,0,stream>>>(values,dst,n,k);
+    else if(n<=16384)register_top_k_select<16><<<rows,register_top_k_threads,0,stream>>>(values,dst,n,k);
+    else if(n<=32768)register_top_k_select<32><<<rows,register_top_k_threads,0,stream>>>(values,dst,n,k);
+    else if(n<=40960)register_top_k_select<40><<<rows,register_top_k_threads,0,stream>>>(values,dst,n,k);
+    else GGML_ABORT("register top-k shape exceeds dispatch bound");
+}
+
+// One block per row: from four rows up this beats a DeviceTopK launch chain per row (25x on
+// 4352-row prefill), while a lone decode row leaves the device idle and stays on DeviceTopK.
+// Without a race-free DeviceTopK (CCCL < 3.4.3) the fallback is a full segmented argsort, which loses at any row count.
+bool register_top_k_wins(int64_t columns, int64_t rows, int64_t k) {
+#ifdef CUB_TOP_K_AVAILABLE
+    const int64_t min_rows = 4;
+#else
+    const int64_t min_rows = 1;
+#endif
+    return columns > 1024 && columns <= 40960 && rows >= min_rows && rows <= 8192 && k >= 1 && k <= 4096 && k <= columns;
+}
+
+} // namespace
+#endif
 
 static constexpr int stable_top_k_chunk = 4096;
 
@@ -310,6 +406,17 @@ static void top_k_radix_cuda(
 
 #endif // Batched radix selection: CUDA with DeviceTopK, or HIP without CUB.
 
+#if defined(GGML_USE_HIP)
+// hipMemcpy2DAsync can reject valid VMM-backed graph suballocations. Pack the
+// selected prefix of each sorted row directly, without changing its ordering.
+static __global__ void top_k_copy_indices(const int * src, int * dst, int64_t ncols, int64_t k, int64_t count) {
+    const int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i < count) {
+        dst[i] = src[(i / k) * ncols + i % k];
+    }
+}
+#endif
+
 void ggml_cuda_op_top_k(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const ggml_tensor * src0   = dst->src[0];
     const float *       src0_d = (const float *) src0->data;
@@ -327,6 +434,12 @@ void ggml_cuda_op_top_k(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const bool       stable = ggml_top_k_is_stable(dst);
     ggml_cuda_pool & pool  = ctx.pool();
     GGML_ASSERT(!stable || k <= 64);
+#if defined(GGML_CUDA_USE_CUB) && !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+    if (!stable && register_top_k_wins(ncols, nrows, k)) {
+        register_top_k_launch(src0_d, dst_d, ncols, nrows, k, stream);
+        return;
+    }
+#endif
 #ifdef CUB_TOP_K_AVAILABLE
     // TODO: Switch to `DeviceSegmentedTopK` for multi-row TopK once implemented
     // https://github.com/NVIDIA/cccl/issues/6391
@@ -374,8 +487,12 @@ void ggml_cuda_op_top_k(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
         ggml_cuda_pool_alloc<int> temp_dst_alloc(pool, ncols * nrows);
         int *                     tmp_dst = temp_dst_alloc.get();
         argsort_f32_i32_cuda_bitonic(src0_d, tmp_dst, ncols, nrows, GGML_SORT_ORDER_DESC, stream);
+#if defined(GGML_USE_HIP)
+        top_k_copy_indices<<<(k * nrows + 255) / 256, 256, 0, stream>>>(tmp_dst, dst_d, ncols, k, k * nrows);
+#else
         CUDA_CHECK(cudaMemcpy2DAsync(dst_d, k * sizeof(int), tmp_dst, ncols * sizeof(int), k * sizeof(int), nrows,
                                      cudaMemcpyDeviceToDevice, stream));
+#endif
 #if defined(GGML_USE_HIP)
     }
 #endif // defined(GGML_USE_HIP)

@@ -6,31 +6,13 @@
 
 A research and development fork of [llama.cpp](https://github.com/ggml-org/llama.cpp), providing unique KV cache codecs, inference techniques, and bleeding edge features.
 
-### Attention-aware KV paging route policy (experimental)
+### ACO: Attention-Aware Context Offloading (experimental)
 
-The attention-aware pager is intended to keep canonical Turbo4 (or another
-supported quantized) target K/V in host RAM while consuming the hot selection
-on the GPU, with native MTP K/V remaining fully GPU-resident. Automatic
-selective execution must always choose the fastest eligible GPU-native consumer:
-the mature contiguous dense Flash-Attention path, the fused paged Turbo4 path,
-or a bounded device-resident packed path. It must never hide an unsupported
-shape by falling back to CPU work or the generic `selected_reference` view.
-
-`selected_reference` exists as a temporary diagnostic/correctness oracle and
-may be requested explicitly for parity tests; its timings are not production
-performance evidence and must never be used as a speed result. Unsupported
-automatic shapes must be reported as an explicit refusal until a GPU-native
-route is implemented. See
-[`tools/server/README.md`](tools/server/README.md#attention-aware-kv-paging-experimental-operator-boundary)
-and the active Wiretail route-policy task for the implementation contract.
-
-The separate `experiment/attention-aware-ranking-v1` worktree also carries an
-isolated query-boundary ranking experiment. `--kv-router` defaults to `legacy`;
-`probe-rerank` is opt-in and does not alter the mature fast Flash-Attention
-routes. Ranking runs once at the query boundary, then history remains frozen
-through decode and MTP. The experiment is not an adoption recommendation:
-task 104-08 must record an evidence-based adopt, reject, or inconclusive
-decision before any main route changes.
+ACO keeps a bounded target KV working set on the GPU and canonical sealed-page
+backing in host memory. Selective routing approximates full-context attention;
+it is supported only for the documented Qwen3.8 CUDA geometry and is not a
+dense-equivalence or general performance claim. See the
+[architecture, limits, build, and launch guide](docs/aco.md).
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -207,6 +189,8 @@ better.
 On VRAM-constrained GPUs, a speculative context and the vision encoder (mmproj) may not fit in VRAM simultaneously. For example, Qwen3.6-27B Q6_K + MTP uses ~22.6 GiB on a 24 GiB RTX 3090, leaving no room for mmproj's ~1.1 GiB GPU footprint.
 
 `--mmproj-gpu-swap` solves this by keeping mmproj on CPU at startup, then temporarily unloading MTP or an external `draft-dflash` sidecar when an image arrives, loading mmproj to GPU for fast encoding (~1-2s instead of 30-60s on CPU), and restoring speculation afterward. MTP is recreated from the target model; an external DFlash sidecar is reloaded from its GGUF.
+
+With `-np 1`, the projector stays on GPU across intervening text until the last uncached media chunk in the prompt. The drafter is then restored before the trailing text is processed, avoiding repeated reloads for historical images without reordering the prompt. Multiple slots retain per-media-group swapping; cancellation and errors also restore the drafter.
 
 ```sh
 ./build/bin/llama-server -m Qwen3.6-27B-Q6_K.gguf \
@@ -549,6 +533,16 @@ Scalar quantization without TCQ. Faster encode, worse quality than TCQ equivalen
 ## Quick start
 
 A few options to get `llama.cpp` installed on your machine:
+
+```bash
+# curl
+# Upstream llama.cpp binaries, not buun's extended build:
+curl -LsSf https://llama.app/install.sh | sh
+
+# powershell
+# Upstream llama.cpp binaries, not buun's extended build:
+irm https://llama.app/install.ps1 | iex
+```
 
 - Visit https://llama.app and follow the instructions
 - Run with Docker - see our [Docker documentation](docs/docker.md)
