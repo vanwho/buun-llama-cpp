@@ -2402,6 +2402,7 @@ void llama_context::sched_reserve() {
     } else {
         for (auto & res : gf_res_prev) { res.reset(); }
         gf_res_prev_alloc.fill(false);
+        gf_res_prev_active = nullptr;
         gf_res_reserve.reset(new llm_graph_result(max_nodes));
     }
     if (reuse_sched) {
@@ -9058,6 +9059,7 @@ void llama_context::invalidate_graph_results() {
         if (res) { res->reset(); }
     }
     gf_res_prev_alloc.fill(false);
+    gf_res_prev_active = nullptr;
 }
 
 // pack sampler outputs into as few sequences as possible before using sequences without samplers
