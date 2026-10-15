@@ -36,8 +36,11 @@ repository-context boundary and says to answer only the following user
 request. Before any generation, the runner uses the
 server's native template/tokenizer on each exact system+canonical-user
 message and verifies room for a 400-token answer plus a 64-token context
-margin. Keep prefix occupancy, full rendered prompt tokens, backend-processed
-tokens, cached tokens, fresh tokens, context allocation, and hot capacity
+margin. `occupied_tokens` is the native-token count of the frozen system
+prefix before the canonical question; the full rendered system+user prompt
+count is recorded separately (about 20 tokens more for these prompts). Keep
+prefix occupancy, full rendered prompt tokens, backend-processed tokens,
+cached tokens, fresh tokens, context allocation, and hot capacity
 independently recorded. For all three small placements, `cache_prompt=false`
 forces every warmup and measured request to prefill the full same frozen
 prefix; report the server's observed cached/fresh/processed counts. Prefix
@@ -52,8 +55,11 @@ and prefill curve, targeting C=258,048 tokens or 260,000 only when the frozen
 source fit leaves the full 1,536-token context reserve. Capture all three
 canonical prompts at that occupancy. The shared small GPU-only row is the
 dense output-sanity control; do not add a second long full-prefill matrix.
-Finally run one known successful natural cold-recall case; this is a focused
-recall check, not a promotion matrix.
+Finally run the single fixed A1/B/A2 natural cold-recall sequence in the
+[fixture protocol](fixtures/natural-recall/README.md); it is a focused recall
+check, not a promotion matrix. The dedicated runner performs source-token to
+native-page mapping and records the before/after inventory without forcing a
+page.
 
 The historical master106 cohort is a patched-master baseline: it includes a
 narrow draft-placement patch and compares CPU F16 target KV against GPU
@@ -93,8 +99,9 @@ python3 tools/server/bench/release_evidence/export_public_results.py \
   --output-dir /path/to/public-results
 ```
 
-`run_release_matrix.py` uses only the Python standard library and its frozen
-source manifest. `--preflight` checks source hashes, geometry, model/binary
+`run_release_matrix.py` uses the Python standard library and runs on Linux
+with `ss` (iproute2) and `/proc` for exact listener/process verification and
+per-process memory/swap measurements. `--preflight` checks source hashes, geometry, model/binary
 identity, and prints exact service argv for all placements without contacting
 a server. `--prepare-prefix` requires the already-started server to match its
 generated argv, then saves a single frozen JSON prefix (including its exact
@@ -114,6 +121,7 @@ be running with the exact argv printed by preflight):
 ```sh
 PKG=tools/server/bench/release_evidence
 COMMON="--server-bin /path/to/llama-server --model /path/to/model.gguf --model-alias release-model --api-key-file /path/to/api.key --slot-state /path/to/slot-state --source-root . --output /path/to/run --lock-file /path/to/ai-pager-benchmark.lock --context-tokens 8192 --occupied-tokens 6144 --hot-tokens 4096"
+mkdir -p /path/to/slot-state
 python3 "$PKG/run_release_matrix.py" --mode gpu-only $COMMON --preflight
 python3 "$PKG/run_release_matrix.py" --mode gpu-only $COMMON --output /path/to/frozen-prefix.json --prepare-prefix
 python3 "$PKG/run_release_matrix.py" --mode gpu-only $COMMON --prefix-file /path/to/frozen-prefix.json --output /path/to/gpu-only --run
@@ -127,6 +135,48 @@ is recorded exactly. It builds a deterministic Git source schedule and
 measures incremental fill requests at 16K-token frontiers before the three
 canonical prompts. Use a separately prepared frozen long-prefix file. The
 caller owns service stop/start and restoration so the runner cannot silently
-replace a managed service. The focused natural cold-recall check uses the
-frozen known-successful 8K case after the victim/page mapping fix; record the
-actual mapped span and do not expand it into a promotion matrix.
+replace a managed service. A portable launch example for the long ACO server
+is shown below; use the exact model and candidate paths on the test host:
+
+```sh
+SERVER_BIN=/path/to/llama-server
+MODEL=/path/to/model.gguf
+API_KEY=/path/to/api.key
+SLOT_STATE=/path/to/slot-state
+mkdir -p "$SLOT_STATE"
+"$SERVER_BIN" -m "$MODEL" --alias release-model -ngl 999 --device CUDA0 \
+  --fit off -fa on -c 262144 -np 1 -ctk turbo4 -ctv turbo4 \
+  -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 \
+  --api-key-file "$API_KEY" --metrics --reasoning-preserve \
+  --no-context-shift --cache-ram 12288 --ctx-checkpoints 8 \
+  --checkpoint-min-step 8192 --slot-save-path "$SLOT_STATE" \
+  --cache-idle-slots --kv-unified --spec-draft-kv-device gpu \
+  --spec-type draft-mtp --spec-draft-n-max 2 \
+  --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 \
+  --kv-pager selective --kv-router probe-rerank --kv-page-size 256 \
+  --kv-hot-pages 256 --kv-pin-recent 0
+```
+
+Prepare and run this fixed schedule using the same source root and frozen
+prefix. The runner logs each frontier's actual native C, backend fresh/cache
+counts, wall time, and process memory. It stops at the first server/runtime
+fault; a partial curve must be reported as partial and cannot support a
+completed-256K claim.
+
+```sh
+PKG=tools/server/bench/release_evidence
+COMMON="--mode aco --server-bin $SERVER_BIN --model $MODEL --model-alias release-model --api-key-file $API_KEY --slot-state $SLOT_STATE --source-root . --lock-file /path/to/ai-pager-benchmark.lock --context-tokens 262144 --occupied-tokens 258048 --hot-tokens 65536"
+python3 "$PKG/run_release_matrix.py" $COMMON --output /path/to/long-prefix.json --prepare-prefix
+python3 "$PKG/run_release_matrix.py" $COMMON --prefix-file /path/to/long-prefix.json --output /path/to/long-aco-run --run
+```
+
+The focused natural cold-recall check uses the
+frozen A1/B/A2 sequence in
+[`fixtures/natural-recall/README.md`](fixtures/natural-recall/README.md); its
+dedicated `run_natural_cold_recall.py` helper verifies the same release
+executable and captures native token-to-page mapping, before/after page
+identity/residency, request H2D, and any matching singleton proof witness. It
+does not force a page or expand into a promotion matrix.
+
+Rebuild the server with the release build's configured options and the
+parallelism used for this release: `cmake --build build --parallel 16`.
