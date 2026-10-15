@@ -35,6 +35,12 @@ paged Turbo4 kernel. `selected_reference` is an explicit correctness
 diagnostic. It is not an automatic fallback and its timing is not performance
 evidence.
 
+For ordinary runs, leave `LLAMA_KV_ATTENTION_ROUTE` unset (its default is
+`auto`). This process-wide diagnostic override can force `reference`, `dense`,
+`packed`, or `direct` dispatch when the requested route passes capability
+checks; unsupported overrides fail closed. Do not carry a diagnostic override
+into production measurements or deployments.
+
 ## Supported shape and limits
 
 The documented target geometry is Qwen3.8-family CUDA attention with 256-token
@@ -58,6 +64,12 @@ by the transfer ring. `--fit off` disables automatic fitting; use it only when
 you have checked the complete allocation on the target device. Unsupported
 shapes, missing host backing, stale identities, unsafe eviction, or inadequate
 capacity are refused rather than routed through CPU Turbo4 attention.
+
+With an explicit `--kv-hot-pages` cap, the startup plan does not reserve a
+worst-case copy of every optional packed-route workspace. Those buffers are
+admitted at the route/graph boundary against their actual shape. A failed
+scratch or graph allocation is surfaced as a refusal/error; successful startup
+alone is not a guarantee that every later route allocation will fit.
 
 The available modes are `off`, `observe`, `selective`, and `exact`. `off` is
 the normal dense path. `observe` collects pager evidence without selective
@@ -143,6 +155,19 @@ not provide cold-promotion timing; 107-01 cold-promotion timing was invalidated.
 Two correct near-256K promotions from the earlier 105-21 cohort remain valid
 for that older cohort only. Do not present those results as current-cohort
 timings or as a general 256K guarantee.
+
+The [portable reproduction protocol](../tools/server/bench/release_evidence/README.md)
+and [matrix runner](../tools/server/bench/release_evidence/run_release_matrix.py)
+are versioned with the source.
+The valid 107-02 natural 8K/4K recall row measured 2,447.379 ms HTTP wall time,
+638.308 ms prompt stage, 1,801.590 ms decode stage, and 34,603,008 useful H2D
+bytes. This is one row, not a general speedup claim or a cold-promotion timing;
+identical-body repeats were mixed controls with secondary page movement (about
+2,281/2,275 ms). The older 105-21 cohort has two rubric-correct promotions
+near 256K with about 33 MiB transferred; its 5,132/5,117 microsecond values are
+transfer-stage timings only, not end-to-end latency. `107-01` is excluded in
+full. See the reproduction README for tested inputs, controls, and
+interpretation boundaries.
 
 CPU-target F16 versus CUDA-target Turbo4 changes both placement and KV
 representation, so it is a confounded comparison and cannot isolate the
