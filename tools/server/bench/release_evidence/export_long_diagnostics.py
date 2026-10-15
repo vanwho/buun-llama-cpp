@@ -101,7 +101,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--long-records", type=pathlib.Path, required=True)
     parser.add_argument("--append-records", type=pathlib.Path, required=True)
-    parser.add_argument("--interrupted-tokens", type=int, required=True)
+    parser.add_argument("--interrupted-tokens", type=int,
+                        help="server token count for one controlled incomplete request, if any")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
     source = read_jsonl(args.long_records)
@@ -129,15 +130,16 @@ def main() -> int:
         row["frontier_index"] = None
         row["raw_artifact_retained"] = fill_artifacts_match(args.long_records.parent, record)
         rows.append(row)
-    rows.append({field: None for field in FIELDS} | {
-        "cohort": "synthetic-history-replacement-partial",
-        "case_id": "warmup-p1-r0", "kind": "warmup", "status": "incomplete",
-        "prompt_index": 1, "repetition": 0, "logical_context_tokens": 262144,
-        "occupied_tokens": 258048, "native_full_prompt_tokens": 258071,
-        "server_tokens_at_cancel": args.interrupted_tokens,
-        "raw_artifact_retained": False,
-        "evidence_note": "incomplete client stream after controlled stop; request body and partial SSE retained privately",
-    })
+    if args.interrupted_tokens is not None:
+        rows.append({field: None for field in FIELDS} | {
+            "cohort": "synthetic-history-replacement-partial",
+            "case_id": "warmup-p1-r0", "kind": "warmup", "status": "incomplete",
+            "prompt_index": 1, "repetition": 0, "logical_context_tokens": 262144,
+            "occupied_tokens": 258048, "native_full_prompt_tokens": 258071,
+            "server_tokens_at_cancel": args.interrupted_tokens,
+            "raw_artifact_retained": False,
+            "evidence_note": "incomplete client stream after controlled stop; request body and partial SSE retained privately",
+        })
     for record in append:
         timings = {"prompt_n": record.get("backend_prompt_n"),
                    "cache_n": record.get("backend_cache_n"),
@@ -181,7 +183,7 @@ def main() -> int:
             "gpu_layers": 999, "flash_attention": True},
         "accounting_note": "backend_prompt_n may include checkpoint replay; backend_cache_n, backend processing rate, native occupancy advance, and client wall rate are separate fields. Occupancy advance is reported only for fill frontiers.",
         "synthetic_replacement_scope": {"completed_rows": len(synthetic),
-            "interrupted_rows": 1, "total_planned_requests": 12,
+            "interrupted_rows": int(args.interrupted_tokens is not None), "total_planned_requests": 12,
             "note": "Diagnostic replacement-history follow-up stopped after the completed p0 warmup plus three measured turns; next warmup was cancelled at the recorded server token count. Not a full 12-request matrix."},
         "append_only_scope": {"recovery_rows": sum(r.get("kind") == "recovery" for r in append),
             "single_observation_rows": sum(r.get("kind") == "append_only_single_observation" for r in append),

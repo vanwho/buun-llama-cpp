@@ -205,15 +205,15 @@ python3 tools/server/bench/release_evidence/run_long_append_history.py \
 After the run, use the allowlist exporter to combine the fill curve, partial
 replacement-history records, and append-only observations into sanitized
 `long-context.json` and `long-context.csv` files. `--interrupted-tokens` is the
-server-reported token count of the intentionally stopped synthetic request;
-omit that row only when no request was stopped mid-stream.
+optional server-reported token count of an intentionally stopped synthetic
+request; omit the option when no request was stopped mid-stream.
 
 ```sh
 python3 tools/server/bench/release_evidence/export_long_diagnostics.py \
   --long-records /path/to/private/long-run/records.jsonl \
   --append-records /path/to/private/append-history/records.jsonl \
-  --interrupted-tokens 152740 \
   --output-dir /path/to/public-results
+# Add --interrupted-tokens <server-reported-token-count> when applicable.
 ```
 
 Rebuild the server with the release build's configured options and the
