@@ -22,6 +22,12 @@ SPEC.loader.exec_module(runner)
 
 
 class LongCurveOfflineTest(unittest.TestCase):
+    def test_final_fill_frontier_ids_are_unique(self) -> None:
+        points = [(15, 247694), (16, 258048)]
+        ids = [runner.long_fill_case_id(index, occupied) for index, occupied in points]
+        self.assertEqual(ids, ["fill-frontier-15-c247694", "fill-frontier-16-c258048"])
+        self.assertEqual(len(ids), len(set(ids)))
+
     def test_partial_utf8_tail_keeps_nested_valid_source(self) -> None:
         content = [("src/unicode.cpp", "αβ".encode("utf-8"))]
         first, first_ranges = runner.render_append_only_source(content, 3)
