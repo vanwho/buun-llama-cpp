@@ -36,6 +36,7 @@ struct llama_ubatch {
     llama_pos pos0(uint32_t row) const {
         GGML_ASSERT(pos != nullptr && row < n_tokens);
         return pos[row];
+    }
     // mixed: type picks token or embd per row, pos has n_pos sections for all rows
     bool is_mixed() const {
         return type != nullptr;
