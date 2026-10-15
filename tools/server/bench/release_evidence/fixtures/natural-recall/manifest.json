@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "fixture_id": "release-aco-natural-cold-recall-v1",
+  "license": "MIT; see LICENSE",
+  "source_fixture_corpus": "tools/server/bench/fixtures/pager-promotion",
+  "files": [
+    {
+      "id": "PY_MERGE_01",
+      "path": "python/merge_sorted_lists_01.py",
+      "sha256": "7d58c741a46d0a3ceddaa63e82fc58563af7765be59094d3ea270c9ee34ca89e"
+    },
+    {
+      "id": "PY_MERGE_03",
+      "path": "python/merge_sorted_lists_03.py",
+      "sha256": "5b8395959f3483426a39a8c4aece6702269dca68b813cbafa8165c3ce6964b29"
+    },
+    {
+      "id": "BASH_WATCH_02",
+      "path": "bash/watch_directory_new_files_02.sh",
+      "sha256": "1fd3ecf0902ceb8a7dfbab29a5c3065825bcf2417192b5bda9e69117a565ef71"
+    },
+    {
+      "id": "BASH_WATCH_03",
+      "path": "bash/watch_directory_new_files_03.sh",
+      "sha256": "e264de31a73fa953a13fe504cf957ec36d3ab5a5a53cd319cade075d78425ae0"
+    },
+    {
+      "id": "BASH_WATCH_04",
+      "path": "bash/watch_directory_new_files_04.sh",
+      "sha256": "d1b142dfe4390bafdd9971ed42bc49d2c222c34145a6e5c68eeaee9470097e6a"
+    }
+  ],
+  "steps": [
+    {
+      "name": "A1",
+      "files": ["PY_MERGE_01", "PY_MERGE_03"],
+      "question": "Between merge_sorted_lists_01.py and merge_sorted_lists_03.py, which file grows the output list with append() and copies any leftover suffix with extend()? Explain briefly.",
+      "cache_prompt": false
+    },
+    {
+      "name": "B",
+      "files": ["BASH_WATCH_02", "BASH_WATCH_03", "BASH_WATCH_04"],
+      "question": "I have finished reviewing these Bash watcher examples. Please acknowledge briefly.",
+      "cache_prompt": true
+    },
+    {
+      "name": "A2",
+      "files": [],
+      "question": "In PY_MERGE_03 (merge_sorted_lists_03.py), the `write` cursor assigns `out[write]`. What does the comment say about how many times each preallocated output position is written, and how do the cursor increments guarantee that?",
+      "cache_prompt": true,
+      "retrieval_fixture": "PY_MERGE_03",
+      "retrieval_comment": "The preallocated merge writes each output position exactly once.",
+      "semantic_expected": "Explain that every preallocated output index is assigned once and that the write cursor advances by one per assignment through the full output range."
+    }
+  ],
+  "sampling": {
+    "temperature": 0,
+    "seed": 42,
+    "max_tokens_each": 400,
+    "reasoning_effort": "none",
+    "enable_thinking": false
+  }
+}
