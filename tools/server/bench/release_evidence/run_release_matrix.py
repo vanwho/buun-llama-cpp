@@ -296,6 +296,11 @@ def build_long_curve(endpoint: str, key: str, alias: str,
     return curve
 
 
+def long_fill_case_id(frontier_index: int, occupied_tokens: int) -> str:
+    """Return a unique stable ID; target // 16K collides at the final frontier."""
+    return f"fill-frontier-{frontier_index:02d}-c{occupied_tokens}"
+
+
 def server_argv(args: argparse.Namespace, mode: str,
                 context: int, hot_tokens: int) -> list[str]:
     target = "f16" if mode == "cpu-target-gpu-draft" else "turbo4"
@@ -544,7 +549,8 @@ def record_request(args: argparse.Namespace, key: str, prefix: str, prompt: str,
                    kind: str, prompt_index: int, repetition: int,
                    maximum: int, output: pathlib.Path,
                    occupancy: int, before_mtp: dict[str, int] | None,
-                   started_source: float | None = None) -> dict[str, Any]:
+                   started_source: float | None = None,
+                   case_id_override: str | None = None) -> dict[str, Any]:
     payload = {"model": args.model_alias,
                "messages": [{"role": "system", "content": prefix},
                             {"role": "user", "content": prompt}],
@@ -553,7 +559,7 @@ def record_request(args: argparse.Namespace, key: str, prefix: str, prompt: str,
                "stream_options": {"include_usage": True},
                "chat_template_kwargs": {"enable_thinking": False},
                "reasoning_effort": "none"}
-    case_id = f"{kind}-p{prompt_index}-r{repetition}"
+    case_id = case_id_override or f"{kind}-p{prompt_index}-r{repetition}"
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
     request_path = output / "requests" / f"{case_id}.json"
     request_path.parent.mkdir(parents=True, exist_ok=True)
@@ -664,13 +670,14 @@ def run(args: argparse.Namespace, plan_value: dict[str, Any], output: pathlib.Pa
                           "frontiers": [{"target_tokens": point, "native_tokens": count}
                                         for point, _, count, _ in curve_prefixes]},
                          sort_keys=True), flush=True)
-        for target_point, curve_prefix, point_tokens, point_ranges in curve_prefixes:
+        for frontier_index, (target_point, curve_prefix, point_tokens, point_ranges) in enumerate(curve_prefixes, 1):
             print(json.dumps({"event": "long_fill_start", "target_tokens": target_point,
                               "native_prefix_tokens": point_tokens}, sort_keys=True),
                   flush=True)
             before_mtp = parse_metrics(args.endpoint, key)
             row = record_request(args, key, curve_prefix, "Acknowledge with one brief word.",
-                "fill", -1, target_point // 16384, 40, output, point_tokens, before_mtp)
+                "fill", -1, frontier_index, 40, output, point_tokens, before_mtp,
+                case_id_override=long_fill_case_id(frontier_index, point_tokens))
             selection["context_curve"].append({"target_tokens": target_point,
                 "occupied_tokens": point_tokens, "range_count": len(point_ranges),
                 "wall_ms": row["wall_ms"], "prompt_tokens": row.get("prompt_tokens"),
