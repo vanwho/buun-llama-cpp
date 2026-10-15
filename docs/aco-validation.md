@@ -73,6 +73,23 @@ non-droppable physical owners while selecting only genuinely free or clean-
 droppable slots. Any later long-run claim must reference the fixed binary above
 and its separately published results artifact.
 
+## Observed long-context replay limitation
+
+The fixed candidate completed all 16 long-fill frontiers through actual
+`C=258,048` without a runtime fault. The identical-question long canonical
+warmup and first measured p0 replay both incurred substantial backend work:
+the warmup took 135.7 seconds wall / 134.4 seconds in the prompt stage, and
+the measured replay took 143.6 seconds wall / 134.5 seconds in the prompt
+stage. Both reported `cache_n=149,668` and `prompt_n=108,424` for a full
+rendered prompt of 258,071 tokens. Thus a warm cache did not eliminate
+substantial prompt reprocessing at this frontier. These are two rows, not a
+complete performance characterization; remaining canonical requests were
+still in progress when this note was prepared. The source LCP advanced to
+220,585 at `C=234,592`, while restore used the 149,668-token checkpoint and
+attention-only trim. Checkpoint selection/retention remains a follow-up
+optimization area; the observations do not establish cache-RAM pressure as the
+cause.
+
 ## Retained log fingerprints
 
 Raw logs are retained outside the source tree. The artifact identifiers below
