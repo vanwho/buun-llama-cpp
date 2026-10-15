@@ -1464,7 +1464,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "KV_PAGE_SUMMARY",
 };
 
-static_assert(GGML_OP_COUNT == 113, "GGML_OP_COUNT != 113");
+static_assert(GGML_OP_COUNT == 114, "GGML_OP_COUNT != 114");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1592,7 +1592,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "kv_page_summary(k, metadata, catalogue)",
 };
 
-static_assert(GGML_OP_COUNT == 113, "GGML_OP_COUNT != 113");
+static_assert(GGML_OP_COUNT == 114, "GGML_OP_COUNT != 114");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
