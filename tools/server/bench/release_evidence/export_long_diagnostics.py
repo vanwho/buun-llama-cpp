@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import pathlib
 from typing import Any
@@ -16,7 +17,8 @@ FIELDS = (
     "backend_prompt_tps", "occupancy_advance_tps", "wall_ms", "prompt_ms",
     "decode_ms", "completion_tokens", "mtp_draft_n", "mtp_accepted_n",
     "mtp_acceptance_percent", "process_rss_before_mib", "process_rss_after_mib",
-    "process_swap_before_mib", "process_swap_after_mib", "server_tokens_at_cancel",
+    "process_swap_before_mib", "process_swap_after_mib", "raw_artifact_retained",
+    "evidence_note", "server_tokens_at_cancel",
 )
 
 
@@ -81,6 +83,20 @@ def normalized(cohort: str, record: dict[str, Any], previous_c: int | None = Non
     }
 
 
+def fill_artifacts_match(records_dir: pathlib.Path, record: dict[str, Any]) -> bool:
+    case = record.get("case_id")
+    if not isinstance(case, str):
+        return False
+    raw = records_dir / "raw" / f"{case}.sse"
+    request = records_dir / "requests" / f"{case}.json"
+    try:
+        raw_ok = hashlib.sha256(raw.read_bytes()).hexdigest() == record.get("raw_sha256")
+        request_ok = hashlib.sha256(request.read_bytes()).hexdigest() == record.get("request_sha256")
+        return raw_ok and request_ok
+    except OSError:
+        return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--long-records", type=pathlib.Path, required=True)
@@ -101,6 +117,9 @@ def main() -> int:
         # frontier can collide with the previous one. Export ordinal IDs.
         row["case_id"] = f"fill-frontier-{frontier_index:02d}"
         row["frontier_index"] = frontier_index
+        row["raw_artifact_retained"] = fill_artifacts_match(args.long_records.parent, record)
+        if not row["raw_artifact_retained"]:
+            row["evidence_note"] = "runner request ID collided with a later frontier; structured record and server log retained, raw request/SSE artifact overwritten"
         rows.append(row)
         if isinstance(record.get("cumulative_tokens"), int):
             previous_c = record["cumulative_tokens"]
@@ -108,6 +127,7 @@ def main() -> int:
         row = normalized("synthetic-history-replacement-partial", record)
         row["native_occupancy_delta"] = None
         row["frontier_index"] = None
+        row["raw_artifact_retained"] = fill_artifacts_match(args.long_records.parent, record)
         rows.append(row)
     rows.append({field: None for field in FIELDS} | {
         "cohort": "synthetic-history-replacement-partial",
@@ -115,6 +135,8 @@ def main() -> int:
         "prompt_index": 1, "repetition": 0, "logical_context_tokens": 262144,
         "occupied_tokens": 258048, "native_full_prompt_tokens": 258071,
         "server_tokens_at_cancel": args.interrupted_tokens,
+        "raw_artifact_retained": False,
+        "evidence_note": "incomplete client stream after controlled stop; request body and partial SSE retained privately",
     })
     for record in append:
         timings = {"prompt_n": record.get("backend_prompt_n"),
@@ -132,6 +154,11 @@ def main() -> int:
         cohort = "append-history-recovery" if record.get("kind") == "recovery" else "append-history-single-observation"
         row = normalized(cohort, base)
         row["frontier_index"] = None
+        raw = args.append_records.parent / "raw" / f"{record.get('case_id')}.sse"
+        try:
+            row["raw_artifact_retained"] = hashlib.sha256(raw.read_bytes()).hexdigest() == record.get("response_sha256")
+        except OSError:
+            row["raw_artifact_retained"] = False
         row["native_full_prompt_tokens"] = record.get("native_full_prompt_tokens")
         row["occupied_tokens"] = 258048
         row["native_occupancy_delta"] = None
