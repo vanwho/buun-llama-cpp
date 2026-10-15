@@ -1045,6 +1045,8 @@ private:
     page_state * find_slot(uint32_t slot) noexcept;
     void release_current_pin(page_state * except) noexcept;
     bool frozen_history_page(const page_state * page) const noexcept;
+    static bool write_victim_before(const page_state & lhs,
+            const page_state & rhs) noexcept;
     bool generation_page_evictable(const page_state * page, int32_t sequence_id,
             uint64_t turn_id) const noexcept;
     page_state * oldest_generation_victim(int32_t sequence_id,

@@ -344,30 +344,33 @@ static void test_turbo4_nonfinite_values_do_not_poison_rows() {
 
 // Raw blocks cover every packed code byte and the entire signed activation
 // range, including -128 (not normally emitted by the float quantizer).
-static void test_q2_0_packed_dot() {
-    const auto * traits = ggml_get_type_traits_cpu(GGML_TYPE_Q2_0);
-    assert(ggml_blck_size(GGML_TYPE_Q2_0) == 64);
-    assert(ggml_type_size(GGML_TYPE_Q2_0) == 18);
+static void test_q2_0_packed_dot(ggml_type type) {
+    const auto * traits = ggml_get_type_traits_cpu(type);
+    const int qk = ggml_blck_size(type);
+    const size_t stride = ggml_type_size(type);
+    assert(qk == (type == GGML_TYPE_Q2_0 ? 64 : 128));
+    assert(stride == size_t(2 + qk / 4));
     assert(ggml_type_size(GGML_TYPE_Q8_0) == 34);
     for (const int n : {64, 128, 192, 256, 320, 640, 2560, 32768}) {
-        std::vector<uint8_t> x(ggml_row_size(GGML_TYPE_Q2_0, n));
+        if (n % qk) continue;
+        std::vector<uint8_t> x(ggml_row_size(type, n));
         std::vector<uint8_t> y(ggml_row_size(GGML_TYPE_Q8_0, n));
         for (int pattern = 0; pattern < 256; ++pattern) {
             float expected = 0.0f;
-            for (int block = 0; block < n / 64; ++block) {
+            for (int block = 0; block < n / qk; ++block) {
                 const float dx = (block % 5 == 4) ? 0.0f : 0.25f;
                 const ggml_fp16_t dxh = ggml_fp32_to_fp16(dx);
-                memcpy(x.data() + block * 18, &dxh, 2);
+                memcpy(x.data() + block * stride, &dxh, 2);
                 float partial = 0.0f;
-                for (int chunk = 0; chunk < 2; ++chunk) {
+                for (int chunk = 0; chunk < qk / 32; ++chunk) {
                     const float dy = chunk == 0 ? 0.5f : -2.0f;
                     const ggml_fp16_t dyh = ggml_fp32_to_fp16(dy);
-                    uint8_t * qy = y.data() + (block * 2 + chunk) * 34;
+                    uint8_t * qy = y.data() + (block * (qk / 32) + chunk) * 34;
                     memcpy(qy, &dyh, 2);
                     int dot = 0;
                     for (int b = 0; b < 8; ++b) {
                         const uint8_t packed = uint8_t(pattern + block * 13 + b * 17);
-                        x[block * 18 + 2 + chunk * 8 + b] = packed;
+                        x[block * stride + 2 + chunk * 8 + b] = packed;
                         for (int j = 0; j < 4; ++j) {
                             const int value = ((pattern + block * 31 + chunk * 97 + b * 4 + j) & 255) - 128;
                             qy[2 + b * 4 + j] = uint8_t(value);
@@ -444,6 +447,42 @@ static void test_q2_0_repeated_experts() {
     }
 }
 
+// In every group, all values with importance are equal, and the max (0) has none.
+// The scale search in make_qkx3_quants then fits min == max and passes inf/nan to nearest_int (#29804).
+static int test_quantize_imatrix_degenerate(bool verbose) {
+    const int64_t n = 256;
+    std::vector<float> x(n);
+    std::vector<float> imatrix(n);
+    std::vector<float> out(n);
+    int num_failed = 0;
+
+    printf("Testing degenerate imatrix:\n");
+    for (ggml_type type : {GGML_TYPE_Q2_K, GGML_TYPE_Q4_K, GGML_TYPE_Q5_K, GGML_TYPE_Q4_1, GGML_TYPE_Q5_1}) {
+        const int64_t group = type == GGML_TYPE_Q2_K ? 16 : 32;
+        for (int64_t i = 0; i < n; ++i) {
+            const int64_t g = i / group;
+            const int64_t p = i % group;
+            const bool important = p % 3 == 1;
+            x[i] = important ? -0.02f*(g + 1) : (p % 2 ? -1.0f : 0.0f);
+            imatrix[i] = important ? 1.0f : 0.0f;
+        }
+        printf("  - %s\n", ggml_type_name(type));
+
+        std::vector<uint8_t> q(ggml_row_size(type, n));
+        ggml_quantize_init(type);
+        ggml_quantize_chunk(type, x.data(), q.data(), 0, 1, n, imatrix.data());
+        ggml_get_type_traits(type)->to_float(q.data(), out.data(), n);
+
+        const bool failed = !std::all_of(out.begin(), out.end(), [](float v) { return std::isfinite(v); });
+        num_failed += failed;
+        if (failed || verbose) {
+            printf("%5s imatrix degenerate groups:      %s\n", ggml_type_name(type), RESULT_STR[failed]);
+        }
+    }
+
+    return num_failed;
+}
+
 int main(int argc, char * argv[]) {
     bool verbose = false;
 
@@ -462,7 +501,8 @@ int main(int argc, char * argv[]) {
     ggml_cpu_init();
     test_bonsai_codecs();
     test_turbo4_nonfinite_values_do_not_poison_rows();
-    test_q2_0_packed_dot();
+    test_q2_0_packed_dot(GGML_TYPE_Q2_0);
+    test_q2_0_packed_dot(GGML_TYPE_Q2_0_G128);
     test_q2_0_repeated_experts();
 
     int num_failed = 0;
@@ -470,6 +510,7 @@ int main(int argc, char * argv[]) {
     num_failed += test_vec_dot_f32(verbose);
     num_failed += test_f8_e4m3_known_codes(verbose);
     num_failed += test_vec_dot_q(verbose);
+    num_failed += test_quantize_imatrix_degenerate(verbose);
 
     if (num_failed || verbose) {
         printf("%d tests failed\n", num_failed);

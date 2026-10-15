@@ -290,6 +290,13 @@ struct server_mmproj_lifecycle_test_result {
     bool thrown_media_restore_once = false;
     bool thrown_callback_restore_once = false;
     bool throwing_restore_not_retried = false;
+    bool media_lookahead_boundaries = false;
+    bool single_slot_coalesces = false;
+    bool multi_slot_unchanged = false;
+    bool cpu_fallback_restores = false;
+    bool deferred_cancel_restores = false;
+    bool deferred_media_error_restores = false;
+    bool deferred_text_error_restores = false;
     bool incompatible_draft_disables_shift = false;
     bool incompatible_draft_not_shifted = false;
     bool compatible_draft_enables_shift = false;
@@ -375,6 +382,7 @@ struct server_context_meta {
     std::set<std::string> model_aliases;
     std::set<std::string> model_tags;
     std::string model_path;
+    std::vector<std::string> model_output_modalities; // output modalities for GET /models
     bool has_mtmd;
     bool has_inp_image;
     bool has_inp_audio;
@@ -525,6 +533,7 @@ struct server_routes {
     server_http_context::handler_t post_embeddings;
     server_http_context::handler_t post_embeddings_oai;
     server_http_context::handler_t post_rerank;
+    server_http_context::handler_t post_systemone;
     server_http_context::handler_t get_lora_adapters;
     server_http_context::handler_t post_lora_adapters;
 

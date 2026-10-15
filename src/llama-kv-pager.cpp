@@ -1667,6 +1667,22 @@ bool llama_kv_pager::frozen_history_page(const page_state * page) const noexcept
     return false;
 }
 
+bool llama_kv_pager::write_victim_before(
+        const page_state & lhs, const page_state & rhs) noexcept {
+    // Logical positions provide recency only within one sequence. Keep
+    // cross-sequence ordering deterministic without claiming a global LRU.
+    if (lhs.record.id.sequence_id != rhs.record.id.sequence_id) {
+        return lhs.record.id.sequence_id < rhs.record.id.sequence_id;
+    }
+    if (lhs.record.id.position_begin != rhs.record.id.position_begin) {
+        return lhs.record.id.position_begin < rhs.record.id.position_begin;
+    }
+    if (lhs.record.id.logical_page != rhs.record.id.logical_page) {
+        return lhs.record.id.logical_page < rhs.record.id.logical_page;
+    }
+    return lhs.record.id.page_generation < rhs.record.id.page_generation;
+}
+
 bool llama_kv_pager::generation_page_evictable(const page_state * page,
         int32_t sequence_id, uint64_t turn_id) const noexcept {
     return page != nullptr && page->present &&
@@ -3331,6 +3347,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
             return oldest_unselected_history_victim(
                 sequence_id, turn->second, {});
         }
+        page_state * oldest = nullptr;
         for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
             page_state * candidate = find_slot(i);
             if (candidate && !frozen_history_page(candidate) && !candidate->host_inflight &&
@@ -3341,11 +3358,12 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
                     (routing_summary_provider_.build == nullptr ||
                      candidate->summary_content_version == candidate->content_version) &&
                     (candidate->record.state == llama_kv_page_state::host_clean ||
-                     candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
-                return candidate;
+                     candidate->record.state == llama_kv_page_state::gpu_host_clean) &&
+                    (oldest == nullptr || write_victim_before(*candidate, *oldest))) {
+                oldest = candidate;
             }
         }
-        return nullptr;
+        return oldest;
     };
     const uint64_t physical = uint64_t(snapshot_.physical_page_count - 1) * snapshot_.geometry.page_tokens + offset;
     if (physical > UINT32_MAX) return llama_kv_pager_write_status::overflow;
@@ -3707,6 +3725,10 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                     victims.push_back(candidate->record.id);
                 }
             } else {
+                const size_t needed = new_logical_pages.size() > slots.size()
+                    ? new_logical_pages.size() - slots.size() : 0;
+                std::vector<const page_state *> oldest_candidates;
+                oldest_candidates.reserve(needed);
                 for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
                     if (slot_pages_[slot] < 0) continue;
                     const page_state * page = find_slot(slot);
@@ -3721,8 +3743,22 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                              page->summary_content_version == page->content_version) &&
                             (page->record.state == llama_kv_page_state::host_clean ||
                              page->record.state == llama_kv_page_state::gpu_host_clean)) {
-                        victims.push_back(page->record.id);
+                        const auto at = std::lower_bound(oldest_candidates.begin(),
+                                oldest_candidates.end(), page,
+                                [](const page_state * lhs, const page_state * rhs) {
+                            return write_victim_before(*lhs, *rhs);
+                        });
+                        if (needed != 0 && (oldest_candidates.size() < needed ||
+                                at != oldest_candidates.end())) {
+                            oldest_candidates.insert(at, page);
+                            if (oldest_candidates.size() > needed) {
+                                oldest_candidates.pop_back();
+                            }
+                        }
                     }
+                }
+                for (const auto * candidate : oldest_candidates) {
+                    victims.push_back(candidate->record.id);
                 }
             }
             size_t victim_at = 0;
