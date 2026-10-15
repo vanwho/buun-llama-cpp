@@ -89,7 +89,7 @@ cmake -B build-aco \
   -DGGML_CUDA=ON \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CUDA_ARCHITECTURES=native
-cmake --build build-aco --target llama-server -j16
+cmake --build build-aco --target llama-server --parallel 16
 ```
 
 The resulting executable is `build-aco/bin/llama-server`. Use a supported
