@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "protocol_id": "release-aco-2026-10",
+  "runs": [
+    {
+      "name": "small-gpu-only",
+      "placement": "gpu-only",
+      "logical_context_tokens": 8192,
+      "occupied_tokens": 6144,
+      "hot_kv_tokens": 4096,
+      "records_jsonl": "private/small-gpu-only/records.jsonl"
+    },
+    {
+      "name": "small-cpu-target",
+      "placement": "cpu-target-gpu-draft",
+      "logical_context_tokens": 8192,
+      "occupied_tokens": 6144,
+      "hot_kv_tokens": 4096,
+      "records_jsonl": "private/small-cpu-target/records.jsonl"
+    },
+    {
+      "name": "small-aco",
+      "placement": "aco",
+      "logical_context_tokens": 8192,
+      "occupied_tokens": 6144,
+      "hot_kv_tokens": 4096,
+      "records_jsonl": "private/small-aco/records.jsonl"
+    },
+    {
+      "name": "long-aco-256k",
+      "placement": "aco",
+      "logical_context_tokens": 262144,
+      "occupied_tokens": 258048,
+      "hot_kv_tokens": 65536,
+      "records_jsonl": "private/long-aco-256k/records.jsonl"
+    },
+    {
+      "name": "natural-cold-recall",
+      "placement": "aco",
+      "logical_context_tokens": 8192,
+      "occupied_tokens": 6144,
+      "hot_kv_tokens": 4096,
+      "records_jsonl": "private/natural-cold-recall/records.jsonl"
+    }
+  ]
+}
