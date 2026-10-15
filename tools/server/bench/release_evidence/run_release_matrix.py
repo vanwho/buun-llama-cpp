@@ -481,6 +481,11 @@ def record_request(args: argparse.Namespace, key: str, prefix: str, prompt: str,
     cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
     fresh = (prompt_total - cached if isinstance(prompt_total, int) and
              isinstance(cached, int) and prompt_total >= cached else None)
+    # For the small workload cache_prompt=false makes backend prompt_n the
+    # genuinely fresh processed work even when cached_tokens is omitted.
+    if (fresh is None and args.context_tokens == 8192 and
+            isinstance(timings.get("prompt_n"), int)):
+        fresh = timings["prompt_n"]
     row = {"case_id": case_id, "kind": kind, "prompt_index": prompt_index,
            "repetition": repetition, "max_tokens": maximum,
            "status": "pass" if status == 200 and error is None and usage and b"data: [DONE]" in raw_bytes else "runtime_fault",
