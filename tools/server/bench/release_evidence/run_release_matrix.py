@@ -506,42 +506,45 @@ def post_stream(endpoint: str, key: str, payload: dict[str, Any], raw_path: path
     status = 0
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     pending = b""
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response, raw_path.open("wb") as raw:
-            status = response.status
-            for chunk in iter(lambda: response.read(65536), b""):
-                raw.write(chunk)
-                pending += chunk
-                lines = pending.split(b"\n")
-                pending = lines.pop()
-                for line in lines:
-                    line = line.rstrip(b"\r")
-                    if not line.startswith(b"data: ") or line.strip() == b"data: [DONE]":
-                        continue
+    # Reserve evidence before sending any request. Existing raw artifacts are
+    # never truncated, even if a caller accidentally reuses an output dir.
+    with raw_path.open("xb") as raw:
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                status = response.status
+                for chunk in iter(lambda: response.read(65536), b""):
+                    raw.write(chunk)
+                    pending += chunk
+                    lines = pending.split(b"\n")
+                    pending = lines.pop()
+                    for line in lines:
+                        line = line.rstrip(b"\r")
+                        if not line.startswith(b"data: ") or line.strip() == b"data: [DONE]":
+                            continue
+                        try:
+                            event = json.loads(line[6:])
+                        except json.JSONDecodeError:
+                            continue
+                        if isinstance(event.get("usage"), dict):
+                            response_value["usage"] = event["usage"]
+                        if isinstance(event.get("timings"), dict):
+                            response_value["timings"] = event["timings"]
+                if pending.startswith(b"data: ") and pending.strip() != b"data: [DONE]":
                     try:
-                        event = json.loads(line[6:])
+                        event = json.loads(pending[6:])
+                        if isinstance(event.get("usage"), dict):
+                            response_value["usage"] = event["usage"]
+                        if isinstance(event.get("timings"), dict):
+                            response_value["timings"] = event["timings"]
                     except json.JSONDecodeError:
-                        continue
-                    if isinstance(event.get("usage"), dict):
-                        response_value["usage"] = event["usage"]
-                    if isinstance(event.get("timings"), dict):
-                        response_value["timings"] = event["timings"]
-            if pending.startswith(b"data: ") and pending.strip() != b"data: [DONE]":
-                try:
-                    event = json.loads(pending[6:])
-                    if isinstance(event.get("usage"), dict):
-                        response_value["usage"] = event["usage"]
-                    if isinstance(event.get("timings"), dict):
-                        response_value["timings"] = event["timings"]
-                except json.JSONDecodeError:
-                    pass
-            raw.flush()
-    except urllib.error.HTTPError as exception:
-        status = exception.code
-        error = f"HTTP {exception.code}"
-        raw_path.write_bytes(exception.read())
-    except (OSError, TimeoutError) as exception:
-        error = type(exception).__name__
+                        pass
+                raw.flush()
+        except urllib.error.HTTPError as exception:
+            status = exception.code
+            error = f"HTTP {exception.code}"
+            raw.write(exception.read())
+        except (OSError, TimeoutError) as exception:
+            error = type(exception).__name__
     return status, response_value, error, (time.monotonic() - started) * 1000
 
 
@@ -562,13 +565,17 @@ def record_request(args: argparse.Namespace, key: str, prefix: str, prompt: str,
     case_id = case_id_override or f"{kind}-p{prompt_index}-r{repetition}"
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
     request_path = output / "requests" / f"{case_id}.json"
+    raw_path = output / "raw" / f"{case_id}.sse"
+    if request_path.exists() or raw_path.exists():
+        raise FileExistsError(f"refusing to overwrite evidence for {case_id}")
     request_path.parent.mkdir(parents=True, exist_ok=True)
-    request_path.write_bytes(body)
+    with request_path.open("xb") as request_file:
+        request_file.write(body)
     before_mtp = before_mtp if before_mtp is not None else parse_metrics(args.endpoint, key)
     process_pid = listener_pid(args.port)
     memory_before = process_memory_kib(process_pid)
     status, response, error, wall_ms = post_stream(args.endpoint, key, payload,
-        output / "raw" / f"{case_id}.sse", args.timeout)
+        raw_path, args.timeout)
     memory_after = process_memory_kib(process_pid)
     after_mtp = parse_metrics(args.endpoint, key)
     raw_path = output / "raw" / f"{case_id}.sse"

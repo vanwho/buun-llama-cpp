@@ -114,6 +114,8 @@ passing the same prefix file. The runner must never be used to change service
 state. Unset diagnostic route overrides (including
 `LLAMA_KV_ATTENTION_ROUTE`) for the normal automatic route; explicit route
 overrides are diagnostic-only and must be recorded as such.
+Use a new output directory for each run: request JSON and raw SSE artifacts are
+created exclusively, and the runner refuses to overwrite an existing case ID.
 
 Example (replace the placeholders with local paths; the server must already
 be running with the exact argv printed by preflight):
