@@ -10,7 +10,7 @@ import pathlib
 from typing import Any
 
 FIELDS = (
-    "cohort", "case_id", "kind", "status", "prompt_index", "repetition",
+    "cohort", "case_id", "frontier_index", "kind", "status", "prompt_index", "repetition",
     "logical_context_tokens", "occupied_tokens", "native_full_prompt_tokens",
     "native_occupancy_delta", "backend_prompt_n", "backend_cache_n",
     "backend_prompt_tps", "occupancy_advance_tps", "wall_ms", "prompt_ms",
@@ -95,14 +95,19 @@ def main() -> int:
     append = read_jsonl(args.append_records)
     rows: list[dict[str, Any]] = []
     previous_c: int | None = 0
-    for record in fills:
+    for frontier_index, record in enumerate(fills, 1):
         row = normalized("long-fill-curve", record, previous_c)
+        # Runner request IDs encode floor(C / 16K), so the final near-256K
+        # frontier can collide with the previous one. Export ordinal IDs.
+        row["case_id"] = f"fill-frontier-{frontier_index:02d}"
+        row["frontier_index"] = frontier_index
         rows.append(row)
         if isinstance(record.get("cumulative_tokens"), int):
             previous_c = record["cumulative_tokens"]
     for record in synthetic:
         row = normalized("synthetic-history-replacement-partial", record)
         row["native_occupancy_delta"] = None
+        row["frontier_index"] = None
         rows.append(row)
     rows.append({field: None for field in FIELDS} | {
         "cohort": "synthetic-history-replacement-partial",
@@ -126,6 +131,7 @@ def main() -> int:
             "timings": timings}
         cohort = "append-history-recovery" if record.get("kind") == "recovery" else "append-history-single-observation"
         row = normalized(cohort, base)
+        row["frontier_index"] = None
         row["native_full_prompt_tokens"] = record.get("native_full_prompt_tokens")
         row["occupied_tokens"] = 258048
         row["native_occupancy_delta"] = None
