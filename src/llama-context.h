@@ -1015,6 +1015,7 @@ private:
     // and allocated. gf_res_prev_alloc marks the slots whose graph the sched allocated.
     std::array<llm_graph_result_ptr, GGML_SCHED_MAX_GRAPH_SLOTS> gf_res_prev;
     std::array<bool, GGML_SCHED_MAX_GRAPH_SLOTS> gf_res_prev_alloc = {};
+    llm_graph_result * gf_res_prev_active = nullptr;
     llm_graph_result_ptr gf_res_reserve;
 
     struct embeddings_nextn_device_request {
