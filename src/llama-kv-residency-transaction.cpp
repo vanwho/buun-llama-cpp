@@ -118,6 +118,14 @@ const char * llama_kv_residency_transaction_status_name(
     return "invalid";
 }
 
+bool llama_kv_residency_page_can_drop_without_transfer(
+        const llama_kv_page_record & page) noexcept {
+    return page.pin_count == 0 && page.consumer_events == 0 &&
+        page.host_valid && !page.dirty &&
+        (page.state == llama_kv_page_state::gpu_host_clean ||
+         page.state == llama_kv_page_state::host_clean);
+}
+
 llama_kv_residency_transaction_result
 llama_kv_residency_execute_transaction(
         llama_kv_residency_table & table,
@@ -348,9 +356,6 @@ llama_kv_residency_execute_transaction(
             const bool has_seal = find_page_plan(
                 request.transfers, old.id,
                 llama_kv_residency_transfer_direction::d2h_seal) != nullptr;
-            const bool clean_host_ready = old.host_valid && !old.dirty &&
-                (old.state == llama_kv_page_state::gpu_host_clean ||
-                 old.state == llama_kv_page_state::host_clean);
             if ((remove || changed) && old.consumer_events != 0) {
                 // A graph lease is an external lifetime pin even when the
                 // page record's admission pin has already been released.
@@ -373,7 +378,8 @@ llama_kv_residency_execute_transaction(
             }
             const bool needs_drop = remove ||
                 desired[exact].physical_slot != old.physical_slot;
-            if (needs_drop && !has_reseal && !has_seal && !clean_host_ready) {
+            if (needs_drop && !has_reseal && !has_seal &&
+                    !llama_kv_residency_page_can_drop_without_transfer(old)) {
                 // Only a host-ready clean mapping may be dropped without a
                 // new D2H seal. This keeps loading/inflight pages out of the
                 // victim set and makes clean eviction strictly no-D2H.

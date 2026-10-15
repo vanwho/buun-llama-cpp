@@ -50,6 +50,12 @@ enum class llama_kv_residency_transaction_status : uint8_t {
 const char * llama_kv_residency_transaction_status_name(
     llama_kv_residency_transaction_status status) noexcept;
 
+// True only when a published physical owner can be dropped without a new
+// transfer plan. Policy admission and the transaction must share this exact
+// predicate so dirty, leased, or otherwise non-droppable pages stay resident.
+bool llama_kv_residency_page_can_drop_without_transfer(
+    const llama_kv_page_record & page) noexcept;
+
 // The desired page vector is the output of policy. It is a complete target
 // resident set, not a mutation log; this makes occupied replacement and
 // reverse-map validation deterministic from one snapshot.

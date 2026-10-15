@@ -305,8 +305,10 @@ bool llama_kv_live_policy_prepare_query_target(
                 uint64_t(page.record.id.position_begin) < uint64_t(commit.query_end) &&
                 uint64_t(std::max<llama_pos>(0, page.record.id.position_end)) >
                     uint64_t(commit.query_start);
+            const bool non_droppable_resident = page.record.physical_slot != UINT32_MAX &&
+                !llama_kv_residency_page_can_drop_without_transfer(page.record);
             const bool generation = !query_page && (page.current || write || page.inflight_pin ||
-                page.speculative_pin || page.record.pin_count != 0);
+                page.speculative_pin || page.record.pin_count != 0 || non_droppable_resident);
             const bool pinned = query_page || generation || page.anchor || page.application_pin;
             if (!pinned) continue;
             const auto existing = std::find(mandatory_ids.begin(), mandatory_ids.end(),
@@ -399,21 +401,12 @@ bool llama_kv_live_policy_prepare_query_target(
                 uint32_t slot = UINT32_MAX;
                 for (uint32_t i = 0; i < used.size(); ++i) if (!used[i]) { slot = i; break; }
                 if (slot == UINT32_MAX) {
-                    for (uint32_t i = 0; i < used.size(); ++i) {
-                        const bool old_slot = std::any_of(boundary.snapshot.pages().begin(),
-                                boundary.snapshot.pages().end(), [&](const auto & old) {
-                            return old.physical_slot == i && std::none_of(ordered.begin(), ordered.end(),
-                                    [&](const auto * keep) { return keep->record.id == old.id; });
-                        });
-                        if (old_slot && !used[i]) { slot = i; break; }
-                    }
-                }
-                // Recycle a slot owned by an omitted clean resident.
-                if (slot == UINT32_MAX) {
                     for (const auto & old : boundary.snapshot.pages()) {
                         const bool retained = std::any_of(ordered.begin(), ordered.end(),
                                 [&](const auto * keep) { return keep->record.id == old.id; });
-                        if (!retained && old.pin_count == 0 && !old.dirty) {
+                        if (!retained && old.physical_slot < used.size() &&
+                                !used[old.physical_slot] &&
+                                llama_kv_residency_page_can_drop_without_transfer(old)) {
                             slot = old.physical_slot;
                             break;
                         }
