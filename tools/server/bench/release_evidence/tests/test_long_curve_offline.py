@@ -28,6 +28,23 @@ class LongCurveOfflineTest(unittest.TestCase):
         self.assertEqual(ids, ["fill-frontier-15-c247694", "fill-frontier-16-c258048"])
         self.assertEqual(len(ids), len(set(ids)))
 
+    def test_existing_request_or_raw_artifact_is_never_overwritten(self) -> None:
+        case_id = "fill-frontier-15-c247694"
+        args = SimpleNamespace(model_alias="offline-model", context_tokens=262144,
+                               endpoint="http://offline.invalid", timeout=1, port=1)
+        for relative in (f"requests/{case_id}.json", f"raw/{case_id}.sse"):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temp:
+                output = pathlib.Path(temp)
+                target = output / relative
+                target.parent.mkdir(parents=True)
+                target.write_bytes(b"preserve-existing-evidence")
+                with mock.patch.object(runner, "post_stream") as post:
+                    with self.assertRaises(FileExistsError):
+                        runner.record_request(args, "", "frozen", "prompt", "fill", -1,
+                            15, 40, output, 247694, {}, case_id_override=case_id)
+                    post.assert_not_called()
+                self.assertEqual(target.read_bytes(), b"preserve-existing-evidence")
+
     def test_partial_utf8_tail_keeps_nested_valid_source(self) -> None:
         content = [("src/unicode.cpp", "αβ".encode("utf-8"))]
         first, first_ranges = runner.render_append_only_source(content, 3)
