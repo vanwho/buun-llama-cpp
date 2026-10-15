@@ -83,18 +83,33 @@ history-rewrite/rewind workload, not an append-only full-conversation turn and
 not a measure of general ACO ingestion cost. The identical-question long
 canonical p0 warmup and three measured p0 requests all passed (4/12 planned
 canonical rows). The warmup took 135.7 seconds wall / 134.4 seconds in the
-prompt stage; measured wall times were approximately 143.4–143.8 seconds, with
-about 134.5 seconds in the prompt stage. All reported `cache_n=149,668` and
-`prompt_n=108,424` for a full rendered prompt of 258,071 tokens. Thus a warm
-cache did not eliminate substantial prompt reprocessing for this specific
+prompt stage; measured wall times were 143,603.179, 143,365.401, and
+143,819.806 ms. All four reported `cache_n=149,668` and `prompt_n=108,424`
+for a full rendered prompt of 258,071 tokens. Thus a warm cache did not
+eliminate substantial prompt reprocessing for this specific history-rewrite
 workload. A subsequent p1 warmup was interrupted and is not a passing row; no
-p1 or p2 rows completed, so this is not a completed 12-row matrix or a complete
-performance characterization. The source LCP advanced to 220,585 at
-`C=234,592`, while restore used the 149,668-token checkpoint and attention-only
-trim. These observations identify a workload-specific replay limitation but
-do not establish its cause; they should not be generalized to append-only
-turns or attributed to cache-RAM pressure, pager selection, or transfer
-behavior without further evidence.
+p1 or p2 rows completed, so this is not a completed 12-row matrix. At
+`C=234,592`, source LCP was 220,585 while restore used the 149,668-token
+checkpoint and attention-only trim. These observations do not establish the
+replay limitation's cause and should not be generalized to append-only turns
+or attributed to cache-RAM pressure, pager selection, or transfer behavior
+without further evidence.
+
+Separately, three single append-only requests preserved the full prior
+conversation transcript and passed the configured 400-token input plus
+64-token reserve check. These are individual observations, not medians:
+
+| Append | Native context | HTTP wall time | `prompt_n` | `cache_n` | Output tokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| p0 | 258,508 | 6,023.435 ms | 54 | 258,475 | 84 |
+| p1 | 258,620 | 11,078.492 ms | 47 | 258,591 | 208 |
+| p2 | 258,857 | 13,306.048 ms | 49 | 258,827 | 328 |
+
+An initial recovery request before those appends used `prompt_n=105,717` and
+`cache_n=152,740` (132,748.585 ms wall); it is reported separately and is not
+one of the three append observations. Together these checks distinguish
+full-history appends from the synthetic rewrite/rewind workload above; they
+are not a broad performance characterization.
 
 ## Retained log fingerprints
 
