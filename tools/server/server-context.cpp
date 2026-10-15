@@ -1620,7 +1620,6 @@ static bool server_task_can_split(const server_task & task, llama_context * ctx)
 struct server_batch {
     llama_batch batch = {};
     bool batch_rendered = false;
-    bool has_embd = false;
     llama_token * tokens_ptr = nullptr;
     llama_batch_ext * rendered = nullptr;
     common_batch view; // the rendered sub-batch [off, off + n_tokens), see render()
@@ -1708,7 +1707,6 @@ struct server_batch {
         prompt_tokens.push_back(is_prompt ? 1 : 0);
         if (batch.pos != nullptr) {
             common_batch_add(batch, LLAMA_TOKEN_NULL, pos[0], { id_slot }, output);
-            has_embd = true;
         }
         return true;
     }
@@ -1725,7 +1723,6 @@ struct server_batch {
         if (batch.pos != nullptr) {
             common_batch_clear(batch);
             batch_rendered = false;
-            has_embd = false;
             if (batch.token == nullptr) {
                 batch.token = tokens_ptr;
                 batch.embd = nullptr;
@@ -1763,7 +1760,7 @@ struct server_batch {
     void render() {
         if (batch.pos != nullptr) {
             GGML_ASSERT(!batch_rendered);
-            if (has_embd) {
+            if (has_embd()) {
                 batch.token = nullptr; // will be restored on clear()
                 batch.embd  = embd.data();
             }
