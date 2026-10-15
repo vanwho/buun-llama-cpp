@@ -1,0 +1,53 @@
+{
+  "protocol_id": "release-aco-2026-10-fixed",
+  "record_count": 39,
+  "results_csv": "results.csv",
+  "results_json": "results.json",
+  "runs": [
+    {
+      "fill_fault_count": 0,
+      "fill_last_passed_occupied_tokens": null,
+      "fill_pass_count": 0,
+      "natural_recall_confirmed_count": 0,
+      "natural_recall_count": 0,
+      "passed_measured_count": 9,
+      "passed_measured_wall_median_ms": 7415.704396029469,
+      "placement": "gpu-only",
+      "run_name": "fixed-small-gpu-only"
+    },
+    {
+      "fill_fault_count": 0,
+      "fill_last_passed_occupied_tokens": null,
+      "fill_pass_count": 0,
+      "natural_recall_confirmed_count": 0,
+      "natural_recall_count": 0,
+      "passed_measured_count": 9,
+      "passed_measured_wall_median_ms": 19647.522844024934,
+      "placement": "cpu-target-gpu-draft",
+      "run_name": "fixed-small-cpu-target"
+    },
+    {
+      "fill_fault_count": 0,
+      "fill_last_passed_occupied_tokens": null,
+      "fill_pass_count": 0,
+      "natural_recall_confirmed_count": 0,
+      "natural_recall_count": 0,
+      "passed_measured_count": 9,
+      "passed_measured_wall_median_ms": 8490.06795900641,
+      "placement": "aco",
+      "run_name": "fixed-small-aco"
+    },
+    {
+      "fill_fault_count": 0,
+      "fill_last_passed_occupied_tokens": null,
+      "fill_pass_count": 0,
+      "natural_recall_confirmed_count": 1,
+      "natural_recall_count": 3,
+      "passed_measured_count": 0,
+      "passed_measured_wall_median_ms": null,
+      "placement": "aco",
+      "run_name": "fixed-natural-cold-recall"
+    }
+  ],
+  "schema_version": 1
+}
