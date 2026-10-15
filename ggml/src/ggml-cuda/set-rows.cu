@@ -10,6 +10,55 @@
 #if defined(_WIN32) && !defined(strtok_r)
 #define strtok_r strtok_s
 #endif
+
+template<typename src_idx_t, typename dst_idx_t>
+static __global__ void k_set_rows_encoded_copy(
+        const char * src, char * dst, const src_idx_t * src_rows, const dst_idx_t * dst_rows,
+        const int64_t n_rows, const size_t src_stride, const size_t dst_stride,
+        const size_t row_bytes) {
+    const int64_t row = blockIdx.x;
+    if (row >= n_rows) return;
+    const int64_t src_row = src_rows[row];
+    const int64_t dst_row = dst_rows[row];
+    if (src_row < 0 || dst_row < 0) return;
+    for (size_t byte = threadIdx.x; byte < row_bytes; byte += blockDim.x) {
+        dst[size_t(dst_row) * dst_stride + byte] = src[size_t(src_row) * src_stride + byte];
+    }
+}
+
+static void set_rows_encoded_copy_cuda(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * src = dst->src[0];
+    const ggml_tensor * dst_rows = dst->src[1];
+    const ggml_tensor * src_rows = dst->src[3];
+    GGML_ASSERT(src->type == dst->type && ggml_is_matrix(src) && ggml_is_matrix(dst));
+    GGML_ASSERT(src->nb[1] == dst->nb[1]);
+    GGML_ASSERT(src_rows->ne[0] == dst_rows->ne[0]);
+    const int64_t n_rows = src_rows->ne[0];
+    const size_t row_bytes = ggml_row_size(src->type, src->ne[0]);
+    cudaStream_t stream = ctx.stream();
+    if (src_rows->type == GGML_TYPE_I64 && dst_rows->type == GGML_TYPE_I64) {
+        k_set_rows_encoded_copy<int64_t, int64_t><<<n_rows, 256, 0, stream>>>(
+            (const char *) src->data, (char *) dst->data,
+            (const int64_t *) src_rows->data, (const int64_t *) dst_rows->data,
+            n_rows, src->nb[1], dst->nb[1], row_bytes);
+    } else if (src_rows->type == GGML_TYPE_I32 && dst_rows->type == GGML_TYPE_I32) {
+        k_set_rows_encoded_copy<int32_t, int32_t><<<n_rows, 256, 0, stream>>>(
+            (const char *) src->data, (char *) dst->data,
+            (const int32_t *) src_rows->data, (const int32_t *) dst_rows->data,
+            n_rows, src->nb[1], dst->nb[1], row_bytes);
+    } else if (src_rows->type == GGML_TYPE_I32 && dst_rows->type == GGML_TYPE_I64) {
+        k_set_rows_encoded_copy<int32_t, int64_t><<<n_rows, 256, 0, stream>>>(
+            (const char *) src->data, (char *) dst->data,
+            (const int32_t *) src_rows->data, (const int64_t *) dst_rows->data,
+            n_rows, src->nb[1], dst->nb[1], row_bytes);
+    } else if (src_rows->type == GGML_TYPE_I64 && dst_rows->type == GGML_TYPE_I32) {
+        k_set_rows_encoded_copy<int64_t, int32_t><<<n_rows, 256, 0, stream>>>(
+            (const char *) src->data, (char *) dst->data,
+            (const int64_t *) src_rows->data, (const int32_t *) dst_rows->data,
+            n_rows, src->nb[1], dst->nb[1], row_bytes);
+    }
+    CUDA_CHECK(cudaGetLastError());
+}
 // Definition for the extern in turbo-quant-cuda.cuh. When true, the encode mean-sub tap is skipped
 // (VBR transcode re-encode: its input is already stored-domain V - mu_V).
 bool g_turbo_meansub_suppress = false;
@@ -1120,14 +1169,20 @@ static __global__ void k_set_rows_turbo4_coop(
 
     // load + affine tap (raw-domain per-head mean subtract; kmean_mu null => no-op)
     float v = src_row[ch];
-    if (kmean_mu) v -= kmean_mu[ch];
+    if (!isfinite(v)) v = 0.0f;
+    if (kmean_mu) {
+        const float mean = kmean_mu[ch];
+        v = isfinite(mean) ? v - mean : 0.0f;
+        if (!isfinite(v)) v = 0.0f;
+    }
 
     // ||tapped|| via a 128-thread tree reduction
     __shared__ float rsm[QK_TURBO4];
     rsm[tid] = v * v; __syncthreads();
     #pragma unroll
     for (int s = QK_TURBO4/2; s > 0; s >>= 1) { if (tid < s) rsm[tid] += rsm[tid + s]; __syncthreads(); }
-    const float norm     = sqrtf(rsm[0]);
+    float norm = sqrtf(rsm[0]);
+    if (!isfinite(norm)) norm = 0.0f;
     const float inv_norm = norm > 1e-10f ? 1.0f / norm : 0.0f;
     __syncthreads();
 
@@ -1987,6 +2042,11 @@ static int innerq_calibration_tokens() {
 void ggml_cuda_op_set_rows(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const ggml_tensor * src0 = dst->src[0];
     const ggml_tensor * src1 = dst->src[1];
+
+    if (dst->src[3] != nullptr) {
+        set_rows_encoded_copy_cuda(ctx, dst);
+        return;
+    }
 
     GGML_ASSERT(src0->type == GGML_TYPE_F32 || (src0->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F16));
     GGML_ASSERT(src1->type == GGML_TYPE_I64 || src1->type == GGML_TYPE_I32);

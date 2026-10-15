@@ -122,7 +122,7 @@ public:
     bool vbr_operation_armed() const override;
     bool vbr_retier_freeze_begin(const char * owner, vbr_operation_id operation_id) override;
     void vbr_retier_freeze_end(const char * owner, vbr_operation_id operation_id) override;
-    void vbr_commit_submitted() override;
+    bool vbr_commit_submitted() override;
     void vbr_decode_ops_finish(bool ok) override;
     void vbr_adopt_operation(vbr_operation_id operation_id) override;
     void vbr_release_adopted() override;
@@ -201,6 +201,8 @@ public:
     bool seq_rm_transient(llama_seq_id seq_id,                       llama_pos p0, llama_pos p1) override;
     bool seq_rm_attn_transient(llama_seq_id seq_id,                  llama_pos p0, llama_pos p1) override;
     void seq_cp  (llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
+    bool try_seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
+                    llama_pos p0, llama_pos p1) override;
     bool try_seq_cp_transient(
             llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
     void seq_keep(llama_seq_id seq_id)                                                          override;
@@ -260,7 +262,9 @@ public:
     using slot_info_vec_t = llama_kv_cache::slot_info_vec_t;
 
     // used for errors
-    llama_kv_cache_iswa_context(llama_memory_status status);
+    llama_kv_cache_iswa_context(
+            llama_memory_status status,
+            llama_memory_failure_reason reason = llama_memory_failure_reason::none);
 
     // used to create a full-cache context
     llama_kv_cache_iswa_context(
@@ -293,11 +297,46 @@ public:
     bool apply() override;
 
     llama_memory_status  get_status() const override;
+    llama_memory_failure_reason get_failure_reason() const noexcept override {
+        if (failure_reason != llama_memory_failure_reason::none) {
+            return failure_reason;
+        }
+        if (ctx_base && ctx_base->get_failure_reason() !=
+                llama_memory_failure_reason::none) {
+            return ctx_base->get_failure_reason();
+        }
+        return ctx_swa ? ctx_swa->get_failure_reason() :
+            llama_memory_failure_reason::none;
+    }
     const llama_ubatch & get_ubatch() const override;
     uint32_t get_max_graph_seqs() const override;
+    ggml_tensor * build_kv_page_select(
+            ggml_context * ctx, ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row,
+            ggml_tensor ** probe_capture = nullptr) const override;
+    bool set_kv_query_probe_inputs(
+            ggml_tensor * probes, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * query_op, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
+    bool set_kv_page_select_inputs(
+            ggml_tensor * bounds, ggml_tensor * metadata,
+            ggml_tensor * membership, ggml_tensor * query, int layer,
+            const llama_ubatch & ubatch) const override;
+    bool set_kv_query_accumulate_inputs(
+            ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_page_select(
+            const ggml_tensor * bounds, int layer,
+            const llama_ubatch & ubatch) const override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) const override;
 
     // sum of both caches' tier epochs — a flip in either fences graph reuse
     uint64_t get_vbr_epoch() const override;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request) const override;
+    uint32_t current_kv_attention_rows() const override;
 
     //
     // llama_kv_cache_iswa_context specific API
@@ -318,4 +357,6 @@ private:
     const llama_memory_context_ptr ctx_swa;
 
     const llama_memory_status status;
+    llama_memory_failure_reason failure_reason =
+            llama_memory_failure_reason::none;
 };

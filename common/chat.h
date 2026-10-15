@@ -166,6 +166,12 @@ struct common_chat_msg_span {
 struct common_chat_msg_spans {
     std::vector<common_chat_msg_span> spans;
 
+    // Resolve the final rendered user message from the role delimiters found
+    // in the complete token stream. User-message cardinality comes from the
+    // server's input message list, so delimiter-like content fails closed.
+    bool final_user_span(size_t expected_user_count, size_t token_count,
+                         size_t & begin, size_t & end) const noexcept;
+
     void add(common_chat_role role, size_t pos, size_t len) {
         spans.push_back({ role, pos, len });
     }
@@ -280,6 +286,7 @@ struct common_chat_params {
     std::vector<std::string>            additional_stops;
     std::string                         parser;
     common_chat_msg_delimiters          message_delimiters;
+    size_t                              rendered_user_message_count = 0;
 };
 
 // per-message parsing syntax

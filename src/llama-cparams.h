@@ -65,6 +65,9 @@ struct llama_cparams {
     bool logits_all;
     bool pipeline_parallel;
     bool vbr_dynamic;
+    // Resolved from the normalized KV pager configuration. Keeping the typed
+    // value in cparams makes admission and graph planning use one A budget.
+    uint32_t kv_attention_tokens = 0;
     bool training = false;  // enabled by llama_opt_init(), never inferred for decoding
     enum llama_vbr_codec vbr_codec = LLAMA_VBR_CODEC_TURBO;
 

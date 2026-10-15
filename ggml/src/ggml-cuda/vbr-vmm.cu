@@ -209,16 +209,18 @@ void ggml_backend_cuda_vmm_pool_clear(ggml_vbr_vmm_pool * pool) {
     }
 }
 
-void ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool * pool) {
+static void ggml_backend_cuda_vmm_pool_release(ggml_vbr_vmm_pool * pool, bool wait_for_users) {
     if (!pool) {
         return;
     }
     ggml_cuda_set_device(pool->device);
-    // cuMemUnmap/cuMemAddressFree are host-immediate with no implicit device sync (unlike
-    // cudaFree): under -sm layer pipeline parallelism a prior ubatch's kernels can still be
-    // reading this VA when the fattn dequant scratch re-reserves mid-decode — settle the
-    // device before pulling the mapping out from under them.
-    CUDA_CHECK(cudaDeviceSynchronize());
+    if (wait_for_users) {
+        // cuMemUnmap/cuMemAddressFree are host-immediate with no implicit device sync (unlike
+        // cudaFree): under -sm layer pipeline parallelism a prior ubatch's kernels can still be
+        // reading this VA when the fattn dequant scratch re-reserves mid-decode — settle the
+        // device before pulling the mapping out from under them.
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
     for (size_t c : pool->chunks) {
         CU_CHECK(cuMemUnmap((CUdeviceptr)((char *) pool->base + c), pool->gran));
     }
@@ -227,6 +229,14 @@ void ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool * pool) {
     CUDA_CHECK(hipFree(pool->mapping_guard));
 #endif
     delete pool;
+}
+
+void ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool * pool) {
+    ggml_backend_cuda_vmm_pool_release(pool, true);
+}
+
+void ggml_backend_cuda_vmm_pool_discard(ggml_vbr_vmm_pool * pool) {
+    ggml_backend_cuda_vmm_pool_release(pool, false);
 }
 
 #else // !GGML_USE_VMM — stubs so llama links regardless of build flags
@@ -242,5 +252,6 @@ bool   ggml_backend_cuda_vmm_pool_map(ggml_vbr_vmm_pool *, size_t, size_t)  { re
 bool   ggml_backend_cuda_vmm_pool_unmap(ggml_vbr_vmm_pool *, size_t, size_t){ return false;   }
 void   ggml_backend_cuda_vmm_pool_clear(ggml_vbr_vmm_pool *)                {                 }
 void   ggml_backend_cuda_vmm_pool_free(ggml_vbr_vmm_pool *)                 {                 }
+void   ggml_backend_cuda_vmm_pool_discard(ggml_vbr_vmm_pool *)              {                 }
 
 #endif // GGML_USE_VMM

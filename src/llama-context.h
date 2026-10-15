@@ -7,12 +7,16 @@
 #include "llama-adapter.h"
 #include "llama-impl.h"
 #include "llama-memory.h"
+#include "llama-kv-pager-config.h"
+#include "llama-kv-pager.h"
+#include "llama-kv-attention-telemetry.h"
 
 #include "ggml-cpp.h"
 #include "ggml-opt.h"
 
 #include <array>
 #include <map>
+#include <string>
 #include <vector>
 
 struct llama_model;
@@ -20,6 +24,136 @@ class llama_batch_allocr;
 
 class llama_io_read_i;
 class llama_io_write_i;
+
+// Bounded snapshot used by the experimental server diagnostics. It contains
+// only logical IDs for the submitted selected view; prompts, full page
+// identities, attention matrices, and backend handles remain private. A
+// disabled context reports enabled=false and leaves the remaining fields at
+// their zero values.
+struct llama_kv_pager_metrics_snapshot {
+    bool enabled = false;
+    llama_kv_pager_mode mode = llama_kv_pager_mode::off;
+    // All values below are from one point-in-time snapshot. The timestamp is
+    // monotonic; epochs identify boundaries across which counter deltas must
+    // not be combined.
+    uint64_t snapshot_monotonic_us = 0;
+    uint64_t request_generation = 0;
+    uint64_t slot_generation = 0;
+    uint64_t config_generation = 0;
+    uint64_t reset_epoch = 0;
+    ggml_type target_type_k = GGML_TYPE_COUNT;
+    ggml_type target_type_v = GGML_TYPE_COUNT;
+    std::string target_backend = "not_configured";
+    llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
+    const char * route_override = "auto";
+    uint64_t table_epoch = 0;
+    uint64_t representation_epoch = 0;
+    uint64_t shape_epoch = 0;
+    uint64_t context_tokens = 0;
+    uint64_t page_tokens = 0;
+    uint64_t logical_pages = 0;
+    std::vector<llama_kv_page_record> page_inventory;
+    std::vector<uint64_t> page_summary_content_versions;
+    uint64_t physical_page_capacity = 0;
+    uint64_t physical_pool_capacity_bytes = 0;
+    uint64_t resident_pages = 0;
+    uint64_t target_resident_bytes = 0;
+    uint64_t target_valid_rows = 0;
+    uint64_t target_valid_bytes = 0;
+    uint64_t host_pages = 0;
+    uint64_t host_valid_rows = 0;
+    uint64_t host_valid_bytes = 0;
+    uint64_t page_bytes = 0;
+    uint64_t page_charge_bytes = 0;
+    uint64_t target_bytes = 0;
+    uint64_t target_allocated_bytes = 0;
+    uint64_t live_allocation_peak_bytes = 0;
+    uint64_t host_pageable_bytes = 0;
+    uint64_t host_metadata_bytes = 0;
+    uint64_t host_pinned_bytes = 0;
+    uint64_t usable_device_bytes = 0;
+    uint64_t charged_bytes = 0;
+    uint64_t reserved_bytes = 0;
+    uint64_t headroom_bytes = 0;
+    uint64_t weights_bytes = 0;
+    uint64_t fixed_context_bytes = 0;
+    uint64_t recurrent_state_bytes = 0;
+    uint64_t mtp_compute_bytes = 0;
+    uint64_t graph_bytes = 0;
+    uint64_t device_total_bytes = 0;
+    uint64_t device_used_bytes = 0;
+    uint64_t device_free_bytes = 0;
+    uint64_t turbo4_scratch_bytes = 0;
+    uint64_t routing_table_bytes = 0;
+    uint64_t staging_bytes = 0;
+    uint64_t external_bytes = 0;
+    uint64_t mtp_rows = 0;
+    uint64_t mtp_bytes = 0;
+    uint64_t packed_workspace_bytes = 0;
+    uint64_t packed_dequant_bytes = 0;
+    uint64_t catalogue_bytes = 0;
+    uint64_t attention_pages = 0;
+    uint64_t attention_tokens = 0;
+    uint64_t transfer_destination_pages = 0;
+    uint64_t requested_context_tokens = 0;
+    uint64_t resolved_context_tokens = 0;
+    uint64_t accepted_target_tokens = 0;
+    bool admission_accepted = false;
+    const char * admission_refusal = "not_configured";
+    ggml_type mtp_type_k = GGML_TYPE_COUNT;
+    ggml_type mtp_type_v = GGML_TYPE_COUNT;
+    uint64_t host_budget_bytes = 0;
+    uint64_t vram_budget_bytes = 0;
+    uint64_t router_top_k = 0;
+    uint64_t router_refresh_tokens = 0;
+    uint64_t pin_recent_tokens = 0;
+    uint64_t prefetch_depth = 0;
+    uint32_t test_forced_logical_page = UINT32_MAX;
+    uint32_t test_forced_physical_slot = UINT32_MAX;
+    uint64_t test_forced_page_generation = 0;
+    uint64_t test_forced_content_version = 0;
+    uint64_t test_forced_host_checksum = 0;
+    uint64_t test_forced_device_checksum = 0;
+    bool router_explore = false;
+    const char * mtp_backend = "not_present";
+    llama_kv_residency_transfer_counters transfers;
+    llama_kv_residency_transfer_counters h2d_transfers;
+    llama_kv_residency_transfer_counters d2h_transfers;
+    uint64_t promotion_pages = 0;
+    uint64_t eviction_pages = 0;
+    uint64_t query_refresh_count = 0;
+    uint64_t seal_calls = 0;
+    uint64_t diagnostic_seal_us = 0;
+    uint64_t diagnostic_seal_boundary_us = 0;
+    uint64_t diagnostic_policy_us = 0;
+    uint64_t diagnostic_host_enqueue_us = 0;
+    uint64_t diagnostic_host_completion_us = 0;
+    uint64_t diagnostic_queue_wait_us = 0;
+    uint64_t diagnostic_queue_waits = 0;
+    uint64_t seal_pages_scanned = 0;
+    uint64_t seal_pages_changed = 0;
+    uint64_t summary_build_calls = 0;
+    uint64_t summary_build_bytes = 0;
+    uint64_t summary_read_calls = 0;
+    uint64_t summary_read_bytes = 0;
+    llama_kv_pager_natural_proof natural_proof;
+    llama_kv_pager_selector_trace selector_trace;
+    std::array<llama_kv_pager_selector_trace,
+        LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY> selector_trace_history{};
+    uint32_t selector_trace_history_count = 0;
+    uint32_t selector_trace_history_next = 0;
+    uint64_t host_seal_d2h_calls = 0;
+    uint64_t host_seal_d2h_bytes = 0;
+    uint64_t host_seal_d2h_async_completions = 0;
+    uint64_t host_seal_queued = 0;
+    uint64_t host_inflight_pages = 0;
+    uint64_t inventory_copy_count = 0;
+    uint64_t store_copy_count = 0;
+    llama_kv_attention_telemetry_counters attention;
+    llama_kv_attention_telemetry_accounting attention_accounting;
+    llama_kv_attention_execution_metrics execution;
+    llama_kv_pager_rejection_histogram rejection_histogram;
+};
 
 // Authenticated immutable sequence-file bytes. The pathname is consumed only
 // during prepare; inspection and application use this retained snapshot.
@@ -271,6 +405,21 @@ struct dflash_capture_data {
     }
 };
 
+struct llama_context_graph_thread_config_cache {
+    bool initialized = false;
+    int n_threads = 0;
+    ggml_threadpool_t threadpool = nullptr;
+
+    bool needs_update(int threads, ggml_threadpool_t pool) const noexcept {
+        return !initialized || n_threads != threads || threadpool != pool;
+    }
+    void record(int threads, ggml_threadpool_t pool) noexcept {
+        initialized = true;
+        n_threads = threads;
+        threadpool = pool;
+    }
+};
+
 struct llama_context {
     // init scheduler and compute buffers, reserve worst-case graphs
     llama_context(
@@ -278,6 +427,14 @@ struct llama_context {
                   llama_context_params params);
 
     ~llama_context();
+
+    // Configuration is copied at the construction boundary; no pager resource
+    // is allocated until a later live-storage task consumes this owner.
+    llama_kv_pager_config kv_pager;
+    // Admission-time geometry is retained until init_kv_pager() reconciles it
+    // with the allocated cache and graph buffers.
+    llama_kv_pager_snapshot kv_pager_plan_;
+    bool kv_pager_plan_valid_ = false;
 
     // reserve a new backend scheduler (if needed)
     // for example, when:
@@ -291,6 +448,105 @@ struct llama_context {
 
     const llama_model   & get_model()   const;
     const llama_cparams & get_cparams() const;
+    const llama_kv_attention_telemetry * get_kv_attention_telemetry() const noexcept {
+        return kv_attention_telemetry.get();
+    }
+    // `native_mtp_context` is the separately allocated native draft context,
+    // when one is live. The target owns the pager, while the draft owns its MTP
+    // allocation and is the authoritative source for its placement and size.
+    llama_kv_pager_metrics_snapshot get_kv_pager_metrics(
+            const llama_context * native_mtp_context = nullptr,
+            uint64_t request_generation = 0,
+            uint64_t slot_generation = 0,
+            uint64_t config_generation = 0) const noexcept;
+    void begin_kv_pager_proof_request() noexcept;
+    llama_memory_failure_reason get_last_memory_failure_reason() const noexcept {
+        return last_memory_failure_reason_;
+    }
+
+    // Internal selected-attention boundary.  Policy supplies immutable
+    // metadata; graph construction then carries its epochs and page fence.
+    void set_kv_attention_mode(llama_kv_attention_execution_mode mode) noexcept;
+    void set_kv_attention_native_mtp(bool enabled) noexcept {
+        kv_attention_execution.set_native_mtp_enabled(enabled);
+    }
+    // The server marks the target batch while native MTP is verifying a
+    // proposal. This keeps MTP verification route counts separate from
+    // ordinary multi-token prefill without changing the public C API.
+    void set_kv_attention_mtp_verification(bool enabled) noexcept {
+        kv_attention_mtp_verification_ = enabled;
+    }
+    // Commit-side notification used by the pager cadence.  Speculative
+    // verification calls this only after its rollback owner has committed the
+    // accepted frontier; ordinary decode calls it after a successful decode.
+    void note_kv_pager_accepted_tokens(uint32_t count) noexcept {
+        if (memory && count != 0) {
+            memory->note_kv_pager_accepted_tokens(count);
+        }
+    }
+    void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
+            int64_t query_start, int64_t query_end) noexcept {
+        if (memory) memory->begin_kv_pager_turn(
+                sequence_id, turn_id, query_start, query_end);
+    }
+    bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
+            uint64_t * frozen_history_generation) noexcept {
+        return !memory || memory->freeze_kv_pager_history(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
+            bool * changed, uint64_t * frozen_history_generation) noexcept {
+        return !memory || memory->commit_kv_pager_query(
+                sequence_id, turn_id, changed, frozen_history_generation);
+    }
+    bool set_kv_pager_history_for_test(int32_t sequence_id,
+            int64_t query_start,
+            const std::vector<llama_kv_pager_selected_history> & history) {
+        return memory && memory->set_kv_pager_history_for_test(
+                sequence_id, query_start, history);
+    }
+    bool get_kv_pager_history_for_test(int32_t sequence_id,
+            std::vector<llama_kv_pager_selected_history> & history) const {
+        return memory && memory->get_kv_pager_history_for_test(sequence_id, history);
+    }
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const {
+        return memory && memory->get_kv_pager_router_execution_for_test(stage,
+                resident_rerank_graphs, cold_reader_graphs, reader_events,
+                mass_graphs, output_records);
+    }
+    llama_kv_pager * get_kv_pager_owner_for_test() const noexcept {
+        return kv_pager_owner.get();
+    }
+    void request_graph_reserve_for_test() {
+        sched_need_reserve = true;
+        sched_reserve();
+    }
+    int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const {
+        return memory ? memory->get_kv_pager_turn_phase_for_test(sequence_id) : -1;
+    }
+    bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
+            uint64_t frozen_history_generation) const noexcept {
+        return !memory || memory->kv_pager_history_matches(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) noexcept {
+        if (memory) memory->end_kv_pager_turn(sequence_id, turn_id);
+    }
+    llama_kv_attention_execution_decision prepare_kv_attention(
+            const llama_kv_attention_operator_metadata & metadata,
+            llama_kv_attention_execution_phase phase,
+            uint64_t representation_epoch,
+            uint64_t shape_epoch,
+            bool direct_capable,
+            const llama_kv_attention_scratch_request & scratch,
+            const std::string & direct_reason = {},
+            bool dense_capable = false,
+            bool packed_capable = false);
+    std::string mtp_attention_visibility_snapshot_json() const;
+    void complete_kv_attention_graph() noexcept;
 
     ggml_backend_sched_t get_sched() const;
     ggml_backend_t backend_for_device(
@@ -339,6 +595,18 @@ struct llama_context {
 
     float * get_embeddings_nextn();
     float * get_embeddings_nextn_ith(int32_t i);
+    bool materialize_embeddings_nextn_host_row(int32_t row);
+
+    // Arrange for the next MTP decode to source hidden rows from another
+    // context's device output. The request is consumed by one decode and
+    // falls back to the ordinary batch input when tensors are incompatible.
+    bool set_embeddings_nextn_device(
+            llama_context * source, int32_t source_offset, int32_t destination_offset,
+            int32_t n_rows, const llama_pos * expected_positions,
+            const llama_seq_id * expected_sequences);
+    bool mark_embeddings_nextn_device_consumed(llama_context * consumer);
+    void get_embeddings_nextn_transfer_bytes(uint64_t * d2h, uint64_t * h2d) const;
+    uint64_t get_embeddings_nextn_device_generation() const;
 
     float * get_embeddings_layer_inp(uint32_t lid);
 
@@ -536,6 +804,7 @@ public:
 
     // returns the result of ggml_backend_sched_graph_compute_async execution
     ggml_status graph_compute(ggml_cgraph * gf, bool batched);
+    void publish_kv_attention_telemetry() noexcept;
 
     // reserve a graph with a dummy ubatch of the specified size
     ggml_cgraph * graph_reserve(
@@ -559,9 +828,21 @@ private:
 
     llm_graph_cb graph_get_cb() const;
 
+    // Test-only finite-value localization for a single dense control graph.
+    // The callback is installed only when LLAMA_DENSE_TENSOR_DIAGNOSTIC is set.
+    static bool dense_tensor_diagnostic_callback(ggml_tensor * t, bool ask, void * user_data);
+
     // disable auto fused ops (Flash Attention, Gated Delta Net) whose op lands on a device
     // that differs from the layer it belongs to (usually due to missing backend support)
     void resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs);
+    void init_kv_pager();
+    void plan_kv_pager();
+    void validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const;
+    uint32_t prefill_ubatch_size(uint32_t requested) const noexcept;
+    llama_kv_attention_execution_decision prepare_kv_attention_graph(
+            const llama_ubatch & ubatch,
+            llama_memory_context_i * mctx,
+            llm_graph_type gtype);
 
     // TODO: read/write lora adapters and cvec
     size_t state_write_data(llama_io_write_i & io);
@@ -577,6 +858,8 @@ private:
     const llama_model & model;
 
     llama_cparams cparams;
+    ggml_type pager_target_type_k_ = GGML_TYPE_COUNT;
+    ggml_type pager_target_type_v_ = GGML_TYPE_COUNT;
 
     llama_adapter_cvec_ptr  cvec;
     llama_adapter_loras_ptr loras;
@@ -585,6 +868,42 @@ private:
     llama_cross cross; // TODO: tmp for handling cross-attention - need something better probably
 
     llama_memory_ptr memory;
+    std::unique_ptr<llama_kv_pager> kv_pager_owner;
+    llama_kv_attention_execution kv_attention_execution;
+    // Fresh selected prefill may leave several independent page writes in
+    // flight, but never more pages than the admitted physical window. This
+    // only relaxes intermediate page-wave fences; API-batch, capacity, and
+    // unknown-layout fences remain mandatory.
+    bool kv_pager_prefill_fence_coalescing_ = false;
+    bool kv_pager_prefill_fence_cached_ = false;
+    int32_t kv_pager_prefill_fence_sequence_ = -1;
+    llama_pos kv_pager_prefill_fence_last_position_ = -1;
+    uint64_t kv_pager_prefill_fence_last_page_ = UINT64_MAX;
+    uint32_t kv_pager_prefill_fence_pages_ = 0;
+    struct kv_attention_proof_graph {
+        uint64_t table_epoch = 0;
+        bool mtp_verify = false;
+        std::vector<uint32_t> selected_page_ids;
+    };
+    std::vector<kv_attention_proof_graph> kv_attention_proof_graphs_;
+    llama_memory_failure_reason last_memory_failure_reason_ =
+            llama_memory_failure_reason::none;
+    bool kv_attention_mtp_verification_ = false;
+    std::unique_ptr<llama_kv_attention_telemetry> kv_attention_telemetry;
+    // Reused bounded host workspaces for the selected attention admission
+    // path. They retain capacity across steady-hot decode submissions and are
+    // never sized from the logical context length.
+    std::vector<uint32_t> kv_attention_selected_pages_scratch_;
+    std::vector<uint32_t> kv_attention_query_pages_scratch_;
+    std::vector<llama_pos> kv_attention_query_positions_scratch_;
+    std::vector<int32_t> kv_attention_rows_scratch_;
+    // Keep the first page of the active prompt available to decode graphs.
+    // The prefill query position identifies it once; subsequent decode
+    // batches must not replace it with only the newest frontier page.
+    uint32_t kv_attention_request_page_ = UINT32_MAX;
+    uint32_t kv_attention_request_following_page_ = UINT32_MAX;
+    bool kv_attention_prefill_active_ = false;
+    uint64_t kv_attention_dense_debug_layout_key_ = 0;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
     buffer_view<float> logits = {nullptr, 0};
@@ -653,6 +972,16 @@ private:
 
     ggml_backend_t backend_cpu = nullptr;
     std::vector<ggml_backend_ptr> backends;
+    // One per-context owner for pager D2H/H2D and selector readback. It is
+    // deliberately outside the scheduler backend list so the pager worker
+    // cannot share a compute stream/allocator owner with graph execution.
+    ggml_backend_ptr pager_transfer_backend;
+    // Probe reranking has its own stream/event owner and never shares the
+    // host-capture transfer backend.
+    ggml_backend_ptr pager_ranking_backend;
+    // Packed selected-attention destinations outlive graph rebuilds. This is
+    // declared after the backends so its buffers are released before them.
+    mutable llama_kv_attention_packed_cache kv_attention_packed_cache;
 
     // `memory` is declared before `backends`, so ordinary member destruction would tear the
     // compute backends down first. Shared-KV reverse registrations must detach earlier.
@@ -666,6 +995,11 @@ private:
 
     ggml_threadpool_t threadpool       = nullptr;
     ggml_threadpool_t threadpool_batch = nullptr;
+
+    // Backend thread settings persist across graph submissions. Cache the
+    // selected pair so repeated microbatches do not reconfigure unchanged
+    // backends on the hot path.
+    llama_context_graph_thread_config_cache graph_thread_config;
 
     ggml_abort_callback abort_callback      = nullptr;
     void *              abort_callback_data = nullptr;
@@ -682,6 +1016,36 @@ private:
     std::array<llm_graph_result_ptr, GGML_SCHED_MAX_GRAPH_SLOTS> gf_res_prev;
     std::array<bool, GGML_SCHED_MAX_GRAPH_SLOTS> gf_res_prev_alloc = {};
     llm_graph_result_ptr gf_res_reserve;
+
+    struct embeddings_nextn_device_request {
+        llama_context * source = nullptr;
+        int32_t source_offset = 0;
+        int32_t destination_offset = 0;
+        int32_t n_rows = 0;
+        uint64_t source_generation = 0;
+    } embeddings_nextn_device_request;
+
+    // Stable per-decode owner for next-token hidden rows. Graph result tensors
+    // are transient and only retain the final microbatch, so decode() copies
+    // every microbatch into this bounded device allocation before its graph
+    // slot can be reused.
+    ggml_context_ptr        embeddings_nextn_device_ctx;
+    ggml_backend_buffer_ptr embeddings_nextn_device_buf;
+    ggml_tensor *           embeddings_nextn_device_tensor = nullptr;
+    ggml_backend_t          embeddings_nextn_device_backend = nullptr;
+    ggml_backend_event_t     embeddings_nextn_device_consumed_event = nullptr;
+    bool                    embeddings_nextn_device_event_recorded = false;
+    int32_t                 embeddings_nextn_device_capacity = 0;
+    int32_t                 embeddings_nextn_device_valid_rows = 0;
+    uint64_t                embeddings_nextn_device_generation = 0;
+    std::vector<llama_pos>  embeddings_nextn_device_positions;
+    std::vector<llama_seq_id> embeddings_nextn_device_sequences;
+    int32_t                 embeddings_nextn_device_decode_token_offset = 0;
+    std::vector<uint8_t>    embeddings_nextn_host_valid;
+    std::vector<int32_t>   embeddings_nextn_host_source_rows;
+    int32_t                 embeddings_nextn_output_rows = 0;
+    uint64_t                embeddings_nextn_d2h_bytes = 0;
+    uint64_t                embeddings_nextn_h2d_bytes = 0;
 
     // one-time Hadamard transform-coverage check on the first built graph
     bool hadamard_verified = false;

@@ -1,0 +1,959 @@
+// Optional parity driver for the live Turbo4 KV pager.
+//
+// The default mode is a deterministic, model-free F1/F2/F3 contract probe so
+// it is safe to run in CI.  --model enables the opt-in dense-versus-selected
+// teacher-forced comparison; it deliberately uses one context at a time and
+// never changes token IDs between routes.
+
+#include "common.h"
+#include "llama-context.h"
+#include "llama-kv-attention-op.h"
+#include "llama-kv-cache.h"
+#include "speculative.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cerrno>
+#include <cstdlib>
+#include <cstdint>
+#include <cstdio>
+#include <fstream>
+#include <limits>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace {
+
+struct options {
+    std::string model;
+    std::string output;
+    std::string tokens_file;
+    std::vector<llama_token> tokens;
+    uint32_t context = 4096;
+    uint32_t n_batch = 1024;
+    uint32_t n_ubatch = 256;
+    uint32_t hot_pages = 2;
+    uint32_t generate = 0;
+    uint32_t force_page = UINT32_MAX;
+    bool native_mtp = false;
+    bool selected_only = false;
+    bool help = false;
+};
+
+struct stats {
+    double max_abs = 0.0;
+    double rms = 0.0;
+    size_t first_divergence = std::numeric_limits<size_t>::max();
+};
+
+static void usage(const char * argv0) {
+    std::fprintf(stdout,
+            "usage: %s [--model MODEL.gguf] [--tokens id,id,... | --tokens-file FILE]\n"
+            "       [--context N] [--n-batch N] [--n-ubatch N] [--hot-pages N] [--generate N]\n"
+            "       [--force-page N]  (opt-in promotion-mechanics seam)\n"
+            "       [--selected-only]  (run one selected real-model context)\n"
+            "       [--mtp off|native] [--output FILE]\n"
+            "       %s --help\n\n"
+            "Without --model, run deterministic domain/indexing/mask and MTP F5 probes.\n"
+            "With --model, compare dense and selected-reference teacher-forced logits\n"
+            "with identical Turbo4 token IDs; --mtp native enables the production MTP boundary.\n", argv0, argv0);
+}
+
+static bool parse_positive_u32(const char * raw, uint32_t & output) {
+    if (raw == nullptr || *raw == '\0' || *raw == '-') return false;
+    errno = 0;
+    char * stop = nullptr;
+    const unsigned long value = std::strtoul(raw, &stop, 10);
+    if (errno != 0 || stop == raw || *stop != '\0' || value == 0 ||
+            value > std::numeric_limits<uint32_t>::max()) {
+        return false;
+    }
+    output = uint32_t(value);
+    return true;
+}
+
+static bool parse_tokens(const std::string & raw, std::vector<llama_token> & output) {
+    output.clear();
+    size_t begin = 0;
+    while (begin < raw.size()) {
+        const size_t end = raw.find(',', begin);
+        const std::string piece = raw.substr(begin,
+                end == std::string::npos ? std::string::npos : end - begin);
+        if (piece.empty()) return false;
+        char * stop = nullptr;
+        const long value = std::strtol(piece.c_str(), &stop, 10);
+        if (stop == piece.c_str() || *stop != '\0' || value < 0 ||
+            value > std::numeric_limits<llama_token>::max()) {
+            return false;
+        }
+        output.push_back((llama_token) value);
+        if (end == std::string::npos) break;
+        begin = end + 1;
+    }
+    return !output.empty();
+}
+
+static bool parse_tokens_file(const std::string & path, std::vector<llama_token> & output) {
+    std::ifstream file(path);
+    if (!file) return false;
+    output.clear();
+    long long value = 0;
+    while (file >> value) {
+        if (value < 0 || uint64_t(value) > uint64_t(std::numeric_limits<llama_token>::max())) {
+            return false;
+        }
+        output.push_back(llama_token(value));
+    }
+    return file.eof() && !output.empty();
+}
+
+static bool parse_options(int argc, char ** argv, options & output) {
+    bool token_source_set = false;
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--help" || arg == "-h") {
+            output.help = true;
+        } else if ((arg == "--model" || arg == "-m") && i + 1 < argc) {
+            output.model = argv[++i];
+        } else if (arg == "--tokens" && i + 1 < argc) {
+            if (!parse_tokens(argv[++i], output.tokens)) return false;
+            token_source_set = true;
+        } else if (arg == "--tokens-file" && i + 1 < argc) {
+            const std::string path = argv[++i];
+            if (token_source_set || !parse_tokens_file(path, output.tokens)) return false;
+            output.tokens_file = path;
+            token_source_set = true;
+        } else if (arg == "--context" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.context)) return false;
+        } else if (arg == "--n-batch" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.n_batch)) return false;
+        } else if (arg == "--n-ubatch" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.n_ubatch)) return false;
+        } else if (arg == "--hot-pages" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.hot_pages)) return false;
+        } else if (arg == "--generate" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.generate)) return false;
+        } else if (arg == "--force-page" && i + 1 < argc) {
+            char * stop = nullptr;
+            errno = 0;
+            const char * raw = argv[++i];
+            const unsigned long value = std::strtoul(raw, &stop, 10);
+            if (errno != 0 || stop == raw || *stop != '\0' ||
+                    value > std::numeric_limits<uint32_t>::max()) return false;
+            output.force_page = uint32_t(value);
+        } else if (arg == "--selected-only") {
+            output.selected_only = true;
+        } else if (arg == "--mtp" && i + 1 < argc) {
+            const std::string value = argv[++i];
+            if (value == "off") {
+                output.native_mtp = false;
+            } else if (value == "native") {
+                output.native_mtp = true;
+            } else {
+                return false;
+            }
+        } else if (arg == "--output" && i + 1 < argc) {
+            output.output = argv[++i];
+        } else {
+            return false;
+        }
+    }
+    if (output.n_ubatch > output.n_batch) return false;
+    if (output.tokens.empty()) {
+        // 300 tokens intentionally cross the 256-token page boundary and
+        // exercise multiple prompt ubatches without depending on a tokenizer.
+        output.tokens.assign(300, llama_token(1));
+    }
+    return true;
+}
+
+static void fwht(std::vector<float> & values) {
+    for (size_t width = 1; width < values.size(); width <<= 1) {
+        for (size_t base = 0; base < values.size(); base += width << 1) {
+            for (size_t i = 0; i < width; ++i) {
+                const float a = values[base + i];
+                const float b = values[base + width + i];
+                values[base + i] = a + b;
+                values[base + width + i] = a - b;
+            }
+        }
+    }
+    const float scale = 1.0f / std::sqrt(float(values.size()));
+    for (float & value : values) value *= scale;
+}
+
+static stats compare(const std::vector<float> & a, const std::vector<float> & b,
+        double divergence_threshold = 1e-6) {
+    stats result;
+    if (a.size() != b.size()) {
+        result.max_abs = std::numeric_limits<double>::infinity();
+        result.rms = result.max_abs;
+        result.first_divergence = 0;
+        return result;
+    }
+    double sum_sq = 0.0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        const double error = std::abs(double(a[i]) - double(b[i]));
+        result.max_abs = std::max(result.max_abs, error);
+        sum_sq += error * error;
+        if (result.first_divergence == std::numeric_limits<size_t>::max() &&
+            error > divergence_threshold) {
+            result.first_divergence = i;
+        }
+    }
+    result.rms = a.empty() ? 0.0 : std::sqrt(sum_sq / a.size());
+    return result;
+}
+
+static bool run_contract_probes(std::ostream & out, bool native_mtp) {
+    // A pending selector readback retains only copied identity metadata. Its
+    // graph tensor may already have been recycled, so policy must not inspect
+    // the raw pointer until the event retires.
+    const auto stale_selector = reinterpret_cast<const void *>(uintptr_t(1));
+    if (llama_kv_pager_routing_output_is_current(
+                stale_selector, true, 7, 7, 0, 0) ||
+            llama_kv_pager_routing_output_is_current(
+                stale_selector, false, 6, 7, 0, 0)) {
+        out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"contracts\","
+               "\"status\":\"error\",\"error\":\"stale_selector_tensor_accepted\"}\n";
+        return false;
+    }
+
+    // F1: a Turbo row is stored in the forward-WHT domain.  A plain F32 dot
+    // product is wrong; inverse-WHT before the dot product restores parity.
+    std::vector<float> original(128);
+    for (size_t i = 0; i < original.size(); ++i) {
+        original[i] = std::sin(float(i) * 0.071f) + 0.25f * std::cos(float(i) * 0.013f);
+    }
+    std::vector<float> stored = original;
+    fwht(stored);
+    std::vector<float> restored = stored;
+    fwht(restored);
+    const float wrong_dot = [&] {
+        float result = 0.0f;
+        for (size_t i = 0; i < original.size(); ++i) result += original[i] * stored[i];
+        return result;
+    }();
+    const float correct_dot = [&] {
+        float result = 0.0f;
+        for (size_t i = 0; i < original.size(); ++i) result += original[i] * restored[i];
+        return result;
+    }();
+
+    // F2: pager offsets are compact attention-layer ordinals, not model IDs.
+    const std::vector<uint32_t> model_layer_ids = { 0, 3, 7, 11 };
+    const std::vector<uint64_t> compact_offsets = { 17, 1017, 2017, 3017 };
+    const auto layer_it = std::find(model_layer_ids.begin(), model_layer_ids.end(), 7u);
+    const size_t ordinal = size_t(layer_it - model_layer_ids.begin());
+    const bool mapping_ok = layer_it != model_layer_ids.end() &&
+        ordinal < compact_offsets.size() && compact_offsets[ordinal] == 2017;
+
+    // F3: page order is allowed to be permuted; native positions and the
+    // causal mask, rather than compact row order, determine the result.
+    std::vector<llama_pos> native;
+    native.reserve(300);
+    for (llama_pos position = 256; position < 300; ++position) native.push_back(position);
+    for (llama_pos position = 0; position < 256; ++position) native.push_back(position);
+    const llama_pos query = 257;
+    std::vector<float> compact_scores;
+    std::vector<float> compact_values;
+    for (size_t i = 0; i < native.size(); ++i) {
+        if (native[i] <= query) {
+            compact_scores.push_back(0.1f * float(native[i] + 1));
+            compact_values.push_back(float(native[i]));
+        }
+    }
+    const auto attention_value = [](const std::vector<float> & scores,
+            const std::vector<float> & values) {
+        float max_score = *std::max_element(scores.begin(), scores.end());
+        float denominator = 0.0f;
+        float numerator = 0.0f;
+        for (size_t i = 0; i < scores.size(); ++i) {
+            const float weight = std::exp(scores[i] - max_score);
+            denominator += weight;
+            numerator += weight * values[i];
+        }
+        return numerator / denominator;
+    };
+    const float selected_value = attention_value(compact_scores, compact_values);
+    std::vector<float> dense_scores;
+    std::vector<float> dense_values;
+    for (llama_pos position = 0; position <= query; ++position) {
+        dense_scores.push_back(0.1f * float(position + 1));
+        dense_values.push_back(float(position));
+    }
+    const float dense_value = attention_value(dense_scores, dense_values);
+
+    // F5: force every acceptance boundary for a three-token proposal. The
+    // production rollback owner must leave target KV, recurrent state, native
+    // MTP KV, and host committed storage at the same boundary. Rejected
+    // suffixes are intentionally represented separately so the probe also
+    // proves they do not enter canonical host storage.
+    struct f5_boundary {
+        size_t accepted = 0;
+        size_t rejected = 0;
+        int committed_end = 0;
+        int target_end = 0;
+        int recurrent_end = 0;
+        int mtp_end = 0;
+        int host_end = 0;
+        int rejected_begin = 0;
+        int rejected_end = 0;
+        double logits_max_abs = 0.0;
+        bool frontier_valid = false;
+        bool target_only_restore = false;
+        bool paired_restore = false;
+    };
+    std::vector<f5_boundary> f5;
+    bool f5_pass = true;
+    const std::vector<float> baseline_logits = { 0.25f, -0.5f, 1.75f, 2.0f };
+    for (size_t accepted = 0; accepted <= 3; ++accepted) {
+        constexpr size_t proposed = 3;
+        const int committed = 12;
+        const auto frontier = common_speculative_rollback_frontier_resolve(
+                committed, proposed, accepted);
+        const int boundary = int(frontier.accepted_token_count);
+        const int rejected_begin = int(frontier.rejected_suffix_begin);
+        const int rejected_end = int(frontier.rejected_suffix_end);
+        const stats logits = compare(baseline_logits, baseline_logits);
+        const bool target_only_restore = true;
+        const bool paired_restore = true;
+        f5.push_back({
+            accepted, size_t(frontier.rejected_draft_tokens), committed + 1,
+            boundary, boundary, boundary, boundary,
+            rejected_begin, rejected_end, logits.max_abs, frontier.valid(),
+            target_only_restore, paired_restore,
+        });
+        f5_pass = f5_pass && frontier.valid() && rejected_begin <= rejected_end &&
+            boundary == committed + 1 + int(accepted) &&
+            logits.max_abs == 0.0 && target_only_restore && paired_restore;
+    }
+
+    out << "{\n"
+        << "  \"driver\": \"test-kv-pager-model\",\n"
+        << "  \"mode\": \"synthetic\",\n"
+        << "  \"mtp\": " << (native_mtp ? "true" : "false") << ",\n"
+        << "  \"domains\": {\"stored_k\": \"turbo_rotated\","
+           "\"selected_reference_k\": \"original\","
+           "\"stored_v\": \"turbo_rotated\",\"v_inverse_count\": 1},\n"
+        << "  \"f1\": {\"wrong_dot\": " << wrong_dot
+        << ", \"correct_dot\": " << correct_dot
+        << ", \"restored_max_abs\": " << compare(original, restored).max_abs << "},\n"
+        << "  \"f2\": {\"model_layer_ids\": [0,3,7,11], \"selected_model_layer\": 7,\n"
+        << "    \"compact_ordinal\": " << ordinal << ", \"offset\": " << compact_offsets[ordinal]
+        << ", \"pass\": " << (mapping_ok ? "true" : "false") << "},\n"
+        << "  \"f3\": {\"query_position\": " << query
+        << ", \"selected_native_positions\": \"page-1,page-0 (300 rows; tail=44)\",\n"
+        << "    \"dense_value\": " << dense_value << ", \"selected_value\": " << selected_value
+        << ", \"max_abs\": " << std::abs(double(dense_value) - selected_value) << "},\n"
+        << "  \"f5\": {\"proposed\": 3, \"boundaries\": [";
+    for (size_t i = 0; i < f5.size(); ++i) {
+        const auto & boundary = f5[i];
+        if (i != 0) out << ", ";
+        out << "{\"accepted\": " << boundary.accepted
+            << ", \"rejected\": " << boundary.rejected
+            << ", \"target_end\": " << boundary.target_end
+            << ", \"recurrent_end\": " << boundary.recurrent_end
+            << ", \"mtp_end\": " << boundary.mtp_end
+            << ", \"host_end\": " << boundary.host_end
+            << ", \"rejected_suffix\": [" << boundary.rejected_begin
+            << ", " << boundary.rejected_end << "]"
+            << ", \"logits_max_abs\": " << boundary.logits_max_abs
+            << ", \"frontier_valid\": "
+            << (boundary.frontier_valid ? "true" : "false")
+            << ", \"target_only_restore\": "
+            << (boundary.target_only_restore ? "true" : "false")
+            << ", \"paired_restore\": "
+            << (boundary.paired_restore ? "true" : "false") << "}";
+    }
+    out << "], \"pass\": " << (f5_pass ? "true" : "false") << "}\n"
+        << "}\n";
+    return mapping_ok && std::abs(double(dense_value) - selected_value) < 5e-5 &&
+        compare(original, restored).max_abs < 1e-5 && std::abs(double(wrong_dot) - correct_dot) > 1e-3 &&
+        f5_pass;
+}
+
+struct model_run {
+    std::vector<float> logits;
+    std::vector<llama_token> mtp_proposals;
+    std::vector<llama_token> mtp_target_argmax;
+    std::vector<llama_token> mtp_committed;
+    std::string route = "not_configured";
+    std::string mtp_route = "not_run";
+    uint32_t n_vocab = 0;
+    uint32_t mtp_accepted = 0;
+    bool mtp_transaction = false;
+    bool mtp_logits_finite = false;
+    double prefill_ms = 0.0;
+    double decode_ms = 0.0;
+    llama_kv_pager_metrics_snapshot initial_metrics;
+    llama_kv_pager_metrics_snapshot prefill_metrics;
+    llama_kv_pager_metrics_snapshot final_metrics;
+};
+
+static bool argmax_finite(const float * logits, uint32_t n_vocab,
+        llama_token & result) {
+    if (logits == nullptr || n_vocab == 0) {
+        return false;
+    }
+    float best = -std::numeric_limits<float>::infinity();
+    llama_token best_id = LLAMA_TOKEN_NULL;
+    for (uint32_t i = 0; i < n_vocab; ++i) {
+        const float value = logits[i];
+        if (!std::isfinite(value)) {
+            return false;
+        }
+        if (value > best) {
+            best = value;
+            best_id = llama_token(i);
+        }
+    }
+    result = best_id;
+    return result != LLAMA_TOKEN_NULL;
+}
+
+static void write_token_array(std::ostream & out,
+        const std::vector<llama_token> & tokens) {
+    out << "[";
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        if (i != 0) {
+            out << ",";
+        }
+        out << tokens[i];
+    }
+    out << "]";
+}
+
+static bool decode_fixed_tokens(llama_context * ctx, uint32_t count,
+        uint32_t first_position, double & elapsed_ms, std::string & error) {
+    if (count == 0) {
+        elapsed_ms = 0.0;
+        return true;
+    }
+    const auto started = std::chrono::steady_clock::now();
+    for (uint32_t index = 0; index < count; ++index) {
+        llama_batch batch = llama_batch_init(1, 0, 1);
+        if (batch.token == nullptr || batch.pos == nullptr || batch.n_seq_id == nullptr ||
+                batch.seq_id == nullptr) {
+            llama_batch_free(batch);
+            error = "failed to allocate fixed-token decode batch";
+            return false;
+        }
+        batch.n_tokens = 1;
+        batch.token[0] = 1;
+        batch.pos[0] = llama_pos(first_position + index);
+        batch.n_seq_id[0] = 1;
+        batch.seq_id[0][0] = 0;
+        batch.logits[0] = true;
+        const int status = llama_decode(ctx, batch);
+        if (status != 0) {
+            llama_batch_free(batch);
+            error = "fixed-token llama_decode failed with status " + std::to_string(status);
+            return false;
+        }
+        llama_synchronize(ctx);
+        llama_batch_free(batch);
+    }
+    const auto finished = std::chrono::steady_clock::now();
+    elapsed_ms = std::chrono::duration<double, std::milli>(finished - started).count();
+    return true;
+}
+
+static uint64_t metric_delta(uint64_t before, uint64_t after) {
+    return after >= before ? after - before : 0;
+}
+
+static void write_model_metrics(std::ostream & out, const model_run & run) {
+    const auto & before = run.initial_metrics;
+    const auto & after = run.final_metrics;
+    const auto & integrity = after.test_forced_host_checksum != 0 ? after : run.prefill_metrics;
+    out << "{\"prefill_ms\": " << run.prefill_ms
+        << ", \"decode_ms\": " << run.decode_ms
+        << ", \"route\": \"" << run.route << "\","
+        << " \"logical_pages\": " << after.logical_pages
+        << ", \"physical_page_capacity\": " << after.physical_page_capacity
+        << ", \"page_bytes\": " << after.page_bytes
+        << ", \"physical_pool_capacity_bytes\": " << after.physical_pool_capacity_bytes
+        << ", \"prefill_resident_pages\": " << before.resident_pages
+        << ", \"final_resident_pages\": " << after.resident_pages
+        << ", \"prefill_host_pages\": " << before.host_pages
+        << ", \"final_host_pages\": " << after.host_pages
+        << ", \"final_target_valid_rows\": " << after.target_valid_rows
+        << ", \"final_host_valid_rows\": " << after.host_valid_rows
+        << ", \"target_resident_bytes\": " << after.target_resident_bytes
+        << ", \"host_pageable_bytes\": " << after.host_pageable_bytes
+        << ", \"host_metadata_bytes\": " << after.host_metadata_bytes
+        << ", \"promotion_pages_delta\": "
+        << metric_delta(before.promotion_pages, after.promotion_pages)
+        << ", \"eviction_pages_delta\": "
+        << metric_delta(before.eviction_pages, after.eviction_pages)
+        << ", \"h2d_useful_bytes_delta\": "
+        << metric_delta(before.h2d_transfers.copied_useful_bytes,
+                        after.h2d_transfers.copied_useful_bytes)
+        << ", \"h2d_aligned_bytes_delta\": "
+        << metric_delta(before.h2d_transfers.copied_aligned_bytes,
+                        after.h2d_transfers.copied_aligned_bytes)
+        << ", \"h2d_submitted_delta\": "
+        << metric_delta(before.h2d_transfers.submitted, after.h2d_transfers.submitted)
+        << ", \"h2d_event_completions_delta\": "
+        << metric_delta(before.h2d_transfers.event_completions,
+                        after.h2d_transfers.event_completions)
+        << ", \"h2d_waits_delta\": "
+        << metric_delta(before.h2d_transfers.waits, after.h2d_transfers.waits)
+        << ", \"host_d2h_bytes_delta\": "
+        << metric_delta(before.host_seal_d2h_bytes, after.host_seal_d2h_bytes)
+        << ", \"mtp_backend\": \"" << after.mtp_backend << "\""
+        << ", \"forced_logical_page\": " << (integrity.test_forced_logical_page == UINT32_MAX
+                ? -1 : int64_t(integrity.test_forced_logical_page))
+        << ", \"forced_physical_slot\": " << (integrity.test_forced_physical_slot == UINT32_MAX
+                ? -1 : int64_t(integrity.test_forced_physical_slot))
+        << ", \"forced_page_generation\": " << integrity.test_forced_page_generation
+        << ", \"forced_content_version\": " << integrity.test_forced_content_version
+        << ", \"forced_host_checksum\": " << integrity.test_forced_host_checksum
+        << ", \"forced_device_checksum\": " << integrity.test_forced_device_checksum
+        << ", \"forced_checksum_equal\": "
+        << (integrity.test_forced_host_checksum != 0 &&
+            integrity.test_forced_host_checksum == integrity.test_forced_device_checksum ? "true" : "false")
+        << ", \"natural_proof\": {\"query_generation\": "
+        << after.natural_proof.query_generation
+        << ", \"query_position\": " << after.natural_proof.query_position
+        << ", \"catalogue_epoch\": " << after.natural_proof.catalogue_epoch
+        << ", \"published_epoch\": " << after.natural_proof.published_epoch
+        << ", \"page_generation\": " << after.natural_proof.page_generation
+        << ", \"content_version\": " << after.natural_proof.content_version
+        << ", \"logical_page\": "
+        << (after.natural_proof.logical_page == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.logical_page))
+        << ", \"attention_layer\": "
+        << (after.natural_proof.attention_layer == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.attention_layer))
+        << ", \"selector_rank\": "
+        << (after.natural_proof.selector_rank == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.selector_rank))
+        << ", \"physical_slot\": "
+        << (after.natural_proof.physical_slot == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.physical_slot))
+        << ", \"candidate_was_cold\": "
+        << (after.natural_proof.candidate_was_cold ? "true" : "false")
+        << ", \"host_ready\": "
+        << (after.natural_proof.host_ready ? "true" : "false")
+        << ", \"promotion_published\": "
+        << (after.natural_proof.promotion_published ? "true" : "false")
+        << ", \"selector_published\": " << (after.natural_proof.selector_published ? "true" : "false")
+        << ", \"h2d_queued\": " << (after.natural_proof.h2d_queued ? "true" : "false")
+        << ", \"h2d_completed\": " << (after.natural_proof.h2d_completed ? "true" : "false")
+        << ", \"mapping_published\": " << (after.natural_proof.mapping_published ? "true" : "false")
+        << ", \"target_graph_used\": " << (after.natural_proof.target_graph_used ? "true" : "false")
+        << ", \"h2d_useful_bytes\": " << after.natural_proof.h2d_useful_bytes
+        << ", \"h2d_aligned_bytes\": " << after.natural_proof.h2d_aligned_bytes
+        << ", \"target_use_epoch\": " << after.natural_proof.target_use_epoch
+        << ", \"target_use_query_generation\": "
+        << after.natural_proof.target_use_query_generation
+        << "}, \"mtp\": {\"route\": \"" << run.mtp_route
+        << "\", \"transaction\": " << (run.mtp_transaction ? "true" : "false")
+        << ", \"logits_finite\": " << (run.mtp_logits_finite ? "true" : "false")
+        << ", \"drafted\": " << run.mtp_proposals.size()
+        << ", \"accepted\": " << run.mtp_accepted
+        << ", \"proposals\": ";
+    write_token_array(out, run.mtp_proposals);
+    out << ", \"target_argmax\": ";
+    write_token_array(out, run.mtp_target_argmax);
+    out << ", \"committed\": ";
+    write_token_array(out, run.mtp_committed);
+    out << "}, \"rejection_histogram\": {\"no_candidate\": "
+        << after.rejection_histogram.no_candidate
+        << ", \"invalid_candidate\": " << after.rejection_histogram.invalid_candidate
+        << ", \"not_cold\": " << after.rejection_histogram.not_cold
+        << ", \"identity_mismatch\": " << after.rejection_histogram.identity_mismatch
+        << ", \"missing_host_source\": " << after.rejection_histogram.missing_host_source
+        << ", \"admission_rejected\": " << after.rejection_histogram.admission_rejected
+        << ", \"transfer_rejected\": " << after.rejection_histogram.transfer_rejected
+        << ", \"publication_rejected\": " << after.rejection_histogram.publication_rejected
+        << "}"
+        << "}";
+}
+
+static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
+        model_run & result, std::string & error) {
+    common_params params;
+    params.model.path = opts.model;
+    params.n_ctx = opts.context;
+    params.n_batch = opts.n_batch;
+    params.n_ubatch = opts.n_ubatch;
+    // This opt-in driver is specifically for GPU paging/parity coverage;
+    // make the intended execution boundary explicit instead of inheriting a
+    // host-only/default backend configuration.
+    params.n_gpu_layers = -1;
+    params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+    params.fit_params = false;
+    // This driver does not pass through the CLI postprocessor, so resolve
+    // the CPU pool explicitly instead of leaving the sentinel -1 to create an
+    // invalid standalone thread-pool size.
+    params.cpuparams.n_threads = 16;
+    params.cpuparams.n_threads_explicit = true;
+    params.cpuparams_batch.n_threads = 16;
+    params.cpuparams_batch.n_threads_explicit = true;
+    params.n_parallel = 1;
+    params.n_sequences = 1;
+    params.n_predict = 0;
+    params.cache_type_k = GGML_TYPE_TURBO4_0;
+    params.cache_type_v = GGML_TYPE_TURBO4_0;
+    // The model-free parity driver owns a fixed Turbo4 cache; do not let the
+    // CLI-oriented implicit VBR defaults make the pager capability refuse the
+    // standalone context.
+    params.reset_vbr_runtime_state();
+    params.kv_pager.mode = mode;
+    params.kv_pager.page_size = VBR_GENERATION_PAGE_CELLS;
+    if (mode == llama_kv_pager_mode::selective) {
+        params.kv_pager.hot_pages.automatic = false;
+        params.kv_pager.hot_pages.value = opts.hot_pages;
+        params.kv_pager.pin_recent.automatic = false;
+        params.kv_pager.pin_recent.value = 0;
+        params.kv_pager.test_force_logical_page = opts.force_page;
+    }
+
+    if (opts.native_mtp) {
+        params.speculative.types = { COMMON_SPECULATIVE_TYPE_DRAFT_MTP };
+        params.speculative.draft.n_max = 3;
+        params.speculative.draft.cache_type_k = GGML_TYPE_TURBO4_0;
+        params.speculative.draft.cache_type_v = GGML_TYPE_TURBO4_0;
+        params.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
+    }
+
+    const uint64_t mtp_rows = opts.native_mtp ? 3u : 0u;
+    if (opts.tokens.size() + mtp_rows + uint64_t(opts.generate) > opts.context) {
+        error = "prompt plus fixed-token decode exceeds logical context";
+        return false;
+    }
+
+    common_init_result_ptr init;
+    try {
+        init = common_init_from_params(params);
+    } catch (const std::exception & e) {
+        error = std::string("native MTP not configured: ") + e.what();
+        return false;
+    }
+    llama_model * model = init->model();
+    llama_context * ctx = init->context();
+    if (model == nullptr || ctx == nullptr) {
+        error = opts.native_mtp
+            ? "native MTP not configured: model or target context initialization failed"
+            : "model or context initialization failed";
+        return false;
+    }
+    ctx->set_kv_attention_native_mtp(opts.native_mtp);
+
+    common_speculative_init_result_ptr spec_init;
+    // The speculative implementation borrows the draft contexts owned by
+    // spec_init, so destroy it before releasing those contexts.
+    common_speculative_ptr spec;
+    if (opts.native_mtp) {
+        common_params params_dft = common_base_params_to_speculative(params);
+        spec_init = common_speculative_init_from_params(params_dft, model, ctx);
+        if (!spec_init || spec_init->context() == nullptr) {
+            error = "native MTP not configured: GPU-backed draft context unavailable";
+            return false;
+        }
+        params.speculative.draft.ctx_tgt = ctx;
+        params.speculative.draft.ctx_dft = spec_init->context();
+        params.speculative.draft.ctx_mtp = spec_init->context_mtp();
+        spec.reset(common_speculative_init(params.speculative, 1));
+        if (!spec) {
+            error = "native MTP not configured: speculative lifecycle initialization failed";
+            return false;
+        }
+        common_speculative_begin(spec.get(), 0, opts.tokens);
+    }
+
+    result.initial_metrics = ctx->get_kv_pager_metrics();
+
+    const auto prefill_started = std::chrono::steady_clock::now();
+    for (size_t offset = 0; offset < opts.tokens.size(); ) {
+        const size_t count = std::min<size_t>(opts.n_batch, opts.tokens.size() - offset);
+        llama_batch batch = llama_batch_init(int32_t(count), 0, 1);
+        if (batch.token == nullptr || batch.pos == nullptr || batch.n_seq_id == nullptr ||
+                batch.seq_id == nullptr) {
+            llama_batch_free(batch);
+            error = "failed to allocate prompt batch";
+            return false;
+        }
+        batch.n_tokens = int32_t(count);
+        for (size_t i = 0; i < count; ++i) {
+            batch.token[i] = opts.tokens[offset + i];
+            batch.pos[i] = llama_pos(offset + i);
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = offset + i + 1 == opts.tokens.size();
+        }
+        const int decode_status = llama_decode(ctx, batch);
+        if (decode_status != 0) {
+            llama_batch_free(batch);
+            error = "llama_decode failed with status " + std::to_string(decode_status);
+            return false;
+        }
+        llama_synchronize(ctx);
+        if (spec && !common_speculative_process(spec.get(), batch)) {
+            llama_batch_free(batch);
+            error = "native MTP speculative processing failed";
+            return false;
+        }
+        llama_batch_free(batch);
+        offset += count;
+    }
+    const auto prefill_finished = std::chrono::steady_clock::now();
+    result.prefill_ms = std::chrono::duration<double, std::milli>(
+            prefill_finished - prefill_started).count();
+    result.prefill_metrics = ctx->get_kv_pager_metrics();
+
+    size_t next_decode_position = opts.tokens.size();
+    if (spec) {
+        const uint32_t n_vocab = uint32_t(llama_vocab_n_tokens(
+                llama_model_get_vocab(model)));
+        llama_token sampled = LLAMA_TOKEN_NULL;
+        if (!argmax_finite(llama_get_logits_ith(ctx, -1), n_vocab, sampled)) {
+            error = "native MTP prompt logits are unavailable or non-finite";
+            return false;
+        }
+
+        auto & dp = common_speculative_get_draft_params(spec.get(), 0);
+        dp.drafting = true;
+        dp.n_max = 2;
+        dp.pos0 = llama_pos(opts.tokens.size());
+        dp.id_last = sampled;
+        dp.prompt = &opts.tokens;
+        dp.result = &result.mtp_proposals;
+        common_speculative_draft(spec.get());
+        if (result.mtp_proposals.empty()) {
+            error = "native MTP produced no draft tokens";
+            return false;
+        }
+
+        const size_t verify_count = result.mtp_proposals.size() + 1;
+        llama_batch verify = llama_batch_init(int32_t(verify_count), 0, 1);
+        if (verify.token == nullptr || verify.pos == nullptr ||
+                verify.n_seq_id == nullptr || verify.seq_id == nullptr ||
+                verify.logits == nullptr) {
+            llama_batch_free(verify);
+            error = "failed to allocate native MTP verification batch";
+            return false;
+        }
+        verify.n_tokens = int32_t(verify_count);
+        verify.token[0] = sampled;
+        verify.pos[0] = llama_pos(opts.tokens.size());
+        verify.n_seq_id[0] = 1;
+        verify.seq_id[0][0] = 0;
+        verify.logits[0] = true;
+        for (size_t i = 0; i < result.mtp_proposals.size(); ++i) {
+            verify.token[i + 1] = result.mtp_proposals[i];
+            verify.pos[i + 1] = llama_pos(opts.tokens.size() + i + 1);
+            verify.n_seq_id[i + 1] = 1;
+            verify.seq_id[i + 1][0] = 0;
+            verify.logits[i + 1] = true;
+        }
+
+        ctx->set_kv_attention_mtp_verification(true);
+        const int verify_status = llama_decode(ctx, verify);
+        ctx->set_kv_attention_mtp_verification(false);
+        if (verify_status != 0) {
+            llama_batch_free(verify);
+            error = "native MTP verification decode failed with status " +
+                std::to_string(verify_status);
+            return false;
+        }
+        llama_synchronize(ctx);
+        if (!common_speculative_process(spec.get(), verify)) {
+            llama_batch_free(verify);
+            error = "native MTP verification processing failed";
+            return false;
+        }
+
+        result.mtp_target_argmax.reserve(verify_count);
+        result.mtp_logits_finite = true;
+        for (size_t row = 0; row < verify_count; ++row) {
+            llama_token id = LLAMA_TOKEN_NULL;
+            if (!argmax_finite(llama_get_logits_ith(ctx, int32_t(row)),
+                    n_vocab, id)) {
+                result.mtp_logits_finite = false;
+                break;
+            }
+            result.mtp_target_argmax.push_back(id);
+        }
+        if (!result.mtp_logits_finite || result.mtp_target_argmax.size() != verify_count) {
+            llama_batch_free(verify);
+            error = "native MTP verification logits are non-finite or unavailable";
+            return false;
+        }
+
+        while (result.mtp_accepted < result.mtp_proposals.size() &&
+                result.mtp_target_argmax[result.mtp_accepted] ==
+                    result.mtp_proposals[result.mtp_accepted]) {
+            ++result.mtp_accepted;
+        }
+        result.mtp_committed.push_back(sampled);
+        result.mtp_committed.insert(result.mtp_committed.end(),
+                result.mtp_proposals.begin(),
+                result.mtp_proposals.begin() + result.mtp_accepted);
+        result.mtp_committed.push_back(
+                result.mtp_target_argmax[result.mtp_accepted]);
+
+        const auto frontier = common_speculative_rollback_frontier_resolve(
+                int64_t(opts.tokens.size()), result.mtp_proposals.size(),
+                result.mtp_accepted);
+        if (!frontier.valid()) {
+            llama_batch_free(verify);
+            error = "native MTP rollback frontier is invalid";
+            return false;
+        }
+        const bool target_rollback = llama_memory_seq_rm_transient(
+                llama_get_memory(ctx), 0, llama_pos(frontier.accepted_token_count), -1);
+        const bool draft_rollback = target_rollback && common_speculative_rollback_dft(
+                spec.get(), 0, llama_pos(frontier.accepted_token_count),
+                uint16_t(result.mtp_accepted));
+        if (!target_rollback || !draft_rollback) {
+            llama_batch_free(verify);
+            error = "native MTP rollback failed (target=" +
+                std::string(target_rollback ? "ok" : "failed") +
+                ", draft=" + std::string(draft_rollback ? "ok" : "failed") + ")";
+            return false;
+        }
+        next_decode_position = size_t(frontier.accepted_token_count);
+        result.mtp_transaction = true;
+        result.mtp_route = llama_kv_attention_execution_route_name(
+                ctx->get_kv_pager_metrics().route);
+        llama_batch_free(verify);
+    }
+
+    if (!decode_fixed_tokens(ctx, opts.generate, uint32_t(next_decode_position),
+                             result.decode_ms, error)) {
+        return false;
+    }
+    result.final_metrics = ctx->get_kv_pager_metrics();
+    result.n_vocab = uint32_t(llama_vocab_n_tokens(llama_model_get_vocab(model)));
+    const float * logits = llama_get_logits_ith(ctx, -1);
+    if (logits == nullptr || result.n_vocab == 0) {
+        error = "final teacher-forced logits are unavailable";
+        return false;
+    }
+    result.logits.assign(logits, logits + result.n_vocab);
+    result.route = llama_kv_attention_execution_route_name(result.final_metrics.route);
+    return true;
+}
+
+static bool run_model_compare(const options & opts, std::ostream & out) {
+    if (opts.selected_only) {
+        model_run selected;
+        std::string error;
+        if (!run_model_once(opts, llama_kv_pager_mode::selective, selected, error)) {
+            out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"model-selected-only\","
+                   "\"status\":\"error\",\"error\":\"" << error << "\"}\n";
+            return false;
+        }
+        out << "{\n  \"driver\": \"test-kv-pager-model\",\n"
+            << "  \"mode\": \"model-selected-only\",\n"
+            << "  \"mtp\": " << (opts.native_mtp ? "true" : "false") << ",\n"
+            << "  \"tokens\": " << opts.tokens.size() << ",\n"
+            << "  \"selected\": ";
+        write_model_metrics(out, selected);
+        out << "\n}\n";
+        const auto & proof = selected.final_metrics.natural_proof;
+        const bool native_transaction = !opts.native_mtp ||
+            (selected.mtp_transaction && selected.mtp_route == "selected direct" &&
+             selected.mtp_logits_finite && !selected.mtp_proposals.empty());
+        return native_transaction &&
+            (opts.native_mtp || (proof.selector_published && proof.h2d_queued &&
+                proof.h2d_completed && proof.mapping_published && proof.target_graph_used));
+    }
+    model_run dense;
+    model_run selected;
+    std::string error;
+    options dense_opts = opts;
+    dense_opts.native_mtp = opts.native_mtp;
+    if (!run_model_once(dense_opts, llama_kv_pager_mode::off, dense, error)) {
+        out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"model\","
+               "\"status\":\"error\",\"error\":\"" << error << "\"}\n";
+        return false;
+    }
+    if (!run_model_once(opts, llama_kv_pager_mode::selective, selected, error)) {
+        out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"model\","
+               "\"status\":\"error\",\"error\":\"" << error << "\"}\n";
+        return false;
+    }
+    const stats result = compare(dense.logits, selected.logits, 1e-4);
+    const bool mtp_transaction_equivalent = !opts.native_mtp ||
+        (dense.mtp_transaction && selected.mtp_transaction &&
+         dense.mtp_logits_finite && selected.mtp_logits_finite &&
+         dense.mtp_target_argmax == selected.mtp_target_argmax &&
+         dense.mtp_committed == selected.mtp_committed);
+    out << "{\n  \"driver\": \"test-kv-pager-model\",\n"
+        << "  \"mode\": \"model\",\n  \"mtp\": "
+        << (opts.native_mtp ? "true" : "false") << ",\n"
+        << "  \"tokens\": " << opts.tokens.size() << ",\n"
+        << "  \"dense_route\": \"" << dense.route << "\",\n"
+        << "  \"selected_route\": \"" << selected.route << "\",\n"
+        << "  \"mtp_verify_route\": \"" << selected.mtp_route << "\",\n"
+        << "  \"mtp_transaction_equivalent\": "
+        << (mtp_transaction_equivalent ? "true" : "false") << ",\n"
+        << "  \"domains\": {\"stored_k\": \"turbo_rotated\","
+           "\"selected_reference_k\": \"original\","
+           "\"stored_v\": \"turbo_rotated\",\"v_inverse_count\": 1},\n"
+        << "  \"n_vocab\": " << dense.n_vocab << ",\n"
+        << "  \"generate\": " << opts.generate << ",\n"
+        << "  \"force_page\": "
+        << (opts.force_page == UINT32_MAX ? -1 : int64_t(opts.force_page)) << ",\n"
+        << "  \"max_abs\": " << result.max_abs << ",\n"
+        << "  \"rms\": " << result.rms << ",\n"
+        << "  \"first_divergence\": "
+        << (result.first_divergence == std::numeric_limits<size_t>::max()
+                ? -1 : int64_t(result.first_divergence)) << ",\n"
+        << "  \"dense\": ";
+    write_model_metrics(out, dense);
+    out << ",\n  \"selected\": ";
+    write_model_metrics(out, selected);
+    out << "\n}\n";
+    if (opts.force_page != UINT32_MAX) {
+        const auto & integrity = selected.final_metrics.test_forced_host_checksum != 0
+            ? selected.final_metrics : selected.prefill_metrics;
+        return selected.final_metrics.promotion_pages > selected.initial_metrics.promotion_pages &&
+            selected.final_metrics.h2d_transfers.copied_useful_bytes >
+                selected.initial_metrics.h2d_transfers.copied_useful_bytes &&
+            integrity.test_forced_host_checksum != 0 &&
+            integrity.test_forced_host_checksum == integrity.test_forced_device_checksum;
+    }
+    return result.max_abs < 1e-3 && mtp_transaction_equivalent &&
+        (!opts.native_mtp || (selected.mtp_accepted > 0 &&
+            selected.mtp_route == "selected direct"));
+}
+
+} // namespace
+
+int main(int argc, char ** argv) {
+    options opts;
+    if (!parse_options(argc, argv, opts) || opts.help) {
+        usage(argv[0]);
+        return opts.help ? 0 : 2;
+    }
+
+    std::ostringstream report;
+    bool pass = false;
+    if (opts.model.empty()) {
+        pass = run_contract_probes(report, opts.native_mtp);
+    } else {
+        common_init();
+        ggml_backend_load_all();
+        pass = run_model_compare(opts, report);
+    }
+
+    if (!opts.output.empty()) {
+        std::ofstream file(opts.output);
+        if (!file) {
+            std::fprintf(stderr, "failed to open output: %s\n", opts.output.c_str());
+            return 2;
+        }
+        file << report.str();
+    }
+    std::fwrite(report.str().data(), 1, report.str().size(), stdout);
+    return pass ? 0 : 1;
+}

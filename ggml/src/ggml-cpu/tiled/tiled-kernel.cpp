@@ -715,5 +715,3 @@ void tiled_repack_src0(tiled_tile_src0 * tile, int n_rows, int num_k, int BIAS, 
 
 template void tiled_repack_src0<16>(tiled_tile_src0 * tile, int n_rows, int num_k, int BIAS, bool corr);
 template void tiled_repack_src0<32>(tiled_tile_src0 * tile, int n_rows, int num_k, int BIAS, bool corr);
-
-

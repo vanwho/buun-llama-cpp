@@ -1,0 +1,227 @@
+#pragma once
+
+#include "common.cuh"
+
+#include <cstddef>
+#include <cstdint>
+
+// Bound the fixed query workspace so prefill can submit useful tiles without
+// reserving a context-sized attention matrix.
+constexpr uint32_t GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS = 64;
+constexpr uint32_t GGML_CUDA_FATTN_TURBO4_DEFAULT_QUERY_TOKENS = 32;
+
+// Decode and native-MTP verification commonly submit only a handful of
+// queries.  Keep their launch resources proportional to that shape while
+// retaining the larger tiles used by prefill.
+constexpr uint32_t ggml_cuda_fattn_turbo4_query_tile_for_count(uint32_t n_query_tokens) {
+    return n_query_tokens <= 1 ? 1 :
+        n_query_tokens <= 2 ? 2 :
+        n_query_tokens <= 4 ? 4 :
+        n_query_tokens <= 8 ? 8 :
+        n_query_tokens <= 16 ? 16 :
+        n_query_tokens <= 32 ? 32 : 64;
+}
+
+// Device-side description of one selected Turbo4 page.  Keep this established
+// CUDA-facing type distinct from the backend-neutral GGML graph descriptor so
+// the raw CUDA API retains its existing C++ ABI. Both descriptors have the
+// same field order and layout; the graph dispatch uses a reinterpretation only
+// after validating the immutable host table.
+struct ggml_cuda_fattn_turbo4_page {
+    uint32_t logical_page;
+    uint32_t source_physical_slot;
+    uint32_t compact_row_begin;
+    uint32_t row_count;
+    int64_t  native_position_begin;
+};
+
+static_assert(sizeof(ggml_cuda_fattn_turbo4_page) ==
+              sizeof(ggml_flash_attn_ext_paged_turbo4_page));
+static_assert(offsetof(ggml_cuda_fattn_turbo4_page, native_position_begin) ==
+              offsetof(ggml_flash_attn_ext_paged_turbo4_page, native_position_begin));
+
+struct ggml_cuda_fattn_turbo4_row_lookup {
+    uint32_t page_index;
+    uint32_t page_row;
+};
+
+static_assert(sizeof(ggml_cuda_fattn_turbo4_row_lookup) ==
+              sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup));
+
+bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
+        int device, const ggml_tensor * dst) noexcept;
+void ggml_cuda_flash_attn_ext_paged_turbo4(
+        ggml_backend_cuda_context & ctx, ggml_tensor * dst) noexcept;
+
+enum class ggml_cuda_fattn_turbo4_paged_status : uint8_t {
+    ok = 0,
+    invalid_argument,
+    unsupported_type,
+    unsupported_shape,
+    invalid_page_table,
+    cuda_error,
+};
+
+const char * ggml_cuda_fattn_turbo4_paged_status_name(
+        ggml_cuda_fattn_turbo4_paged_status status) noexcept;
+
+// Validate the host copy of the immutable page table before it is copied to
+// device storage.  The launch API requires the same table in pages_device;
+// retaining pages_host makes the fail-closed checks capture-safe and avoids
+// trying to inspect device metadata synchronously during graph capture.
+bool ggml_cuda_fattn_turbo4_page_table_valid(
+        const ggml_cuda_fattn_turbo4_page * pages,
+        size_t n_pages,
+        uint32_t n_rows,
+        uint32_t page_tokens = 256,
+        uint32_t n_physical_pages = UINT32_MAX) noexcept;
+
+struct ggml_cuda_fattn_turbo4_paged_params {
+    // Q and output are [256, n_head_q, n_query_tokens, n_batch]. Q is F32
+    // and output is F32; head/query strides are explicit byte strides.
+    const float * q = nullptr;
+    float * output = nullptr;
+    size_t q_head_stride_bytes = 0;
+    size_t q_query_stride_bytes = 0;
+    size_t output_head_stride_bytes = 0;
+    size_t output_query_stride_bytes = 0;
+
+    ggml_type type_k = GGML_TYPE_COUNT;
+    ggml_type type_v = GGML_TYPE_COUNT;
+    uint32_t head_dim_k = 0;
+    uint32_t head_dim_v = 0;
+
+    // K/V are raw Turbo4 rows. A physical slot contains page_tokens rows for
+    // one KV head; no selected or full-cache F16 buffer is formed.
+    const char * k = nullptr;
+    const char * v = nullptr;
+    size_t k_row_stride_bytes = 0;
+    size_t k_head_stride_bytes = 0;
+    size_t k_page_stride_bytes = 0;
+    size_t v_row_stride_bytes = 0;
+    size_t v_head_stride_bytes = 0;
+    size_t v_page_stride_bytes = 0;
+
+    // pages_host is immutable metadata owned by the graph/page view. The
+    // device pointers are graph inputs populated by the caller before capture.
+    const ggml_cuda_fattn_turbo4_page * pages_host = nullptr;
+    const ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+    const ggml_cuda_fattn_turbo4_row_lookup * compact_row_lookup_device = nullptr;
+    uint32_t compact_row_lookup_capacity = 0;
+    const int64_t * native_positions_device = nullptr;
+    const uint8_t * native_mask_device = nullptr;
+    const int64_t * query_positions_device = nullptr;
+    float * page_mass = nullptr;
+    size_t page_mass_head_stride_bytes = 0;
+    size_t page_mass_query_stride_bytes = 0;
+    // Optional unnormalized online-softmax output [query][head][m, l,
+    // o[head_dim_v]]. This is the bounded exact page-wave handoff; no K/V or
+    // attention matrix is transferred to the host.
+    float * partial_state = nullptr;
+    size_t partial_state_head_stride_bytes = 0;
+    size_t partial_state_query_stride_bytes = 0;
+    const float * partial_state_input = nullptr;
+    size_t partial_state_input_head_stride_bytes = 0;
+    size_t partial_state_input_query_stride_bytes = 0;
+
+    // Optional split-KV scratch.  The state layout is
+    // [partition][query][head][m, l, o[head_dim_v]].  Page-state scratch is
+    // [partition][query][head][logical_page][m, l] and is only consumed when
+    // page-mass telemetry is enabled.  Both buffers are bounded by the
+    // caller-provided partition capacity; the dispatcher may use fewer
+    // partitions after inspecting the active shape and device.
+    float * split_kv_scratch = nullptr;
+    size_t split_kv_partition_stride_bytes = 0;
+    float * split_kv_page_state = nullptr;
+    size_t split_kv_page_state_head_stride_bytes = 0;
+    size_t split_kv_page_state_query_stride_bytes = 0;
+    size_t split_kv_page_state_partition_stride_bytes = 0;
+    uint32_t split_kv_partition_capacity = 0;
+    uint32_t split_kv_page_count = 0;
+
+    uint32_t n_pages = 0;
+    uint32_t n_physical_pages = 0;
+    uint32_t n_rows = 0;
+    uint32_t n_head_q = 0;
+    uint32_t n_head_kv = 0;
+    uint32_t n_query_tokens = 0;
+    // Zero selects a shape-sized tile (1/2/4/8/16/32/64). Explicit values are
+    // useful for launch tuning without changing the graph's bounded contract.
+    uint32_t query_tile_tokens = 0;
+    uint32_t n_batch = 0;
+    uint32_t page_mass_logical_count = 0;
+    float scale = 0.0f;
+    bool reduce_page_mass = false;
+    bool write_partial_state = false;
+    bool merge_partial_state = false;
+    bool causal = true;
+    const void * host_upload = nullptr;
+    size_t host_upload_bytes = 0;
+    char * upload_destination = nullptr;
+    size_t upload_capacity_bytes = 0;
+
+    // n_pages/n_rows are fixed capacities for a reusable graph.  When these
+    // device inputs are present, the attention kernel loads the active values
+    // at replay so page-boundary changes do not alter the graph topology.
+    uint32_t page_capacity = 0;
+    uint32_t row_capacity = 0;
+    const uint32_t * active_page_count_host = nullptr;
+    const uint32_t * active_row_count_host = nullptr;
+    const uint32_t * active_page_count_device = nullptr;
+    const uint32_t * active_row_count_device = nullptr;
+    const uint32_t * active_tail_length_device = nullptr;
+    const uint64_t * selection_generation_device = nullptr;
+    // The standalone CUDA API historically supplied row positions explicitly;
+    // graph-owned ordinary causal inputs opt out and derive page_start + row.
+    bool explicit_native_metadata = true;
+    // Test-only numerical oracle. Production dispatch uses the cooperative
+    // decode kernel; callers must opt into the repaired serial kernel.
+    bool reference_kernel = false;
+
+    // Optional device-side routing stage. Ranges are fp16 pairs in the fixed
+    // layout [page][subblock][min/max][vector_dim]. One working set is
+    // produced per query/KV-head group and consumed by the caller before the
+    // page attention launch; no Q or score data is read back to the host.
+    const uint16_t * routing_range_min = nullptr;
+    const uint16_t * routing_range_max = nullptr;
+    uint32_t * routing_selected_indices = nullptr;
+    uint32_t * routing_selected_count = nullptr;
+    float * routing_selected_scores = nullptr;
+    size_t routing_range_page_stride_bytes = 0;
+    size_t routing_selected_stride_bytes = 0;
+    size_t routing_count_stride_bytes = 0;
+    uint32_t routing_subblocks = 0;
+    uint32_t routing_vector_dim = 0;
+    uint32_t routing_top_k = 0;
+};
+
+// Launch the bounded min/max estimator on the caller's CUDA stream. Ranking
+// is deterministic (score descending, logical page ascending) and is shared
+// by every query head in a GQA group.
+ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4_route(
+        ggml_backend_cuda_context & ctx,
+        const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;
+
+// Correctness-first direct page/query-tile attention. The qualified geometry is
+// causal, batch 1, one or more query tokens, head width 256, and divisible GQA.
+// The serial oracle uses one CTA per query tile to traverse each compressed page
+// list once and reuses decoded K/V rows across the tile's queries. A larger B is
+// represented by grid.z tiles; shared memory remains bounded by the fixed tile
+// size rather than B.
+// Qualified large-row calls use bounded split-KV CTAs and a device-side
+// unnormalized-state merge; the output remains in the Turbo V rotated domain,
+// matching the existing dense Turbo4 FA contract. The graph-level inverse WHT
+// and mean restoration remain outside this primitive.
+ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
+        ggml_backend_cuda_context & ctx,
+        const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;
+
+// Backend-facing overload for tests and the later graph integration. It
+// rejects non-CUDA backends before touching their private context layout.
+ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
+        ggml_backend_t backend,
+        const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;
+
+// Test-only dispatch observation for numerical fixtures. It reports whether the most recent
+// raw paged launch selected the direct Turbo4 MMA path rather than a cooperative/reference path.
+bool ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() noexcept;

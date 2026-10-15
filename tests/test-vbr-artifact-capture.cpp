@@ -1,4 +1,5 @@
 #include "llama-vbr-artifact-capture.h"
+#include "llama-vbr-artifact-catalog.h"
 #include "llama-vbr-artifact-stage.h"
 #include "llama-vbr-artifact-validate.h"
 #include "llama-vbr-explicit-capture.h"
@@ -1362,6 +1363,408 @@ static void test_projected_unit_transfer() {
           vbr_capture_stream_status::projection_invalid);
     CHECK(snapshot.acquired == 0);
     CHECK(snapshot.released == 0);
+}
+
+struct selected_page_snapshot_fixture {
+    vbr_selected_page_capture_snapshot snapshot;
+    uint32_t acquired = 0;
+    uint32_t rechecked = 0;
+    uint32_t released = 0;
+    bool acquire_ok = true;
+    bool recheck_ok = true;
+
+    static bool acquire(
+            void * context,
+            const vbr_selected_page_capture_request &,
+            vbr_selected_page_capture_snapshot & output) noexcept {
+        auto & self = *static_cast<selected_page_snapshot_fixture *>(context);
+        ++self.acquired;
+        if (!self.acquire_ok) {
+            return false;
+        }
+        output = self.snapshot;
+        return true;
+    }
+
+    static bool recheck(
+            void * context,
+            const vbr_selected_page_capture_snapshot &) noexcept {
+        auto & self = *static_cast<selected_page_snapshot_fixture *>(context);
+        ++self.rechecked;
+        return self.recheck_ok;
+    }
+
+    static void release(
+            void * context,
+            const vbr_selected_page_capture_snapshot &) noexcept {
+        ++static_cast<selected_page_snapshot_fixture *>(context)->released;
+    }
+
+    vbr_selected_page_capture_snapshot_provider provider() noexcept {
+        return { this, acquire, recheck, release };
+    }
+};
+
+static llama_kv_page_id selected_page_id(
+        uint32_t page, uint32_t page_generation,
+        llama_pos begin, llama_pos end) {
+    llama_kv_page_id id;
+    id.session_generation = 77;
+    id.sequence_id = 4;
+    id.sequence_generation = 9;
+    id.logical_page = page;
+    id.page_generation = page_generation;
+    id.representation_epoch = 12;
+    id.model_identity = 21;
+    id.topology_identity = 22;
+    id.codec_digest = 23;
+    id.codebook_digest = 24;
+    id.rotation_digest = 25;
+    id.meansub_digest = 26;
+    id.position_begin = begin;
+    id.position_end = end;
+    return id;
+}
+
+static void test_selected_page_capture() {
+    static constexpr uint64_t SOURCE_NAMESPACE = 7001;
+    static constexpr uint32_t ROW_COUNT = 512;
+    static constexpr uint64_t ROW_BYTES = 2;
+
+    std::vector<synthetic_source> storage(
+        VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    std::vector<vbr_selected_page_unit_source> sources;
+    sources.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    for (uint32_t unit = 0;
+         unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        storage[unit].bytes.resize(ROW_COUNT*ROW_BYTES);
+        for (size_t i = 0; i < storage[unit].bytes.size(); ++i) {
+            storage[unit].bytes[i] = uint8_t((unit*37 + i) & 0xff);
+        }
+        vbr_selected_page_unit_source source;
+        source.logical_unit_id = unit;
+        source.row_count = ROW_COUNT;
+        source.row_bytes = ROW_BYTES;
+        source.source_identity = 1000 + unit;
+        source.source.size = storage[unit].bytes.size();
+        source.source.context = &storage[unit];
+        source.source.read = read_synthetic;
+        sources.push_back(source);
+    }
+
+    const auto page_zero = selected_page_id(0, 31, 0, 256);
+    const auto page_two = selected_page_id(2, 32, 512, 515);
+    vbr_selected_page_capture_request request;
+    request.source_namespace = SOURCE_NAMESPACE;
+    request.child_id = 0;
+    request.stream_index = 0;
+    request.required_unit_ids.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    request.expected_unit_generations.resize(
+        VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    for (uint32_t unit = 0;
+         unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        request.required_unit_ids.push_back(unit);
+    }
+    vbr_selected_page_range first;
+    first.identity = page_zero;
+    first.positions.resize(256);
+    first.physical_cells.resize(256);
+    for (uint32_t i = 0; i < 256; ++i) {
+        first.positions[i] = llama_pos(i);
+        first.physical_cells[i] = i;
+    }
+    vbr_selected_page_range second;
+    second.identity = page_two;
+    second.tail = true;
+    second.positions = { 512, 513, 514 };
+    second.physical_cells = { 400, 402, 403 };
+    request.pages = { first, second };
+
+    vbr_selected_page_capture_quote quote;
+    CHECK(vbr_selected_page_capture_project(
+              request, sources, {}, quote) ==
+          vbr_selected_page_capture_status::ok);
+    CHECK(quote.page_count == 2);
+    CHECK(quote.unit_count == VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    CHECK(quote.position_count == 259);
+    CHECK(quote.segment_count == 96);
+    CHECK(quote.source_operations == 96);
+    CHECK(quote.payload_bytes == 259*ROW_BYTES*
+          VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    CHECK(quote.authenticated_chunks ==
+          VBR_SELECTED_PAGE_REQUIRED_UNITS*2);
+
+    selected_page_snapshot_fixture snapshot;
+    snapshot.snapshot.source_namespace = SOURCE_NAMESPACE;
+    snapshot.snapshot.child_id = 0;
+    snapshot.snapshot.stream_index = 0;
+    snapshot.snapshot.pages = { page_zero, page_two };
+    const vbr_lineage_uuid lineage = { 81, 82 };
+    for (uint32_t unit = 0;
+         unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        vbr_capture_unit_snapshot unit_snapshot;
+        unit_snapshot.source_namespace = SOURCE_NAMESPACE;
+        unit_snapshot.child_id = 0;
+        unit_snapshot.logical_unit_id = unit;
+        unit_snapshot.lineage_uuid = lineage;
+        unit_snapshot.controller_generation = 3;
+        unit_snapshot.mutation_serial = 0;
+        unit_snapshot.generation.repr_gen = 4;
+        unit_snapshot.generation.publish_seq = 0;
+        unit_snapshot.generation.current_type = GGML_TYPE_TURBO4_0;
+        unit_snapshot.generation.last_source_type = GGML_TYPE_F16;
+        unit_snapshot.generation.domain = vbr_repr_domain::tapped;
+        unit_snapshot.generation.promote_hops = 1;
+        unit_snapshot.generation.last_transition =
+            vbr_repr_transition::degrade_f16_to_t8_admitted;
+        request.expected_unit_generations[unit] =
+            unit_snapshot.generation;
+        vbr_capture_projected_shard_source projected_source;
+        projected_source.shard_index = 0;
+        projected_source.row_count = ROW_COUNT;
+        projected_source.row_bytes = ROW_BYTES;
+        projected_source.source_identity = 1000 + unit;
+        projected_source.source = sources[unit].source;
+        CHECK(vbr_capture_projected_shard_topology(
+                  { projected_source }, unit_snapshot.shard_count,
+                  unit_snapshot.shard_topology_digest));
+        snapshot.snapshot.units.push_back(unit_snapshot);
+
+        vbr_artifact_unit_descriptor descriptor;
+        descriptor.child_id = 0;
+        descriptor.logical_unit_id = unit;
+        descriptor.lineage_uuid = lineage;
+        descriptor.repr_gen = 4;
+        descriptor.current_type = GGML_TYPE_TURBO4_0;
+        descriptor.last_source_type = GGML_TYPE_F16;
+        descriptor.promote_hops = 1;
+        descriptor.last_transition =
+            vbr_repr_transition::degrade_f16_to_t8_admitted;
+        descriptor.representation.kind =
+            vbr_artifact_representation_kind::approximate;
+        descriptor.representation.codec_id = 4;
+        descriptor.representation.codec_version = 1;
+        descriptor.representation.reference_digest.fill(uint8_t(unit + 1));
+        descriptor.side = (unit & 1u)
+            ? vbr_artifact_side::value : vbr_artifact_side::key;
+        descriptor.layout = vbr_artifact_layout::row_major;
+        descriptor.n_stream = 1;
+        descriptor.wm_cells = ROW_COUNT;
+        descriptor.codebook_digest.fill(uint8_t(unit + 2));
+        descriptor.rotation_digest.fill(uint8_t(unit + 3));
+        descriptor.meansub_digest.fill(uint8_t(unit + 4));
+        snapshot.snapshot.unit_descriptors.push_back(std::move(descriptor));
+    }
+
+    vbr_capture_stream_status ring_status;
+    auto ring = vbr_pinned_chunk_ring::create(
+        { {} }, 64*1024, 1024, ring_status);
+    CHECK(ring);
+    vbr_selected_page_capture captured;
+    vbr_capture_stream_stats attempted;
+    CHECK(ring && vbr_selected_page_capture_transfer(
+              request, sources, {}, snapshot.provider(), *ring, captured,
+              &attempted) == vbr_selected_page_capture_status::ok);
+    CHECK(captured);
+    CHECK(snapshot.acquired == 1);
+    CHECK(snapshot.rechecked == 1);
+    CHECK(snapshot.released == 1);
+    CHECK(captured.pages().size() == 2);
+    CHECK(captured.pages()[0].units.size() ==
+          VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    CHECK(captured.pages()[0].payload_bytes == 256*ROW_BYTES*
+          VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    CHECK(captured.pages()[1].tail);
+    CHECK(captured.pages()[1].payload_bytes == 3*ROW_BYTES*
+          VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    CHECK(attempted.bytes == quote.payload_bytes);
+    CHECK(captured.pages()[0].units[0].representation.current_type ==
+          GGML_TYPE_TURBO4_0);
+    CHECK(captured.pages()[0].units[1].side ==
+          vbr_artifact_side::value);
+    CHECK(captured.pages()[0].units[0].bytes->size() == 512);
+    CHECK(captured.pages()[1].units[0].bytes->size() == 6);
+
+    auto expect_reject = [&](vbr_selected_page_capture_status expected,
+                             const vbr_selected_page_capture_request & value,
+                             const std::vector<vbr_selected_page_unit_source> &
+                                 value_sources,
+                             const selected_page_snapshot_fixture & value_snapshot,
+                             const vbr_selected_page_capture_limits & value_limits = {}) {
+        vbr_selected_page_capture result;
+        selected_page_snapshot_fixture provider_snapshot = value_snapshot;
+        CHECK(vbr_selected_page_capture_transfer(
+                  value, value_sources, value_limits,
+                  provider_snapshot.provider(), *ring, result) == expected);
+        CHECK(!result);
+    };
+
+    auto wrong_type = snapshot;
+    wrong_type.snapshot.unit_descriptors[3].current_type = GGML_TYPE_F16;
+    expect_reject(vbr_selected_page_capture_status::wrong_type,
+                  request, sources, wrong_type);
+
+    auto stale = snapshot;
+    stale.snapshot.pages[0].page_generation++;
+    expect_reject(vbr_selected_page_capture_status::stale_page_generation,
+                  request, sources, stale);
+
+    auto changed_representation = snapshot;
+    changed_representation.snapshot.pages[0].codebook_digest++;
+    expect_reject(
+        vbr_selected_page_capture_status::representation_changed,
+        request, sources, changed_representation);
+
+    auto changed_after_transfer = snapshot;
+    changed_after_transfer.recheck_ok = false;
+    expect_reject(vbr_selected_page_capture_status::snapshot_changed,
+                  request, sources, changed_after_transfer);
+
+    auto overflow = vbr_selected_page_capture_limits {};
+    overflow.max_payload_bytes = 100;
+    expect_reject(vbr_selected_page_capture_status::geometry_overflow,
+                  request, sources, snapshot, overflow);
+
+    auto missing_sources = sources;
+    missing_sources.pop_back();
+    expect_reject(vbr_selected_page_capture_status::missing_unit,
+                  request, missing_sources, snapshot);
+
+    storage[0].fail_at = 4;
+    expect_reject(vbr_selected_page_capture_status::short_read,
+                  request, sources, snapshot);
+
+    vbr_selected_page_capture_request sealed_request = request;
+    sealed_request.pages.resize(1);
+    selected_page_snapshot_fixture sealed_snapshot = snapshot;
+    sealed_snapshot.snapshot.pages.resize(1);
+    vbr_selected_page_capture sealed_capture;
+    storage[0].fail_at = SIZE_MAX;
+    CHECK(vbr_selected_page_capture_transfer(
+              sealed_request, sources, {}, sealed_snapshot.provider(), *ring,
+              sealed_capture) == vbr_selected_page_capture_status::ok);
+    CHECK(sealed_capture && sealed_capture.quote().source_namespace ==
+          SOURCE_NAMESPACE);
+
+    llama_cache_acct_ledger ledger;
+    const auto pageable = llama_cache_acct_resource_domain::non_device(
+        llama_cache_acct_residency::pageable_host);
+    const auto pinned = llama_cache_acct_resource_domain::non_device(
+        llama_cache_acct_residency::pinned_host);
+    const llama_cache_acct_completeness_requirement requirements[] = {
+        { pageable, llama_cache_acct_producer::observer_init },
+        { pinned, llama_cache_acct_producer::observer_init },
+    };
+    CHECK(ledger.configure_required_producers(requirements, 2));
+    CHECK(ledger.certify_complete(
+              pageable, llama_cache_acct_producer::observer_init));
+    CHECK(ledger.certify_complete(
+              pinned, llama_cache_acct_producer::observer_init));
+    llama_cache_budget_config budget;
+    budget.host.pageable_cap = 1 << 20;
+    budget.host.pageable_state = llama_cache_budget_capacity_state::known;
+    budget.host.pinned_cap = 1 << 20;
+    budget.host.pinned_state = llama_cache_budget_capacity_state::known;
+    budget.host.total_cap = 2 << 20;
+    budget.host.total_state = llama_cache_budget_capacity_state::known;
+    llama_vbr_selected_page_host_catalog catalog(ledger);
+    const auto stored = catalog.publish(sealed_capture, budget, false, 4096);
+    CHECK(stored.status == vbr_selected_page_host_status::stored);
+    CHECK(stored.pageable_bytes == sealed_capture.pages()[0].payload_bytes);
+    CHECK(stored.pinned_bytes == 4096);
+    CHECK(catalog.snapshot().live_pages == 1);
+    vbr_selected_page_host_key key;
+    key.source_namespace = SOURCE_NAMESPACE;
+    key.child_id = 0;
+    key.stream_index = 0;
+    key.page = sealed_capture.pages()[0].identity;
+    CHECK(catalog.find(key) != nullptr);
+    CHECK(catalog.publish(sealed_capture, budget, false, 4096).status ==
+          vbr_selected_page_host_status::alias);
+    // A reader may outlive catalog invalidation, but the catalog must not
+    // retain obsolete payloads after the reader and capture are gone.
+    vbr_selected_page_host_view reader;
+    CHECK(catalog.find_copy(key, reader));
+    std::weak_ptr<const artifact_segment_chain> payload =
+        sealed_capture.pages()[0].units[0].bytes;
+    const auto expected_byte = storage[0].bytes[0];
+    sealed_capture = {};
+    captured = {};
+    CHECK(catalog.invalidate(key));
+    CHECK(catalog.snapshot().live_pages == 0);
+    CHECK(catalog.snapshot().obsolete_pages == 1);
+    CHECK(catalog.snapshot().pageable_bytes == 0);
+    CHECK(catalog.snapshot().metadata_bytes == 0);
+    CHECK(catalog.snapshot().pinned_bytes == 0);
+    CHECK(catalog.find(key) == nullptr);
+    CHECK(!catalog.invalidate(key));
+    CHECK(!payload.expired());
+    uint8_t byte = 0;
+    CHECK(reader.page.units[0].bytes->read(0, &byte, 1));
+    CHECK(byte == expected_byte);
+    reader = {};
+    CHECK(payload.expired());
+
+    // Exercise the same erase/refill lifecycle as isolated benchmark rows.
+    // Each iteration owns new bytes and reuses one bounded catalog entry.
+    for (uint32_t iteration = 0; iteration < 64; ++iteration) {
+        CHECK(vbr_selected_page_capture_transfer(
+                  sealed_request, sources, {}, sealed_snapshot.provider(), *ring,
+                  sealed_capture) == vbr_selected_page_capture_status::ok);
+        const auto refill = catalog.publish(sealed_capture, budget, false, 4096);
+        CHECK(refill.status == vbr_selected_page_host_status::stored);
+        CHECK(refill.page_index == stored.page_index);
+        CHECK(catalog.snapshot().live_pages == 1);
+        CHECK(catalog.snapshot().obsolete_pages == 0);
+        payload = sealed_capture.pages()[0].units[0].bytes;
+        sealed_capture = {};
+        CHECK(catalog.invalidate(key));
+        CHECK(payload.expired());
+        CHECK(catalog.snapshot().obsolete_pages == 1);
+    }
+
+    // A range removal must leave unrelated cold pages and readers intact.
+    CHECK(vbr_selected_page_capture_transfer(
+              request, sources, {}, snapshot.provider(), *ring, captured) ==
+          vbr_selected_page_capture_status::ok);
+    CHECK(catalog.publish(captured, budget, false).status ==
+          vbr_selected_page_host_status::stored);
+    vbr_selected_page_host_key tail_key = key;
+    tail_key.page = captured.pages()[1].identity;
+    std::weak_ptr<const artifact_segment_chain> tail_payload =
+        captured.pages()[1].units[0].bytes;
+    payload = captured.pages()[0].units[0].bytes;
+    const auto tail_bytes = captured.pages()[1].payload_bytes;
+    captured = {};
+    CHECK(catalog.invalidate(key));
+    CHECK(payload.expired());
+    CHECK(catalog.snapshot().live_pages == 1);
+    CHECK(catalog.snapshot().pageable_bytes == tail_bytes);
+    CHECK(!tail_payload.expired());
+    CHECK(catalog.find_copy(tail_key, reader));
+    CHECK(catalog.invalidate(tail_key));
+    CHECK(!tail_payload.expired());
+    reader = {};
+    CHECK(tail_payload.expired());
+    CHECK(catalog.snapshot().live_pages == 0);
+    CHECK(catalog.snapshot().obsolete_pages == 2);
+    for (uint32_t iteration = 0; iteration < 8; ++iteration) {
+        CHECK(vbr_selected_page_capture_transfer(
+                  request, sources, {}, snapshot.provider(), *ring, captured) ==
+              vbr_selected_page_capture_status::ok);
+        CHECK(catalog.publish(captured, budget, false).status ==
+              vbr_selected_page_host_status::stored);
+        CHECK(catalog.snapshot().live_pages == 2);
+        CHECK(catalog.snapshot().obsolete_pages == 0);
+        payload = captured.pages()[0].units[0].bytes;
+        tail_payload = captured.pages()[1].units[0].bytes;
+        captured = {};
+        CHECK(catalog.invalidate(tail_key));
+        CHECK(catalog.invalidate(key));
+        CHECK(payload.expired());
+        CHECK(tail_payload.expired());
+        CHECK(catalog.snapshot().obsolete_pages == 2);
+    }
 }
 
 struct projected_controller_fixture {
@@ -4801,6 +5204,7 @@ struct fake_h2d_destination {
     };
     std::unordered_map<uint64_t, pending> operations;
     uint64_t bytes = 0;
+    size_t peak_operations = 0;
     bool valid = true;
 
     static uint64_t digest(const uint8_t * data, size_t size) noexcept {
@@ -4829,6 +5233,8 @@ struct fake_h2d_destination {
         destination.operations.emplace(ticket, pending {
             offset, data, size, digest(data, size),
         });
+        destination.peak_operations = std::max(
+            destination.peak_operations, destination.operations.size());
         return true;
     }
 
@@ -4874,6 +5280,7 @@ static void test_h2d_bounded_streaming() {
         fake_h2d_destination::complete,
         true,
     };
+    transfer.continue_transfer = [](void *) noexcept { return true; };
     vbr_h2d_stats stats;
     CHECK(ring->stream(transfer, stats) == vbr_h2d_status::ok);
     CHECK(event_destination.valid);
@@ -4884,6 +5291,7 @@ static void test_h2d_bounded_streaming() {
     CHECK(stats.event_completions == stats.chunks);
     CHECK(stats.synchronous_fallbacks == 0);
     CHECK(stats.peak_pinned_bytes <= ring->capacity_bytes());
+    CHECK(event_destination.peak_operations > 1);
 
     fake_h2d_destination sync_destination;
     transfer.fake.context = &sync_destination;
@@ -4939,6 +5347,7 @@ static void test_h2d_bounded_streaming() {
         &blocked_destination, fake_h2d_destination::issue,
         fake_h2d_destination::complete, true,
     };
+    blocked_transfer.continue_transfer = [](void *) noexcept { return true; };
     vbr_capture_stream_status capture_result =
         vbr_capture_stream_status::internal_error;
     std::thread capture_thread([&]() {
@@ -4952,15 +5361,24 @@ static void test_h2d_bounded_streaming() {
         std::this_thread::yield();
     }
     CHECK(d2h_input.entered.load(std::memory_order_acquire));
-    CHECK(adoption->stream(blocked_transfer, stats) ==
-          vbr_h2d_status::ring_unavailable);
+    std::atomic<bool> h2d_done { false };
+    vbr_h2d_status h2d_result = vbr_h2d_status::internal_error;
+    vbr_h2d_stats h2d_stats;
+    std::thread h2d_thread([&]() {
+        h2d_result = adoption->stream(blocked_transfer, h2d_stats);
+        h2d_done.store(true, std::memory_order_release);
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    CHECK(!h2d_done.load(std::memory_order_acquire));
     CHECK(blocked_chain.size() == 0);
     CHECK(blocked_destination.bytes == 0);
     d2h_input.release.store(true, std::memory_order_release);
     capture_thread.join();
+    h2d_thread.join();
     CHECK(capture_result == vbr_capture_stream_status::ok);
+    CHECK(h2d_result == vbr_h2d_status::ok);
+    CHECK(h2d_stats.backpressure_waits > 0);
     CHECK(read_chain(blocked_chain) == d2h_input.source.bytes);
-    CHECK(adoption->stream(blocked_transfer, stats) == vbr_h2d_status::ok);
     CHECK(blocked_destination.valid);
     CHECK(blocked_destination.bytes == h2d_input.size);
 
@@ -6415,6 +6833,7 @@ int main(int argc, char ** argv) {
     test_registry_quiescence_query();
     test_cpu_ring_boundaries();
     test_projected_unit_transfer();
+    test_selected_page_capture();
     test_preflight_unavailable_projection_rows();
     test_manifest_coherent_assembly();
     test_projected_publication_claim_preparation();

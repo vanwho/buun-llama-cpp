@@ -97,7 +97,7 @@ decoding remains lossless; an omitted draft token can reduce acceptance but does
 not restrict the target's output vocabulary or sampling distribution.
 
 ```bash
-llama-server -m Qwen3.8-27B.gguf -md mtp-Qwen3.8-27B.gguf \
+llama-server -m <target-model.gguf> -md <mtp-model.gguf> \
     --spec-type draft-mtp --spec-mtp-vocab-size 32768
 ```
 
@@ -115,8 +115,8 @@ remain loaded for the lifetime of the sidecar. A shared sidecar therefore cannot
 loaded as a standalone target, and mismatched target tensor shapes are rejected.
 
 ```bash
-llama-server -m Qwen3.8-Flash-Next.gguf \
-    -md mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf \
+llama-server -m <target-model.gguf> \
+    -md <shared-mtp-model.gguf> \
     --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-p-min 0
 ```
 
@@ -125,6 +125,30 @@ bounded cache for the alternating verification shapes, and the Qwen4 recurrent a
 PLE convolution histories are included in partial rollback. For byte-for-byte
 speculative/non-speculative comparisons, also pass `--ctx-checkpoints 0` so server
 prompt-checkpoint recomputation does not introduce an independent numerical change.
+
+#### Draft K/V placement
+
+`--spec-draft-kv-device auto|gpu|cpu` controls draft-model K/V placement
+independently of the target cache. `auto` preserves the target's existing
+placement policy, `gpu` requests device-resident draft K/V, and `cpu` keeps
+draft K/V off the GPU. The setting applies to external draft models and native
+MTP contexts. A requested GPU placement with no usable GPU is rejected during
+initialization; it is not silently converted to CPU placement.
+
+For the Buun Turbo4 MTP path, use Turbo4 on both draft sides, for example:
+
+```bash
+llama-server -m <target-model.gguf> \
+    --spec-type draft-mtp --spec-draft-kv-device gpu \
+    -ctkd turbo4 -ctvd turbo4
+```
+
+The `t4`, `turbo4_0`, and `4` spellings are Buun compatibility aliases for
+draft Turbo4 types. Native MTP uses exactly the resolved target per-sequence
+context, remains fully GPU-resident, and is not eligible for target VBR or
+pager eviction. Unsupported placement or insufficient resources is rejected;
+there is no silent CPU fallback. See the V2 execution evidence index for the
+recorded controls and the still-blocked model-backed acceptance gates.
 
 CopySpec can also be combined with MTP using `--spec-type draft-mtp,copyspec`.
 Both use the same per-sequence lifecycle, including with multiple server slots.
@@ -461,12 +485,17 @@ Use exactly one of these options:
 ```
 --spec-draft-type-k, -ctkd, --cache-type-k-draft  TYPE
                                         KV cache data type for K for the draft model
-                                        allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1
+                                        allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq
+                                        Turbo4 aliases: t4, turbo4_0, 4
                                         (env: LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_K)
 --spec-draft-type-v, -ctvd, --cache-type-v-draft  TYPE
                                         KV cache data type for V for the draft model
-                                        allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1
+                                        allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq
+                                        Turbo4 aliases: t4, turbo4_0, 4
                                         (env: LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_V)
+--spec-draft-kv-device auto|gpu|cpu
+                                        Draft K/V residency: auto follows target, gpu offloads K/Q/V, cpu keeps K/V off the GPU (default: auto)
+                                        (env: LLAMA_ARG_SPEC_DRAFT_KV_DEVICE)
 --spec-draft-override-tensor, -otd, --override-tensor-draft  <tensor name pattern>=<buffer type>,...
                                         override tensor buffer type for draft model
 --spec-draft-cpu-moe, -cmoed, --cpu-moe-draft

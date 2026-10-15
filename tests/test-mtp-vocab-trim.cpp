@@ -117,18 +117,41 @@ void test_mtp_carry_lifecycle() {
     corrupt[0] ^= 0x80;
     assert(!common_speculative_mtp_carry_state_load(
         restored_lifecycle, restored, corrupt));
-    assert(!restored_lifecycle.draft_ready());
+    assert(restored_lifecycle.draft_ready());
+    assert(restored == source);
 
     corrupt = state;
     corrupt.pop_back();
     assert(!common_speculative_mtp_carry_state_load(
         restored_lifecycle, restored, corrupt));
-    assert(!restored_lifecycle.draft_ready());
+    assert(restored_lifecycle.draft_ready());
+    assert(restored == source);
 
     std::vector<float> wrong_width(source.size() + 1, 0.0f);
     assert(!common_speculative_mtp_carry_state_load(
         restored_lifecycle, wrong_width, state));
-    assert(!restored_lifecycle.draft_ready());
+    assert(restored_lifecycle.draft_ready());
+
+    const auto frontier =
+        common_speculative_rollback_frontier_resolve(12, 5, 2);
+    assert(frontier.valid());
+    assert(frontier.accepted_token_count == 15);
+    assert(frontier.rejected_suffix_begin == 15);
+    assert(frontier.rejected_suffix_end == 18);
+    assert(frontier.rejected_draft_tokens == 3);
+
+    const auto invalid_frontier =
+        common_speculative_rollback_frontier_resolve(12, 2, 3);
+    assert(!invalid_frontier.valid());
+
+    // The sampled row is row zero; accepted draft count advances into the
+    // verification rows but must never select beyond the last materialized
+    // hidden row. This is also the boundary consumed by MTP rollback.
+    assert(common_speculative_mtp_carry_row(0, 0) == -1);
+    assert(common_speculative_mtp_carry_row(3, 0) == 0);
+    assert(common_speculative_mtp_carry_row(3, 1) == 1);
+    assert(common_speculative_mtp_carry_row(3, 2) == 2);
+    assert(common_speculative_mtp_carry_row(3, 3) == 2);
 
     const auto none = common_speculative_checkpoint_policy_resolve(
         false, false, true, true);
@@ -151,6 +174,28 @@ void test_mtp_carry_lifecycle() {
     assert(!inactive_mtp.require_complete_draft_and_state);
 }
 
+void test_mtp_verification_restore_invariant() {
+    common_speculative_mtp_carry_lifecycle carry;
+
+    // A non-zero verification frontier must not consume a draft carry until
+    // the target has refreshed the corresponding row. This is the invariant
+    // that protects rollback/restore from reusing the rejected branch.
+    carry.target_process_refreshed();
+    assert(carry.target_process_mode(9) ==
+           common_speculative_mtp_carry_lifecycle::process_mode::retained_carry);
+
+    carry.sequence_transition(
+        common_speculative_sequence_event::target_restored_without_draft);
+    assert(!carry.draft_ready());
+    assert(carry.target_process_mode(9) ==
+           common_speculative_mtp_carry_lifecycle::process_mode::target_only);
+
+    carry.target_process_refreshed();
+    assert(carry.draft_ready());
+    assert(carry.target_process_mode(9) ==
+           common_speculative_mtp_carry_lifecycle::process_mode::retained_carry);
+}
+
 struct files_cleanup {
     std::vector<std::filesystem::path> paths;
 
@@ -166,6 +211,7 @@ struct files_cleanup {
 
 int main() {
     test_mtp_carry_lifecycle();
+    test_mtp_verification_restore_invariant();
 
     std::vector<std::string> digest_tokens = { "!", "hello", "▁world" };
     assert(common_mtp_vocab_trim_tokenizer_digest_for_test(digest_tokens) ==

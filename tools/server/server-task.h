@@ -135,6 +135,11 @@ struct task_params {
 
     // message spans for checkpointing
     common_chat_msg_spans message_spans;
+    bool rendered_user_message_count_present = false;
+    int32_t rendered_user_message_count = 0;
+    int64_t final_user_token_begin = -1;
+    int64_t final_user_token_end = -1;
+    int32_t final_user_kv_position_offset = 0;
 
     // Embeddings
     int32_t embd_normalize = 2; // (-1=none, 0=max absolute int16, 1=taxicab, 2=Euclidean/L2, >2=p-norm)
@@ -468,6 +473,9 @@ struct server_task_result_cmpl_final : server_task_result {
     bool post_sampling_probs;
     std::vector<completion_token_output> probs_output;
     std::vector<std::string>  response_fields;
+    // Request-scoped native MTP accounting.  A non-null value is copied from
+    // the slot at finalization so it remains observable after slot reset.
+    json mtp_request_counters;
 
     task_params generation_params;
 
@@ -1415,6 +1423,15 @@ bool server_prompt_checkpoint_frontier_is_current(
     const std::string & adapter_identity);
 
 llama_pos server_prompt_checkpoint_reuse_threshold(llama_pos pos_next, int32_t n_swa, bool has_new_tokens);
+
+// Query-dependent page ranking needs a Q capture owned by the new turn. A
+// cached final-user probe row only has the previous turn's capture, even
+// when the token prefix is identical. Keep the earlier conversation cached
+// and recalculate this user span only when a required spread probe was reused;
+// ordinary append-only reuse is unchanged.
+size_t server_prompt_query_capture_reuse_prefix(
+    size_t cached_prefix, int64_t query_begin, int64_t query_end,
+    size_t prompt_tokens, bool query_capture_required) noexcept;
 
 struct server_prompt_checkpoint_reuse {
     llama_pos pos_next;

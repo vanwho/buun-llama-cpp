@@ -3,6 +3,8 @@
 #include "llama-batch.h"
 #include "llama-graph.h"
 #include "llama-kv-cells.h"
+#include "llama-kv-pager.h"
+#include "llama-kv-router-job.h"
 #include "llama-memory.h"
 #include "llama-vbr-generation.h"
 #include "llama-vbr-hard-seal.h"
@@ -32,6 +34,9 @@
 struct llama_cparams;
 struct llama_hparams;
 struct llama_model;
+class llama_kv_router_job;
+struct llama_kv_router_layer_plan;
+enum class llama_kv_router_plan_error : uint8_t;
 struct llama_context;
 class vbr_unit_build;
 class vbr_pinned_chunk_ring;
@@ -48,6 +53,20 @@ enum class vbr_explicit_generation_failure : uint8_t;
 enum class vbr_explicit_size_failure : uint8_t;
 struct vbr_artifact_stream_placement;
 struct vbr_artifact_unit_descriptor;
+
+inline bool llama_kv_pager_routing_output_matches(
+        const void * stored_tensor, uint32_t stored_layer,
+        const void * tensor, uint32_t layer) noexcept {
+    return stored_tensor == tensor && stored_layer == layer;
+}
+
+inline bool llama_kv_pager_routing_output_is_current(
+        const void * tensor, bool readback_submitted,
+        uint64_t stored_generation, uint64_t generation,
+        llama_seq_id stored_sequence, llama_seq_id sequence) noexcept {
+    return !readback_submitted && tensor != nullptr &&
+        stored_generation == generation && stored_sequence == sequence;
+}
 
 //
 // llama_kv_cache
@@ -148,10 +167,11 @@ public:
                llama_memory_t   mem_other,
         const layer_filter_cb & filter,
         const  layer_reuse_cb & reuse,
-        const  layer_share_cb & share = nullptr,
-        const llama_memory_vbr_params & vbr = {},
-        // a model can hold more than one cache, so the tensor names have to stay unique
-                 const char *   name_tag = "");
+                const  layer_share_cb & share = nullptr,
+                const llama_memory_vbr_params & vbr = {},
+                // a model can hold more than one cache, so the tensor names have to stay unique
+                 const char *   name_tag = "",
+                 const struct llama_kv_pager_snapshot * pager_plan = nullptr);
 
     // Compatibility overload for fixed caches that only supply a name tag.
     llama_kv_cache(
@@ -174,6 +194,52 @@ public:
                  const char *   name_tag);
 
     ~llama_kv_cache(); // frees the VBR VMM pool (if any); = default otherwise
+
+    void set_kv_pager(llama_kv_pager * pager) override;
+    void set_kv_attention_telemetry(
+            llama_kv_attention_telemetry * telemetry) override;
+    void seal_kv_pager_pages() override;
+    void apply_kv_pager_policy() noexcept override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) override;
+    void note_kv_pager_accepted_tokens(uint32_t count) override;
+    void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
+            int64_t query_start, int64_t query_end) override;
+    bool prepare_router_query_layers(int32_t sequence_id, uint64_t turn_id,
+            std::vector<llama_kv_router_layer_plan> & plans,
+            llama_kv_router_plan_error & error) noexcept;
+    bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
+            uint64_t * frozen_history_generation) override;
+    bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
+            bool * changed, uint64_t * frozen_history_generation) override;
+    bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
+            uint64_t frozen_history_generation) const override;
+    bool set_kv_pager_history_for_test(int32_t sequence_id,
+            int64_t query_start,
+            const std::vector<llama_kv_pager_selected_history> & history) override;
+    bool get_kv_pager_history_for_test(int32_t sequence_id,
+            std::vector<llama_kv_pager_selected_history> & history) const override;
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const override;
+    int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const override;
+    void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override;
+    void finish_pager_batch(bool graph_succeeded) noexcept;
+    llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
+    llama_memory_failure_reason last_failure_reason() const noexcept {
+        return last_failure_reason_;
+    }
+    const std::vector<llama_kv_page_id> & selected_attention_pages(
+            llama_seq_id sequence_id) const noexcept;
+    const std::vector<llama_kv_page_id> & selected_attention_pages(
+            llama_seq_id sequence_id, uint32_t layer_index) const noexcept;
+    bool selected_attention_page_layers(
+            llama_seq_id sequence_id,
+            std::vector<std::vector<llama_kv_page_id>> & pages) const noexcept;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request);
 
     //
     // llama_memory_i
@@ -205,6 +271,8 @@ public:
     bool seq_rm_transient(llama_seq_id seq_id,                       llama_pos p0, llama_pos p1) override;
     bool seq_rm_attn_transient(llama_seq_id seq_id,                  llama_pos p0, llama_pos p1) override;
     void seq_cp  (llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
+    bool try_seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
+                    llama_pos p0, llama_pos p1) override;
     bool try_share_attn_prefix(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos n_tokens) override;
     bool can_share_attn_prefix(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos n_tokens) const override;
     bool can_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
@@ -254,6 +322,17 @@ public:
     uint32_t get_size()     const;
     uint32_t get_n_seq_max() const;
     uint32_t get_n_stream() const;
+    // Physical VMM mappings and pager buffers must share the most restrictive
+    // allocation granularity on this cache's device.
+    uint64_t allocation_granularity() const noexcept;
+    ggml_tensor * pager_storage_tensor() const noexcept { return pager_storage_; }
+    ggml_backend_buffer_t pager_storage_buffer() const noexcept {
+        return pager_storage_ != nullptr ? pager_storage_->buffer : nullptr;
+    }
+    uint64_t pager_storage_bytes_per_slot() const noexcept { return pager_bytes_per_slot_; }
+    bool pager_geometry(uint32_t page_tokens,
+            llama_kv_pager_geometry & output) const noexcept;
+    uint32_t get_n_swa()    const { return n_swa; }
     uint32_t get_stream_for_seq(llama_seq_id seq_id) const;
     bool state_empty() const;
 
@@ -417,6 +496,7 @@ public:
     ggml_type type_v() const;
 
     std::vector<uint32_t> get_layer_ids() const;
+    uint32_t get_layer_physical_rows(int32_t il) const noexcept;
     ggml_tensor * get_k_storage(int32_t il) const;
     llama_turbo_meansub_ref get_turbo_meansub_ref(int32_t il) const;
 
@@ -444,6 +524,7 @@ public:
     //
 
     uint32_t get_n_kv(const slot_info & sinfo) const;
+    bool selected_attention_supported() const noexcept { return !v_trans; }
 
     // get views of the current state of the cache
     ggml_tensor * get_k(ggml_context * ctx, int32_t il, uint32_t n_kv, const slot_info & sinfo) const;
@@ -483,6 +564,13 @@ public:
     // if cont == true, then the slot must be continuous
     // return empty slot_info on failure
     slot_info find_slot(const llama_ubatch & ubatch, bool cont) const;
+    void record_slot_failure(const llama_ubatch & ubatch) noexcept;
+    bool pager_write_row(
+            const llama_ubatch & ubatch, size_t token_index, size_t ticket_index,
+            uint32_t attention_layer, uint32_t & row) const noexcept;
+    bool validate_pager_write_batch(
+            const llama_ubatch & ubatch, const slot_info & sinfo,
+            size_t first_ticket) const noexcept;
 
     // emplace the ubatch context into slot: [sinfo.idxs[0...ubatch.n_tokens - 1]]
     // commit=false is used only by plan_slots() to suppress non-metadata side effects
@@ -494,12 +582,20 @@ public:
 
     ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
     ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
+    ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
+    ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
 
     ggml_tensor * build_input_k_rot(ggml_context * ctx) const;
     ggml_tensor * build_input_v_rot(ggml_context * ctx) const;
 
     void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo) const;
     void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo) const;
+    void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          const slot_info & sinfo, uint32_t attention_layer) const;
+    void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          const slot_info & sinfo, uint32_t attention_layer) const;
 
     void set_input_k_shift(ggml_tensor * dst) const;
 
@@ -530,6 +626,7 @@ private:
     friend class vbr_swa_window_planner;
     friend class vbr_kv_import_session;
     friend struct llama_kv_cache_vbr_stash_batch_test;
+    friend class llama_kv_cache_context;
     struct vbr_capture_unit_request {
         uint32_t child_id = 0;
         const void * bindings = nullptr;
@@ -644,6 +741,38 @@ private:
         void * context, const vbr_capture_unit_snapshot & expected) noexcept;
     static void vbr_capture_snapshot_release(
         void * context, const vbr_capture_unit_snapshot & snapshot) noexcept;
+    static bool pager_host_prepare(
+        void * context,
+        const llama_kv_page_record & page,
+        vbr_selected_page_capture_request & request,
+        std::vector<vbr_selected_page_unit_source> & sources,
+        vbr_selected_page_capture_snapshot_provider & snapshots) noexcept;
+    static bool pager_routing_summary_build(
+        void * context,
+        const llama_kv_page_record & page,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_page_input & output) noexcept;
+    static llama_kv_prefetch_mailbox_poll pager_selector_event_poll(
+        void * context, uint64_t event) noexcept;
+    static void pager_selector_event_cancel(
+        void * context, uint64_t event) noexcept;
+    static void pager_selector_event_release(
+        void * context, uint64_t event) noexcept;
+    static bool pager_selector_complete(
+        void * context, uint32_t slot, const void * raw,
+        llama_kv_prefetch_candidate * records, uint32_t * count,
+        uint64_t generation) noexcept;
+    static bool pager_host_snapshot_acquire(
+        void * context,
+        const vbr_selected_page_capture_request & request,
+        vbr_selected_page_capture_snapshot & output) noexcept;
+    static bool pager_host_snapshot_recheck(
+        void * context,
+        const vbr_selected_page_capture_snapshot & expected) noexcept;
+    static void pager_host_snapshot_release(
+        void * context,
+        const vbr_selected_page_capture_snapshot & snapshot) noexcept;
+    void apply_pager_live_policy(bool drain_selector_only = false) noexcept;
     bool vbr_capture_stability_matches(
         const vbr_capture_stability_token & token) const noexcept;
     bool vbr_capture_generation_record(
@@ -687,11 +816,17 @@ private:
         struct device_row {
             const ggml_vbr_backend_iface * be = nullptr;
             int device = -1;
+            // Scratch belongs to the compute backend context rather than to a VBR pool.
+            // Retain the owner so preflight can reconcile actual aggregate K+V residency
+            // after a managed reset or a partially successful grow.
+            ggml_backend_t compute_backend = nullptr;
             uint64_t available = 0;
             uint64_t scratch_k_needed = 0;
             uint64_t scratch_v_needed = 0;
             uint64_t scratch_k_current = 0;
             uint64_t scratch_v_current = 0;
+            uint64_t scratch_physical_needed = 0;
+            uint64_t scratch_physical_current = 0;
         };
         uint32_t watermark_cells = 0;
         bool active = false;
@@ -1299,7 +1434,7 @@ private:
     void     vbr_attention_content_changed(
             const std::array<bool, LLAMA_MAX_SEQ> & affected); // one atomic multi-sequence edit
     bool     seq_rm_impl(llama_seq_id seq_id, llama_pos p0, llama_pos p1, seq_rm_mode mode);
-    void     seq_cp_impl(
+    bool     seq_cp_impl(
             llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
             llama_pos p0, llama_pos p1, bool publish_lineage);
     void     vbr_recovery_settle(); // the boundary quarantine drain + re-arm
@@ -1478,10 +1613,212 @@ private:
     std::vector<vbr_pending_decode_op> vbr_awaiting_commit_;
     uint64_t vbr_pending_commit_failures_ = 0;  // sync-boundary commit failures, counted
 
+    // Rows reserved before graph construction. Completion is deliberately
+    // separate from apply_ubatch: graph construction/allocation may still fail.
+    llama_kv_pager * pager_ = nullptr;
+    std::unique_ptr<llama_kv_router_job> pager_router_job_;
+    llama_kv_router_query_executor pager_query_executor_;
+    llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
+    int32_t pager_last_sequence_id_ = -1;
+    uint64_t pager_query_generation_ = 0;
+    // Distinct per opened user turn. Slot-session turn IDs can repeat across
+    // HTTP requests, but the persistent query accumulator must reset each time.
+    uint64_t pager_query_accumulator_generation_ = 0;
+    uint64_t pager_query_accepted_tokens_ = 0;
+    uint64_t pager_query_refresh_watermark_ = 0;
+    uint64_t pager_query_refresh_turn_id_ = 0;
+    // Query capture ownership outlives the one-shot refresh notification.
+    uint64_t pager_query_capture_turn_id_ = 0;
+    bool pager_query_refresh_enabled_ = true;
+    // A policy boundary is needed after page maintenance or a ready routing
+    // candidate, not after every unchanged write-frontier publication.
+    bool pager_policy_dirty_ = false;
+    std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
+        pager_committed_history_;
+    std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
+        pager_turn_initial_history_;
+    struct pager_pending_turn {
+        uint64_t turn_id = 0;
+        int64_t query_start = -1;
+        int64_t query_end = -1;
+    };
+    std::map<int32_t, pager_pending_turn> pager_pending_turns_;
+    int32_t pager_policy_current_sequence_ = -1;
+    uint32_t pager_policy_current_page_ = UINT32_MAX;
+    uint32_t pager_policy_current_slot_ = UINT32_MAX;
+    // Attention routes are query-domain specific. Keep the legacy aggregate
+    // for callers that do not carry a layer, but never use it as the source
+    // of a layer's selected working set.
+    std::map<llama_seq_id, std::vector<llama_kv_page_id>> pager_attention_selection_;
+    std::map<llama_seq_id,
+        std::map<uint32_t, std::vector<llama_kv_page_id>>>
+        pager_attention_selection_by_layer_;
+    struct pager_routing_output {
+        using page_descriptor = llama_kv_prefetch_page_descriptor;
+
+        ggml_tensor * tensor = nullptr;
+        uint32_t layer = UINT32_MAX;
+        llama_seq_id sequence_id = -1;
+        uint64_t query_generation = 0;
+        uint64_t table_epoch = 0;
+        uint64_t query_position = 0;
+        uint32_t query_row = UINT32_MAX;
+        uint64_t sequence_generation = 0;
+        uint64_t session_generation = 0;
+        uint64_t rollback_generation = 0;
+        uint32_t resident_offset = 0;
+        uint32_t resident_count = 0;
+        uint32_t cold_offset = 0;
+        uint32_t cold_count = 0;
+        uint32_t query_head_count = 0;
+        uint32_t kv_head_count = 0;
+        uint32_t query_count = 0;
+        // This is the immutable submission descriptor. The selector returns
+        // indices into this exact order; it must never be decoded through a
+        // later residency-table inventory.
+        std::vector<page_descriptor> pages;
+        bool refresh_enabled = false;
+        bool readback_submitted = false;
+        uint32_t readback_slot = UINT32_MAX;
+    };
+    mutable std::vector<pager_routing_output> pager_routing_outputs_;
+    struct pager_coarse_shortlist {
+        uint64_t query_generation = 0;
+        uint64_t table_epoch = 0;
+        uint32_t layer = UINT32_MAX;
+        uint64_t turn_id = 0;
+        int32_t sequence_id = -1;
+        uint64_t session_generation = 0;
+        uint64_t rollback_generation = 0;
+        std::shared_ptr<const std::vector<llama_kv_prefetch_candidate>> records;
+    };
+    std::vector<pager_coarse_shortlist> pager_coarse_shortlists_;
+    std::vector<llama_kv_prefetch_candidate> pager_exact_rerank_candidates_;
+    struct pager_prepared_history_winner {
+        llama_kv_page_id identity;
+        uint64_t content_version = 0;
+        uint64_t summary_version = 0;
+        uint64_t transaction_id = 0;
+        bool requires_publication = false;
+    };
+    std::vector<pager_prepared_history_winner> pager_prepared_history_winners_;
+    uint64_t pager_policy_transaction_id_ = 1;
+    struct pager_query_publication {
+        int32_t sequence_id = -1;
+        uint64_t turn_id = 0;
+        uint64_t transaction_id = 0;
+        uint64_t generation = 0;
+        bool complete = false;
+    };
+    pager_query_publication pager_query_publication_;
+    struct pager_router_query_completion {
+        llama_kv_router_execution_status status = llama_kv_router_execution_status::pending;
+        llama_kv_router_plan_error plan_error = llama_kv_router_plan_error::none;
+        llama_kv_router_owner_stage stage = llama_kv_router_owner_stage::idle;
+        int32_t sequence_id = -1;
+        uint64_t turn_id = 0;
+        uint32_t layer = UINT32_MAX;
+        std::vector<llama_kv_router_exact_page_record> records;
+        bool ready() const noexcept { return status == llama_kv_router_execution_status::ready; }
+    } pager_router_completion_;
+    struct pager_selector_submission {
+        struct segment {
+            pager_routing_output output;
+            uint32_t raw_offset = 0;
+            uint32_t count = 0;
+            uint64_t raw_byte_offset = 0;
+        };
+        bool active = false;
+        bool complete = false;
+        uint64_t generation = 0;
+        uint64_t raw_bytes = 0;
+        std::vector<segment> segments;
+    };
+    std::array<pager_selector_submission, 2> pager_selector_submissions_;
+    const pager_router_query_completion & complete_router_query_job(
+            int32_t sequence_id, uint64_t turn_id) noexcept;
+    static llama_kv_router_execution_status execute_router_job_adapter(void * context,
+            const llama_kv_router_query_identity & identity,
+            const std::vector<llama_kv_router_layer_plan> & plans,
+            std::vector<llama_kv_router_exact_page_record> & records) noexcept;
+    static bool prepare_router_query_adapter(void * context, int32_t sequence_id,
+            uint64_t turn_id, std::vector<llama_kv_router_layer_plan> & plans,
+            llama_kv_router_plan_error & error) noexcept;
+    static void adopt_router_query_adapter(void * context,
+            llama_kv_router_execution_status status,
+            const std::vector<llama_kv_router_exact_page_record> & records) noexcept;
+    void retain_pager_coarse_shortlist(uint64_t query_generation,
+            uint64_t table_epoch, uint32_t layer,
+            int32_t sequence_id, uint64_t session_generation,
+            uint64_t rollback_generation,
+            const llama_kv_prefetch_candidate * records, uint32_t count) noexcept;
+    struct pager_selector_page_state {
+        llama_kv_page_id identity;
+        uint64_t content_version = 0;
+        uint64_t summary_version = 0;
+        bool resident = false;
+        bool query_safe = true;
+        bool valid = false;
+    };
+    struct pager_selector_input_state {
+        ggml_tensor * bounds = nullptr;
+        ggml_tensor * metadata = nullptr;
+        ggml_tensor * membership = nullptr;
+        llama_seq_id sequence_id = -1;
+        uint32_t layer = UINT32_MAX;
+        uint32_t capacity = 0;
+        std::vector<pager_selector_page_state> pages;
+        std::vector<uint32_t> active_page_indices;
+    };
+    // Graph inputs own the stable logical catalogue.  This cache is only the
+    // host-side dirty map; the tensors remain owned by the graph allocator.
+    mutable std::vector<pager_selector_input_state> pager_selector_inputs_;
+    struct pager_query_accumulator_state {
+        llama_seq_id sequence_id = -1;
+        uint32_t layer = UINT32_MAX;
+        int64_t dim = 0;
+        int64_t heads = 0;
+        ggml_context * ctx = nullptr;
+        ggml_backend_buffer_t buffer = nullptr;
+        ggml_tensor * sum = nullptr;
+        // sum planes: span mean numerator plus three actual final-user-tail
+        // rows. Only the numerator is divided by count at graph execution.
+        ggml_tensor * count = nullptr;
+        ggml_tensor * probes = nullptr;
+        ggml_tensor * probe_validity = nullptr;
+    };
+    mutable std::vector<pager_query_accumulator_state> pager_query_accumulators_;
+    struct pager_summary_cache_item {
+        uint32_t layer = UINT32_MAX;
+        uint32_t head = UINT32_MAX;
+        bool consumed = false;
+        llama_kv_routing_page_input input;
+    };
+    struct pager_summary_cache {
+        llama_kv_page_id identity;
+        uint64_t content_version = 0;
+        llama_kv_routing_summary_form form = llama_kv_routing_summary_form::representatives;
+        uint32_t vector_dim = 0;
+        uint32_t subblock_tokens = 0;
+        uint64_t coordinate_identity = 0;
+        uint64_t rebuild_source_bytes = 0;
+        bool source_bytes_charged = false;
+        bool valid = false;
+        std::vector<pager_summary_cache_item> items;
+    };
+    // One immutable canonical page is decoded once for all layer/head summary
+    // entries, which transfer to the pager as their configs are published.
+    pager_summary_cache pager_summary_cache_;
+    std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
+    vbr_lineage_uuid pager_host_lineage_;
+    uint64_t pager_host_controller_generation_ = 1;
+
   public:
     // Promote submitted extents to committed. Called from the context's existing synchronize
     // point — never introduces a new fence (Rev 5.1). No-op when nothing is pending.
-    void vbr_commit_submitted();
+    // Returns false when any submitted extent failed its terminal commit. The
+    // caller must then suppress pager host/table publication for that fence.
+    bool vbr_commit_submitted() override;
     // Resolve in-flight decode operations at the decode boundary where the
     // outcome is known. ok=true: extents -> submitted, ops close committed. ok=false: extents
     // fail, ops close failed (autorecording their reserved recovery slots).
@@ -1516,6 +1853,8 @@ private:
 
   private:
 
+    void invalidate_pager_query_probes(llama_seq_id sequence_id = -1) noexcept;
+
     // Shared by decode placement and historical-window planning. An occupied
     // SWA cell is reusable only when it is masked for every current owner.
     bool can_reuse_cell(uint32_t stream, uint32_t cell) const;
@@ -1544,7 +1883,8 @@ private:
     void     vbr_floor_clamp_order();
     bool     vbr_retire_pending_before_unmap(const std::string & busid);
     size_t   vbr_flush_deferred_unmaps(); // returns the number of entries flushed
-    bool     vbr_scratch_reserve(size_t flat_cells);  // boundary-time f16 dequant scratch growth
+    bool     vbr_scratch_reserve(
+        const llama_kv_attention_scratch_request & request);
     // Pure, allocator-blind child stream used by the tree transaction. It derives real steps only
     // through vbr_sim_step(); physical pricing and preflight remain separate.
     llama_vbr_policy::child vbr_policy_child_stream(int demanded_device, uint32_t wm_next) const;
@@ -1651,11 +1991,26 @@ private:
 
     llama_kv_cells_vec & v_cells;
 
+    // Logical cells stay sized to the requested context. Only physical tensor
+    // rows use the bounded pager capacity.
+    uint32_t physical_kv_size_ = 0;
+    uint64_t pager_bytes_per_slot_ = 0;
+    ggml_tensor * pager_storage_ = nullptr;
+    ggml_backend_buffer_type_t pager_storage_buft_ = nullptr;
+    const struct llama_kv_pager_snapshot * pager_plan_ = nullptr;
+
     // maps from a sequence id to a stream id
     std::vector<uint32_t> seq_to_stream;
 
     // pending stream copies that will be applied during the next update
     stream_copy_info sc_info;
+
+    // A graph-success boundary must not silently discard a stale/failed pager
+    // completion. The next cache mutation fails closed until the owner is
+    // rebuilt or explicitly cleared.
+    bool pager_write_failure_ = false;
+    mutable llama_memory_failure_reason last_failure_reason_ =
+            llama_memory_failure_reason::none;
 
     std::vector<kv_layer> layers;
 
@@ -1731,7 +2086,8 @@ private:
             bool held_cells = false) const; // LLAMA_STATE_SEQ_FLAGS_SWA_HELD_CELLS
 
     void state_write_meta(llama_io_write_i & io, const cell_ranges_t & cr, llama_seq_id seq_id = -1) const;
-    void state_write_data(llama_io_write_i & io, const cell_ranges_t & cr) const;
+    void state_write_data(llama_io_write_i & io, const cell_ranges_t & cr,
+            llama_seq_id seq_id) const;
 
     // an append keeps the sequence, takes only the first n_keep of the blob's cells and requires pos == p0 + i
     struct state_append_t {
@@ -1745,7 +2101,8 @@ private:
     // sinfo_in, when set, replaces the find_slot call: the cells are given by the caller
     bool state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,       slot_info & sinfo, llama_seq_id dest_seq_id = -1, const slot_info * sinfo_in = nullptr, const state_append_t * append = nullptr);
     // sinfo holds the first n_place cells of the blob, the rows of the others are read and dropped
-    bool state_read_data(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, const slot_info & sinfo, uint32_t n_place);
+    bool state_read_data(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,
+            const slot_info & sinfo, uint32_t n_place, llama_seq_id seq_id);
     void state_clear_data(uint32_t strm, const slot_info & sinfo);
 };
 
@@ -1756,7 +2113,9 @@ public:
     using stream_copy_info = llama_kv_cache::stream_copy_info;
 
     // used for errors
-    llama_kv_cache_context(llama_memory_status status);
+    llama_kv_cache_context(
+            llama_memory_status status,
+            llama_memory_failure_reason reason = llama_memory_failure_reason::none);
 
     // used to create a full-cache context
     llama_kv_cache_context(
@@ -1789,13 +2148,44 @@ public:
 
     bool next()  override;
     bool apply() override;
+    void finish(bool graph_succeeded) override;
 
     llama_memory_status  get_status() const override;
+    llama_memory_failure_reason get_failure_reason() const noexcept override {
+        return failure_reason;
+    }
     const llama_ubatch & get_ubatch() const override;
     uint32_t get_max_graph_seqs() const override;
+    ggml_tensor * build_kv_page_select(
+            ggml_context * ctx, ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row,
+            ggml_tensor ** probe_capture = nullptr) const override;
+    bool set_kv_page_select_inputs(
+            ggml_tensor * bounds, ggml_tensor * metadata,
+            ggml_tensor * membership, ggml_tensor * query, int layer,
+            const llama_ubatch & ubatch) const override;
+    bool set_kv_query_accumulate_inputs(
+            ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
+    bool set_kv_query_probe_inputs(
+            ggml_tensor * probes, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
+    bool can_reuse_kv_page_select(
+            const ggml_tensor * bounds, int layer,
+            const llama_ubatch & ubatch) const override;
+    void note_kv_page_select_gate(
+            llama_kv_pager_selector_gate gate, const ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row) const override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) const override;
 
     // VBR tier-flip epoch of the underlying cache (0 when VBR is off — the counter never moves)
     uint64_t get_vbr_epoch() const override;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request) const override;
+    uint32_t current_kv_attention_rows() const override;
 
     //
     // llama_kv_cache_context specific API
@@ -1803,13 +2193,35 @@ public:
 
     uint32_t get_n_kv() const;
 
+    // Return the number of rows that the attention graph may read from the
+    // cache source. Dense graphs consume only the logical prefix; paged graphs
+    // retain the physical window so selected attention can crop it.
+    static uint32_t attention_source_rows(
+            bool paged, uint32_t logical_rows, uint32_t physical_rows) noexcept;
+
     ggml_type type_k() const;
     ggml_type type_v() const;
+    std::vector<uint32_t> get_layer_ids() const;
+    uint32_t get_layer_physical_rows(int32_t il) const noexcept;
 
     // get views of the current state of the cache
     ggml_tensor * get_k(ggml_context * ctx, int32_t il) const;
     ggml_tensor * get_v(ggml_context * ctx, int32_t il) const;
     llama_turbo_meansub_ref get_turbo_meansub_ref(int32_t il) const;
+
+    // Build row IDs into the ordinary cache for the bounded selected
+    // reference route.  The IDs address the cache's physical rows; native
+    // logical positions remain owned by the selected-page metadata.
+    bool selected_attention_supported() const noexcept;
+    bool selected_attention_rows(
+            const std::vector<llama_pos> & positions,
+            std::vector<int32_t> & rows) const;
+    llama_kv_pager * get_kv_pager() const noexcept;
+    const std::vector<llama_kv_page_id> & selected_attention_pages() const noexcept;
+    const std::vector<llama_kv_page_id> & selected_attention_pages(
+            uint32_t layer) const noexcept;
+    bool selected_attention_page_layers(
+            std::vector<std::vector<llama_kv_page_id>> & pages) const noexcept;
 
 
     // TurboQuant rotation accessors
@@ -1834,12 +2246,20 @@ public:
     //   helps understand the implementation logic of cpy_k and cpy_v
     ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
     ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
+    ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
+    ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
 
     ggml_tensor * build_input_k_rot(ggml_context * ctx) const;
     ggml_tensor * build_input_v_rot(ggml_context * ctx) const;
 
     void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch) const;
     void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch) const;
+    void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          uint32_t attention_layer) const;
+    void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          uint32_t attention_layer) const;
 
     void set_input_k_shift   (ggml_tensor * dst) const;
     void set_input_kq_mask   (ggml_tensor * dst, const llama_ubatch * ubatch, bool causal_attn) const;
@@ -1853,6 +2273,8 @@ public:
 
 private:
     llama_memory_status status;
+    llama_memory_failure_reason failure_reason =
+            llama_memory_failure_reason::none;
 
     uint32_t max_graph_seqs = std::numeric_limits<uint32_t>::max();
 

@@ -2,8 +2,11 @@
 #include "server-cache-destruction-quote.h"
 #include "server-cache-plan-authority.h"
 #include "server-context.h"
+#include "server-prompt-trim.h"
 #include "server-queue.h"
 #include "server-task.h"
+
+#include "../src/llama-memory.h"
 
 #include "llama.h"
 #include "log.h"
@@ -42,6 +45,215 @@ server_task idle_capture_test_task(int id) {
     task.id = id;
     task.type = SERVER_TASK_TYPE_COMPLETION;
     return task;
+}
+
+void test_slot_pager_lifecycle_generation() {
+    const auto result = server_slot_pager_lifecycle_for_test();
+    CHECK(result.single_slot_authority);
+    CHECK(result.selective_multi_slot_rejected);
+    CHECK(result.observe_multi_slot_unchanged);
+    CHECK(result.generation_minted_before_completion);
+    CHECK(result.stale_completion_rejected);
+    CHECK(result.current_completion_accepted);
+    CHECK(result.cancelled_completion_rejected);
+    CHECK(result.generation_rollover_safe);
+}
+
+void test_prompt_trim_recovery_runs_paired_resets() {
+    {
+        // A recurrent-only checkpoint restore reports min(attention,recurrent)
+        // at the old prefix while attention still holds a complete prior turn.
+        // Both children must actually execute the attention trim before replay.
+        int target_attention_last = 72484;
+        int draft_attention_last = 72484;
+        const int restored_recurrent_last = 29;
+        int trim_calls = 0;
+        int reset_calls = 0;
+        const auto trim_attention = [&](int & attention_last) {
+            const int public_last = std::min(attention_last, restored_recurrent_last);
+            if (server_prompt_trim_has_suffix(30, public_last, true)) {
+                attention_last = 29;
+                ++trim_calls;
+            }
+            return true;
+        };
+        const auto result = server_prompt_trim_recover(
+            true, false, [&]() { ++reset_calls; },
+            [&]() { return trim_attention(target_attention_last); },
+            [&]() { return trim_attention(draft_attention_last); },
+            [&]() { ++reset_calls; return true; },
+            [&]() { ++reset_calls; return true; },
+            []() { return true; });
+        CHECK(result.trim_succeeded() && !result.recovery_attempted);
+        CHECK(trim_calls == 2 && reset_calls == 0);
+        CHECK(target_attention_last == 29 && draft_attention_last == 29);
+        CHECK(!server_prompt_trim_has_suffix(30, restored_recurrent_last));
+    }
+    {
+        // The selected MTP reproduction had an incoming prompt at position 30
+        // and no resident target or draft rows. Empty suffixes are successful
+        // no-ops; they must not trigger destructive paired recovery.
+        const int first_removed = 30;
+        const int target_last = -1;
+        const int draft_last = -1;
+        int trim_calls = 0;
+        int reset_calls = 0;
+        int prompt_tokens = 30;
+        const auto trim_if_present = [&](int last_present) {
+            if (!server_prompt_trim_has_suffix(first_removed, last_present)) {
+                return true;
+            }
+            trim_calls++;
+            return false;
+        };
+        const auto result = server_prompt_trim_recover(
+            true, false,
+            [&]() { reset_calls++; },
+            [&]() { return trim_if_present(target_last); },
+            [&]() { return trim_if_present(draft_last); },
+            [&]() { reset_calls++; return true; },
+            [&]() { reset_calls++; return true; },
+            [&]() { reset_calls++; return true; });
+        CHECK(result.trim_succeeded());
+        CHECK(result.draft_trim_attempted);
+        CHECK(!result.recovery_attempted);
+        CHECK(trim_calls == 0);
+        CHECK(reset_calls == 0);
+        CHECK(prompt_tokens == 30);
+        CHECK(!server_prompt_trim_has_suffix(first_removed, 29));
+        CHECK(server_prompt_trim_has_suffix(first_removed, 30));
+    }
+    {
+        std::vector<int> calls;
+        int target_frontier = 12;
+        int draft_frontier = 12;
+        int ledger_tokens = 12;
+        bool speculative_backup = true;
+        bool checkpoint_delivery = true;
+        bool cache_plan_delivery = true;
+        const auto result = server_prompt_trim_recover(
+            true,
+            false,
+            [&]() {
+                calls.push_back(0);
+                ledger_tokens = 0;
+                speculative_backup = false;
+                checkpoint_delivery = false;
+                cache_plan_delivery = false;
+            },
+            [&]() { calls.push_back(1); target_frontier = 7; return true; },
+            [&]() { calls.push_back(2); return false; },
+            [&]() { calls.push_back(3); target_frontier = 0; return true; },
+            [&]() { calls.push_back(4); draft_frontier = 0; return true; },
+            [&]() { calls.push_back(5); return true; });
+        CHECK(result.target_trim_attempted);
+        CHECK(result.target_trim_succeeded);
+        CHECK(result.draft_trim_attempted);
+        CHECK(!result.draft_trim_succeeded);
+        CHECK(result.recovery_attempted);
+        CHECK(result.target_reset_succeeded);
+        CHECK(result.draft_reset_succeeded);
+        CHECK(!result.backup_reset_attempted);
+        CHECK(result.recovery_succeeded());
+        CHECK(target_frontier == 0 && draft_frontier == 0);
+        CHECK(ledger_tokens == 0);
+        CHECK(!speculative_backup && !checkpoint_delivery && !cache_plan_delivery);
+        CHECK((calls == std::vector<int>{1, 2, 0, 3, 4}));
+    }
+    {
+        std::vector<int> calls;
+        const auto result = server_prompt_trim_recover(
+            true,
+            false,
+            [&]() { calls.push_back(0); },
+            [&]() { calls.push_back(1); return false; },
+            [&]() { calls.push_back(2); return true; },
+            [&]() { calls.push_back(3); return false; },
+            [&]() { calls.push_back(4); return true; },
+            [&]() { calls.push_back(5); return true; });
+        CHECK(!result.target_trim_succeeded);
+        CHECK(!result.draft_trim_attempted);
+        CHECK(result.recovery_attempted);
+        CHECK(!result.target_reset_succeeded);
+        CHECK(result.draft_reset_succeeded);
+        CHECK(!result.recovery_succeeded());
+        CHECK((calls == std::vector<int>{1, 0, 3, 4}));
+    }
+    {
+        std::vector<int> calls;
+        const auto result = server_prompt_trim_recover(
+            true,
+            true,
+            [&]() { calls.push_back(0); },
+            [&]() { calls.push_back(1); return false; },
+            [&]() { calls.push_back(2); return true; },
+            [&]() { calls.push_back(3); return false; },
+            [&]() { calls.push_back(4); return false; },
+            [&]() { calls.push_back(5); return true; });
+        CHECK(!result.target_reset_succeeded);
+        CHECK(!result.draft_reset_succeeded);
+        CHECK(result.backup_reset_attempted);
+        CHECK(result.backup_reset_succeeded);
+        CHECK(!result.recovery_succeeded());
+        CHECK((calls == std::vector<int>{1, 0, 3, 4, 5}));
+    }
+    {
+        // Model a backend that mutates part of target state before reporting
+        // rejection. Recovery must discard both frontiers and all derived
+        // slot state before another request can be accepted.
+        struct fake_slot {
+            int target_frontier = 12;
+            int draft_frontier = 12;
+            int ledger_tokens = 12;
+            bool speculative_backup = true;
+            bool checkpoint_delivery = true;
+            bool cache_plan_delivery = true;
+            bool request_succeeded = false;
+        } slot;
+        const auto result = server_prompt_trim_recover(
+            true,
+            true,
+            [&]() {
+                slot.ledger_tokens = 0;
+                slot.speculative_backup = false;
+                slot.checkpoint_delivery = false;
+                slot.cache_plan_delivery = false;
+            },
+            [&]() { slot.target_frontier = 7; return false; },
+            [&]() { return false; },
+            [&]() { slot.target_frontier = 0; return true; },
+            [&]() { slot.draft_frontier = 0; return true; },
+            [&]() { return true; });
+        const bool coherent = result.recovery_succeeded() &&
+            slot.target_frontier == slot.draft_frontier &&
+            (slot.target_frontier == 0 || slot.target_frontier == 12) &&
+            slot.ledger_tokens == 0 && !slot.speculative_backup &&
+            !slot.checkpoint_delivery && !slot.cache_plan_delivery;
+        if (coherent) {
+            slot.request_succeeded = true;
+        }
+        CHECK(!result.target_trim_succeeded);
+        CHECK(result.recovery_succeeded());
+        CHECK(coherent);
+        CHECK(slot.request_succeeded);
+    }
+    {
+        bool success_response_emitted = false;
+        const auto result = server_prompt_trim_recover(
+            true,
+            false,
+            []() {},
+            []() { return false; },
+            []() { return true; },
+            []() { return false; },
+            []() { return true; },
+            []() { return true; });
+        if (result.recovery_succeeded()) {
+            success_response_emitted = true;
+        }
+        CHECK(!result.recovery_succeeded());
+        CHECK(!success_response_emitted);
+    }
 }
 
 void test_idle_capture_session_cancellation() {
@@ -327,6 +539,11 @@ void test_queue_yield_work_exception_precedes_callback_exception() {
 void test_speculative_decode_terminals() {
     using terminal = server_speculative_decode_terminal;
 
+    CHECK(!server_is_native_mtp_verification_batch(false, 8, false));
+    CHECK(!server_is_native_mtp_verification_batch(true, 1, false));
+    CHECK(!server_is_native_mtp_verification_batch(true, 64, true));
+    CHECK(server_is_native_mtp_verification_batch(true, 2, false));
+
     CHECK(server_speculative_decode_terminal_resolve(
               0, false, false, false, true) == terminal::success);
     CHECK(server_speculative_decode_terminal_resolve(
@@ -342,10 +559,148 @@ void test_speculative_decode_terminals() {
     CHECK(server_speculative_decode_terminal_resolve(
               0, false, false, false, false) == terminal::reset_committed_then_throw);
 
+    CHECK(server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::none));
+    CHECK(server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::logical_capacity));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::scratch_oom));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::all_pinned));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::pending_copy));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::invalid_frontier));
+
     const auto reset = server_committed_decode_reset_for_test();
     CHECK(reset.processing_prompt_cleared);
     CHECK(reset.processing_family_cleared);
     CHECK(reset.idle_prompt_preserved);
+}
+
+void test_live_rewind_near_tail_checkpoint_admission() {
+    // The measured second 4.3K-token prompt has a final-user seam at 4299
+    // and near-tail frontiers 4319 and 4322. Retain the seam and only the
+    // newest image (prompt_tokens - 4) before the expensive snapshot is staged.
+    const int64_t prompt_tokens = 4326;
+    const int64_t final_user_seam = 4299;
+    CHECK(server_live_rewind_checkpoint_admit(
+        final_user_seam, 4300, prompt_tokens, true));
+
+    size_t staged_near_tail = 0;
+    int64_t retained_rollback_frontier = -1;
+    const int64_t observed_near_tail[] = { 4066, 4319, 4322 };
+    const int64_t cursors[] = { 4070, 4322, 4325 };
+    for (size_t i = 0; i < sizeof(observed_near_tail) /
+            sizeof(observed_near_tail[0]); ++i) {
+        if (!server_live_rewind_checkpoint_admit(
+                observed_near_tail[i], cursors[i], prompt_tokens, false)) {
+            continue;
+        }
+        staged_near_tail++;
+        retained_rollback_frontier = observed_near_tail[i];
+    }
+    CHECK(staged_near_tail == 1);
+    CHECK(retained_rollback_frontier == 4322);
+
+    // An adjacent earlier frontier is skipped before it can create another
+    // snapshot; a completed or malformed frontier is never admitted.
+    CHECK(!server_live_rewind_checkpoint_admit(
+        4321, prompt_tokens - 4, prompt_tokens, false));
+    CHECK(!server_live_rewind_checkpoint_admit(
+        prompt_tokens, prompt_tokens - 4, prompt_tokens, false));
+}
+
+void test_server_batch_direct_assembly_contract() {
+    CHECK(server_batch_direct_assembly_contract_for_test());
+}
+
+void test_server_query_replay_transition() {
+    uint32_t commits = 0;
+    uint32_t restores = 0;
+    uint32_t fences = 0;
+    uint32_t transition_order = 0;
+    const auto unchanged = server_query_replay_transition(
+        true, 0,
+        [&](bool & changed, uint64_t & generation) {
+            CHECK(transition_order++ == 1);
+            ++commits;
+            changed = false;
+            generation = 41;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        },
+        [&]() {
+            ++fences;
+            CHECK(transition_order++ == 0);
+            return true;
+        });
+    CHECK(unchanged.committed);
+    CHECK(unchanged.status == server_query_replay_transition_status::unchanged);
+    CHECK(unchanged.history_generation == 41);
+    CHECK(commits == 1 && restores == 0);
+    CHECK(fences == 1 && transition_order == 2);
+
+    const auto replay = server_query_replay_transition(
+        true, 0,
+        [&](bool & changed, uint64_t & generation) {
+            ++commits;
+            changed = true;
+            generation = 42;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(replay.committed);
+    CHECK(replay.status == server_query_replay_transition_status::replay);
+    CHECK(replay.history_generation == 42);
+    CHECK(commits == 2 && restores == 1);
+
+    const auto missing_checkpoint = server_query_replay_transition(
+        false, 0,
+        [](bool & changed, uint64_t & generation) {
+            changed = true;
+            generation = 43;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(missing_checkpoint.committed);
+    CHECK(missing_checkpoint.status == server_query_replay_transition_status::failed);
+    CHECK(restores == 1);
+
+    const auto repeated = server_query_replay_transition(
+        true, 1,
+        [](bool & changed, uint64_t & generation) {
+            changed = true;
+            generation = 44;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(repeated.committed);
+    CHECK(repeated.status == server_query_replay_transition_status::failed);
+    CHECK(restores == 1);
+
+    const auto failed_commit = server_query_replay_transition(
+        true, 0,
+        [](bool &, uint64_t &) { return false; },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(!failed_commit.committed);
+    CHECK(failed_commit.status == server_query_replay_transition_status::failed);
+    CHECK(restores == 1);
 }
 
 void test_slot_frontier_logits_companion() {
@@ -3192,6 +3547,16 @@ void test_lifecycle_full_cache_rotates() {
           server_cache_destruction_execution::prepared_release);
 }
 
+void test_exact_refusal_wire_response() {
+    const json response = format_error_response(
+        "exact attention is not configured: exact CUDA page-wave callbacks are not configured",
+        ERROR_TYPE_NOT_SUPPORTED);
+    CHECK(response.at("code").get<int>() == 501);
+    CHECK(response.at("type").get<std::string>() == "not_supported_error");
+    CHECK(response.at("message").get<std::string>().find("exact attention") !=
+          std::string::npos);
+}
+
 void test_lifecycle_restore_retains_immutable_source() {
     server_cache_authority authority;
     configure_host_accounting(authority, true);
@@ -4248,6 +4613,42 @@ void test_recurrent_reusable_prefix() {
         prompt, prompt.tokens, 6, -1, context, "adapter") == 0);
     CHECK(server_prompt_cache_reusable_prefix(
         prompt, exact, 4, 5, context, "adapter") == 0); // no logits shortcut on rewind
+}
+
+void test_query_capture_reuse_prefix() {
+    CHECK(server_prompt_query_capture_reuse_prefix(30, 0, 18, 30, true) == 0);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1018, 1000, 1018, 1030, true) == 1000);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1010, 1000, 1018, 1030, true) == 1000);
+    // The first spread probe is at 1004: a cache ending before it can still
+    // be reused, while caching that probe rewinds the whole query span.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1018, 1030, true) == 1004);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1005, 1000, 1018, 1030, true) == 1000);
+    // A final-user KV offset shortens the effective span. Its first spread
+    // probe is at 1003, so a cached prefix through 1004 must rewind; using
+    // the raw end at 1018 would incorrectly miss that cached probe.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1014, 1018, true) == 1000);
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1018, 1018, true) == 1004);
+    // An append begins exactly after the reused prefix, so the new query
+    // tokens can be captured without replaying earlier conversation tokens.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1000, 1000, 1018, 1030, true) == 1000);
+    // A cache ending exactly at the query boundary still replays the whole
+    // query span to create a fresh capture for this turn.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1018, 1000, 1018, 1018, true) == 1000);
+    // A one-token query deduplicates the four spread probes to that token.
+    CHECK(server_prompt_query_capture_reuse_prefix(11, 10, 11, 11, true) == 10);
+
+    CHECK(server_prompt_query_capture_reuse_prefix(20, -1, 18, 30, true) == 20);
+    CHECK(server_prompt_query_capture_reuse_prefix(20, 10, 10, 30, true) == 20);
+    CHECK(server_prompt_query_capture_reuse_prefix(20, 10, 31, 30, true) == 20);
+    CHECK(server_prompt_query_capture_reuse_prefix(30, 0, 18, 30, false) == 30);
 }
 
 void test_recurrent_selection_survives_displacement_save(bool accounted) {
@@ -5547,6 +5948,9 @@ int main(int argc, char ** argv) {
         return failures == 0 ? 0 : 1;
     }
     test_lifecycle_full_cache_rotates();
+    test_exact_refusal_wire_response();
+    test_slot_pager_lifecycle_generation();
+    test_prompt_trim_recovery_runs_paired_resets();
     test_active_storage_budget();
     CHECK(server_active_prefix_retention_for_test());
     test_idle_capture_session_cancellation();
@@ -5554,6 +5958,9 @@ int main(int argc, char ** argv) {
     test_idle_capture_refuses_active_queue_yield();
     test_queue_yield_work_exception_precedes_callback_exception();
     test_speculative_decode_terminals();
+    test_live_rewind_near_tail_checkpoint_admission();
+    test_server_batch_direct_assembly_contract();
+    test_server_query_replay_transition();
     test_slot_frontier_logits_companion();
     test_fixed_host_pressure_shadow_records_counterfactual();
     test_fixed_host_shadow_uses_exact_cross_lineage_prefix();
@@ -5590,6 +5997,7 @@ int main(int argc, char ** argv) {
     test_checkpoint_host_stem_lifecycle();
     test_checkpoint_draft_restore_refuses_without_context();
     test_checkpoint_suffix_trim_rebases_only_preserved_prefixes();
+    test_query_capture_reuse_prefix();
     test_lifecycle_restore_retains_immutable_source();
     test_recurrent_reusable_prefix();
     test_recurrent_selection_survives_displacement_save(false);

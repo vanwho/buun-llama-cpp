@@ -11,11 +11,13 @@
 #include "server-vbr-artifact-store.h"
 #include "server-vbr-capture-readiness.h"
 #include "server-vbr-prompt-cache-support.h"
+#include "server-prompt-trim.h"
 #include "server-task.h"
 #include "server-queue.h"
 #include "server-recurrent-expansion.h"
 #include "server-resume-store.h"
 #include "server-schema.h"
+#include "../../src/llama-context.h"
 #include "server-stream.h"
 
 #include "build-info.h"
@@ -45,6 +47,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
@@ -67,6 +70,8 @@
 #include <unordered_map>
 #include <utility>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 
 // fix problem with std::min and std::max
 #if defined(_WIN32)
@@ -1175,6 +1180,20 @@ static bool server_has_cpu_dspark_backbone(const common_params & params) {
            params.speculative.draft.n_gpu_layers == 0;
 }
 
+// The checkpoint/carry coupling in this server task is for the Qwen3.8-27B
+// target, whose GGUF architecture is qwen35. Do not let an MTP primary
+// silently enter the path with a different recurrent or next-token layout.
+static bool server_mtp_target_architecture_supported(
+        const llama_model * model) noexcept {
+    if (!model) {
+        return false;
+    }
+    char architecture[64] = {};
+    const int32_t length = llama_model_meta_val_str(
+        model, "general.architecture", architecture, sizeof(architecture));
+    return length > 0 && std::strcmp(architecture, "qwen35") == 0;
+}
+
 static void server_append_tensor_override(
         common_params & params, llama_model_tensor_buft_override tensor_override) {
     if (!params.tensor_buft_overrides.empty() &&
@@ -1446,6 +1465,140 @@ server_speculative_decode_terminal_resolve(
     return server_speculative_decode_terminal::success;
 }
 
+server_query_replay_transition_result server_query_replay_transition(
+        bool checkpoint_prepared,
+        uint32_t replay_count,
+        const std::function<bool(bool &, uint64_t &)> & commit,
+        const std::function<bool()> & restore,
+        const std::function<bool()> & before_commit) {
+    server_query_replay_transition_result result;
+    if (!commit || !restore || (before_commit && !before_commit())) {
+        return result;
+    }
+
+    bool history_changed = false;
+    if (!commit(history_changed, result.history_generation)) {
+        return result;
+    }
+    result.committed = true;
+    if (!history_changed) {
+        result.status = server_query_replay_transition_status::unchanged;
+        return result;
+    }
+    if (!checkpoint_prepared || replay_count != 0 || !restore()) {
+        return result;
+    }
+
+    result.status = server_query_replay_transition_status::replay;
+    return result;
+}
+
+bool server_memory_failure_is_logical_capacity(
+        llama_memory_failure_reason reason) noexcept {
+    return reason == llama_memory_failure_reason::none ||
+        reason == llama_memory_failure_reason::logical_capacity;
+}
+
+bool server_is_native_mtp_verification_batch(
+        bool native_mtp_configured,
+        int32_t n_tokens,
+        bool has_prompt_tokens) noexcept {
+    return native_mtp_configured && n_tokens > 1 && !has_prompt_tokens;
+}
+
+bool server_live_rewind_checkpoint_admit(
+        int64_t checkpoint_frontier,
+        int64_t prompt_cursor,
+        int64_t prompt_tokens,
+        bool required_user_seam) noexcept {
+    if (required_user_seam) {
+        return true;
+    }
+
+    // The prompt scheduler deliberately leaves the final four tokens outside
+    // the checkpointed frontier. That exact image is the newest safe prefill
+    // rollback point for native MTP. Capturing earlier near-tail batches only
+    // replaces this image without adding a distinct seam or rollback point.
+    return prompt_tokens >= 4 &&
+        checkpoint_frontier == prompt_tokens - 4 &&
+        checkpoint_frontier >= 0 &&
+        checkpoint_frontier < prompt_cursor;
+}
+
+namespace {
+
+// Pager authority is intentionally narrower than ordinary VBR/prompt-cache
+// support. Whole-artifact prompt caching may remain multi-slot; selective
+// page residency cannot claim that scope until per-slot accounting and page
+// publication are independently proven.
+bool server_slot_pager_authority_supported(
+        bool selective, int32_t n_parallel) noexcept {
+    return !selective || n_parallel == 1;
+}
+
+bool server_slot_session_generation_next(
+        uint64_t & next, uint64_t & output) noexcept {
+    if (next == 0) {
+        return false;
+    }
+    output = next;
+    next = next == UINT64_MAX ? 1 : next + 1;
+    return true;
+}
+
+bool server_slot_page_completion_current(
+        uint64_t candidate_generation,
+        uint64_t current_generation,
+        bool cancelled) noexcept {
+    return !cancelled && candidate_generation != 0 &&
+        candidate_generation == current_generation;
+}
+
+} // namespace
+
+server_slot_pager_lifecycle_test_result
+server_slot_pager_lifecycle_for_test() {
+    server_slot_pager_lifecycle_test_result result;
+    result.single_slot_authority =
+        server_slot_pager_authority_supported(true, 1);
+    result.selective_multi_slot_rejected =
+        !server_slot_pager_authority_supported(true, 2);
+    result.observe_multi_slot_unchanged =
+        server_slot_pager_authority_supported(false, 2);
+
+    uint64_t next = 1;
+    uint64_t old_generation = 0;
+    uint64_t new_generation = 0;
+    const bool old_minted = server_slot_session_generation_next(
+        next, old_generation);
+    const bool new_minted = server_slot_session_generation_next(
+        next, new_generation);
+    result.generation_minted_before_completion = old_minted && new_minted &&
+        old_generation != new_generation && old_generation != 0 &&
+        new_generation != 0;
+    result.stale_completion_rejected =
+        !server_slot_page_completion_current(
+            old_generation, new_generation, false);
+    result.current_completion_accepted =
+        server_slot_page_completion_current(
+            new_generation, new_generation, false);
+    result.cancelled_completion_rejected =
+        !server_slot_page_completion_current(
+            new_generation, new_generation, true);
+
+    next = UINT64_MAX;
+    uint64_t rollover_generation = 0;
+    uint64_t wrapped_generation = 0;
+    const bool rollover = server_slot_session_generation_next(
+        next, rollover_generation);
+    const bool wrapped = server_slot_session_generation_next(
+        next, wrapped_generation);
+    result.generation_rollover_safe = rollover && wrapped &&
+        rollover_generation == UINT64_MAX && wrapped_generation == 1 &&
+        next == 2;
+    return result;
+}
+
 struct server_slot; // forward declaration
 
 static bool server_task_can_split(const server_task & task, llama_context * ctx) {
@@ -1465,9 +1618,16 @@ static bool server_task_can_split(const server_task & task, llama_context * ctx)
 }
 
 struct server_batch {
+    llama_batch batch = {};
+    bool batch_rendered = false;
+    bool has_embd = false;
+    llama_token * tokens_ptr = nullptr;
     llama_batch_ext * rendered = nullptr;
     common_batch view; // the rendered sub-batch [off, off + n_tokens), see render()
 
+    // Prompt classification is server-only metadata; the model inputs and
+    // sequence IDs already live in llama_batch and should not be duplicated.
+    std::vector<uint8_t> prompt_tokens;
     struct token {
         int32_t id_slot;
         llama_token token;
@@ -1490,10 +1650,33 @@ struct server_batch {
     float  alora_scale       = -1.0f;
     size_t alora_disabled_id = 0;
 
+    server_batch() {
+        batch.pos = nullptr;
+    }
+
+    ~server_batch() {
+        if (batch.pos != nullptr) {
+            clear();
+            llama_batch_free(batch);
+        }
+    }
+
     void init(llama_context * ctx, int32_t n_tokens_alloc, int32_t n_embd) {
         this->n_tokens_alloc = n_tokens_alloc;
         this->n_embd = n_embd;
+        batch = llama_batch_init(n_tokens_alloc, 0, 1);
+        tokens_ptr = batch.token;
+        prompt_tokens.reserve(n_tokens_alloc);
         view = common_batch(ctx);
+        tokens.reserve(n_tokens_alloc);
+    }
+
+    void init(int32_t n_tokens_alloc, int32_t n_embd) {
+        this->n_tokens_alloc = n_tokens_alloc;
+        this->n_embd = n_embd;
+        batch = llama_batch_init(n_tokens_alloc, 0, 1);
+        tokens_ptr = batch.token;
+        prompt_tokens.reserve(n_tokens_alloc);
         tokens.reserve(n_tokens_alloc);
     }
 
@@ -1502,7 +1685,16 @@ struct server_batch {
             return false;
         }
         tokens.push_back({ id_slot, token, { pos, 0, 0, 0 }, output, is_prompt });
+        prompt_tokens.push_back(is_prompt ? 1 : 0);
+        if (batch.pos != nullptr) {
+            common_batch_add(batch, token, pos, { id_slot }, output);
+        }
         return true;
+    }
+
+    bool add(int32_t id_slot, const std::vector<float> & embd_in, llama_pos pos, bool output, bool is_prompt) {
+        const llama_pos pos_sections[GGML_MROPE_SECTIONS] = { pos, pos, pos, 0 };
+        return add_embd(id_slot, embd_in.data(), pos_sections, output, is_prompt);
     }
 
     // embd_in has n_embd values, pos has GGML_MROPE_SECTIONS values
@@ -1513,6 +1705,11 @@ struct server_batch {
         tokens.push_back({ id_slot, LLAMA_TOKEN_NULL, { pos[0], pos[1], pos[2], pos[3] }, output, is_prompt });
         tokens.back().i_embd = (int32_t) (embd.size() / n_embd);
         embd.insert(embd.end(), embd_in, embd_in + n_embd);
+        prompt_tokens.push_back(is_prompt ? 1 : 0);
+        if (batch.pos != nullptr) {
+            common_batch_add(batch, LLAMA_TOKEN_NULL, pos[0], { id_slot }, output);
+            has_embd = true;
+        }
         return true;
     }
 
@@ -1521,16 +1718,26 @@ struct server_batch {
     }
 
     void clear() {
+        prompt_tokens.clear();
         tokens.clear();
         embd.clear();
         view.clear();
+        if (batch.pos != nullptr) {
+            common_batch_clear(batch);
+            batch_rendered = false;
+            has_embd = false;
+            if (batch.token == nullptr) {
+                batch.token = tokens_ptr;
+                batch.embd = nullptr;
+            }
+        }
         slot_batched      = nullptr;
         alora_scale       = -1.0f;
         alora_disabled_id = 0;
     }
 
     int32_t size() const {
-        return (int32_t)tokens.size();
+        return batch.n_tokens;
     }
 
     // remove the entries after the first n
@@ -1543,11 +1750,25 @@ struct server_batch {
             }
         }
         tokens.resize(n);
+        if (n < (int32_t) prompt_tokens.size()) prompt_tokens.resize(n);
+        if (batch.pos != nullptr) batch.n_tokens = n;
     }
 
     void set_output(int32_t idx, bool output) {
-        GGML_ASSERT(idx >= 0 && idx < (int32_t)tokens.size());
+        GGML_ASSERT(idx >= 0 && idx < size());
+        if (batch.pos != nullptr) batch.logits[idx] = output;
         tokens[idx].output = output;
+    }
+
+    void render() {
+        if (batch.pos != nullptr) {
+            GGML_ASSERT(!batch_rendered);
+            if (has_embd) {
+                batch.token = nullptr; // will be restored on clear()
+                batch.embd  = embd.data();
+            }
+            batch_rendered = true;
+        }
     }
 
     void set_decision_order(int32_t idx, int32_t order) {
@@ -1559,6 +1780,10 @@ struct server_batch {
     void render(int32_t off, int32_t n_tokens) {
         GGML_ASSERT(off >= 0 && off < size());
         GGML_ASSERT(n_tokens > 0 && off + n_tokens <= size());
+
+        if (!view.batch) {
+            return;
+        }
 
         view.clear();
         for (int32_t i = off; i < off + n_tokens; i++) {
@@ -1573,12 +1798,49 @@ struct server_batch {
     }
     llama_batch get_view(int32_t off, int32_t n_tokens) {
         render(off, n_tokens);
+        if (!view.batch) {
+            auto * token = batch.token ? batch.token + off : nullptr;
+            auto * embd_data = batch.embd ? batch.embd + off * n_embd : nullptr;
+            return { n_tokens, token, embd_data, batch.pos + off,
+                batch.n_seq_id + off, batch.seq_id + off, batch.logits + off };
+        }
         rendered = view.get();
         llama_batch raw = {};
         rendered->get_batch(raw, true);
         return raw;
     }
 };
+
+bool server_batch_direct_assembly_contract_for_test() {
+    server_batch batch;
+    batch.init(3, 0);
+    if (!batch.add(2, 17, 10, false, true) ||
+            !batch.add(2, 19, 11, false, true) ||
+            !batch.add(2, 23, 12, false, true)) {
+        return false;
+    }
+    batch.set_output(2, true);
+    batch.render();
+    const llama_batch view = batch.get_view(0, 3);
+    const bool valid = view.n_tokens == 3 && view.token != nullptr &&
+        view.token[0] == 17 && view.token[1] == 19 && view.token[2] == 23 &&
+        view.pos[0] == 10 && view.pos[1] == 11 && view.pos[2] == 12 &&
+        view.n_seq_id[0] == 1 && view.n_seq_id[1] == 1 &&
+        view.n_seq_id[2] == 1 && view.seq_id[0][0] == 2 &&
+        view.seq_id[1][0] == 2 && view.seq_id[2][0] == 2 &&
+        view.logits[0] == 0 && view.logits[1] == 0 && view.logits[2] == 1 &&
+        batch.prompt_tokens.size() == 3 && batch.prompt_tokens[0] == 1 &&
+        batch.prompt_tokens[1] == 1 && batch.prompt_tokens[2] == 1;
+    batch.clear();
+    return valid && batch.batch.n_tokens == 0;
+}
+
+static bool server_hotpath_profile_enabled(llama_kv_pager_mode mode) noexcept {
+    const char * value = std::getenv("LLAMA_HOTPATH_PROFILE");
+    return (value != nullptr && std::strcmp(value, "1") == 0) ||
+        mode == llama_kv_pager_mode::selective ||
+        mode == llama_kv_pager_mode::exact;
+}
 
 // Outcome of an attempt to save a slot's state to the host prompt cache. A live slot may be
 // cleared without losing state only when its state is now durable in the cache (published OR already
@@ -1624,6 +1886,14 @@ static void server_cache_live_range_drop_impl(
     common_context_seq_rm(ctx, seq_id, p0, p1);
 }
 
+static bool server_cache_mandatory_recovery_reset_impl(
+        llama_memory_t mem,
+        llama_seq_id seq_id,
+        llama_pos p0,
+        llama_pos p1) {
+    return llama_memory_seq_rm_transient(mem, seq_id, p0, p1);
+}
+
 static void server_cache_mandatory_recovery_reset_impl(
         llama_context * ctx,
         llama_seq_id seq_id,
@@ -1636,8 +1906,11 @@ static bool server_cache_transient_seq_rm_impl(
         llama_memory_t mem,
         llama_seq_id seq_id,
         llama_pos p0,
-        llama_pos p1) {
-    return llama_memory_seq_rm_transient(mem, seq_id, p0, p1);
+        llama_pos p1,
+        bool attention_only = false) {
+    return attention_only
+        ? llama_memory_seq_rm_attn_transient(mem, seq_id, p0, p1)
+        : llama_memory_seq_rm_transient(mem, seq_id, p0, p1);
 }
 
 static server_cache_control_status server_cache_family_resolve_for_launch(
@@ -1651,6 +1924,111 @@ static server_cache_control_status server_cache_family_resolve_for_launch(
     return authority
         ? authority->resolve_family_binding(token, out)
         : server_cache_control_status::not_found;
+}
+
+static bool server_mtp_state_diagnostic_enabled() noexcept {
+    const char * value = std::getenv("LLAMA_MTP_STATE_DIAGNOSTIC");
+    return value != nullptr && (std::strcmp(value, "1") == 0 ||
+            std::strcmp(value, "true") == 0);
+}
+
+static json server_mtp_logit_identity(
+        llama_context * ctx,
+        const std::vector<int32_t> & rows) {
+    json result = {
+        {"target_argmax_ids", json::array()},
+        {"logits_checksum", json::array()},
+        {"logits_finite_count", json::array()},
+        {"logits_nan_count", json::array()},
+        {"logits_pos_inf_count", json::array()},
+        {"logits_neg_inf_count", json::array()},
+        {"top_k_identity", json::array()},
+    };
+    if (ctx == nullptr) {
+        return result;
+    }
+
+    const int32_t n_vocab = llama_vocab_n_tokens(
+            llama_model_get_vocab(llama_get_model(ctx)));
+    const int32_t * argmax = llama_get_logits_argmax(ctx);
+    const int32_t argmax_n = llama_get_logits_argmax_n(ctx);
+    const int32_t argmax_k = llama_get_logits_argmax_k(ctx);
+    constexpr int32_t trace_top_k = 8;
+
+    for (const int32_t row : rows) {
+        llama_token argmax_id = LLAMA_TOKEN_NULL;
+        if (argmax != nullptr && argmax_k > 0 && row >= 0 && row < argmax_n) {
+            argmax_id = llama_token(argmax[row * argmax_k]);
+        }
+        result["target_argmax_ids"].push_back(argmax_id);
+
+        const float * logits = row >= 0 ? llama_get_logits_ith(ctx, row) : nullptr;
+        uint64_t checksum = 1469598103934665603ull;
+        int32_t finite_count = 0;
+        int32_t nan_count = 0;
+        int32_t pos_inf_count = 0;
+        int32_t neg_inf_count = 0;
+        json top_ids = json::array();
+        std::array<float, trace_top_k> top_values;
+        std::array<int32_t, trace_top_k> top_tokens;
+        top_values.fill(-std::numeric_limits<float>::infinity());
+        top_tokens.fill(LLAMA_TOKEN_NULL);
+        if (logits != nullptr && n_vocab > 0) {
+            for (int32_t token = 0; token < n_vocab; ++token) {
+                uint32_t bits = 0;
+                std::memcpy(&bits, logits + token, sizeof(bits));
+                checksum ^= uint64_t(bits);
+                checksum *= 1099511628211ull;
+
+                const float value = logits[token];
+                if (std::isnan(value)) {
+                    ++nan_count;
+                } else if (std::isinf(value)) {
+                    if (value > 0.0f) {
+                        ++pos_inf_count;
+                    } else {
+                        ++neg_inf_count;
+                    }
+                } else {
+                    ++finite_count;
+                }
+                // A non-finite value is useful diagnostic evidence but cannot
+                // be an identity-bearing top-k candidate. In particular, NaN
+                // compares false in the ordered scan below and would otherwise
+                // make a fully-NaN row look like the final vocabulary IDs.
+                if (!std::isfinite(value)) {
+                    continue;
+                }
+                for (int32_t rank = 0; rank < trace_top_k; ++rank) {
+                    if (value <= top_values[rank]) {
+                        continue;
+                    }
+                    for (int32_t shift = trace_top_k - 1; shift > rank; --shift) {
+                        top_values[shift] = top_values[shift - 1];
+                        top_tokens[shift] = top_tokens[shift - 1];
+                    }
+                    top_values[rank] = value;
+                    top_tokens[rank] = token;
+                    break;
+                }
+            }
+            for (const int32_t token : top_tokens) {
+                top_ids.push_back(token);
+            }
+        }
+        result["logits_checksum"].push_back(logits != nullptr ? checksum : 0);
+        result["logits_finite_count"].push_back(finite_count);
+        result["logits_nan_count"].push_back(nan_count);
+        result["logits_pos_inf_count"].push_back(pos_inf_count);
+        result["logits_neg_inf_count"].push_back(neg_inf_count);
+        result["top_k_identity"].push_back({
+            {"k", trace_top_k},
+            {"ids", top_ids},
+            {"source", logits != nullptr ? "raw_logits" :
+                (argmax != nullptr ? "argmax_only" : "unavailable")},
+        });
+    }
+    return result;
 }
 
 struct server_vbr_idle_refusal_witness {
@@ -1667,6 +2045,362 @@ struct server_swa_window_checkpoint {
     uint64_t sequence_epoch = 0;
     std::shared_ptr<const vbr_swa_window_image> image;
 };
+
+// Request-local replay checkpoint. It deliberately owns only the hybrid
+// recurrent image and speculative carry; attention remains in its live cache
+// and is rewound by range removal so a newly published historical page map is
+// never replaced by an older table image.
+struct server_query_checkpoint {
+    enum class phase : uint8_t { empty, prepared, restored };
+
+    phase state = phase::empty;
+    uint64_t turn_id = 0;
+    uint64_t session_generation = 0;
+    llama_seq_id sequence_id = -1;
+    llama_pos query_begin = -1;
+    llama_pos target_frontier = -1;
+    llama_pos draft_frontier = -1;
+    bool pager_enabled = false;
+    uint64_t pager_table_epoch = 0;
+    uint64_t pager_representation_epoch = 0;
+    uint64_t capture_us = 0;
+    uint64_t restore_us = 0;
+    uint64_t replay_start_us = 0;
+    uint64_t replay_us = 0;
+    bool carry_required = false;
+    std::vector<uint8_t> target_recurrent;
+    std::vector<uint8_t> draft_recurrent;
+    std::vector<uint8_t> mtp_carry;
+
+    void clear() noexcept {
+        state = phase::empty;
+        turn_id = 0;
+        session_generation = 0;
+        sequence_id = -1;
+        query_begin = -1;
+        target_frontier = -1;
+        draft_frontier = -1;
+        pager_enabled = false;
+        pager_table_epoch = 0;
+        pager_representation_epoch = 0;
+        capture_us = 0;
+        restore_us = 0;
+        replay_start_us = 0;
+        replay_us = 0;
+        carry_required = false;
+        target_recurrent.clear();
+        draft_recurrent.clear();
+        mtp_carry.clear();
+    }
+
+    bool capture(llama_context * target, llama_context * draft,
+            common_speculative * speculative, llama_seq_id seq_id,
+            uint64_t request_id, uint64_t generation, llama_pos begin,
+            int64_t processed_tokens, bool require_mtp_carry) noexcept {
+        clear();
+        const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+        const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+        struct profile_timer {
+            uint64_t & result;
+            std::chrono::steady_clock::time_point start;
+            bool active;
+            ~profile_timer() {
+                if (!active) return;
+                const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                        std::chrono::steady_clock::now() - start).count();
+                const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+                result = result > UINT64_MAX - value ? UINT64_MAX : result + value;
+            }
+        } timer { capture_us, profile ? std::chrono::steady_clock::now()
+                                     : std::chrono::steady_clock::time_point{}, profile };
+        if (target == nullptr || seq_id < 0 || request_id == 0 ||
+                generation == 0 || begin < 0 || processed_tokens != begin) {
+            return false;
+        }
+        try {
+            const auto capture_partial = [seq_id](llama_context * ctx,
+                    std::vector<uint8_t> & output, llama_pos & frontier) {
+                if (ctx == nullptr) return true;
+                frontier = llama_memory_seq_pos_max(llama_get_memory(ctx), seq_id);
+                const size_t bytes = llama_state_seq_get_size_ext(
+                    ctx, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+                if (bytes == 0) return false;
+                output.resize(bytes);
+                return llama_state_seq_get_data_ext(ctx, output.data(), bytes,
+                    seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == bytes;
+            };
+
+            if (!capture_partial(target, target_recurrent, target_frontier) ||
+                    !capture_partial(draft, draft_recurrent, draft_frontier)) {
+                clear();
+                return false;
+            }
+            if (target_frontier != begin - 1 ||
+                    (draft != nullptr && draft_frontier != begin - 1)) {
+                clear();
+                return false;
+            }
+            if (speculative != nullptr) {
+                // This is the host serialization API. In particular, do not
+                // use ON_DEVICE state here: that API replaces the previous
+                // same-sequence device snapshot owned by speculative rollback.
+                const bool carry_saved = common_speculative_get_state(
+                    speculative, seq_id, mtp_carry);
+                if (require_mtp_carry && (!carry_saved || mtp_carry.empty())) {
+                    clear();
+                    return false;
+                }
+            }
+            turn_id = request_id;
+            session_generation = generation;
+            sequence_id = seq_id;
+            query_begin = begin;
+            carry_required = require_mtp_carry;
+            const auto pager = target->get_kv_pager_metrics(
+                nullptr, request_id, generation);
+            pager_enabled = pager.enabled;
+            pager_table_epoch = pager.table_epoch;
+            pager_representation_epoch = pager.representation_epoch;
+            state = phase::prepared;
+            return true;
+        } catch (...) {
+            clear();
+            return false;
+        }
+    }
+
+    bool restore(llama_context * target, llama_context * draft,
+            common_speculative * speculative, llama_seq_id seq_id,
+            uint64_t request_id, uint64_t generation,
+            const char ** failure_reason = nullptr) noexcept {
+        const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+        const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+        struct profile_timer {
+            uint64_t & result;
+            std::chrono::steady_clock::time_point start;
+            bool active;
+            ~profile_timer() {
+                if (!active) return;
+                const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                        std::chrono::steady_clock::now() - start).count();
+                const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+                result = result > UINT64_MAX - value ? UINT64_MAX : result + value;
+            }
+        } timer { restore_us, profile ? std::chrono::steady_clock::now()
+                                     : std::chrono::steady_clock::time_point{}, profile };
+        if (failure_reason != nullptr) *failure_reason = "unknown";
+        if (state == phase::restored) {
+            return turn_id == request_id && session_generation == generation &&
+                sequence_id == seq_id;
+        }
+        if (state != phase::prepared || target == nullptr || seq_id != sequence_id ||
+                request_id != turn_id || generation != session_generation ||
+                (carry_required && (speculative == nullptr || mtp_carry.empty()))) {
+            if (failure_reason != nullptr) *failure_reason = "checkpoint_identity_or_carry";
+            return false;
+        }
+        if (!llama_memory_can_seq_rm_partial(llama_get_memory(target)) ||
+                (draft != nullptr &&
+                 !llama_memory_can_seq_rm_partial(llama_get_memory(draft)))) {
+            if (failure_reason != nullptr) *failure_reason = "partial_remove_unsupported";
+            return false;
+        }
+        const llama_pos target_live_frontier = llama_memory_seq_pos_max(
+            llama_get_memory(target), seq_id);
+        const llama_pos draft_live_frontier = draft != nullptr
+            ? llama_memory_seq_pos_max(llama_get_memory(draft), seq_id) : -1;
+        if (target_live_frontier < query_begin ||
+                (draft != nullptr && draft_live_frontier < query_begin)) {
+            if (failure_reason != nullptr) *failure_reason = "frontier_before_query";
+            return false;
+        }
+        if (pager_enabled) {
+            const auto pager = target->get_kv_pager_metrics(
+                nullptr, request_id, generation);
+            // Retrieval can advance both the mutable table and physical
+            // representation epochs as selected cold pages are promoted.
+            // Restoration never writes either captured epoch or the page map
+            // back; only the live pager remaining enabled is required.
+            if (!pager.enabled) {
+                if (failure_reason != nullptr) *failure_reason = "pager_disabled";
+                return false;
+            }
+        }
+
+        // Stage undo images before the first mutation. These remain bounded
+        // to recurrent state and make a rejected state read a no-mutation
+        // result for the already-live recurrent frontier.
+        std::vector<uint8_t> target_undo;
+        std::vector<uint8_t> draft_undo;
+        try {
+            const auto capture_undo = [seq_id](llama_context * ctx,
+                    std::vector<uint8_t> & output) {
+                if (ctx == nullptr) return true;
+                const size_t bytes = llama_state_seq_get_size_ext(
+                    ctx, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+                if (bytes == 0) return false;
+                output.resize(bytes);
+                return llama_state_seq_get_data_ext(ctx, output.data(), bytes,
+                    seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == bytes;
+            };
+            if (!capture_undo(target, target_undo) ||
+                    !capture_undo(draft, draft_undo)) {
+                if (failure_reason != nullptr) *failure_reason = "undo_capture";
+                return false;
+            }
+        } catch (...) {
+            if (failure_reason != nullptr) *failure_reason = "undo_exception";
+            return false;
+        }
+
+        const auto restore_partial = [seq_id](llama_context * ctx,
+                const std::vector<uint8_t> & image) {
+            return ctx == nullptr || (!image.empty() &&
+                llama_state_seq_set_data_ext(ctx, image.data(), image.size(),
+                    seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == image.size());
+        };
+        if (!restore_partial(target, target_recurrent) ||
+                !restore_partial(draft, draft_recurrent)) {
+            (void) restore_partial(target, target_undo);
+            (void) restore_partial(draft, draft_undo);
+            if (failure_reason != nullptr) *failure_reason = "recurrent_restore";
+            return false;
+        }
+
+        // Remove attention only. This invalidates provisional query summaries
+        // and host versions through the pager's normal mutation path, while
+        // preserving the newly selected historical pages and recurrent state.
+        // The query suffix is provisional state owned by this request. Use
+        // the transient mutation path so replay can remove it without
+        // publishing a new external checkpoint lineage for the live history.
+        const bool target_removed = llama_memory_seq_rm_attn_transient(
+            llama_get_memory(target), seq_id, query_begin, -1);
+        const bool draft_removed = target_removed && (draft == nullptr ||
+            llama_memory_seq_rm_attn_transient(
+                llama_get_memory(draft), seq_id, query_begin, -1));
+        if (!target_removed) {
+            (void) restore_partial(target, target_undo);
+            (void) restore_partial(draft, draft_undo);
+            if (failure_reason != nullptr) *failure_reason = "target_attention_remove";
+            return false;
+        }
+        if (!draft_removed) {
+            // The target is now at the valid pre-query checkpoint. Quarantine
+            // a draft whose attention tail could not be truncated; never roll
+            // the target back to a recurrent frontier whose attention was
+            // already removed.
+            if (draft != nullptr) {
+                (void) llama_memory_seq_rm(
+                    llama_get_memory(draft), seq_id, -1, -1);
+            }
+            if (speculative != nullptr) {
+                common_speculative_sequence_transition(speculative, seq_id,
+                    common_speculative_sequence_event::target_restored_without_draft);
+            }
+            state = phase::restored;
+            return true;
+        }
+        if (speculative != nullptr && !mtp_carry.empty() &&
+                !common_speculative_set_state(speculative, seq_id, mtp_carry)) {
+            // Carry state is optional for target correctness. Invalidate it
+            // explicitly so subsequent drafting starts from the restored
+            // target frontier without consuming a provisional hidden row.
+            common_speculative_sequence_transition(speculative, seq_id,
+                common_speculative_sequence_event::target_restored_without_draft);
+        }
+        state = phase::restored;
+        return true;
+    }
+};
+
+server_query_checkpoint_fixture_result server_query_checkpoint_replay_for_test(
+        llama_context * target, llama_context * draft,
+        common_speculative * speculative, llama_seq_id sequence_id,
+        uint64_t request_id, uint64_t generation, llama_pos query_begin,
+        int64_t processed_tokens, bool require_mtp_carry,
+        const std::function<bool()> & provisional_decode,
+        const std::function<bool(bool &, uint64_t &)> & commit,
+        const std::function<bool()> & replay_decode,
+        const std::function<bool()> & control_decode) {
+    server_query_checkpoint_fixture_result result;
+    server_query_checkpoint checkpoint;
+    result.captured = checkpoint.capture(target, draft, speculative,
+            sequence_id, request_id, generation, query_begin,
+            processed_tokens, require_mtp_carry);
+    if (!result.captured || !provisional_decode) return result;
+
+    result.provisional_decode_succeeded = provisional_decode();
+    if (!result.provisional_decode_succeeded) return result;
+
+    const char * restore_failure = nullptr;
+    const auto transition = server_query_replay_transition(
+            checkpoint.state == server_query_checkpoint::phase::prepared,
+            0,
+            [&](bool & history_changed, uint64_t & history_generation) {
+                return commit && commit(history_changed, history_generation);
+            },
+            [&]() {
+                const bool restored = checkpoint.restore(target, draft,
+                        speculative, sequence_id, request_id, generation,
+                        &restore_failure);
+                result.restored = restored;
+                return restored;
+            });
+    result.status = transition.status;
+    result.history_changed = transition.status ==
+            server_query_replay_transition_status::replay;
+    result.history_generation = transition.history_generation;
+    if (transition.status != server_query_replay_transition_status::replay ||
+            !result.restored || !replay_decode) {
+        return result;
+    }
+    result.replay_decode_succeeded = replay_decode();
+    if (!result.replay_decode_succeeded || !control_decode) return result;
+
+    // The parity control uses the very same captured pre-query recurrent and
+    // carry image after the final history map has been published. Re-arm the
+    // private checkpoint only inside this fixture seam so restore removes the
+    // replayed query and reinstalls the original recurrent frontier again.
+    checkpoint.state = server_query_checkpoint::phase::prepared;
+    result.control_restored = checkpoint.restore(target, draft, speculative,
+            sequence_id, request_id, generation, &restore_failure);
+    if (result.control_restored) {
+        result.control_decode_succeeded = control_decode();
+    }
+    return result;
+}
+
+server_query_checkpoint_cancel_fixture_result server_query_checkpoint_cancel_for_test(
+        llama_context * target, llama_context * draft,
+        common_speculative * speculative, llama_seq_id sequence_id,
+        uint64_t request_id, uint64_t generation, llama_pos query_begin,
+        int64_t processed_tokens, bool require_mtp_carry,
+        const std::function<bool()> & provisional_decode,
+        const std::function<bool(bool &, uint64_t &)> & publish,
+        const std::function<bool()> & recovery_decode) {
+    server_query_checkpoint_cancel_fixture_result result;
+    server_query_checkpoint checkpoint;
+    result.captured = checkpoint.capture(target, draft, speculative,
+            sequence_id, request_id, generation, query_begin,
+            processed_tokens, require_mtp_carry);
+    if (!result.captured || !provisional_decode) return result;
+    result.provisional_decode_succeeded = provisional_decode();
+    if (!result.provisional_decode_succeeded) return result;
+
+    bool changed = false;
+    if (publish) {
+        result.publication_succeeded = publish(changed, result.history_generation);
+        result.history_changed = changed;
+        if (!result.publication_succeeded) return result;
+    }
+    const char * failure_reason = nullptr;
+    result.restored = checkpoint.restore(target, draft, speculative,
+            sequence_id, request_id, generation, &failure_reason);
+    if (result.restored && recovery_decode) {
+        result.recovery_decode_succeeded = recovery_decode();
+    }
+    return result;
+}
 
 struct server_slot {
     int id;
@@ -1722,6 +2456,23 @@ struct server_slot {
     common_cache_plan_destruction_reason checkpoint_floor_refusal =
         common_cache_plan_destruction_reason::mandatory_anchor;
     std::array<uint8_t, 32> vbr_idle_capture_attempt_identity = {};
+    // This request/session generation is deliberately separate from
+    // prompt.sequence_epoch: prompt lineage survives valid reuse, while an
+    // asynchronous completion must never cross a slot reuse boundary.
+    uint64_t slot_session_generation = 0;
+    server_query_checkpoint query_checkpoint;
+    bool pager_query_committed = false;
+    bool query_replay_pending = false;
+    uint32_t query_replay_count = 0;
+    uint64_t pager_frozen_history_generation = 0;
+    bool pager_history_frozen = false;
+    uint64_t pager_freeze_table_epoch = 0;
+    uint64_t pager_freeze_selector_refresh_count = 0;
+    uint64_t pager_freeze_h2d_queued = 0;
+    uint64_t pager_freeze_promotion_pages = 0;
+    uint64_t pager_freeze_eviction_pages = 0;
+    uint64_t pager_freeze_summary_build_calls = 0;
+    common_speculative_mtp_history_epoch pager_mtp_history_epoch;
     // A fragmented projection may exceed its bounded source-read budget.
     // Retry that sealed frontier with the existing full-layout streamer.
     std::array<uint8_t, 32> vbr_idle_exact_retry_identity = {};
@@ -1792,6 +2543,22 @@ struct server_slot {
     common_prompt_checkpoint spec_ckpt;
     bool spec_is_replay = false;
     std::mt19937 spec_synth_rng;
+    bool mtp_state_diagnostic_enabled = server_mtp_state_diagnostic_enabled();
+    uint32_t mtp_state_diagnostic_steps = 0;
+    std::vector<json> mtp_state_diagnostic_trace;
+    bool mtp_target_restored_before_verify = false;
+    bool mtp_draft_restored_before_verify = false;
+    std::string mtp_target_restore_status = "not_needed";
+    std::string mtp_draft_restore_status = "not_needed";
+    uint64_t mtp_target_restore_epoch = 0;
+    uint64_t mtp_draft_restore_epoch = 0;
+    uint64_t mtp_request_drafted = 0;
+    uint64_t mtp_request_accepted = 0;
+    uint64_t mtp_request_committed = 0;
+    uint64_t mtp_request_rejected = 0;
+    uint64_t mtp_request_target_restores = 0;
+    uint64_t mtp_request_draft_restores = 0;
+    uint64_t mtp_request_restore_failures = 0;
 
     // TODO: move members that belong to the task (such as `generated_text`, `has_new_line`) to task_results_state
     //       see https://github.com/ggml-org/llama.cpp/pull/18283#issuecomment-3710175837
@@ -2490,6 +3257,8 @@ struct server_slot {
     // capture and rollback costs. Outer index = generated draft length; inner
     // index = rejected target rows (rollback depth).
     std::vector<std::vector<int32_t>> n_verify_rollback;
+    uint64_t speculative_frontier_mismatches = 0;
+    uint64_t speculative_rollbacks = 0;
 
     // Hybrid model: recurrent state backup for speculative decoding
     bool has_draft_backup = false;
@@ -2611,6 +3380,21 @@ struct server_slot {
             spec_i_batch.clear();
             spec_ckpt.clear();
         }
+        mtp_state_diagnostic_steps = 0;
+        mtp_state_diagnostic_trace.clear();
+        mtp_target_restored_before_verify = false;
+        mtp_draft_restored_before_verify = false;
+        mtp_target_restore_status = "not_needed";
+        mtp_draft_restore_status = "not_needed";
+        mtp_target_restore_epoch = 0;
+        mtp_draft_restore_epoch = 0;
+        mtp_request_drafted = 0;
+        mtp_request_accepted = 0;
+        mtp_request_committed = 0;
+        mtp_request_rejected = 0;
+        mtp_request_target_restores = 0;
+        mtp_request_draft_restores = 0;
+        mtp_request_restore_failures = 0;
         generated_tokens.clear();
         generated_token_probs.clear();
         json_schema = json();
@@ -2781,6 +3565,293 @@ struct server_slot {
         return spec ? spec.get() : spec_shared;
     }
 
+    void capture_mtp_state_diagnostic(const llama_batch & batch, int32_t off) {
+        if (!mtp_state_diagnostic_enabled || mtp_state_diagnostic_steps >= 8 ||
+                ctx_tgt == nullptr) {
+            return;
+        }
+
+        std::vector<int32_t> rows;
+        rows.reserve(spec_i_batch.empty() ? size_t(batch.n_tokens) : spec_i_batch.size());
+        json target_ids = json::array();
+        json target_positions = json::array();
+        json draft_positions = json::array();
+        json proposal_rows = json::array();
+        if (!spec_i_batch.empty()) {
+            for (const int32_t global_row : spec_i_batch) {
+                const int32_t row = global_row - off;
+                if (row < 0 || row >= batch.n_tokens || batch.token == nullptr ||
+                        batch.pos == nullptr) {
+                    continue;
+                }
+                rows.push_back(row);
+                target_ids.push_back(batch.token[row]);
+                target_positions.push_back(batch.pos[row]);
+                if (rows.size() > 1) {
+                    proposal_rows.push_back(row);
+                    draft_positions.push_back(batch.pos[row]);
+                }
+            }
+        } else if (batch.logits != nullptr && batch.token != nullptr && batch.pos != nullptr) {
+            // MTP-off requests have no proposal map.  Scan only the first two
+            // rows explicitly marked for logits: this is the bounded dense
+            // control diagnostic, not a production full-vocabulary trace.
+            for (int32_t row = 0; row < batch.n_tokens && rows.size() < 2; ++row) {
+                if (batch.logits[row] == 0) {
+                    continue;
+                }
+                rows.push_back(row);
+                target_ids.push_back(batch.token[row]);
+                target_positions.push_back(batch.pos[row]);
+            }
+        }
+        if (rows.empty()) {
+            return;
+        }
+
+        const auto pager = ctx_tgt->get_kv_pager_metrics();
+        json selected_page_versions = json::array();
+        for (const uint32_t logical_page : pager.execution.selected_page_ids) {
+            const auto page = std::find_if(pager.page_inventory.begin(),
+                    pager.page_inventory.end(), [logical_page](const auto & candidate) {
+                        return candidate.id.sequence_id == 0 &&
+                            candidate.id.logical_page == logical_page;
+                    });
+            if (page == pager.page_inventory.end()) {
+                selected_page_versions.push_back({
+                    {"logical_page_id", logical_page},
+                    {"identity_available", false},
+                });
+                continue;
+            }
+            selected_page_versions.push_back({
+                {"logical_page_id", logical_page},
+                {"identity_available", true},
+                {"sequence_generation", page->id.sequence_generation},
+                {"page_generation", page->id.page_generation},
+                {"content_version", page->content_version},
+                {"position_begin", page->id.position_begin},
+                {"position_end", page->id.position_end},
+                {"valid_length", page->valid_length},
+                {"resident", page->physical_slot != UINT32_MAX},
+                {"host_backed", page->host_valid},
+            });
+        }
+        json event = {
+            {"step", mtp_state_diagnostic_steps},
+            {"target_input_token_ids", target_ids},
+            {"target_input_positions", target_positions},
+            {"draft_input_token_ids", spec_draft},
+            {"draft_input_positions", draft_positions},
+            {"proposal_positions", draft_positions},
+            {"target_output_rows", rows},
+            {"proposal_output_rows", proposal_rows},
+            {"sampled_output_row", rows.front()},
+            {"n_past", n_tokens_before_draft},
+            {"cache_n", stats.n_prompt_cached},
+            {"checkpoint_generation", spec_ckpt.checkpoint_epoch},
+            {"checkpoint_generation_swa", spec_ckpt.checkpoint_epoch_swa},
+            {"route", llama_kv_attention_execution_route_name(pager.route)},
+            {"page_table_epoch", pager.table_epoch},
+            {"selected_page_ids", pager.execution.selected_page_ids},
+            {"selected_page_versions", selected_page_versions},
+            {"target_state_restored_before_verification",
+                mtp_target_restored_before_verify},
+            {"draft_state_restored_before_verification",
+                mtp_draft_restored_before_verify},
+            {"target_restore_status", mtp_target_restore_status},
+            {"draft_restore_status", mtp_draft_restore_status},
+            {"target_restore_epoch", mtp_target_restore_epoch},
+            {"draft_restore_epoch", mtp_draft_restore_epoch},
+            {"request_counters", {
+                {"drafted", mtp_request_drafted},
+                {"accepted", mtp_request_accepted},
+                {"committed", mtp_request_committed},
+                {"rejected", mtp_request_rejected},
+                {"target_restores", mtp_request_target_restores},
+                {"draft_restores", mtp_request_draft_restores},
+                {"restore_failures", mtp_request_restore_failures},
+            }},
+            {"state_restored_before_verification", {
+                {"target", mtp_target_restored_before_verify},
+                {"draft", mtp_draft_restored_before_verify},
+            }},
+        };
+        const json logits = server_mtp_logit_identity(ctx_tgt, rows);
+        event["target_argmax_ids"] = logits["target_argmax_ids"];
+        event["logits_checksum"] = logits["logits_checksum"];
+        event["logits_finite_count"] = logits["logits_finite_count"];
+        event["logits_nan_count"] = logits["logits_nan_count"];
+        event["logits_pos_inf_count"] = logits["logits_pos_inf_count"];
+        event["logits_neg_inf_count"] = logits["logits_neg_inf_count"];
+        event["top_k_identity"] = logits["top_k_identity"];
+        // Native MTP proposals are sampled from the draft context. Preserve
+        // their exact ids as the bounded proposal identity; the draft context
+        // does not expose a second public full-logit row for this batch.
+        event["draft_argmax_ids"] = spec_draft;
+        event["draft_argmax_source"] = spec_draft.empty() ? "unavailable" : "proposal_ids";
+
+        // The first target score row is the exact shared prompt boundary for
+        // selected and dense route comparisons. Keep its complete ordering
+        // beside the bounded first-rejection trace, whose first rejection can
+        // occur only after the two routes have already sampled different ids.
+        const char * prefix_trace_path = std::getenv("LLAMA_MTP_PREFIX_SCORE_TRACE_PATH");
+        if (mtp_state_diagnostic_steps == 0 && prefix_trace_path != nullptr &&
+                prefix_trace_path[0] != '\0') {
+            try {
+                const int32_t score_row = rows.front();
+                const llama_seq_id trace_seq = spec ? 0 : id;
+                const float * scores = llama_get_logits_ith(ctx_tgt, score_row);
+                const int32_t n_vocab = llama_vocab_n_tokens(
+                        llama_model_get_vocab(llama_get_model(ctx_tgt)));
+                json attention_visibility = json::parse(
+                    ctx_tgt->mtp_attention_visibility_snapshot_json());
+                json & attention_graph = attention_visibility["graph"];
+                const llama_pos query_position = batch.pos[score_row];
+                if (attention_graph.value("available", false) &&
+                        attention_graph.contains("native_rows") &&
+                        attention_graph["native_rows"].is_array()) {
+                    // The view and row-validity bits belong to the just-built
+                    // selected graph. Bind its causal row to the exact score
+                    // input, since state capture can run after a later graph
+                    // construction has replaced the metadata query vector.
+                    json visible_rows = json::array();
+                    const auto & native_rows = attention_graph["native_rows"];
+                    for (size_t row = 0; row < native_rows.size(); ++row) {
+                        if (!native_rows[row].is_array() || native_rows[row].size() < 2 ||
+                                !native_rows[row][0].is_number_integer() ||
+                                !native_rows[row][1].is_number_integer()) {
+                            continue;
+                        }
+                        const llama_pos native_position = native_rows[row][0].get<llama_pos>();
+                        const bool valid = native_rows[row][1].get<int>() != 0;
+                        if (valid && (!attention_graph.value("causal", true) ||
+                                native_position <= query_position)) {
+                            visible_rows.push_back(row);
+                        }
+                    }
+                    attention_graph["metadata_query_positions"] =
+                        attention_graph.value("queries", json::array());
+                    attention_graph["queries"] = json::array({json{
+                        {"position", query_position},
+                        {"position_source", "target batch score row"},
+                        {"visible_rows", std::move(visible_rows)},
+                    }});
+                } else if (pager.route == llama_kv_attention_execution_route::dense &&
+                        query_position >= 0 && uint64_t(query_position) <= 1'048'576) {
+                    // The native dense decoder attends causally over the full
+                    // contiguous KV prefix. The server API exposes its live
+                    // point-in-time range as only the current batch row, so
+                    // enumerate the graph contract from position zero here.
+                    attention_graph = {
+                        {"available", true},
+                        {"mask_source", "native dense causal attention contract"},
+                        {"backend_mask_bits_captured", false},
+                        {"causal", true},
+                        {"native_position_min", 0},
+                        {"native_position_max", query_position},
+                        {"pages", json::array()},
+                        {"native_rows", json::array()},
+                        {"queries", json::array()},
+                    };
+                    for (llama_pos position = 0; position <= query_position; ++position) {
+                        attention_graph["native_rows"].push_back(json::array({position, 1}));
+                    }
+                    json visible_rows = json::array();
+                    for (llama_pos position = 0; position <= query_position; ++position) {
+                        visible_rows.push_back(position);
+                    }
+                    attention_graph["queries"].push_back({
+                        {"position", query_position},
+                        {"position_source", "target batch score row"},
+                        {"visible_rows", std::move(visible_rows)},
+                    });
+                }
+                json prefix_trace = {
+                    {"schema", "llama-mtp-prefix-score-v1"},
+                    {"diagnostic_step", mtp_state_diagnostic_steps},
+                    {"route", llama_kv_attention_execution_route_name(pager.route)},
+                    {"target_input_token_ids", target_ids},
+                    {"target_input_positions", target_positions},
+                    {"target_output_rows", rows},
+                    {"score_row", score_row},
+                    {"target_finite", false},
+                    {"target_vocab_size", n_vocab},
+                    {"score_ordering_rule", "descending raw logit; token id ascending for ties"},
+                    {"target_logits_by_token_id", json::array()},
+                    {"target_score_ordering", json::array()},
+                    {"effective_sampling_seed", common_sampler_get_seed(smpl.get())},
+                    {"proposal_rng_draws_before_first_target_score", 0},
+                    {"target_kv_min", llama_memory_seq_pos_min(
+                        llama_get_memory(ctx_tgt), trace_seq)},
+                    {"target_kv_max", llama_memory_seq_pos_max(
+                        llama_get_memory(ctx_tgt), trace_seq)},
+                    {"n_past", n_tokens_before_draft},
+                    {"prompt_cache_tokens", stats.n_prompt_cached},
+                    {"checkpoint_generation", spec_ckpt.checkpoint_epoch},
+                    {"checkpoint_generation_swa", spec_ckpt.checkpoint_epoch_swa},
+                    {"target_state_restored_before_verification",
+                        mtp_target_restored_before_verify},
+                    {"draft_state_restored_before_verification",
+                        mtp_draft_restored_before_verify},
+                    {"target_restore_epoch", mtp_target_restore_epoch},
+                    {"draft_restore_epoch", mtp_draft_restore_epoch},
+                    {"page_table_epoch", pager.table_epoch},
+                    {"selected_page_ids", pager.execution.selected_page_ids},
+                    {"selected_page_versions", selected_page_versions},
+                    {"attention_visibility", std::move(attention_visibility)},
+                };
+                std::vector<llama_token> score_order;
+                bool target_finite = scores != nullptr && n_vocab > 0;
+                if (scores != nullptr && n_vocab > 0) {
+                    score_order.resize(static_cast<size_t>(n_vocab));
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        const float score = scores[token];
+                        target_finite = target_finite && std::isfinite(score);
+                        prefix_trace["target_logits_by_token_id"].push_back(
+                            std::isfinite(score) ? json(score) : json(nullptr));
+                        score_order[size_t(token)] = llama_token(token);
+                    }
+                    std::sort(score_order.begin(), score_order.end(),
+                            [&](llama_token lhs, llama_token rhs) {
+                        const float lhs_score = scores[lhs];
+                        const float rhs_score = scores[rhs];
+                        const bool lhs_finite = std::isfinite(lhs_score);
+                        const bool rhs_finite = std::isfinite(rhs_score);
+                        if (lhs_finite != rhs_finite) {
+                            return lhs_finite;
+                        }
+                        if (!lhs_finite) {
+                            return lhs < rhs;
+                        }
+                        if (lhs_score != rhs_score) {
+                            return lhs_score > rhs_score;
+                        }
+                        return lhs < rhs;
+                    });
+                    for (const llama_token token : score_order) {
+                        prefix_trace["target_score_ordering"].push_back(token);
+                    }
+                }
+                prefix_trace["target_finite"] = target_finite;
+                std::ofstream file(prefix_trace_path, std::ios::binary | std::ios::trunc);
+                if (!file) {
+                    throw std::runtime_error("cannot open MTP prefix score trace path");
+                }
+                file << prefix_trace.dump() << '\n';
+                if (!file) {
+                    throw std::runtime_error("cannot write MTP prefix score trace");
+                }
+            } catch (const std::exception & error) {
+                SLT_ERR(*this, "MTP prefix score trace file failed: %s\n", error.what());
+            }
+        }
+
+        mtp_state_diagnostic_trace.push_back(event);
+        ++mtp_state_diagnostic_steps;
+        SLT_INF(*this, "MTP_STATE_DIAGNOSTIC %s\n", event.dump().c_str());
+    }
+
     // at temp 0 both p and q are point masses, so rejection is the same as sample-and-match
     bool use_spec_rejection() const {
         return task && task->params.sampling.temp > 0.0f;
@@ -2877,10 +3948,47 @@ struct server_slot {
         prompt.tokens.insert(spec_draft);
     }
 
-    void release() {
+    void release(bool memory_recovery_failed = false) {
         swa_windows.clear();
         if (is_processing()) {
             GGML_ASSERT(task);
+
+            if (pager_history_frozen && ctx_tgt != nullptr) {
+                const auto pager = ctx_tgt->get_kv_pager_metrics();
+                const auto delta = [](uint64_t after, uint64_t before) {
+                    return after >= before ? after - before : UINT64_MAX;
+                };
+                SLT_INF(*this, "kv pager generated span: turn=%" PRIu64
+                    " history_generation=%" PRIu64 " selector_refresh_delta=%" PRIu64
+                    " h2d_queued_delta=%" PRIu64 " promotion_pages_delta=%" PRIu64
+                    " eviction_pages_delta=%" PRIu64 " summary_build_calls_delta=%" PRIu64
+                    " table_epoch_before=%" PRIu64 " table_epoch_after=%" PRIu64 "\n",
+                    slot_session_generation, pager_frozen_history_generation,
+                    delta(pager.query_refresh_count, pager_freeze_selector_refresh_count),
+                    delta(pager.h2d_transfers.queued, pager_freeze_h2d_queued),
+                    delta(pager.promotion_pages, pager_freeze_promotion_pages),
+                    delta(pager.eviction_pages, pager_freeze_eviction_pages),
+                    delta(pager.summary_build_calls, pager_freeze_summary_build_calls),
+                    pager_freeze_table_epoch, pager.table_epoch);
+            }
+            if (ctx_tgt != nullptr && slot_session_generation != 0) {
+                // release() runs after the request's scheduler work has
+                // completed or been cancelled; this is the safe unpin edge.
+                ctx_tgt->end_kv_pager_turn(id, slot_session_generation);
+            }
+            query_checkpoint.clear();
+            pager_query_committed = false;
+            query_replay_pending = false;
+            query_replay_count = 0;
+            pager_history_frozen = false;
+            pager_frozen_history_generation = 0;
+            pager_freeze_table_epoch = 0;
+            pager_freeze_selector_refresh_count = 0;
+            pager_freeze_h2d_queued = 0;
+            pager_freeze_promotion_pages = 0;
+            pager_freeze_eviction_pages = 0;
+            pager_freeze_summary_build_calls = 0;
+            pager_mtp_history_epoch.clear();
 
             SLT_INF(*this, "stop processing: n_tokens = %d, truncated = %d\n", prompt.n_tokens(), truncated);
 
@@ -2899,9 +4007,9 @@ struct server_slot {
                     llama_get_memory(ctx_tgt), seq_id_backup, -1, -1);
             }
 
-            // Child state belongs to its parent. Embedding/rerank state is
-            // stateless and must not enter idle retention or resume capture.
-            if (task->is_child() || task->need_embd()) {
+            // do not keep context of the child slots - the parent's context is enough
+            // Embedding/rerank state is stateless and must not enter idle retention or resume capture.
+            if ((task->is_child() && !memory_recovery_failed) || task->need_embd()) {
                 prompt_clear();
             }
 
@@ -3052,6 +4160,32 @@ struct server_slot {
         }
     }
 
+    bool freeze_pager_history_for_generation() {
+        if (ctx_tgt == nullptr || slot_session_generation == 0) return true;
+        uint64_t generation = 0;
+        if (!ctx_tgt->freeze_kv_pager_history(
+                id, slot_session_generation, &generation)) return false;
+        pager_frozen_history_generation = generation;
+        pager_history_frozen = generation != 0;
+        if (!pager_history_frozen) return true;
+        if (!pager_mtp_history_epoch.bind(slot_session_generation, generation)) return false;
+        const auto pager = ctx_tgt->get_kv_pager_metrics();
+        pager_freeze_table_epoch = pager.table_epoch;
+        pager_freeze_selector_refresh_count = pager.query_refresh_count;
+        pager_freeze_h2d_queued = pager.h2d_transfers.queued;
+        pager_freeze_promotion_pages = pager.promotion_pages;
+        pager_freeze_eviction_pages = pager.eviction_pages;
+        pager_freeze_summary_build_calls = pager.summary_build_calls;
+        SLT_INF(*this, "kv pager history frozen: turn=%" PRIu64
+            " history_generation=%" PRIu64 " table_epoch=%" PRIu64
+            " selector_refresh_count=%" PRIu64 " h2d_queued=%" PRIu64
+            " promotion_pages=%" PRIu64 " eviction_pages=%" PRIu64 "\n",
+            slot_session_generation, generation, pager_freeze_table_epoch,
+            pager_freeze_selector_refresh_count, pager_freeze_h2d_queued,
+            pager_freeze_promotion_pages, pager_freeze_eviction_pages);
+        return true;
+    }
+
     size_t find_stopping_strings(const std::string & text, const size_t last_token_size, bool is_full_stop) {
         GGML_ASSERT(task);
 
@@ -3199,6 +4333,11 @@ struct server_slot {
             {"n_ctx",         n_ctx},
             {"speculative",   can_speculate()},
             {"is_processing", is_processing()},
+            {"query_replay_count", query_replay_count},
+            {"query_checkpoint_capture_us", query_checkpoint.capture_us},
+            {"query_checkpoint_restore_us", query_checkpoint.restore_us},
+            {"query_replay_us", query_checkpoint.replay_us},
+            {"pager_frozen_history_generation", pager_frozen_history_generation},
             {"computation_frontier_ratchet", {
                 {"read_path", frontier_ratchet_flipped ? "frontier" : "legacy"},
                 {"threshold", frontier_ratchet_min_agreements},
@@ -3210,6 +4349,32 @@ struct server_slot {
             }},
         };
 
+        if (!only_metrics && cache_debug_observability) {
+            res["lifecycle"] = json {
+                {"session_generation", slot_session_generation},
+                {"speculative_rollbacks", speculative_rollbacks},
+                {"speculative_frontier_mismatches",
+                    speculative_frontier_mismatches},
+            };
+        }
+        if (!only_metrics && mtp_state_diagnostic_enabled) {
+            res["mtp_state_diagnostic"] = json {
+                {"enabled", true},
+                {"steps", mtp_state_diagnostic_steps},
+                {"events", mtp_state_diagnostic_trace},
+            };
+        }
+        if (can_speculate()) {
+            res["mtp_request_counters"] = json {
+                {"drafted", mtp_request_drafted},
+                {"accepted", mtp_request_accepted},
+                {"committed", mtp_request_committed},
+                {"rejected", mtp_request_rejected},
+                {"target_restores", mtp_request_target_restores},
+                {"draft_restores", mtp_request_draft_restores},
+                {"restore_failures", mtp_request_restore_failures},
+            };
+        }
         if (!resume_status.is_null()) {
             res["resume"] = resume_status;
         }
@@ -3281,16 +4446,25 @@ struct server_slot {
     // Returns false if the state copy could not be performed (for example, the recurrent pool has no
     // free cell for the child) -- the caller must not run the child on empty state
     bool copy_prompt_to(server_slot & other) const {
+        GGML_ASSERT(state == SLOT_STATE_DONE_PROMPT);
+        const auto clear_partial_copy = [&]() {
+            // Target copy can succeed before draft/recurrent allocation does.
+            // Clear the complete destination image so a caller observing the
+            // false return never sees a target-only child with old metadata.
+            other.server_cache_slot_drop_impl();
+        };
         other.observe_live_range_drop(
             server_cache_destruction_reason::child_release, true);
         ::server_cache_live_range_drop_impl(ctx_tgt, other.id, -1, -1);
         if (!llama_memory_try_seq_cp(llama_get_memory(ctx_tgt), id, other.id, -1, -1)) {
+            clear_partial_copy();
             return false;
         }
 
         if (ctx_dft) {
             ::server_cache_live_range_drop_impl(ctx_dft, other.id, -1, -1);
             if (!llama_memory_try_seq_cp(llama_get_memory(ctx_dft), id, other.id, -1, -1)) {
+                clear_partial_copy();
                 return false;
             }
         }
@@ -3309,6 +4483,19 @@ struct server_slot {
     bool copy_state_to(server_slot & other) const {
         GGML_ASSERT(state == SLOT_STATE_DONE_PROMPT);
         if (!copy_prompt_to(other)) {
+            return false;
+        }
+        // Speculative carry is process-local and is not part of the target/
+        // draft KV image. Restore it only after the destination sequence has
+        // been transitioned to the copied image.
+        std::vector<uint8_t> speculative_state;
+        if (can_speculate() &&
+                common_speculative_get_state(
+                    get_spec(), id, speculative_state) &&
+                !speculative_state.empty() &&
+                !common_speculative_set_state(
+                    other.get_spec(), other.id, speculative_state)) {
+            other.server_cache_slot_drop_impl();
             return false;
         }
         other.i_batch = i_batch;
@@ -3746,7 +4933,523 @@ public:
     }
 
     server_metrics get_metrics() const {
-        return metrics;
+        server_metrics result = metrics;
+        if (ctx_tgt != nullptr) {
+            // Standalone native MTP owns ctx_dft; when combined with an
+            // external drafter it owns ctx_mtp. Do not pass an external MTP
+            // sidecar here: its placement is a different runtime contract.
+            const llama_context * native_mtp = ctx_mtp.get();
+            if (native_mtp == nullptr &&
+                    params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
+                    !params_base.speculative.has_external_mtp_sidecar()) {
+                native_mtp = ctx_dft.get();
+            }
+            uint64_t slot_generation = 0;
+            for (const auto & slot : slots) {
+                slot_generation = std::max(slot_generation,
+                        slot.slot_session_generation);
+            }
+            const auto pager = ctx_tgt->get_kv_pager_metrics(
+                    native_mtp, telemetry_request_generation,
+                    slot_generation, telemetry_config_generation);
+            if (pager.enabled) {
+                json page_inventory = json::array();
+                for (size_t page_index = 0;
+                        page_index < pager.page_inventory.size(); ++page_index) {
+                    const auto & page = pager.page_inventory[page_index];
+                    const uint64_t summary_version =
+                        page_index < pager.page_summary_content_versions.size()
+                        ? pager.page_summary_content_versions[page_index] : 0;
+                    page_inventory.push_back({
+                        {"sequence_id", page.id.sequence_id},
+                        {"sequence_generation", page.id.sequence_generation},
+                        {"logical_page_id", page.id.logical_page},
+                        {"generation", page.id.page_generation},
+                        {"content_version", page.content_version},
+                        {"position_begin", page.id.position_begin},
+                        {"position_end", page.id.position_end},
+                        {"valid_length", page.valid_length},
+                        {"resident", page.physical_slot != UINT32_MAX},
+                        {"host_backed", page.host_valid},
+                        {"summary_content_version", summary_version},
+                        {"summary_ready", page.content_version != 0 &&
+                            summary_version == page.content_version},
+                    });
+                }
+                const uint64_t copy_time_us = pager.execution.copy_time_us >
+                        UINT64_MAX - pager.transfers.transfer_time_us
+                    ? UINT64_MAX
+                    : pager.execution.copy_time_us + pager.transfers.transfer_time_us;
+                const auto selector_trace_json = [](const llama_kv_pager_selector_trace & trace) {
+                    return json{
+                        {"enabled", trace.enabled},
+                        {"query_generation", trace.query_generation},
+                        {"query_position", trace.query_position},
+                        {"turn_query_start", trace.turn_query_start},
+                        {"turn_query_end", trace.turn_query_end},
+                        {"turn_phase", trace.turn_phase},
+                        {"table_epoch", trace.table_epoch},
+                        {"query_row", trace.query_row},
+                        {"target_logical_page", trace.target_logical_page},
+                        {"target_found", trace.target_found},
+                        {"target_resident", trace.target_resident},
+                        {"target_valid_length", trace.target_valid_length},
+                        {"target_position_begin", trace.target_position_begin},
+                        {"target_sequence_generation", trace.target_sequence_generation},
+                        {"target_page_generation", trace.target_page_generation},
+                        {"target_content_version", trace.target_content_version},
+                        {"target_summary_version", trace.target_summary_version},
+                        {"target_summary_ready", trace.target_summary_ready},
+                        {"target_host_backed", trace.target_host_backed},
+                        {"target_eligible", trace.target_eligible},
+                        {"raw_cold_indices", std::vector<int32_t>(
+                            trace.raw_cold_indices.begin(),
+                            trace.raw_cold_indices.begin() + trace.raw_cold_count)},
+                        {"raw_cold_logical_pages", std::vector<int32_t>(
+                            trace.raw_cold_logical_pages.begin(),
+                            trace.raw_cold_logical_pages.begin() + trace.raw_cold_count)},
+                        {"raw_cold_count", trace.raw_cold_count},
+                        {"raw_selector_output_valid", trace.raw_selector_output_valid},
+                        {"selector_diagnostic_failure", trace.selector_diagnostic_failure},
+                        {"async_readback_submitted", trace.async_readback_submitted},
+                        {"async_readback_completed", trace.async_readback_completed},
+                        {"synchronous_readback_completed", trace.synchronous_readback_completed},
+                        {"mailbox_published", trace.mailbox_published},
+                        {"mailbox_dropped", trace.mailbox_dropped},
+                        {"target_candidate_nominated", trace.target_candidate_nominated},
+                        {"target_cold_bundle_rank", trace.target_cold_bundle_rank},
+                        {"cold_bundle_count", trace.cold_bundle_count},
+                        {"cold_bundle_budget", trace.cold_bundle_budget},
+                        {"target_cold_bundle_score", trace.target_cold_bundle_score},
+                        {"target_candidate_in_cold_budget", trace.target_candidate_in_cold_budget},
+                        {"target_candidate_scan_complete", trace.target_candidate_scan_complete},
+                        {"policy_decision_evaluated", trace.policy_decision_evaluated},
+                        {"query_commit_enabled", trace.query_commit_enabled},
+                        {"query_commit_selection_truncated", trace.query_commit_selection_truncated},
+                        {"query_commit_selected_count", trace.query_commit_selected_count},
+                        {"query_target_failure", std::string(trace.query_target_failure.data())},
+                        {"live_policy_result_status", trace.live_policy_result_status},
+                        {"live_policy_failure_stage", trace.live_policy_failure_stage},
+                        {"live_policy_failure_logical_page", trace.live_policy_failure_logical_page},
+                        {"live_policy_failure_page_generation", trace.live_policy_failure_page_generation},
+                        {"live_policy_failure_layer", trace.live_policy_failure_layer},
+                        {"live_policy_failure_content_version", trace.live_policy_failure_content_version},
+                        {"planned_promotion_pages", trace.planned_promotion_pages},
+                        {"planned_promotion_valid", trace.planned_promotion_valid},
+                        {"planned_promotion_contains_target", trace.planned_promotion_contains_target},
+                        {"candidate_authenticated", trace.candidate_authenticated},
+                        {"policy_admitted", trace.policy_admitted},
+                        {"victim_logical_page", trace.victim_logical_page},
+                        {"target_physical_slot", trace.target_physical_slot},
+                        {"h2d_queued_bytes", trace.h2d_queued_bytes},
+                        {"h2d_completed_bytes", trace.h2d_completed_bytes},
+                        {"h2d_event_completions", trace.h2d_event_completions},
+                        {"h2d_completion_observed", trace.h2d_completion_observed},
+                        {"transaction_status", trace.transaction_status},
+                        {"transaction_failed_phase", trace.transaction_failed_phase},
+                        {"transfer_failure_status", trace.transfer_failure_status},
+                        {"published_epoch", trace.published_epoch},
+                        {"mapping_published", trace.mapping_published},
+                        {"target_graph_used", trace.target_graph_used},
+                        {"graph_gate", llama_kv_pager_selector_gate_name(trace.graph_gate)},
+                        {"graph_query_rank", trace.graph_query_rank},
+                        {"graph_query_dim", trace.graph_query_dim},
+                        {"graph_query_heads", trace.graph_query_heads},
+                        {"graph_query_rows", trace.graph_query_rows},
+                        {"graph_ubatch_tokens", trace.graph_ubatch_tokens},
+                        {"graph_position_count", trace.graph_position_count},
+                        {"graph_last_position", trace.graph_last_position},
+                        {"graph_layer", trace.graph_layer},
+                        {"graph_callback_seen", trace.graph_callback_seen},
+                        {"routing_q_created", trace.routing_q_created},
+                        {"selected_created", trace.selected_created},
+                        {"capture_handoff_created", trace.capture_handoff_created},
+                        {"outcome", llama_kv_pager_selector_trace_outcome_name(trace.outcome)},
+                    };
+                };
+                json selector_trace_history = json::array();
+                const uint32_t history_capacity = uint32_t(
+                    LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY);
+                const uint32_t history_begin = (pager.selector_trace_history_next +
+                    history_capacity - pager.selector_trace_history_count) % history_capacity;
+                for (uint32_t i = 0; i < pager.selector_trace_history_count; ++i) {
+                    const uint32_t index = (history_begin + i) % history_capacity;
+                    selector_trace_history.push_back(
+                        selector_trace_json(pager.selector_trace_history[index]));
+                }
+                if (pager.selector_trace.enabled) {
+                    selector_trace_history.push_back(selector_trace_json(pager.selector_trace));
+                }
+                result.pager_metrics = {
+                    {"status", "ok"},
+                    {"mode", pager.mode == llama_kv_pager_mode::observe ? "observe" :
+                              pager.mode == llama_kv_pager_mode::selective ? "selective" :
+                              pager.mode == llama_kv_pager_mode::exact ? "exact" : "off"},
+                    {"snapshot_monotonic_us", pager.snapshot_monotonic_us},
+                    {"request_generation", pager.request_generation},
+                    {"slot_generation", pager.slot_generation},
+                    {"config_generation", pager.config_generation},
+                    {"reset_epoch", pager.reset_epoch},
+                    {"target_backend", pager.target_backend},
+                    {"target_type_k", ggml_type_name(pager.target_type_k)},
+                    {"target_type_v", ggml_type_name(pager.target_type_v)},
+                    {"route", llama_kv_attention_execution_route_name(pager.route)},
+                    {"route_override", pager.route_override},
+                    {"mtp_backend", pager.mtp_backend},
+                    {"mtp_type_k", pager.mtp_type_k == GGML_TYPE_COUNT ? "not_present" : ggml_type_name(pager.mtp_type_k)},
+                    {"mtp_type_v", pager.mtp_type_v == GGML_TYPE_COUNT ? "not_present" : ggml_type_name(pager.mtp_type_v)},
+                    {"page_capacity", pager.physical_page_capacity},
+                    {"physical_pool_capacity_bytes", pager.physical_pool_capacity_bytes},
+                    {"table_epoch", pager.table_epoch},
+                    {"representation_epoch", pager.representation_epoch},
+                    {"shape_epoch", pager.shape_epoch},
+                    {"context_tokens", pager.context_tokens},
+                    {"page_tokens", pager.page_tokens},
+                    {"logical_pages", pager.logical_pages},
+                    {"page_inventory", page_inventory},
+                    {"resident_pages", pager.resident_pages},
+                    {"target_resident_bytes", pager.target_resident_bytes},
+                    {"target_valid_rows", pager.target_valid_rows},
+                    {"target_valid_bytes", pager.target_valid_bytes},
+                    {"host_pages", pager.host_pages},
+                    {"host_valid_rows", pager.host_valid_rows},
+                    {"host_valid_bytes", pager.host_valid_bytes},
+                    {"page_bytes", pager.page_bytes},
+                    {"page_charge_bytes", pager.page_charge_bytes},
+                    {"target_bytes", pager.target_bytes},
+                    {"target_allocated_bytes", pager.target_allocated_bytes},
+                    {"live_allocation_peak_bytes", pager.live_allocation_peak_bytes},
+                    {"host_pageable_bytes", pager.host_pageable_bytes},
+                    {"host_metadata_bytes", pager.host_metadata_bytes},
+                    {"host_pinned_bytes", pager.host_pinned_bytes},
+                    {"usable_device_bytes", pager.usable_device_bytes},
+                    {"charged_bytes", pager.charged_bytes},
+                    {"reserved_bytes", pager.reserved_bytes},
+                    {"headroom_bytes", pager.headroom_bytes},
+                    {"weights_bytes", pager.weights_bytes},
+                    {"fixed_context_bytes", pager.fixed_context_bytes},
+                    {"recurrent_state_bytes", pager.recurrent_state_bytes},
+                    {"mtp_compute_bytes", pager.mtp_compute_bytes},
+                    {"graph_bytes", pager.graph_bytes},
+                    {"device_total_bytes", pager.device_total_bytes},
+                    {"device_used_bytes", pager.device_used_bytes},
+                    {"device_free_bytes", pager.device_free_bytes},
+                    {"turbo4_scratch_bytes", pager.turbo4_scratch_bytes},
+                    {"routing_table_bytes", pager.routing_table_bytes},
+                    {"staging_bytes", pager.staging_bytes},
+                    {"external_bytes", pager.external_bytes},
+                    {"mtp_rows", pager.mtp_rows},
+                    {"mtp_bytes", pager.mtp_bytes},
+                    {"packed_workspace_bytes", pager.packed_workspace_bytes},
+                    {"packed_dequant_bytes", pager.packed_dequant_bytes},
+                    {"catalogue_bytes", pager.catalogue_bytes},
+                    {"attention_pages", pager.attention_pages},
+                    {"attention_tokens", pager.attention_tokens},
+                    {"transfer_destination_pages", pager.transfer_destination_pages},
+                    {"requested_context_tokens", pager.requested_context_tokens},
+                    {"resolved_context_tokens", pager.resolved_context_tokens},
+                    {"accepted_target_tokens", pager.accepted_target_tokens},
+                    {"requested_tokens", pager.requested_context_tokens},
+                    {"admitted_tokens", pager.accepted_target_tokens},
+                    {"allocated_bytes", pager.target_allocated_bytes},
+                    {"valid_rows", pager.target_valid_rows},
+                    {"valid_bytes", pager.target_valid_bytes},
+                    {"admission_accepted", pager.admission_accepted},
+                    {"admission_refusal", pager.admission_refusal},
+                    {"emitted_tokens", metrics.predict.count},
+                    {"predicted_tokens", metrics.n_draft_tokens},
+                    {"accepted_tokens", metrics.n_draft_accepted},
+                    {"acceptance_denominator", metrics.n_draft_tokens},
+                    {"acceptance_verification_steps", metrics.n_draft_verif_steps},
+                    {"host_budget_bytes", pager.host_budget_bytes},
+                    {"vram_budget_bytes", pager.vram_budget_bytes},
+                    {"router_top_k", pager.router_top_k},
+                    {"router_refresh_tokens", pager.router_refresh_tokens},
+                    {"router_explore", pager.router_explore ? uint64_t(1) : uint64_t(0)},
+                    {"pin_recent_tokens", pager.pin_recent_tokens},
+                    {"prefetch_depth", pager.prefetch_depth},
+                    {"selected_pages", pager.execution.selected_pages},
+                    {"attention_samples", pager.attention.samples},
+                    {"attention_sampled_tokens", pager.attention.sampled_tokens},
+                    {"attention_sampled_pages", pager.attention.sampled_pages},
+                    {"attention_sampled_layers", pager.attention.sampled_layers},
+                    {"attention_sampled_heads", pager.attention.sampled_heads},
+                    {"attention_skipped", pager.attention.skipped},
+                    {"attention_stale_dropped", pager.attention.stale_dropped},
+                    {"attention_invalid_dropped", pager.attention.invalid_dropped},
+                    {"attention_gpu_reduction_us", pager.attention.gpu_reduction_us},
+                    {"attention_d2h_bytes", pager.attention.d2h_bytes},
+                    {"attention_d2h_time_us", pager.attention.d2h_time_us},
+                    {"attention_publish_time_us", pager.attention.publish_time_us},
+                    {"attention_observe_overhead_us", pager.attention.observe_overhead_us},
+                    {"attention_dropped_no_output", pager.attention.dropped_no_output},
+                    {"attention_dropped_no_metadata", pager.attention.dropped_no_metadata},
+                    {"attention_dropped_invalid_shape", pager.attention.dropped_invalid_shape},
+                    {"attention_dropped_stale_snapshot", pager.attention.dropped_stale_snapshot},
+                    {"attention_dropped_stale_identity", pager.attention.dropped_stale_identity},
+                    {"attention_dropped_nonfinite", pager.attention.dropped_nonfinite},
+                    {"attention_dropped_invalid_argument", pager.attention.dropped_invalid_argument},
+                    {"attention_trace_id", pager.attention.trace_id},
+                    {"attention_trace_epoch", pager.attention.trace_epoch},
+                    {"attention_trace_token_index", pager.attention.trace_token_index},
+                    {"attention_trace_page_count", pager.attention.trace_page_count},
+                    {"attention_trace_token_count", pager.attention.trace_token_count},
+                    {"attention_trace_drop_reason",
+                        llama_kv_attention_telemetry_drop_reason_name(
+                            pager.attention.trace_drop_reason)},
+                    {"graph_capture_count", pager.execution.graph_capture_count},
+                    {"graph_replay_count", pager.execution.graph_replay_count},
+                    {"graph_rebuild_count", pager.execution.graph_rebuild_count},
+                    {"graph_submission_count", pager.execution.graph_submission_count},
+                    {"graph_completion_count", pager.execution.graph_completion_count},
+                    {"graph_construction_us", pager.execution.graph_construction_us},
+                    {"hotpath_profile_enabled",
+                        std::getenv("LLAMA_HOTPATH_PROFILE") != nullptr &&
+                        std::strcmp(std::getenv("LLAMA_HOTPATH_PROFILE"), "1") == 0},
+                    {"hotpath_graph_reuse_decisions", pager.execution.graph_reuse_decisions},
+                    {"hotpath_graph_rebuild_decisions", pager.execution.graph_rebuild_decisions},
+                    {"hotpath_graph_reuse_us", pager.execution.graph_reuse_us},
+                    {"hotpath_graph_build_us", pager.execution.graph_build_us},
+                    {"hotpath_route_decision_us", pager.execution.route_decision_us},
+                    {"hotpath_rebuild_reason_row_capacity",
+                        pager.execution.rebuild_reason_row_capacity},
+                    {"hotpath_rebuild_reason_physical_key",
+                        pager.execution.rebuild_reason_physical_key},
+                    {"hotpath_rebuild_reason_content_key",
+                        pager.execution.rebuild_reason_content_key},
+                    {"hotpath_rebuild_reason_ubatch_shape",
+                        pager.execution.rebuild_reason_ubatch_shape},
+                    {"hotpath_rebuild_reason_source_lifetime",
+                        pager.execution.rebuild_reason_source_lifetime},
+                    {"hotpath_rebuild_reason_other",
+                        pager.execution.rebuild_reason_other},
+                    {"hotpath_selected_refresh_us", pager.execution.selected_refresh_us},
+                    {"hotpath_packed_cache_lookup_us", pager.execution.packed_cache_lookup_us},
+                    {"hotpath_packed_cache_allocations", pager.execution.packed_cache_allocations},
+                    {"hotpath_packed_cache_reuses", pager.execution.packed_cache_reuses},
+                    {"hotpath_packed_cache_drains", pager.execution.packed_cache_drains},
+                    {"requested_batch", params_base.n_batch},
+                    {"requested_ubatch", pager.execution.requested_ubatch},
+                    {"physical_write_capacity", pager.execution.physical_write_capacity},
+                    {"effective_ubatch", pager.execution.effective_ubatch},
+                    {"query_tile_tokens", pager.execution.query_tile_tokens},
+                    {"prefill_subbatch_count", pager.execution.prefill_subbatch_count},
+                    {"target_tokens_processed", pager.execution.target_tokens_processed},
+                    {"graph_timing_domain", "logical_graph_decision"},
+                    {"cuda_capture_count", "not_measured"},
+                    {"cuda_update_count", "not_measured"},
+                    {"cuda_launch_count", "not_measured"},
+                    {"cuda_timing_reason", "CUDA events are not enabled by this receipt"},
+                    {"waits", pager.execution.waits},
+                    {"wait_time_us", pager.execution.wait_time_us},
+                    {"copy_time_us", copy_time_us},
+                    {"queue_time_us", pager.execution.queue_time_us},
+                    {"table_epoch_changes", pager.execution.table_epoch_changes},
+                    {"table_upload_bytes", pager.execution.table_upload_bytes},
+                    {"packed_storage_bytes", pager.execution.packed_storage_bytes},
+                    {"packed_history_copy_bytes", pager.execution.packed_history_copy_bytes},
+                    {"packed_current_append_rows", pager.execution.packed_current_append_rows},
+                    {"packed_current_append_bytes", pager.execution.packed_current_append_bytes},
+                    {"packed_copy_updates", pager.execution.packed_copy_updates},
+                    {"packed_copy_rows", pager.execution.packed_copy_rows},
+                    {"packed_copy_reuses", pager.execution.packed_copy_reuses},
+                    {"packed_inflight_consumers_high_water", pager.execution.packed_inflight_consumers_high_water},
+                    {"route_override_accepted", pager.execution.route_override_accepted},
+                    {"route_override_refused", pager.execution.route_override_refused},
+                    {"automatic_reference_prevented", pager.execution.automatic_reference_prevented},
+                    {"descriptor_prepare_us", pager.execution.descriptor_prepare_us},
+                    {"kernel_us", pager.execution.kernel_us},
+                    {"total_token_us", pager.execution.total_token_us},
+                    {"scratch_high_water_rows", pager.execution.scratch_high_water_rows},
+                    {"scratch_high_water_bytes", pager.execution.scratch_high_water_bytes},
+                    {"selected_page_count", pager.execution.selected_page_count},
+                    {"selected_page_ids", pager.execution.selected_page_ids},
+                    {"prefill_route_counts", {
+                        {"dense", pager.execution.prefill_routes.dense},
+                        {"observe", pager.execution.prefill_routes.observe},
+                        {"selected_reference", pager.execution.prefill_routes.selected_reference},
+                        {"selected_packed", pager.execution.prefill_routes.selected_packed},
+                        {"selected_direct", pager.execution.prefill_routes.selected_direct},
+                        {"exact_reference", pager.execution.prefill_routes.exact_reference},
+                        {"exact_direct", pager.execution.prefill_routes.exact_direct},
+                        {"refusal", pager.execution.prefill_routes.refusal},
+                    }},
+                    {"decode_route_counts", {
+                        {"dense", pager.execution.decode_routes.dense},
+                        {"observe", pager.execution.decode_routes.observe},
+                        {"selected_reference", pager.execution.decode_routes.selected_reference},
+                        {"selected_packed", pager.execution.decode_routes.selected_packed},
+                        {"selected_direct", pager.execution.decode_routes.selected_direct},
+                        {"exact_reference", pager.execution.decode_routes.exact_reference},
+                        {"exact_direct", pager.execution.decode_routes.exact_direct},
+                        {"refusal", pager.execution.decode_routes.refusal},
+                    }},
+                    {"mtp_verify_route_counts", {
+                        {"dense", pager.execution.mtp_verify_routes.dense},
+                        {"observe", pager.execution.mtp_verify_routes.observe},
+                        {"selected_reference", pager.execution.mtp_verify_routes.selected_reference},
+                        {"selected_packed", pager.execution.mtp_verify_routes.selected_packed},
+                        {"selected_direct", pager.execution.mtp_verify_routes.selected_direct},
+                        {"exact_reference", pager.execution.mtp_verify_routes.exact_reference},
+                        {"exact_direct", pager.execution.mtp_verify_routes.exact_direct},
+                        {"refusal", pager.execution.mtp_verify_routes.refusal},
+                    }},
+                    {"prefill_dense_routes", pager.execution.prefill_routes.dense},
+                    {"prefill_reference_routes", pager.execution.prefill_routes.selected_reference + pager.execution.prefill_routes.exact_reference},
+                    {"prefill_direct_routes", pager.execution.prefill_routes.selected_direct + pager.execution.prefill_routes.exact_direct},
+                    {"prefill_packed_routes", pager.execution.prefill_routes.selected_packed},
+                    {"prefill_exact_routes", pager.execution.prefill_routes.exact_reference + pager.execution.prefill_routes.exact_direct},
+                    {"decode_dense_routes", pager.execution.decode_routes.dense},
+                    {"decode_reference_routes", pager.execution.decode_routes.selected_reference + pager.execution.decode_routes.exact_reference},
+                    {"decode_direct_routes", pager.execution.decode_routes.selected_direct + pager.execution.decode_routes.exact_direct},
+                    {"decode_packed_routes", pager.execution.decode_routes.selected_packed},
+                    {"decode_exact_routes", pager.execution.decode_routes.exact_reference + pager.execution.decode_routes.exact_direct},
+                    {"mtp_verify_dense_routes", pager.execution.mtp_verify_routes.dense},
+                    {"mtp_verify_reference_routes", pager.execution.mtp_verify_routes.selected_reference + pager.execution.mtp_verify_routes.exact_reference},
+                    {"mtp_verify_direct_routes", pager.execution.mtp_verify_routes.selected_direct + pager.execution.mtp_verify_routes.exact_direct},
+                    {"mtp_verify_packed_routes", pager.execution.mtp_verify_routes.selected_packed},
+                    {"mtp_verify_exact_routes", pager.execution.mtp_verify_routes.exact_reference + pager.execution.mtp_verify_routes.exact_direct},
+                    {"exact_plan_waves", pager.execution.exact_plan_waves},
+                    {"exact_plan_pages", pager.execution.exact_plan_pages},
+                    {"exact_resident_pages", pager.execution.exact_resident_pages},
+                    {"exact_cold_pages", pager.execution.exact_cold_pages},
+                    {"exact_pages_visited", pager.execution.exact_pages_visited},
+                    {"exact_h2d_useful_bytes", pager.execution.exact_h2d_useful_bytes},
+                    {"exact_h2d_aligned_bytes", pager.execution.exact_h2d_aligned_bytes},
+                    {"exact_h2d_transfer_time_us", pager.execution.exact_h2d_transfer_time_us},
+                    {"exact_waits", pager.execution.exact_waits},
+                    {"exact_peak_staging_pages", pager.execution.exact_peak_staging_pages},
+                    {"exact_duplicate_pages", pager.execution.exact_duplicate_pages},
+                    {"exact_missing_pages", pager.execution.exact_missing_pages},
+                    {"exact_stale_pages", pager.execution.exact_stale_pages},
+                    {"exact_faults", pager.execution.exact_faults},
+                    {"exact_refusal_reason", pager.execution.exact_refusal_reason},
+                    {"faults", pager.promotion_pages},
+                    {"prefetch_hits", uint64_t(0)},
+                    {"evictions", pager.eviction_pages},
+                    // A late wait is a decode-side policy wait, not generic
+                    // transfer backpressure. No live policy caller records it
+                    // yet, so retain the explicit measured zero.
+                    {"late_waits", uint64_t(0)},
+                    {"seal_calls", pager.seal_calls},
+                    {"seal_pages_scanned", pager.seal_pages_scanned},
+                    {"seal_pages_changed", pager.seal_pages_changed},
+                    {"summary_build_calls", pager.summary_build_calls},
+                    {"summary_build_bytes", pager.summary_build_bytes},
+                    {"summary_read_calls", pager.summary_read_calls},
+                    {"summary_read_bytes", pager.summary_read_bytes},
+                    {"test_forced_logical_page", pager.test_forced_logical_page},
+                    {"test_forced_physical_slot", pager.test_forced_physical_slot},
+                    {"test_forced_page_generation", pager.test_forced_page_generation},
+                    {"test_forced_content_version", pager.test_forced_content_version},
+                    {"test_forced_host_checksum", pager.test_forced_host_checksum},
+                    {"test_forced_device_checksum", pager.test_forced_device_checksum},
+                    {"test_forced_checksum_equal",
+                        pager.test_forced_host_checksum != 0 &&
+                        pager.test_forced_host_checksum == pager.test_forced_device_checksum},
+                    {"natural_proof", {
+                        {"sequence_id", pager.natural_proof.sequence_id},
+                        {"sequence_generation", pager.natural_proof.sequence_generation},
+                        {"query_generation", pager.natural_proof.query_generation},
+                        {"query_position", pager.natural_proof.query_position},
+                        {"catalogue_epoch", pager.natural_proof.catalogue_epoch},
+                        {"published_epoch", pager.natural_proof.published_epoch},
+                        {"page_generation", pager.natural_proof.page_generation},
+                        {"content_version", pager.natural_proof.content_version},
+                        {"logical_page", pager.natural_proof.logical_page},
+                        {"attention_layer", pager.natural_proof.attention_layer},
+                        {"selector_rank", pager.natural_proof.selector_rank},
+                        {"physical_slot", pager.natural_proof.physical_slot},
+                        {"candidate_was_cold", pager.natural_proof.candidate_was_cold},
+                        {"host_ready", pager.natural_proof.host_ready},
+                        {"promotion_published", pager.natural_proof.promotion_published},
+                        {"candidate_authenticated",
+                            pager.natural_proof.candidate_authenticated},
+                        {"query_commit_admitted",
+                            pager.natural_proof.query_commit_admitted},
+                        {"selector_published", pager.natural_proof.selector_published},
+                        {"h2d_queued", pager.natural_proof.h2d_queued},
+                        {"h2d_completed", pager.natural_proof.h2d_completed},
+                        {"mapping_published", pager.natural_proof.mapping_published},
+                        {"target_graph_used", pager.natural_proof.target_graph_used},
+                        {"h2d_useful_bytes", pager.natural_proof.h2d_useful_bytes},
+                        {"h2d_aligned_bytes", pager.natural_proof.h2d_aligned_bytes},
+                        {"target_use_epoch", pager.natural_proof.target_use_epoch},
+                        {"target_use_query_generation",
+                            pager.natural_proof.target_use_query_generation},
+                        {"selector_event_sequence",
+                            pager.natural_proof.selector_event_sequence},
+                        {"h2d_event_sequence", pager.natural_proof.h2d_event_sequence},
+                        {"publication_event_sequence",
+                            pager.natural_proof.publication_event_sequence},
+                        {"target_event_sequence", pager.natural_proof.target_event_sequence},
+                        {"draft_graph_used", pager.natural_proof.draft_graph_used},
+                        {"draft_use_epoch", pager.natural_proof.draft_use_epoch},
+                        {"draft_use_query_generation",
+                            pager.natural_proof.draft_use_query_generation},
+                        {"draft_event_sequence", pager.natural_proof.draft_event_sequence},
+                        {"selected_in_last_graph",
+                            std::find(pager.execution.selected_page_ids.begin(),
+                                      pager.execution.selected_page_ids.end(),
+                                      pager.natural_proof.logical_page) !=
+                                pager.execution.selected_page_ids.end()},
+                    }},
+                    {"rejection_histogram", {
+                        {"no_candidate", pager.rejection_histogram.no_candidate},
+                        {"invalid_candidate", pager.rejection_histogram.invalid_candidate},
+                        {"not_cold", pager.rejection_histogram.not_cold},
+                        {"identity_mismatch", pager.rejection_histogram.identity_mismatch},
+                        {"missing_host_source", pager.rejection_histogram.missing_host_source},
+                        {"admission_rejected", pager.rejection_histogram.admission_rejected},
+                        {"transfer_rejected", pager.rejection_histogram.transfer_rejected},
+                        {"publication_rejected", pager.rejection_histogram.publication_rejected},
+                    }},
+                    {"selector_trace", selector_trace_json(pager.selector_trace)},
+                    {"selector_trace_history", selector_trace_history},
+                    {"host_seal_d2h_calls", pager.host_seal_d2h_calls},
+                    {"host_seal_d2h_bytes", pager.host_seal_d2h_bytes},
+                    {"host_seal_d2h_async_completions", pager.host_seal_d2h_async_completions},
+                    {"host_seal_queued", pager.host_seal_queued},
+                    {"hotpath_seal_us", pager.diagnostic_seal_us},
+                    {"hotpath_seal_boundary_us", pager.diagnostic_seal_boundary_us},
+                    {"hotpath_policy_us", pager.diagnostic_policy_us},
+                    {"hotpath_host_enqueue_us", pager.diagnostic_host_enqueue_us},
+                    {"hotpath_host_completion_us", pager.diagnostic_host_completion_us},
+                    {"hotpath_queue_wait_us", pager.diagnostic_queue_wait_us},
+                    {"hotpath_queue_waits", pager.diagnostic_queue_waits},
+                    {"host_inflight_pages", pager.host_inflight_pages},
+                    {"inventory_copy_count", pager.inventory_copy_count},
+                    {"store_copy_count", pager.store_copy_count},
+                    {"d2h_useful_bytes", pager.d2h_transfers.copied_useful_bytes},
+                    {"d2h_aligned_bytes", pager.d2h_transfers.copied_aligned_bytes},
+                    {"h2d_useful_bytes", pager.h2d_transfers.copied_useful_bytes},
+                    {"h2d_aligned_bytes", pager.h2d_transfers.copied_aligned_bytes},
+                    {"transfer_queued", pager.transfers.queued},
+                    {"transfer_submitted", pager.transfers.submitted},
+                    {"transfer_waits", pager.transfers.waits},
+                    {"transfer_cancellations", pager.transfers.cancellations},
+                    {"transfer_stale_completions", pager.transfers.stale_completions},
+                    {"transfer_event_completions", pager.transfers.event_completions},
+                    {"transfer_evictions", pager.transfers.evictions},
+                    {"transfer_backpressure_waits", pager.transfers.backpressure_waits},
+                    {"transfer_time_us", pager.transfers.transfer_time_us},
+                    {"transfer_map_failures", pager.transfers.map_failures},
+                    {"overlap_us", pager.execution.exact_overlap_us},
+                    {"table_rebuilds", pager.execution.graph_rebuild_count},
+                    {"attention_mass_samples", pager.attention.samples},
+                    {"attention_mass_pages", pager.attention.sampled_pages},
+                    // Routing recall needs an all-page oracle. Keep the
+                    // availability bit explicit until a live selective-vs-
+                    // exact comparison has actually completed.
+                    {"routing_recall", "not_measured"},
+                    {"routing_recall_available", uint64_t(0)},
+                    {"attention_ema_bytes", pager.attention_accounting.ema_bytes},
+                    {"attention_peak_bytes", pager.attention_accounting.peak_bytes},
+                    {"attention_metadata_bytes", pager.attention_accounting.metadata_bytes},
+                };
+            }
+        }
+        return result;
     }
 
     void reset_metrics_bucket() {
@@ -3861,6 +5564,7 @@ private:
         ~slot_file_exports_t() { drain(); }
     } slot_file_exports;
     uint64_t frontier_next_sequence_epoch = 1;
+    uint64_t next_slot_session_generation = 1;
     uint64_t frontier_ratchet_threshold = 1024;
 
     // Cache authority substrate: ledger, coordinator, leases, retention, and destruction.
@@ -3935,8 +5639,10 @@ private:
         bool refresh = false;
         bool stem_requested = false;
         bool stemmed = false;
+        bool prepressure = false;
         bool preserve_live_source = false;
         bool active_prompt_frontier = false;
+        uint64_t slot_session_generation = 0;
         uint64_t selected_tokens = 0;
         server_prompt_cache_vbr_publication_metadata publication;
     };
@@ -4032,6 +5738,7 @@ private:
                 ctx_tgt,
                 ctx_dft.get(),
                 ctx_dft_shared.get(),
+                ctx_mtp.get(),
             };
             for (size_t i_ctx = 0; i_ctx < std::size(contexts); ++i_ctx) {
                 const llama_context * ctx = contexts[i_ctx];
@@ -4176,6 +5883,7 @@ private:
                 ctx_tgt,
                 ctx_dft.get(),
                 ctx_dft_shared.get(),
+                ctx_mtp.get(),
             };
             for (size_t i_ctx = 0; i_ctx < std::size(contexts); ++i_ctx) {
                 const llama_context * ctx = contexts[i_ctx];
@@ -4923,6 +6631,17 @@ private:
             }
             slot.cache_plan.reset();
         }
+    }
+
+    bool mint_slot_session_generation(server_slot & slot) noexcept {
+        uint64_t generation = 0;
+        if (!server_slot_session_generation_next(
+                next_slot_session_generation, generation)) {
+            return false;
+        }
+        slot.slot_session_generation = generation;
+        slot.query_checkpoint.clear();
+        return true;
     }
 
     uint64_t ensure_frontier_sequence_epoch(server_prompt & prompt) {
@@ -8362,6 +10081,12 @@ private:
 
     server_metrics metrics;
 
+    // Telemetry identity is carried with each coherent pager snapshot. The
+    // request generation advances at the decode submission boundary; slot and
+    // configuration generations are read from their owning state below.
+    uint64_t telemetry_request_generation = 0;
+    uint64_t telemetry_config_generation = 1;
+
     // queued prompt stats - llama_decode() is async, so the timing is only valid after a sync
     // note: kept out of server_metrics, which is copied as-is into the task result
     int64_t  t_decode_start  = 0; // start of the last submitted decode
@@ -8389,6 +10114,17 @@ private:
     const slot_prompt_admission_geometry * prompt_admission_geometry_for_test =
         nullptr;
     uint64_t prompt_selection_calls_for_test = 0;
+
+    void terminate() noexcept {
+        // server_queue::terminate() only changes queue state and cancels the
+        // shared session while holding its mutex. Join the bounded transfer
+        // after that lock is released so teardown cannot block a queue lock.
+        queue_tasks.terminate();
+        if (vbr_idle_exact_capture) {
+            vbr_idle_exact_capture->session.cancel();
+            (void) finish_idle_exact_vbr_capture(false);
+        }
+    }
 
     // speculative-context ↔ mmproj GPU swap state
     bool mmproj_gpu_swap = false;
@@ -8501,24 +10237,48 @@ private:
     }
 
     llama_context * create_mtp_context() {
-        auto cparams = common_context_params_to_llama(params_base);
-        // Auto-fit mutates the target's llama_context_params, not params_base.  Reuse the
-        // realized target total here; otherwise n_ctx=0 expands the MTP cache to n_ctx_train even
-        // when the fitted target is much smaller.
+        const auto params_mtp = common_base_params_to_speculative(params_base);
+        auto cparams = common_context_params_to_llama(params_mtp);
+        if (!common_speculative_draft_kv_device_is_available(
+                params_base.speculative.draft.kv_device, model_tgt)) {
+            SRV_ERR("%s", "native MTP draft K/V GPU placement requested, but no usable GPU device is selected\n");
+            return nullptr;
+        }
+        // Native MTP uses the realized target per-sequence rows. Auto-fit has already
+        // resolved them, so neither the model training length nor stream count inflates its KV.
         const auto mtp_context = common_speculative_mtp_context_params_resolve(
-            llama_n_ctx(ctx_tgt), params_base.speculative.draft.n_ctx,
+            llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
             cparams.n_seq_max,
-            cparams.kv_unified);
-        cparams.n_ctx         = mtp_context.n_ctx;
-        cparams.n_seq_max     = mtp_context.n_seq_max;
-        cparams.kv_unified    = mtp_context.kv_unified;
-        cparams.ctx_type      = LLAMA_CONTEXT_TYPE_MTP;
+            cparams.kv_unified,
+            /* native_mtp = */ true);
+        if (!mtp_context.valid()) {
+            SRV_ERR("native MTP context rejected: target_rows=%u explicit_draft_rows=%d status=%s\n",
+                    llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
+                    common_speculative_mtp_context_status_name(mtp_context.validation));
+            return nullptr;
+        }
+        common_speculative_mtp_context_params_apply(cparams, mtp_context, ctx_tgt);
         cparams.type_k        = params_base.speculative.draft.cache_type_k;
         cparams.type_v        = params_base.speculative.draft.cache_type_v;
-        cparams.n_rs_seq      = 0;
         cparams.n_outputs_max = params_base.n_parallel;
-        cparams.ctx_other     = ctx_tgt;
-        return llama_init_from_model(model_tgt, cparams);
+        if (!common_speculative_mtp_cache_types_valid(cparams.type_k, cparams.type_v)) {
+            SRV_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",
+                    __func__, ggml_type_name(cparams.type_k), ggml_type_name(cparams.type_v));
+            return nullptr;
+        }
+        SRV_INF("native MTP draft K/V device=%s, offload_kqv=%s\n",
+                common_speculative_draft_kv_device_name(
+                    params_base.speculative.draft.kv_device),
+                cparams.offload_kqv ? "true" : "false");
+        llama_context * context = llama_init_from_model(model_tgt, cparams);
+        if (context == nullptr || !common_speculative_mtp_log_residency(
+                context, cparams.type_k, cparams.type_v)) {
+            if (context != nullptr) {
+                llama_free(context);
+            }
+            return nullptr;
+        }
+        return context;
     }
 
     bool recheck_context_shift_capability(
@@ -9921,12 +11681,9 @@ private:
                 const auto mtp_context = common_speculative_mtp_context_params_resolve(
                     0, params_base.speculative.draft.n_ctx,
                     cparams_mtp.n_seq_max,
-                    cparams_mtp.kv_unified);
-                cparams_mtp.n_ctx      = mtp_context.n_ctx;
-                cparams_mtp.n_seq_max  = mtp_context.n_seq_max;
-                cparams_mtp.kv_unified = mtp_context.kv_unified;
-                cparams_mtp.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
-                cparams_mtp.n_rs_seq = 0;
+                    cparams_mtp.kv_unified,
+                    /* native_mtp = */ true);
+                common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, nullptr);
                 cparams_mtp.n_outputs_max = n_parallel_user;
                 const common_fit_extra_model extra {
                     params_mtp.model.path.c_str(),
@@ -9936,6 +11693,11 @@ private:
                     params_base.speculative.draft.n_ctx <= 0,
                     params_base.speculative.draft.n_ctx > 0
                         ? (uint32_t) params_base.speculative.draft.n_ctx : 0,
+                    nullptr,
+                    false,
+                    false,
+                    false,
+                    2u,
                 };
 
                 const auto fit_status = common_fit_params(
@@ -9951,16 +11713,11 @@ private:
                     return false;
                 }
                 // common_fit_params updates the extra's cparams on every target candidate.
-                // The final interpolation can select a context between measured candidates,
-                // so resolve the extra once more from the returned target before the
-                // phase-residency comparison below.
-                const uint32_t n_streams_fit = cparams_fit.kv_unified ? 1 :
-                    std::max<uint32_t>(1, cparams_fit.n_seq_max);
-                cparams_mtp.n_ctx = common_fit_extra_context_size(
-                    cparams_fit.n_ctx, n_streams_fit,
-                    params_base.speculative.draft.n_ctx <= 0,
-                    params_base.speculative.draft.n_ctx > 0
-                        ? (uint32_t) params_base.speculative.draft.n_ctx : 0);
+                // Native MTP follows that candidate's resolved per-sequence context; an
+                // explicit -cd is checked against the realized target before construction.
+                if (params_base.speculative.draft.n_ctx > 0) {
+                    cparams_mtp.n_ctx = (uint32_t) params_base.speculative.draft.n_ctx;
+                }
 
                 const bool load_mtp = mparams_mtp.load_mtp;
                 mparams_mtp = mparams_fit;
@@ -10107,6 +11864,21 @@ private:
         // bail before anything derefs ctx_tgt
         if (ctx_tgt == nullptr) {
             SRV_ERR("failed to create context, '%s'\n", params_base.model.path.c_str());
+            return false;
+        }
+        ctx_tgt->set_kv_attention_native_mtp(
+                spec_mtp && !params_base.speculative.has_external_mtp_sidecar());
+
+        if (params_base.speculative.uses_mtp_as_primary_drafter() &&
+                !server_mtp_target_architecture_supported(model_tgt)) {
+            char architecture[64] = {};
+            (void) llama_model_meta_val_str(
+                model_tgt, "general.architecture", architecture,
+                sizeof(architecture));
+            SRV_ERR(
+                "MTP checkpoint/carry integration requires the Qwen3.8-27B "
+                "target architecture 'qwen35'; refusing '%s'\n",
+                architecture[0] ? architecture : "unknown");
             return false;
         }
 
@@ -10449,19 +12221,33 @@ private:
             // external drafter keeps ctx_dft and native MTP gets ctx_mtp.
             if (spec_mtp && !combined_external_and_mtp) {
                 auto cparams = common_context_params_to_llama(params_dft);
+                const bool native_mtp = !params_base.speculative.has_external_mtp_sidecar();
                 const auto mtp_context = common_speculative_mtp_context_params_resolve(
-                    llama_n_ctx(ctx_tgt), params_base.speculative.draft.n_ctx,
+                    native_mtp ? llama_n_ctx_seq(ctx_tgt) : llama_n_ctx(ctx_tgt),
+                    params_base.speculative.draft.n_ctx,
                     params_base.n_parallel,
-                    cparams.kv_unified);
-                cparams.n_ctx      = mtp_context.n_ctx;
-                cparams.n_seq_max  = mtp_context.n_seq_max;
-                cparams.kv_unified = mtp_context.kv_unified;
-                cparams.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
-                cparams.n_rs_seq   = 0;
-                cparams.ctx_other  = ctx_tgt;
+                    cparams.kv_unified,
+                    native_mtp);
+                if (!mtp_context.valid()) {
+                    SRV_ERR("MTP context rejected: target_rows=%u explicit_draft_rows=%d status=%s\n",
+                            llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
+                            common_speculative_mtp_context_status_name(mtp_context.validation));
+                    return false;
+                }
+                common_speculative_mtp_context_params_apply(cparams, mtp_context, ctx_tgt);
+                if (!common_speculative_mtp_cache_types_valid(cparams.type_k, cparams.type_v)) {
+                    SRV_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",
+                            __func__, ggml_type_name(cparams.type_k), ggml_type_name(cparams.type_v));
+                    return false;
+                }
                 ctx_dft.reset(llama_init_from_model(model_dft.get(), cparams));
                 if (ctx_dft == nullptr) {
                     SRV_ERR("%s", "failed to create draft context\n");
+                    return false;
+                }
+                if (!common_speculative_mtp_log_residency(
+                        ctx_dft.get(), cparams.type_k, cparams.type_v)) {
+                    ctx_dft.reset();
                     return false;
                 }
                 ctx_dft_seq_rm_type = common_context_can_seq_rm(ctx_dft.get());
@@ -11762,8 +13548,8 @@ private:
         queue_tasks.on_new_task([this](server_task && task, bool is_yielding) {
             // Task arrival has already cancelled the shared idle-capture
             // session. Drain the bounded worker before any decode can mutate
-            // its source; an unpublished private build is simply abandoned.
-            (void) finish_idle_exact_vbr_capture(true, true);
+            // its source; the private transfer is never publishable now.
+            (void) finish_idle_exact_vbr_capture(false, true);
             return process_single_task(std::move(task), is_yielding);
         });
         queue_tasks.on_update_slots([this]() {
@@ -14077,6 +15863,14 @@ private:
             return false;
         }
 
+        // Mint before restore or any subsequent decode can publish page or
+        // artifact state. The prompt's semantic sequence epoch intentionally
+        // remains unchanged for a valid same-prefix reuse.
+        if (!mint_slot_session_generation(slot)) {
+            send_error(task, "Unable to allocate a request generation", ERROR_TYPE_SERVER);
+            return false;
+        }
+
         SLT_DBG(slot, "launching slot : %s\n", safe_json_to_str(slot.to_json()).c_str());
 
         // initialize samplers
@@ -14209,7 +16003,46 @@ private:
         slot.cache_family = common_cache_family_follow_lineage(
             slot.cache_family, incoming_family, retained_prefix,
             slot.prompt.tokens.size());
+        // Bind the pager's bounded natural-promotion receipt to this task,
+        // rather than to a decode batch. Prompt prefill may use several
+        // batches and MTP may verify more than one draft batch in one request.
+        if (telemetry_request_generation != UINT64_MAX) {
+            ++telemetry_request_generation;
+        }
+        if (ctx_tgt != nullptr) {
+            ctx_tgt->begin_kv_pager_proof_request();
+        }
         slot.task = std::move(launched_task);
+        slot.pager_query_committed = false;
+        slot.query_replay_pending = false;
+        slot.query_replay_count = 0;
+        slot.query_checkpoint.clear();
+
+        // Open one pager turn from server-owned request identity, never from
+        // decode/verify submissions. Chat carries role spans; raw completion
+        // requests have no trustworthy role boundary and explicitly use the
+        // complete tokenized prompt as their compatibility query span.
+        {
+            const auto & spans = slot.task->params.message_spans;
+            const bool has_rendered_user_span =
+                slot.task->params.final_user_token_begin >= 0 &&
+                slot.task->params.final_user_token_end >
+                    slot.task->params.final_user_token_begin &&
+                slot.task->params.final_user_token_end <=
+                    int64_t(slot.task->n_tokens());
+            int64_t query_start = has_rendered_user_span
+                ? slot.task->params.final_user_token_begin
+                : (slot.task->params.rendered_user_message_count_present || spans.spans.empty()
+                    ? 0 : int64_t(spans.last_user_message_pos()));
+            int64_t query_end = has_rendered_user_span
+                ? slot.task->params.final_user_token_end
+                : int64_t(slot.task->n_tokens());
+            query_end += has_rendered_user_span
+                    ? slot.task->params.final_user_kv_position_offset : 0;
+            if (query_start < 0 || query_start >= query_end) query_start = 0;
+            ctx_tgt->begin_kv_pager_turn(
+                    slot.id, slot.slot_session_generation, query_start, query_end);
+        }
 
         if (prepared_host_restore) {
             server_retention_lineage_ticket restored_source;
@@ -14494,6 +16327,11 @@ private:
             ~release_frontier_logits() { state.clear(); }
         } release { slot.frontier_logits };
         slot.frontier_logits.pending = false;
+        if (!slot.freeze_pager_history_for_generation()) {
+            send_error(slot, "Unable to freeze selected KV history for generation");
+            slot.release();
+            return;
+        }
         slot.state = SLOT_STATE_GENERATING;
         if (slot.can_speculate()) {
             if (params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DFLASH) {
@@ -14721,6 +16559,18 @@ private:
         res->res_type          = slot.task->params.res_type;
         res->oaicompat_model   = slot.task->params.oaicompat_model;
         res->oaicompat_cmpl_id = slot.task->params.oaicompat_cmpl_id;
+
+        if (params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
+            res->mtp_request_counters = json {
+                {"drafted", slot.mtp_request_drafted},
+                {"accepted", slot.mtp_request_accepted},
+                {"committed", slot.mtp_request_committed},
+                {"rejected", slot.mtp_request_rejected},
+                {"target_restores", slot.mtp_request_target_restores},
+                {"draft_restores", slot.mtp_request_draft_restores},
+                {"restore_failures", slot.mtp_request_restore_failures},
+            };
+        }
 
         // populate res.probs_output
         if (slot.task->params.sampling.n_probs > 0) {
@@ -16139,6 +17989,17 @@ private:
             source.vbr_idle_capture_retry_after_ms =
                 terminal ? 0 : ggml_time_ms() + 5000;
         };
+        const int32_t source_id = pending->candidate.slot_id;
+        if (source_id < 0 || size_t(source_id) >= slots.size() ||
+            slots[size_t(source_id)].id != source_id ||
+            !server_slot_page_completion_current(
+                pending->candidate.slot_session_generation,
+                slots[size_t(source_id)].slot_session_generation,
+                false)) {
+            trace_terminal("refused", "session_generation_changed");
+            mark_retry();
+            return reset_pending(0);
+        }
         if (!allow_publish) {
             trace_terminal("abandon", "publication_disabled");
             mark_retry();
@@ -16535,6 +18396,7 @@ private:
             bool refresh = false;
             bool stem_requested = false;
             bool stemmed = false;
+            uint64_t slot_session_generation = 0;
             uint64_t selected_tokens = 0;
             server_prompt_cache_vbr_publication_metadata publication;
         };
@@ -17169,6 +19031,7 @@ private:
                     representation_changed,
                     stem_retry || checkpoint_stem || prompt_boundary_stem,
                     checkpoint_stem || prompt_boundary_stem,
+                    idle.slot_session_generation,
                     checkpoint_stem
                         ? uint64_t(checkpoint_frontier->n_tokens)
                         : prompt_boundary_stem
@@ -17562,6 +19425,9 @@ private:
             background->candidate.stem_requested =
                 candidate.stem_requested;
             background->candidate.stemmed = candidate.stemmed;
+            background->candidate.slot_session_generation =
+                candidate.slot_session_generation;
+            background->candidate.prepressure = readiness_only;
             background->candidate.preserve_live_source = readiness_only;
             background->candidate.active_prompt_frontier =
                 vbr_prompt_boundary_capture_slot == candidate.slot->id;
@@ -18613,7 +20479,10 @@ private:
                     res->id                  = task.id;
                     res->n_processing_slots  = n_processing_slots;
                     res->n_tasks_deferred    = queue_tasks.queue_tasks_deferred_size();
-                    res->metrics             = metrics;
+                    // Include live context-owned metrics (not just the server
+                    // counters); this is where the active /metrics request
+                    // receives the KV-pager snapshot.
+                    res->metrics             = get_metrics();
 
                     if (task.metrics_reset_bucket) {
                         metrics.reset_bucket();
@@ -18625,13 +20494,18 @@ private:
                     json slots_data = json::array();
 
                     int n_idle_slots = 0;
+                    const json pager_metrics = get_metrics().pager_metrics;
 
                     for (server_slot & slot : slots) {
                         if (!slot.is_processing()) {
                             n_idle_slots++;
                         }
 
-                        slots_data.push_back(slot.to_json(slots_debug == 0));
+                        auto slot_data = slot.to_json(slots_debug == 0);
+                        if (!pager_metrics.is_null()) {
+                            slot_data["pager_metrics"] = pager_metrics;
+                        }
+                        slots_data.push_back(std::move(slot_data));
                     }
                     SRV_DBG("n_idle_slots = %d\n", n_idle_slots);
 
@@ -19182,6 +21056,14 @@ private:
                             terminal(server_vbr_artifact_import_status::unavailable);
                             break;
                         }
+                        // Imports replace an empty slot without entering the
+                        // normal completion launch path. Mint before the
+                        // store can publish the restored target and fence
+                        // any prior slot generation.
+                        if (!mint_slot_session_generation(*slot)) {
+                            terminal(server_vbr_artifact_import_status::internal_error);
+                            break;
+                        }
 
                         vbr_import_publish_state publish_state;
                         publish_state.slot = slot;
@@ -19446,6 +21328,14 @@ private:
                                 restored_token_digest)) {
                             throw std::runtime_error(
                                 "Unable to authenticate restored token identity");
+                        }
+                        // A slot-file restore replaces the logical contents
+                        // of an idle slot without going through a completion
+                        // launch. Fence any completion prepared for the old
+                        // contents before installing the new target state.
+                        if (!mint_slot_session_generation(*slot)) {
+                            throw std::runtime_error(
+                                "Unable to allocate a request generation");
                         }
                         if (!legacy) {
                             envelope.status =
@@ -19742,10 +21632,22 @@ private:
             }
         }
 
+        const bool hotpath_profile = server_hotpath_profile_enabled(params_base.kv_pager.mode);
+        const int64_t batch_prepare_start_us = hotpath_profile ? ggml_time_us() : 0;
+        int64_t pre_decode_elapsed_us = 0;
+        int64_t batch_render_elapsed_us = 0;
         try {
             scoped_timer t(t_pre_decode, n_pre_decode);
+            const int64_t pre_decode_start_us = hotpath_profile ? ggml_time_us() : 0;
             pre_decode();
-
+            if (hotpath_profile) {
+                pre_decode_elapsed_us = ggml_time_us() - pre_decode_start_us;
+            }
+            const int64_t render_start_us = hotpath_profile ? ggml_time_us() : 0;
+            batch.render();
+            if (hotpath_profile) {
+                batch_render_elapsed_us = ggml_time_us() - render_start_us;
+            }
         } catch (const std::exception & e) {
             cycle_failed = true;
             SRV_ERR("pre_decode() failed: %s\n", e.what());
@@ -19753,6 +21655,13 @@ private:
 
             // the batch is half-built and not rendered, skip now to avoid UB
             return;
+        }
+        if (hotpath_profile) {
+            SRV_INF("hotpath stage=prompt_batch tokens=%d pre_decode_us=%" PRId64
+                    " render_us=%" PRId64 " total_us=%" PRId64 "\n",
+                    batch.size(), pre_decode_elapsed_us,
+                    batch_render_elapsed_us,
+                    ggml_time_us() - batch_prepare_start_us);
         }
 
         // fork: the chunk loop below never runs for an empty batch, so the empty-batch
@@ -19852,6 +21761,7 @@ private:
     }
 
     void pre_decode() {
+        const bool hotpath_profile = server_hotpath_profile_enabled(params_base.kv_pager.mode);
         frontier_logits_sampled_cycle = false;
         // apply context-shift if needed
         // TODO: simplify and improve
@@ -20246,6 +22156,10 @@ private:
                         slot.spec_i_batch.clear();
                     } else {
                         slot.stats.n_draft_tokens += draft.size();
+                        if (params_base.speculative.type() ==
+                                COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
+                            slot.mtp_request_drafted += draft.size();
+                        }
                         for (size_t i = 0; i < draft.size(); i++) {
                             slot.spec_i_batch.push_back(batch.size());
                             batch.add(slot.id, draft[i], slot.prompt.tokens.pos_next(), true, false);
@@ -20308,13 +22222,114 @@ private:
                     const auto & input_tokens = slot.task->tokens;
                     std::unique_ptr<server_vbr_retier_freeze_scope> vbr_restore_freeze;
                     bool return_after_vbr_restore_trim = false;
-                    bool checkpoint_tgt_recurrent_installed = false;
-                    bool checkpoint_dft_recurrent_installed = false;
                     llama_pos checkpoint_installed_pos = -1;
                     const bool starting_prompt = slot.state == SLOT_STATE_STARTED;
 
                     // used to determine the number of tokens added to the batch for the current slot
                     const auto n_tokens_prev = batch.size();
+
+                    const int64_t query_begin =
+                        slot.task->params.final_user_token_begin;
+                    const int64_t query_end =
+                        slot.task->params.final_user_token_end;
+                    const bool exact_query_span = query_begin >= 0 &&
+                        query_end > query_begin &&
+                        query_end <= int64_t(slot.task->n_tokens());
+                    if (!starting_prompt && exact_query_span &&
+                            int64_t(slot.prompt.n_tokens()) == query_end &&
+                            !slot.pager_query_committed) {
+                        const char * restore_failure = nullptr;
+                        const auto transition = server_query_replay_transition(
+                            slot.query_checkpoint.state ==
+                                server_query_checkpoint::phase::prepared,
+                            slot.query_replay_count,
+                            [&](bool & history_changed, uint64_t & history_generation) {
+                                return ctx_tgt->commit_kv_pager_query(
+                                    slot.id, slot.slot_session_generation,
+                                    &history_changed, &history_generation);
+                            },
+                            [&]() {
+                                return slot.query_checkpoint.restore(
+                                    ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
+                                    slot.slot_session_generation,
+                                    slot.slot_session_generation, &restore_failure);
+                            },
+                            [&]() {
+                                // The final-user selector result is owned by its graph until
+                                // this scheduler fence. Apply pager policy while the turn is
+                                // still provisional, before commit freezes history.
+                                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                                    SRV_INF("kv-pager-progress stage=server-query-sync-begin slot=%d context=%p query_end=%" PRId64 "\n",
+                                            slot.id, static_cast<void *>(ctx_tgt),
+                                            query_end);
+                                }
+                                llama_synchronize(ctx_tgt);
+                                if (std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                                    SRV_INF("kv-pager-progress stage=server-query-sync-complete slot=%d\n",
+                                            slot.id);
+                                }
+                                return true;
+                            });
+                        slot.pager_query_committed = transition.committed;
+                        if (!transition.committed) {
+                            SLT_ERR(slot, "%s\n",
+                                "failed to commit final-user retrieval before query replay");
+                            send_error(slot,
+                                "Unable to commit selected KV history for query replay");
+                            slot.release();
+                            return;
+                        }
+                        if (transition.status ==
+                                server_query_replay_transition_status::failed) {
+                            if (restore_failure != nullptr) {
+                                SLT_ERR(slot,
+                                    "query replay checkpoint restore failed: %s replay_count=%u\n",
+                                    restore_failure,
+                                    slot.query_replay_count);
+                            } else {
+                                SLT_ERR(slot,
+                                    "history changed without a usable query checkpoint or at replay_count=%u\n",
+                                    slot.query_replay_count);
+                            }
+                            send_error(slot,
+                                "Unable to restore final-user query for replay");
+                            slot.release();
+                            return;
+                        }
+                        if (transition.status ==
+                                server_query_replay_transition_status::replay) {
+                            const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+                            if (profile_env != nullptr && std::strcmp(profile_env, "1") == 0) {
+                                slot.query_checkpoint.replay_start_us =
+                                    uint64_t(std::max<int64_t>(0, ggml_time_us()));
+                            }
+                            slot.prompt.tokens.keep_first(size_t(query_begin));
+                            slot.query_replay_pending = true;
+                            ++slot.query_replay_count;
+                            SLT_INF(slot, "query replay: begin=%" PRId64
+                                " end=%" PRId64 " history_generation=%" PRIu64
+                                " replay_count=%u\n", query_begin, query_end,
+                                transition.history_generation, slot.query_replay_count);
+                        } else {
+                            SLT_INF(slot, "%s",
+                                "query replay: unchanged history; replay_count=0\n");
+                        }
+                    } else if (!starting_prompt && exact_query_span &&
+                            slot.query_replay_pending &&
+                            int64_t(slot.prompt.n_tokens()) == query_end) {
+                        slot.query_replay_pending = false;
+                        if (slot.query_checkpoint.replay_start_us != 0) {
+                            const uint64_t now_us = uint64_t(std::max<int64_t>(0, ggml_time_us()));
+                            const uint64_t elapsed = now_us >= slot.query_checkpoint.replay_start_us
+                                ? now_us - slot.query_checkpoint.replay_start_us : 0;
+                            slot.query_checkpoint.replay_us =
+                                slot.query_checkpoint.replay_us > UINT64_MAX - elapsed
+                                ? UINT64_MAX : slot.query_checkpoint.replay_us + elapsed;
+                            slot.query_checkpoint.replay_start_us = 0;
+                        }
+                        SLT_INF(slot, "query replay: completed replay_count=%u\n",
+                            slot.query_replay_count);
+                    }
 
                     // TODO: maybe move branch to outside of this loop in the future
                     if (slot.state == SLOT_STATE_STARTED) {
@@ -20401,15 +22416,41 @@ private:
                                     n_past = std::min(n_past, slot.alora_invocation_start - 1);
                                 }
 
+                                const bool query_capture_required =
+                                    (params_base.kv_pager.mode == llama_kv_pager_mode::selective ||
+                                     params_base.kv_pager.mode == llama_kv_pager_mode::exact) &&
+                                    params_base.kv_pager.router == llama_kv_router_mode::probe_rerank;
+                                const size_t common_prefix = size_t(n_past);
+                                // Match begin_kv_pager_turn's native KV positions,
+                                // including the rendered user delimiter offset.
+                                const int64_t capture_query_end = query_end +
+                                    int64_t(slot.task->params.final_user_kv_position_offset);
+                                const int64_t capture_query_begin =
+                                    query_begin >= 0 && query_begin < capture_query_end
+                                    ? query_begin : 0;
+                                const size_t capture_prefix = server_prompt_query_capture_reuse_prefix(
+                                    n_past, capture_query_begin, capture_query_end, input_tokens.size(),
+                                    query_capture_required);
+                                const bool recapture_cached_query = capture_prefix < size_t(n_past);
+                                // A checkpoint can restore KV/recurrent state, but cannot
+                                // authenticate an old Q tensor for this new router owner.
+                                // Re-evaluate only a user with cached probe rows, not the files
+                                // or conversation preceding it. Do this before checkpoint
+                                // selection and token-ledger retention are calculated.
+                                n_past = int(capture_prefix);
+
                                 // Preserve the true token LCP before checkpoint restore
                                 // rewinds n_past to a smaller physical frontier. n_past_keep is the
                                 // separately bounded amount that prompt.tokens may continue to
                                 // claim after restore; see the restore-site recurrent guard below.
                                 // Keeping token bookkeeping never mutates KV/state by itself.
-                                n_past_common = n_past;
-                                n_past_keep   = n_past_common;
+                                n_past_common = common_prefix;
+                                n_past_keep   = capture_prefix;
 
-                                const auto n_cache_reuse = slot.task->params.n_cache_reuse;
+                                // Do not splice the deliberately recaptured user span back
+                                // into the cache and accidentally skip its graph again.
+                                const auto n_cache_reuse = recapture_cached_query
+                                    ? 0 : slot.task->params.n_cache_reuse;
 
                                 const bool can_cache_reuse =
                                     llama_memory_can_shift(llama_get_memory(ctx_tgt)) &&
@@ -21071,12 +23112,6 @@ private:
                                                     slot.cache_plan->restore_attempt_failed = true;
                                                 }
                                             } else {
-                                                checkpoint_tgt_recurrent_installed =
-                                                    llama_model_is_hybrid(model_tgt);
-                                                checkpoint_dft_recurrent_installed =
-                                                    ctx_dft && model_dft &&
-                                                    llama_model_is_hybrid(model_dft.get()) &&
-                                                    !it->data_dft.empty();
                                                 checkpoint_installed_pos = it->pos_max;
 
                                                 // The checkpoint that successfully
@@ -21352,12 +23387,20 @@ private:
                     // checkpoint bytes is redundant. Keep the old whole-memory path for every
                     // other case, especially [TAG_PROMPT_LOGITS]'s one-behind trim: recurrent
                     // rollback depth is then a real validity check and must still fail closed.
-                    const bool trim_tgt_attn_only =
-                        checkpoint_tgt_recurrent_installed &&
+                    // A restored checkpoint owns the complete non-replayable
+                    // frontier.  The suffix after that frontier only needs its
+                    // attention rows removed before replay.  Turbo4 attention
+                    // memories reject whole-sequence removal even though their
+                    // attention-only removal is supported; treating that
+                    // rejection as a failed restore throws away the valid
+                    // checkpoint and turns every cached append into a cold
+                    // prompt.  This also applies to non-hybrid checkpoints:
+                    // llama_memory_seq_rm_attn is equivalent there.
+                    const bool checkpoint_suffix =
+                        checkpoint_installed_pos >= 0 &&
                         (int64_t) p0 == (int64_t) checkpoint_installed_pos + 1;
-                    const bool trim_dft_attn_only =
-                        checkpoint_dft_recurrent_installed &&
-                        (int64_t) p0 == (int64_t) checkpoint_installed_pos + 1;
+                    const bool trim_tgt_attn_only = checkpoint_suffix;
+                    const bool trim_dft_attn_only = checkpoint_suffix;
                     if (trim_tgt_attn_only || trim_dft_attn_only) {
                         SLT_INF(slot,
                                 "CHECKPOINT_ATTN_ONLY_TRIM p0=%d target=%u draft=%u\n",
@@ -21370,16 +23413,58 @@ private:
                             ? llama_memory_vbr_state(
                                 llama_get_memory(ctx_tgt), slot.id, 0)
                             : llama_memory_vbr_state_data{};
-                    bool trim_ok = ::server_cache_live_range_drop_impl(
-                        llama_get_memory(ctx_tgt), slot.id, p0, -1,
-                        trim_tgt_attn_only);
-                    if (trim_ok && ctx_dft) {
-                        trim_ok = ::server_cache_live_range_drop_impl(
-                            llama_get_memory(ctx_dft.get()), slot.id, p0, -1,
-                            trim_dft_attn_only);
-                    }
+                    const auto trim = server_prompt_trim_recover(
+                        ctx_dft != nullptr,
+                        slot.has_draft_backup && slot.seq_id_backup >= 0,
+                        [&]() {
+                            slot.observe_mandatory_recovery_reset(
+                                server_cache_destruction_reason::trim_rejection);
+                        },
+                        [&]() {
+                            const auto memory = llama_get_memory(ctx_tgt);
+                            if (!server_prompt_trim_has_suffix(
+                                    p0, llama_memory_seq_pos_max(memory, slot.id),
+                                    trim_tgt_attn_only)) {
+                                return true;
+                            }
+                            return checkpoint_suffix
+                                ? server_cache_transient_seq_rm_impl(
+                                      memory, slot.id,
+                                      p0, -1, true)
+                                : ::server_cache_live_range_drop_impl(
+                                      memory, slot.id,
+                                      p0, -1, trim_tgt_attn_only);
+                        },
+                        [&]() {
+                            const auto memory = llama_get_memory(ctx_dft.get());
+                            if (!server_prompt_trim_has_suffix(
+                                    p0, llama_memory_seq_pos_max(memory, slot.id),
+                                    trim_dft_attn_only)) {
+                                return true;
+                            }
+                            return checkpoint_suffix
+                                ? server_cache_transient_seq_rm_impl(
+                                      memory, slot.id,
+                                      p0, -1, true)
+                                : ::server_cache_live_range_drop_impl(
+                                      memory, slot.id,
+                                      p0, -1, trim_dft_attn_only);
+                        },
+                        [&]() {
+                            return ::server_cache_mandatory_recovery_reset_impl(
+                                llama_get_memory(ctx_tgt), slot.id, -1, -1);
+                        },
+                        [&]() {
+                            return ::server_cache_mandatory_recovery_reset_impl(
+                                llama_get_memory(ctx_dft.get()), slot.id, -1, -1);
+                        },
+                        [&]() {
+                            return server_cache_transient_seq_rm_impl(
+                                llama_get_memory(ctx_tgt),
+                                slot.seq_id_backup, -1, -1);
+                        });
 
-                    if (trim_ok && trim_tgt_attn_only) {
+                    if (trim.trim_succeeded() && trim_tgt_attn_only) {
                         const auto checkpoint_lineage_after_trim =
                             llama_memory_vbr_state(
                                 llama_get_memory(ctx_tgt), slot.id, 0);
@@ -21392,24 +23477,27 @@ private:
                         }
                     }
 
-                    if (!trim_ok) {
-                        SLT_WRN(slot, "memory_seq_rm [%d, end) rejected; falling back to full prompt re-processing\n", p0);
+                    if (!trim.trim_succeeded()) {
+                        SLT_WRN(slot,
+                                "prompt suffix trim rejected (target=%u draft_attempted=%u draft=%u); full reset target=%u draft=%u\n",
+                                trim.target_trim_succeeded ? 1u : 0u,
+                                trim.draft_trim_attempted ? 1u : 0u,
+                                trim.draft_trim_succeeded ? 1u : 0u,
+                                trim.target_reset_succeeded ? 1u : 0u,
+                                trim.draft_reset_succeeded ? 1u : 0u);
 
-                        // Full removal is infallible for memory implementations and retains
-                        // common_context_seq_rm's asserting contract. Clear both target and
-                        // draft so a failure on either side cannot leave them out of sync.
-                        slot.observe_mandatory_recovery_reset(
-                            server_cache_destruction_reason::trim_rejection);
-                        ::server_cache_mandatory_recovery_reset_impl(
-                            ctx_tgt, slot.id, -1, -1);
-                        if (ctx_dft) {
-                            ::server_cache_mandatory_recovery_reset_impl(
-                                ctx_dft.get(), slot.id, -1, -1);
+                        // Drop every logical reference to the attempted restore. The
+                        // helper already attempted both memory resets; invalidate the
+                        // slot image and speculative frontier before any retry.
+                        slot.server_cache_mandatory_recovery_reset_impl(false);
+                        slot.spec_draft.clear();
+                        slot.spec_i_batch.clear();
+                        slot.spec_ckpt.clear();
+                        slot.n_tokens_before_draft = 0;
+                        if (trim.backup_reset_succeeded) {
+                            slot.has_draft_backup = false;
+                            slot.seq_id_backup = -1;
                         }
-                        common_speculative_sequence_transition(
-                            slot.get_spec(), slot.id,
-                            common_speculative_sequence_event::full_clear);
-
                         slot.server_cache_token_ledger_truncate_impl(0);
                         slot.stats.n_prompt_cached = 0;
                         slot.stats.n_prompt_processed = 0;
@@ -21430,6 +23518,17 @@ private:
                             slot.cache_plan->revoke_deliveries();
                             slot.cache_plan->restore_attempt_failed = true;
                         }
+
+                        if (!trim.recovery_succeeded()) {
+                            SLT_ERR(slot, "%s",
+                                    "paired prompt trim recovery failed; releasing request before decode\n");
+                            send_error(slot,
+                                "prompt cache recovery failed; request released",
+                                ERROR_TYPE_SERVER);
+                            slot.release(true);
+                            vbr_restore_freeze.reset();
+                            return;
+                        }
                     }
 
                     // Retiering resumes only after the coordinated restore+trim transaction.
@@ -21439,7 +23538,7 @@ private:
                         return;
                     }
 
-                    if (starting_prompt && trim_ok && slot.prompt.tokens.empty()) {
+                    if (starting_prompt && trim.trim_succeeded() && slot.prompt.tokens.empty()) {
                         restore_active_prefix(slot);
                     }
 
@@ -21481,8 +23580,18 @@ private:
                         alora_disabled_id = enabled_loras[0];
                     }
 
+                    // Hybrid targets and native MTP need a small in-memory rewind window
+                    // even when user-visible checkpoints are disabled.
+                    const bool live_rewind_checkpoint =
+                        params_base.n_ctx_checkpoints == 0 &&
+                        (llama_model_is_hybrid(model_tgt) ||
+                         (params_base.speculative.uses_native_mtp_as_primary_drafter() &&
+                          ctx_dft != nullptr));
+                    const size_t checkpoint_capacity = live_rewind_checkpoint
+                        ? size_t(2)
+                        : size_t(std::max(0, params_base.n_ctx_checkpoints));
                     const bool typed_swa_checkpoint = swa_window_eligible(slot);
-                    bool do_checkpoint = params_base.n_ctx_checkpoints > 0 || typed_swa_checkpoint;
+                    bool do_checkpoint = checkpoint_capacity > 0 || typed_swa_checkpoint;
                     const int64_t last_checkpoint = typed_swa_checkpoint
                         ? (slot.swa_windows.empty() ? -1 : slot.swa_windows.back().image->frontier())
                         : (slot.prompt.checkpoints.empty() ? -1 : slot.prompt.checkpoints.back().n_tokens);
@@ -21592,13 +23701,23 @@ private:
                     }
 
                     const auto & spans = slot.task->params.message_spans;
-                    const auto last_user_pos = spans.last_user_message_pos();
+                    const auto last_user_pos =
+                        slot.task->params.final_user_token_begin >= 0
+                            ? (int32_t) slot.task->params.final_user_token_begin
+                            : (slot.task->params.rendered_user_message_count_present
+                                ? -1 : spans.last_user_message_pos());
 
                     const int32_t n_decision_first = slot.task->type == SERVER_TASK_TYPE_DECISION ? slot.task->decision.pos_first() : -1;
 
                     // add prompt tokens for processing in the current batch
                     while (slot.prompt.n_tokens() < slot.task->n_tokens() &&
                            batch.size() < n_batch) {
+                        if (exact_query_span &&
+                                int64_t(slot.prompt.n_tokens()) == query_end &&
+                                (!slot.pager_query_committed ||
+                                 slot.query_replay_pending)) {
+                            break;
+                        }
                         // get next token to process
                         llama_token cur_tok = input_tokens[slot.prompt.n_tokens()];
                         if (cur_tok == LLAMA_TOKEN_NULL) {
@@ -21637,7 +23756,8 @@ private:
                         slot.prompt.tokens.push_back(cur_tok);
 
                         // break at the last user message, or at user messages at least min step past the last checkpoint
-                        if (do_checkpoint && spans.is_user_start(slot.prompt.n_tokens())) {
+                        if (do_checkpoint && slot.query_replay_count == 0 &&
+                                spans.is_user_start(slot.prompt.n_tokens())) {
                             const auto pos = slot.prompt.n_tokens();
                             if (pos == last_user_pos || last_checkpoint < 0 || pos > last_checkpoint + params_base.checkpoint_min_step) {
                                 break;
@@ -21678,6 +23798,39 @@ private:
 
                     const bool is_user_start = spans.is_user_start(n_tokens_start);
                     const bool is_last_user_message = n_tokens_start == last_user_pos;
+
+                    // Capture the replay boundary before the exact final-user
+                    // batch is decoded. The checkpoint owns recurrent/draft
+                    // state and MTP carry only; history KV remains in place.
+                    if (is_user_start && query_begin >= 0 &&
+                            n_tokens_start == query_begin &&
+                            slot.query_checkpoint.state ==
+                                server_query_checkpoint::phase::empty) {
+                        const bool captured = slot.query_checkpoint.capture(
+                            ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
+                            slot.slot_session_generation,
+                            slot.slot_session_generation,
+                            llama_pos(query_begin), n_tokens_start,
+                            params_base.speculative.uses_mtp_as_primary_drafter());
+                        if (!captured) {
+                            SLT_WRN(slot,
+                                "query replay checkpoint unavailable at user seam; "
+                                "request will retain the full-suffix path (%s)\n",
+                                "boundary or state capture rejected");
+                        } else {
+                            SLT_DBG(slot,
+                                "query checkpoint prepared: query_begin=%d "
+                                "target_recurrent_bytes=%zu draft_recurrent_bytes=%zu "
+                                "mtp_carry_bytes=%zu history_bytes_copied=0 "
+                                "table_epoch=%" PRIu64 " representation_epoch=%" PRIu64 "\n",
+                                int(query_begin),
+                                slot.query_checkpoint.target_recurrent.size(),
+                                slot.query_checkpoint.draft_recurrent.size(),
+                                slot.query_checkpoint.mtp_carry.size(),
+                                slot.query_checkpoint.pager_table_epoch,
+                                slot.query_checkpoint.pager_representation_epoch);
+                        }
+                    }
 
                     // entire prompt has been processed
                     if (slot.prompt.n_tokens() == slot.task->n_tokens()) {
@@ -21749,6 +23902,17 @@ private:
                     //       yet processed and therefore it is not part of the checkpoint.
                     const int ckpt_id_task = slot.task->id;
                     const int64_t ckpt_n_tokens = slot.prompt.n_tokens() - n_tokens_cur;
+                    if (do_checkpoint && live_rewind_checkpoint &&
+                            near_prompt_end && !typed_swa_checkpoint &&
+                            !server_live_rewind_checkpoint_admit(
+                                ckpt_n_tokens, slot.prompt.n_tokens(),
+                                slot.task->n_tokens(), is_last_user_message)) {
+                        // Avoid materializing intermediate near-tail copies.
+                        // The final-user seam remains eligible above, while
+                        // only the scheduler's final four-token boundary may
+                        // publish the newest live MTP rollback image.
+                        do_checkpoint = false;
+                    }
                     if (do_checkpoint && typed_swa_checkpoint) {
                         // A natural multi-slot batch may leave fewer than four
                         // tokens. The deferred near-end capture below already
@@ -21830,6 +23994,8 @@ private:
                         // the lifecycle owner is guaranteed to refuse.
                         do_checkpoint = false;
                     }
+                    const int64_t checkpoint_capture_start_us =
+                        hotpath_profile && do_checkpoint ? ggml_time_us() : 0;
                     std::list<common_prompt_checkpoint> staged;
                     if (do_checkpoint) {
                         // Stage the complete checkpoint in a detached list node before evicting
@@ -21932,6 +24098,10 @@ private:
                                         qsa_size-
                                         uint64_t(ring_size)-
                                         uint64_t(spec_state.size());
+                            const bool draft_checkpoint_fits =
+                                !params_base.vbr_prompt_cache
+                                    ? draft_size != 0 && mtp_state_ready
+                                    : draft_vbr_fits;
                             if (!qsa_topology_ready) {
                                 SLT_ERR(slot, "%s",
                                     "skipping context checkpoint: QSA topology is unavailable\n");
@@ -21992,7 +24162,7 @@ private:
                             // checkpoint-backed MTP/DFlash prefix can be
                             // published as one atomic companion set.
                             if (!staged.empty() && capture_draft) {
-                                if (draft_vbr_fits) {
+                                if (draft_checkpoint_fits) {
                                     size_t draft_written = 0;
                                     next.data_dft.overwrite(
                                         draft_size,
@@ -22067,6 +24237,16 @@ private:
                         if (staged.empty()) {
                             do_checkpoint = false;
                         }
+                    }
+                    if (checkpoint_capture_start_us != 0) {
+                        const auto staged_bytes = staged.empty()
+                            ? size_t(0) : staged.back().size();
+                        SLT_INF(slot,
+                                "hotpath stage=checkpoint_capture frontier=%" PRId64
+                                " elapsed_us=%" PRId64 " retained=%d bytes=%zu\n",
+                                ckpt_n_tokens,
+                                ggml_time_us() - checkpoint_capture_start_us,
+                                staged.empty() ? 0 : 1, staged_bytes);
                     }
 
                     bool staged_checkpoint_published = false;
@@ -22260,7 +24440,7 @@ private:
 
                         while (checkpoint_publication_allowed &&
                                slot.prompt.checkpoints.size() >=
-                                   (size_t) params_base.n_ctx_checkpoints) {
+                                   checkpoint_capacity) {
                             auto victim = slot.prompt.checkpoints.begin();
                             if (slot.lifecycle_authority) {
                                 common_cache_plan_destruction_reason refusal;
@@ -22367,9 +24547,10 @@ private:
 
                             SLT_WRN(slot,
                                     "created context checkpoint %d of %d (pos_min = %d, pos_max = %d, n_tokens = %" PRId64
-                                    ", size = %.3f MiB)\n",
-                                    (int) slot.prompt.checkpoints.size(), params_base.n_ctx_checkpoints, cur.pos_min,
-                                    cur.pos_max, cur.n_tokens, (float) cur.size() / 1024.0 / 1024.0);
+                                    ", size = %.3f MiB%s)\n",
+                                    (int) slot.prompt.checkpoints.size(), (int) checkpoint_capacity, cur.pos_min,
+                                    cur.pos_max, cur.n_tokens, (float) cur.size() / 1024.0 / 1024.0,
+                                    live_rewind_checkpoint ? ", live rewind" : "");
                         }
                     }
                 }
@@ -22647,8 +24828,43 @@ private:
         }
 
         bool has_output = false;
+        bool has_prompt_tokens = false;
+        bool has_final_user_query_token = false;
         for (int i = off; i < off + batch_view.n_tokens; ++i) {
-            has_output |= batch.tokens[i].output;
+            has_output |= batch.batch.logits[i] != 0;
+            has_prompt_tokens |= batch.prompt_tokens[i] != 0;
+            if (!batch.prompt_tokens[i] || batch.batch.seq_id == nullptr ||
+                    batch.batch.n_seq_id == nullptr || batch.batch.n_seq_id[i] == 0 ||
+                    batch.batch.seq_id[i] == nullptr) {
+                continue;
+            }
+            const llama_seq_id sequence_id = batch.batch.seq_id[i][0];
+            for (const auto & slot : slots) {
+                const int64_t query_end = slot.task != nullptr
+                    ? slot.task->params.final_user_token_end : -1;
+                if (slot.id == sequence_id && query_end > 0 &&
+                        batch.batch.pos[i] == query_end - 1) {
+                    has_final_user_query_token = true;
+                    break;
+                }
+            }
+        }
+
+        const bool final_user_boundary_nearby = std::any_of(
+                slots.begin(), slots.end(), [&](const server_slot & slot) {
+            const int64_t query_end = slot.task != nullptr
+                ? slot.task->params.final_user_token_end : -1;
+            if (query_end <= 0 || slot.id < 0) return false;
+            for (int i = off; i < off + batch_view.n_tokens; ++i) {
+                if (batch.prompt_tokens[i] && batch.batch.pos[i] >= query_end - 2 &&
+                        batch.batch.pos[i] <= query_end) return true;
+            }
+            return false;
+        });
+        if (final_user_boundary_nearby &&
+                std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+            SRV_INF("kv-pager-progress stage=final-user-decode-fence matched=%d tokens=%d\n",
+                    has_final_user_query_token ? 1 : 0, batch_view.n_tokens);
         }
 
         // Keep target verification and the dependent speculative update inside
@@ -22658,17 +24874,91 @@ private:
         int ret = 0;
         bool speculative_ok = true;
         std::exception_ptr speculative_exception;
+        int64_t llama_decode_elapsed_us = 0;
+        int64_t explicit_compute_wait_us = 0;
         const int64_t t_verify_start = ggml_time_us();
         int64_t t_verify_elapsed = 0;
+        const bool speculative_verification = std::any_of(
+            slots.begin(), slots.end(), [](const server_slot & slot) {
+                return slot.can_speculate() && !slot.spec_draft.empty();
+            });
         const std::exception_ptr yield_exception =
             queue_tasks.yield_to_queue_capture_exception([&]() {
-            ret = llama_process(ctx_tgt, LLAMA_PROCESS_TYPE_DECODE, batch.rendered);
-            if (ret == 0 && has_output) {
+            const bool mtp_verification = server_is_native_mtp_verification_batch(
+                params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP),
+                batch_view.n_tokens, has_prompt_tokens);
+            if (mtp_verification) {
+                for (const auto & slot : slots) {
+                    if (slot.is_processing() && slot.can_speculate() &&
+                            slot.pager_history_frozen &&
+                            (!slot.pager_mtp_history_epoch.matches(
+                                slot.slot_session_generation,
+                                slot.pager_frozen_history_generation) ||
+                             !ctx_tgt->kv_pager_history_matches(
+                                slot.id, slot.slot_session_generation,
+                                slot.pager_frozen_history_generation))) {
+                        speculative_ok = false;
+                        ret = -1;
+                        return;
+                    }
+                }
+            }
+            ctx_tgt->set_kv_attention_mtp_verification(
+                mtp_verification || speculative_verification);
+            try {
+                const int64_t llama_decode_start_us =
+                    server_hotpath_profile_enabled(params_base.kv_pager.mode) ? ggml_time_us() : 0;
+                ret = llama_process(ctx_tgt, LLAMA_PROCESS_TYPE_DECODE, batch.rendered);
+                if (llama_decode_start_us != 0) {
+                    llama_decode_elapsed_us =
+                        ggml_time_us() - llama_decode_start_us;
+                }
+            } catch (...) {
+                ctx_tgt->set_kv_attention_mtp_verification(false);
+                throw;
+            }
+            ctx_tgt->set_kv_attention_mtp_verification(false);
+            if (ret == 0 && (has_output || has_final_user_query_token ||
+                    mtp_verification)) {
+                const int64_t synchronize_start_us =
+                    server_hotpath_profile_enabled(params_base.kv_pager.mode) ? ggml_time_us() : 0;
+                // The final-user selector graph must reach its scheduler fence while
+                // the pager turn is provisional. The next slot-loop iteration commits
+                // selected history and may replay only the changed query.
+                if (final_user_boundary_nearby &&
+                        std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                    SRV_INF("kv-pager-progress stage=server-decode-sync-begin tokens=%d final_user=%d\n",
+                            batch_view.n_tokens, has_final_user_query_token ? 1 : 0);
+                }
                 llama_synchronize(ctx_tgt);
+                if (final_user_boundary_nearby &&
+                        std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+                    SRV_INF("kv-pager-progress stage=server-decode-sync-complete tokens=%d final_user=%d\n",
+                            batch_view.n_tokens, has_final_user_query_token ? 1 : 0);
+                }
+                if (synchronize_start_us != 0) {
+                    explicit_compute_wait_us =
+                        ggml_time_us() - synchronize_start_us;
+                }
             }
             // llama_process rebuilds the ext batch's flat storage. Reborrow it
             // for fork speculative processing and post-decode metrics/outputs.
             batch.rendered->get_batch(batch_view, true);
+
+            if (ret == 0 && (mtp_verification ||
+                    (server_mtp_state_diagnostic_enabled() && has_output))) {
+                for (auto & slot : slots) {
+                    if (slot.is_processing() && (slot.can_speculate() ||
+                            server_mtp_state_diagnostic_enabled())) {
+                        try {
+                            slot.capture_mtp_state_diagnostic(batch_view, off);
+                        } catch (...) {
+                            // Diagnostics are strictly best effort and
+                            // must never change target verification.
+                        }
+                    }
+                }
+            }
 
             t_verify_elapsed = ggml_time_us() - t_verify_start;
 
@@ -22685,6 +24975,13 @@ private:
             }
             }, speculative_exception);
         t_verify_total += t_verify_elapsed;
+        if (server_hotpath_profile_enabled(params_base.kv_pager.mode)) {
+            SRV_INF("hotpath stage=llama_decode slot=%d offset=%d tokens=%d prompt=%d "
+                    "api_wall_us=%" PRId64 " explicit_wait_us=%" PRId64 "\n",
+                    batch.batch.seq_id[off][0], off, batch_view.n_tokens,
+                    has_prompt_tokens ? 1 : 0,
+                    llama_decode_elapsed_us, explicit_compute_wait_us);
+        }
         SRV_DBG("  verify ubatch: %d tok, %.1fms (%.2fms/tok)\n",
                 batch_view.n_tokens, t_verify_elapsed / 1e3,
                 t_verify_elapsed / 1e3 / std::max(1, batch_view.n_tokens));
@@ -22713,9 +25010,22 @@ private:
         }
         const bool hard_seal_terminal =
             memory && memory->vbr_hard_seal_blocked_take(ret != 0);
-        const auto decode_terminal = server_speculative_decode_terminal_resolve(
+        const auto memory_failure_reason = ctx_tgt != nullptr
+            ? ctx_tgt->get_last_memory_failure_reason()
+            : llama_memory_failure_reason::none;
+        auto decode_terminal = server_speculative_decode_terminal_resolve(
             ret, hard_seal_terminal, n_batch == 1,
             yield_exception != nullptr, speculative_ok);
+        const bool batch_retryable_failure =
+            server_memory_failure_is_logical_capacity(memory_failure_reason) ||
+            memory_failure_reason == llama_memory_failure_reason::scratch_oom;
+        if (decode_terminal == server_speculative_decode_terminal::retry &&
+                !batch_retryable_failure) {
+            // A pinned or in-flight canonical page is not made available by
+            // shrinking the compute batch. Do not turn that pressure into an
+            // unbounded retry ladder.
+            decode_terminal = server_speculative_decode_terminal::ordinary_ret_error;
+        }
         if (ret != 0) {
             if (decode_terminal ==
                     server_speculative_decode_terminal::preserve_hard_seal) {
@@ -22736,11 +25046,44 @@ private:
             }
             {
                 std::string err;
+                error_type err_type = ERROR_TYPE_SERVER;
 
-                if (n_batch == 1 && ret == 1) {
+                if (n_batch == 1 && ret == 1 &&
+                        server_memory_failure_is_logical_capacity(
+                            memory_failure_reason)) {
                     // TODO: try to terminate only the largest active slot/sequence and continue with the rest
                     //       need to remove the tokens from the current batch too
                     err = "Context size has been exceeded.";
+                    err_type = ERROR_TYPE_EXCEED_CONTEXT_SIZE;
+                } else if (ret == 1) {
+                    const auto pager = ctx_tgt != nullptr
+                        ? ctx_tgt->get_kv_pager_metrics()
+                        : llama_kv_pager_metrics_snapshot {};
+                    switch (memory_failure_reason) {
+                        case llama_memory_failure_reason::scratch_oom:
+                            err = "KV attention scratch capacity is exhausted.";
+                            break;
+                        case llama_memory_failure_reason::all_pinned:
+                            err = string_format(
+                                    "KV append refused: all admitted pages are pinned "
+                                    "(minimum required pages: %llu).",
+                                    (unsigned long long) pager.physical_page_capacity + 1);
+                            break;
+                        case llama_memory_failure_reason::pending_copy:
+                            // One bounded fence poll lets a completed host event
+                            // publish its clean page before reporting the refusal.
+                            llama_synchronize(ctx_tgt);
+                            err = "KV append is waiting for a canonical page copy.";
+                            break;
+                        case llama_memory_failure_reason::invalid_frontier:
+                            err = "KV append rejected: invalid memory frontier.";
+                            break;
+                        case llama_memory_failure_reason::logical_capacity:
+                        case llama_memory_failure_reason::none:
+                            // The n_batch==1 branch above supplies the legacy
+                            // context-limit diagnostic.
+                            break;
+                    }
                 }
 
                 if (ret == -1) {
@@ -22749,7 +25092,22 @@ private:
 
                 if (ret < -1) {
                     // TODO: update slot state based on llama_memory_seq_pos_min() and llama_memory_seq_pos_max()
-                    err = "Compute error.";
+                    // Exact attention deliberately fails closed when the
+                    // graph cannot provide its page-wave callbacks.  Keep
+                    // that refusal distinct from a failed compute: callers
+                    // need a supported, machine-readable response rather
+                    // than an HTTP 500 that looks like a runtime fault.
+                    const auto pager = ctx_tgt != nullptr
+                        ? ctx_tgt->get_kv_pager_metrics()
+                        : llama_kv_pager_metrics_snapshot {};
+                    if (pager.mode == llama_kv_pager_mode::exact &&
+                        !pager.execution.exact_refusal_reason.empty()) {
+                        err = "exact attention is not configured: " +
+                            pager.execution.exact_refusal_reason;
+                        err_type = ERROR_TYPE_NOT_SUPPORTED;
+                    } else {
+                        err = "Compute error.";
+                    }
                 }
 
                 // TODO: handle ret == 2 (abort) when we start aborting
@@ -22761,7 +25119,7 @@ private:
 
                     for (auto & slot : slots) {
                         if (slot.is_processing()) {
-                            send_error(slot, err);
+                            send_error(slot, err, err_type);
                             slot.release();
 
                             // note: it's complicated to keep track of how much of the current batch has been
@@ -23039,6 +25397,12 @@ private:
                     slot, slot.i_batch-off);
 
                 // prompt evaluated for next-token prediction
+                if (!slot.freeze_pager_history_for_generation()) {
+                    send_error(slot, "Unable to freeze selected KV history for generation");
+                    slot.release();
+                    slot.i_batch = -1;
+                    return;
+                }
                 slot.state = SLOT_STATE_GENERATING;
 
                 if (slot.diff_self_spec) {
@@ -23245,6 +25609,19 @@ private:
                 }
             }
 
+            // llama_context output accessors index the current ubatch, while
+            // spec_i_batch is assembled against the full server batch. Keep
+            // the persistent global mapping for lifecycle accounting, but use
+            // local rows for every target verification read.
+            std::vector<int32_t> verify_rows;
+            verify_rows.reserve(slot.spec_i_batch.size());
+            for (const int32_t global_row : slot.spec_i_batch) {
+                if (!is_inside_view(global_row)) {
+                    throw std::runtime_error("speculative output row escaped its decode view");
+                }
+                verify_rows.push_back(global_row - off);
+            }
+
             // The accepted tokens from the speculation. For the narrowly
             // proven raw-argmax case, verification copied only token ids from
             // the target graph; advance the ordinary sampler history with the
@@ -23256,7 +25633,7 @@ private:
             const bool accepted_from_synth = !synth_probs.empty();
             if (accepted_from_synth) {
                 ids = server_sample_and_accept_synth(
-                    slot.smpl.get(), slot.ctx_tgt, slot.spec_i_batch,
+                    slot.smpl.get(), slot.ctx_tgt, verify_rows,
                     slot.spec_draft, synth_probs, slot.spec_synth_rng,
                     /* is_replay = */ false);
             }
@@ -23268,7 +25645,7 @@ private:
                 if (argmax != nullptr) {
                     if (llama_get_logits_argmax_k(ctx_tgt) != dflash_target_argmax_k ||
                         llama_get_logits_argmax_n(ctx_tgt) !=
-                            (int32_t) slot.spec_i_batch.size()) {
+                            (int32_t) verify_rows.size()) {
                         throw std::runtime_error(
                             "DFlash target argmax output shape mismatch");
                     }
@@ -23300,7 +25677,7 @@ private:
                 const size_t q_covered = proposal ? proposal->matching_prefix_size(seq_id, slot.spec_draft) : 0;
                 if (q_covered > 0) {
                     accepted_from_proposal = common_sampler_sample_and_accept_n_q(
-                        slot.smpl.get(), ctx_tgt, slot.spec_i_batch, slot.spec_draft,
+                        slot.smpl.get(), ctx_tgt, verify_rows, slot.spec_draft,
                         proposal->top_k, proposal->candidate_ids, proposal->q_rows,
                         q_covered, ids);
                     if (accepted_from_proposal) {
@@ -23313,13 +25690,264 @@ private:
                     !accepted_from_proposal) {
                 ids = common_sampler_sample_and_accept_n(
                     slot.smpl.get(), ctx_tgt,
-                    slot.spec_i_batch, slot.spec_draft);
+                    verify_rows, slot.spec_draft);
+            }
+
+            const auto rollback_frontier =
+                common_speculative_rollback_frontier_resolve(
+                    slot.n_tokens_before_draft,
+                    n_draft,
+                    ids.size() > 0 ? ids.size() - 1 : 0);
+            if (ids.empty() || !rollback_frontier.valid()) {
+                slot.speculative_frontier_mismatches++;
+                SLT_ERR(slot, "%s\n",
+                        "invalid speculative rollback frontier; resetting slot");
+                send_error(slot, "Invalid speculative rollback frontier");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
+
+            const bool mtp_reject_trace_enabled = [] {
+                const char * value = std::getenv("LLAMA_MTP_FIRST_REJECT_TRACE");
+                return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+            }();
+            const size_t rejected_index = size_t(rollback_frontier.accepted_draft_tokens);
+            if (mtp_reject_trace_enabled &&
+                    params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
+                    rollback_frontier.rejected_draft_tokens > 0 &&
+                    slot.mtp_request_rejected == 0 && rejected_index < n_draft &&
+                    rejected_index < verify_rows.size()) {
+                const llama_seq_id trace_seq = slot.spec ? 0 : slot.id;
+                common_speculative_mtp_reject_trace draft_trace;
+                const bool have_draft_trace = common_speculative_get_mtp_reject_trace(
+                        slot.get_spec(), trace_seq, rejected_index, draft_trace);
+                const int32_t target_row = verify_rows[rejected_index];
+                const float * target_logits = llama_get_logits_ith(ctx_tgt, target_row);
+                const int32_t n_vocab = llama_vocab_n_tokens(
+                        llama_model_get_vocab(llama_get_model(ctx_tgt)));
+                bool target_finite = target_logits != nullptr && n_vocab > 0;
+                float target_max = -std::numeric_limits<float>::infinity();
+                if (target_finite) {
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        if (!std::isfinite(target_logits[token])) {
+                            target_finite = false;
+                            break;
+                        }
+                        target_max = std::max(target_max, target_logits[token]);
+                    }
+                }
+                double target_normalizer = 0.0;
+                if (target_finite) {
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        target_normalizer += std::exp(double(target_logits[token] - target_max));
+                    }
+                }
+                std::vector<std::pair<llama_token, float>> target_top;
+                if (target_logits != nullptr && n_vocab > 0) {
+                    target_top.reserve(8);
+                    for (int32_t token = 0; token < n_vocab; ++token) {
+                        if (!std::isfinite(target_logits[token])) {
+                            continue;
+                        }
+                        auto at = target_top.begin();
+                        while (at != target_top.end() && target_logits[token] <= at->second) {
+                            ++at;
+                        }
+                        if (at != target_top.end() || target_top.size() < 8) {
+                            target_top.insert(at, { (llama_token) token, target_logits[token] });
+                            if (target_top.size() > 8) {
+                                target_top.pop_back();
+                            }
+                        }
+                    }
+                }
+                const llama_memory_t target_memory = llama_get_memory(ctx_tgt);
+                const llama_memory_t draft_memory = llama_get_memory(slot.ctx_dft);
+                // The draft trace position identifies the proposed token's
+                // position.  Its target logits are produced by the preceding
+                // causal query row, regardless of which proposal index was
+                // rejected.
+                const llama_pos target_query_position = have_draft_trace &&
+                        draft_trace.position > 0
+                    ? draft_trace.position - 1 : -1;
+                const char * trace_path = std::getenv("LLAMA_MTP_FIRST_REJECT_TRACE_PATH");
+                if (trace_path != nullptr && trace_path[0] != '\0') {
+                    try {
+                        json rejection_visibility = json::parse(
+                            ctx_tgt->mtp_attention_visibility_snapshot_json());
+                        json & rejection_graph = rejection_visibility["graph"];
+                        if (target_query_position >= 0 &&
+                                rejection_graph.value("available", false) &&
+                                rejection_graph.contains("native_rows") &&
+                                rejection_graph["native_rows"].is_array()) {
+                            json visible_rows = json::array();
+                            const auto & native_rows = rejection_graph["native_rows"];
+                            for (size_t row = 0; row < native_rows.size(); ++row) {
+                                if (!native_rows[row].is_array() || native_rows[row].size() < 2 ||
+                                        !native_rows[row][0].is_number_integer() ||
+                                        !native_rows[row][1].is_number_integer()) {
+                                    continue;
+                                }
+                                const llama_pos native_position =
+                                    native_rows[row][0].get<llama_pos>();
+                                const bool valid = native_rows[row][1].get<int>() != 0;
+                                if (valid && (!rejection_graph.value("causal", true) ||
+                                        native_position <= target_query_position)) {
+                                    visible_rows.push_back(row);
+                                }
+                            }
+                            rejection_graph["rejection_query"] = {
+                                {"position", target_query_position},
+                                {"position_source", "draft proposal position minus one"},
+                                {"visible_rows", std::move(visible_rows)},
+                            };
+                        } else if (target_query_position >= 0 &&
+                                rejection_visibility.value("route", std::string()) == "dense" &&
+                                uint64_t(target_query_position) <= 1'048'576) {
+                            rejection_graph = {
+                                {"available", true},
+                                {"mask_source", "native dense causal attention contract"},
+                                {"backend_mask_bits_captured", false},
+                                {"causal", true},
+                                {"native_position_min", 0},
+                                {"native_position_max", target_query_position},
+                                {"pages", json::array()},
+                                {"native_rows", json::array()},
+                                {"queries", json::array()},
+                            };
+                            json native_rows = json::array();
+                            json visible_rows = json::array();
+                            for (llama_pos position = 0; position <= target_query_position;
+                                    ++position) {
+                                native_rows.push_back(json::array({position, 1}));
+                                visible_rows.push_back(position);
+                            }
+                            rejection_graph["native_rows"] = std::move(native_rows);
+                            rejection_graph["rejection_query"] = {
+                                {"position", target_query_position},
+                                {"position_source", "draft proposal position minus one"},
+                                {"visible_rows", std::move(visible_rows)},
+                            };
+                        }
+                        json trace = {
+                            {"schema", "llama-mtp-first-rejection-v1"},
+                            {"sequence_id", trace_seq},
+                            {"rejected_index", rejected_index},
+                            {"proposed_token", have_draft_trace
+                                ? (int) draft_trace.proposal
+                                : (int) slot.spec_draft[rejected_index]},
+                            {"target_row", target_row},
+                            {"target_query_position", target_query_position},
+                            {"target_finite", target_finite},
+                            {"target_vocab_size", n_vocab},
+                            {"target_score_ordering_rule", "descending raw logit; token id ascending for ties"},
+                            {"target_logits_by_token_id", json::array()},
+                            {"target_score_ordering", json::array()},
+                            {"target_top8", json::array()},
+                            {"draft_position", have_draft_trace ? draft_trace.position : -1},
+                            {"draft_carry_generation", have_draft_trace ? draft_trace.carry_generation : 0},
+                            {"draft_top8", json::array()},
+                            {"effective_sampling_seed", common_sampler_get_seed(slot.smpl.get())},
+                            {"proposal_seed_xor", 0x85ebca6bU},
+                            {"proposal_rng_draws_through_rejection", rejected_index + 1},
+                            {"target_kv_min", llama_memory_seq_pos_min(target_memory, trace_seq)},
+                            {"target_kv_max", llama_memory_seq_pos_max(target_memory, trace_seq)},
+                            {"draft_valid_frontier", llama_memory_seq_pos_max(draft_memory, trace_seq)},
+                            {"staged_hidden_generation", llama_get_embeddings_nextn_device_generation(ctx_tgt)},
+                            {"target_verify_rows", verify_rows.size()},
+                            {"attention_visibility", std::move(rejection_visibility)},
+                        };
+                        for (int32_t token = 0; token < n_vocab; ++token) {
+                            trace["target_logits_by_token_id"].push_back(
+                                target_logits != nullptr && std::isfinite(target_logits[token])
+                                    ? json(target_logits[token]) : json(nullptr));
+                        }
+                        if (target_finite) {
+                            std::vector<llama_token> order(static_cast<size_t>(n_vocab));
+                            for (int32_t token = 0; token < n_vocab; ++token) {
+                                order[size_t(token)] = llama_token(token);
+                            }
+                            std::sort(order.begin(), order.end(), [&](llama_token lhs, llama_token rhs) {
+                                if (target_logits[lhs] != target_logits[rhs]) {
+                                    return target_logits[lhs] > target_logits[rhs];
+                                }
+                                return lhs < rhs;
+                            });
+                            for (const llama_token token : order) {
+                                trace["target_score_ordering"].push_back(token);
+                            }
+                        }
+                        for (const auto & item : target_top) {
+                            trace["target_top8"].push_back(json::array({
+                                item.first, item.second}));
+                        }
+                        if (have_draft_trace) {
+                            for (size_t i = 0; i < draft_trace.candidate_ids.size(); ++i) {
+                                trace["draft_top8"].push_back(json::array({
+                                    draft_trace.candidate_ids[i],
+                                    draft_trace.candidate_logits[i],
+                                    draft_trace.candidate_probs[i]}));
+                            }
+                        }
+                        std::ofstream file(trace_path, std::ios::binary | std::ios::trunc);
+                        if (!file) {
+                            throw std::runtime_error("cannot open first-rejection trace path");
+                        }
+                        file << trace.dump() << '\n';
+                        if (!file) {
+                            throw std::runtime_error("cannot write first-rejection trace");
+                        }
+                    } catch (const std::exception & error) {
+                        SLT_ERR(slot, "MTP first rejection trace file failed: %s\n", error.what());
+                    }
+                }
+                std::ostringstream trace_line;
+                trace_line << "MTP first rejection: seq=" << trace_seq
+                    << " rejected_index=" << rejected_index
+                    << " proposed_token=" << (have_draft_trace
+                            ? (int) draft_trace.proposal
+                            : (int) slot.spec_draft[rejected_index])
+                    << " target_row=" << target_row
+                    << " target_finite=" << (target_finite ? "yes" : "no")
+                    << " target_softmax_temperature=1 target_top8=[";
+                for (size_t i = 0; i < target_top.size(); ++i) {
+                    if (i != 0) trace_line << ',';
+                    const double probability = target_finite && target_normalizer > 0.0
+                        ? std::exp(double(target_top[i].second - target_max)) / target_normalizer
+                        : std::numeric_limits<double>::quiet_NaN();
+                    trace_line << target_top[i].first << ':' << std::setprecision(7)
+                        << target_top[i].second << ':' << probability;
+                }
+                trace_line << "] draft_position="
+                    << (have_draft_trace ? draft_trace.position : -1)
+                    << " draft_carry_generation="
+                    << (have_draft_trace ? draft_trace.carry_generation : 0)
+                    << " draft_top8=[";
+                if (have_draft_trace) {
+                    for (size_t i = 0; i < draft_trace.candidate_ids.size(); ++i) {
+                        if (i != 0) trace_line << ',';
+                        trace_line << draft_trace.candidate_ids[i] << ':'
+                            << draft_trace.candidate_logits[i] << ':'
+                            << draft_trace.candidate_probs[i];
+                    }
+                }
+                trace_line << "] target_kv_range=["
+                    << llama_memory_seq_pos_min(target_memory, trace_seq) << ','
+                    << llama_memory_seq_pos_max(target_memory, trace_seq)
+                    << "] draft_valid_frontier="
+                    << llama_memory_seq_pos_max(draft_memory, trace_seq)
+                    << " staged_hidden_generation="
+                    << llama_get_embeddings_nextn_device_generation(ctx_tgt)
+                    << " target_verify_rows=" << verify_rows.size()
+                    << " target_causal_row=" << target_row;
+                SLT_INF(slot, "%s\n", trace_line.str().c_str());
             }
 
             // Keep the small output-index table until token stop handling has
             // had a chance to retain the exact terminal vocabulary row.
-            const std::vector<int32_t> verified_output_rows =
-                slot.spec_i_batch;
+            const std::vector<int32_t> verified_output_rows = verify_rows;
 
 
             // update DFlash hidden state ring + CopySpec prompt window with accepted tokens.
@@ -23343,17 +25971,25 @@ private:
             slot.stats.update_gen_last();
 
             // update how many tokens out of those tested were accepted
-            const size_t n_accepted = ids.size() - 1;
+            const size_t n_accepted = size_t(rollback_frontier.accepted_draft_tokens);
+            GGML_ASSERT(ids.size() == n_accepted + 1);
             slot.stats.n_draft_accepted += n_accepted;
             slot.stats.n_draft_verif_steps += 1;
+            if (params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
+                slot.mtp_request_accepted += n_accepted;
+                slot.mtp_request_committed += ids.size();
+                slot.mtp_request_rejected += rollback_frontier.rejected_draft_tokens;
+            }
 
             // Verification evaluates [sampled, draft...]. The sampled row is
             // always retained; rollback depth is exactly the rejected draft
             // suffix. Preserve the joint distribution because marginal
             // acceptance rates cannot recover capture cost by verify length.
-            const size_t n_accepted_draft = n_accepted;
+            const size_t n_accepted_draft =
+                size_t(rollback_frontier.accepted_draft_tokens);
             GGML_ASSERT(n_accepted_draft <= n_draft);
             const size_t rollback_depth = n_draft - n_accepted_draft;
+            const bool rejected_suffix = rollback_frontier.rejected_draft_tokens != 0;
             if (slot.n_verify_rollback.size() <= n_draft) {
                 slot.n_verify_rollback.resize(n_draft + 1);
             }
@@ -23383,14 +26019,51 @@ private:
                 common_speculative_accept(spec.get(), slot.id, ids.size() - 1);
             }
 
+            const bool native_mtp = params_base.speculative.has_type(
+                COMMON_SPECULATIVE_TYPE_DRAFT_MTP);
+            if (native_mtp) {
+                slot.mtp_target_restore_status = rejected_suffix
+                    ? "pending" : "not_needed";
+                slot.mtp_draft_restore_status = rejected_suffix
+                    ? "pending" : "not_needed";
+                if (rejected_suffix) {
+                    const uint64_t epoch = std::max(
+                        slot.mtp_target_restore_epoch,
+                        slot.mtp_draft_restore_epoch) + 1;
+                    slot.mtp_target_restore_epoch = epoch;
+                    slot.mtp_draft_restore_epoch = epoch;
+                } else {
+                    slot.mtp_target_restore_epoch = 0;
+                    slot.mtp_draft_restore_epoch = 0;
+                }
+            }
+
             // add accepted tokens to the prompt
             slot.server_cache_transient_token_truncate_impl(
                 slot.prompt.n_tokens() - n_draft);
             slot.prompt.tokens.insert(llama_tokens(ids.begin(), ids.end() - 1));
 
+            // The token ledger is the page/write-frontier authority for this
+            // transient verification. If it disagrees with the shared
+            // frontier, do not let one carrier advance past the others.
+            if (slot.prompt.n_tokens() !=
+                    rollback_frontier.accepted_token_count) {
+                slot.speculative_frontier_mismatches++;
+                SLT_ERR(slot,
+                        "speculative frontier mismatch (ledger=%d expected=%" PRId64 ")\n",
+                        slot.prompt.n_tokens(),
+                        rollback_frontier.accepted_token_count);
+                send_error(slot, "Speculative rollback frontier mismatch");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
+            slot.speculative_rollbacks++;
+
             if (slot.has_draft_backup) {
                 const llama_seq_id seq_backup = slot.seq_id_backup;
-                const bool all_accepted = (ids.size() == n_draft + 1);
+                const bool all_accepted = rollback_frontier.rejected_draft_tokens == 0;
 
                 const bool is_dflash = params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DFLASH;
                 if (is_dflash) {
@@ -23418,10 +26091,21 @@ private:
                     auto * mem = llama_get_memory(ctx_tgt);
 
                     if (all_accepted) {
-                        server_cache_transient_seq_rm_impl(
-                            mem, seq_backup, -1, -1);
-                        server_cache_transient_seq_rm_impl(
-                            mem, slot.id, slot.prompt.tokens.pos_next(), -1);
+                        const bool backup_removed =
+                            server_cache_transient_seq_rm_impl(mem, seq_backup, -1, -1);
+                        const bool suffix_removed =
+                            server_cache_transient_seq_rm_impl(
+                                mem, slot.id, slot.prompt.tokens.pos_next(), -1);
+                        if (!backup_removed || !suffix_removed) {
+                            SLT_ERR(slot, "%s\n", "failed to commit accepted speculative target; resetting slot");
+                            send_error(slot, "Compute error committing speculative tokens");
+                            slot.release();
+                            slot.mandatory_recovery_reset(
+                                server_cache_destruction_reason::restore_failure);
+                            slot.has_draft_backup = false;
+                            slot.seq_id_backup = -1;
+                            return;
+                        }
                     } else {
                         const int n_past_before = slot.n_tokens_before_draft;
 
@@ -23444,17 +26128,33 @@ private:
                             slot.seq_id_backup = -1;
                             return;
                         } else {
-                            server_cache_transient_seq_rm_impl(
-                                mem, seq_backup, -1, -1);
+                            if (!server_cache_transient_seq_rm_impl(
+                                    mem, seq_backup, -1, -1)) {
+                                SLT_ERR(slot, "%s\n", "failed to retire speculative backup; resetting slot");
+                                send_error(slot, "Compute error retiring speculative backup");
+                                slot.release();
+                                slot.mandatory_recovery_reset(
+                                    server_cache_destruction_reason::restore_failure);
+                                slot.has_draft_backup = false;
+                                slot.seq_id_backup = -1;
+                                return;
+                            }
 
-                            const int n_reeval = slot.prompt.n_tokens() - n_past_before;
+                            const int n_reeval = int(
+                                rollback_frontier.accepted_token_count) -
+                                n_past_before;
                             if (n_reeval > 0) {
                                 llama_batch batch_reeval = llama_batch_init(n_reeval, 0, 1);
                                 const auto & toks = slot.prompt.tokens.get_text_tokens();
                                 for (int j = n_past_before; j < slot.prompt.n_tokens(); ++j) {
                                     common_batch_add(batch_reeval, toks[j], j, { slot.id }, false);
                                 }
+                                // Re-evaluation reconstructs an already
+                                // committed speculative prefix. Do not count
+                                // it as a second accepted-token advance.
+                                ctx_tgt->set_kv_attention_mtp_verification(true);
                                 const int ret_reeval = llama_decode(ctx_tgt, batch_reeval);
+                                ctx_tgt->set_kv_attention_mtp_verification(false);
                                 llama_batch_free(batch_reeval);
                                 if (ret_reeval != 0) {
                                     // the backup was restored to n_past_before but slot.prompt.tokens
@@ -23475,11 +26175,17 @@ private:
                     }
                 }
 
+                if (native_mtp && rejected_suffix) {
+                    slot.mtp_target_restore_status = "success";
+                    slot.mtp_request_target_restores++;
+                }
+
                 slot.has_draft_backup = false;
                 slot.seq_id_backup = -1;
             } else if (!server_cache_transient_seq_rm_impl(
                            llama_get_memory(ctx_tgt), slot.id,
-                           slot.prompt.tokens.pos_next(), -1)) {
+                           llama_pos(rollback_frontier.rejected_suffix_begin),
+                           -1)) {
                 // RS contexts own their rollback snapshot internally, so this is the
                 // only target-state rollback operation on the no-backup path. Refusal
                 // cannot be ignored: accepted-token bookkeeping would otherwise advance
@@ -23487,12 +26193,73 @@ private:
                 SLT_ERR(slot, "%s\n", "failed to roll back rejected speculative suffix; resetting slot");
                 send_error(slot, "Compute error rolling back speculative tokens");
                 slot.release();
+                    slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            } else if (native_mtp && rejected_suffix) {
+                // RS-backed contexts trim their rejected suffix in place. That
+                // is a successful rollback, but it is not a target restore
+                // from a checkpoint and must not be reported as one.
+                slot.mtp_target_restore_status = "trimmed";
+                slot.mtp_request_target_restores++;
+            }
+
+            if (!common_speculative_rollback_dft(
+                    slot.get_spec(), slot.id,
+                    llama_pos(rollback_frontier.accepted_token_count),
+                    (uint16_t) rollback_frontier.accepted_draft_tokens)) {
+                // The draft context must reach the same committed frontier as
+                // the target before any accepted token is published.
+                SLT_ERR(slot, "%s\n", "failed to roll back speculative draft; resetting slot");
+                send_error(slot, "Compute error rolling back speculative draft");
+                slot.release();
                 slot.mandatory_recovery_reset(
                     server_cache_destruction_reason::restore_failure);
                 return;
             }
 
-            common_speculative_rollback_dft(slot.get_spec(), slot.id, slot.prompt.n_tokens(), (uint16_t)(ids.size() - 1));
+            if (native_mtp && slot.pager_history_frozen &&
+                    (!slot.pager_mtp_history_epoch.matches(
+                        slot.slot_session_generation,
+                        slot.pager_frozen_history_generation) ||
+                     !ctx_tgt->kv_pager_history_matches(
+                        slot.id, slot.slot_session_generation,
+                        slot.pager_frozen_history_generation))) {
+                SLT_ERR(slot, "%s\n", "native MTP rollback changed frozen KV history identity");
+                send_error(slot, "Speculative rollback changed frozen KV history");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
+
+            if (native_mtp && rejected_suffix) {
+                // common_speculative_rollback_dft() replays the accepted target
+                // rows into the MTP image, making the paired restore explicit.
+                slot.mtp_draft_restore_status = "replayed";
+                slot.mtp_request_draft_restores++;
+            }
+
+            // The next verification may consume state restored after a
+            // rejected suffix. Keep this separate from acceptance: a fully
+            // accepted proposal advanced normally and was not restored.
+            slot.mtp_target_restored_before_verify =
+                slot.mtp_target_restore_status == "success" ||
+                slot.mtp_target_restore_status == "trimmed";
+            slot.mtp_draft_restored_before_verify =
+                slot.mtp_draft_restore_status == "success" ||
+                slot.mtp_draft_restore_status == "replayed";
+
+            // The rollback owner is now at the accepted target frontier. The
+            // target verification itself was intentionally excluded from the
+            // ordinary decode counter; draft proposals and rejected suffixes
+            // therefore cannot advance routing cadence.
+            const int64_t accepted_delta =
+                rollback_frontier.accepted_token_count - slot.n_tokens_before_draft;
+            if (accepted_delta > 0) {
+                ctx_tgt->note_kv_pager_accepted_tokens(uint32_t(std::min<int64_t>(
+                        accepted_delta, std::numeric_limits<uint32_t>::max())));
+            }
 
             for (size_t i = 0; i < ids.size(); ++i) {
                 completion_token_output result;
@@ -23748,8 +26515,15 @@ private:
                     }
                 }
 
-                server_cache_transient_seq_rm_impl(
-                    mem, slot.id, committed, committed + draft_len);
+                if (!server_cache_transient_seq_rm_impl(
+                        mem, slot.id, committed, committed + draft_len)) {
+                    SRV_ERR("diffusion draft rollback failed at position %d\n", committed);
+                    send_error(slot, "Compute error rolling back diffusion draft");
+                    slot.release();
+                    slot.mandatory_recovery_reset(
+                        server_cache_destruction_reason::restore_failure);
+                    return;
+                }
 
                 // VERIFY: causal — single pass with draft tokens
                 llama_set_causal_attn(ctx_tgt, true);
@@ -23825,9 +26599,17 @@ private:
                 }
 
                 if (n_accept < draft_len) {
-                    server_cache_transient_seq_rm_impl(
-                        mem, slot.id, committed + n_accept,
-                        committed + draft_len);
+                    if (!server_cache_transient_seq_rm_impl(
+                            mem, slot.id, committed + n_accept,
+                            committed + draft_len)) {
+                        SRV_ERR("diffusion suffix rollback failed at position %d\n",
+                                committed + n_accept);
+                        send_error(slot, "Compute error rolling back diffusion suffix");
+                        slot.release();
+                        slot.mandatory_recovery_reset(
+                            server_cache_destruction_reason::restore_failure);
+                        return;
+                    }
                 }
 
                 // BONUS: decode one token — produces new prev_logits for next cycle
@@ -24012,15 +26794,13 @@ private:
         uint64_t n_prompt_tokens = 0;
 
         for (int i = off; i < off + n_tokens; ++i) {
-            const auto & t = batch.tokens[i];
-
-            if (!t.is_prompt) {
+            if (batch.prompt_tokens[i] == 0) {
                 continue; // generated tokens are handled after sampling
             }
 
             n_prompt_tokens++;
 
-            auto & slot = slots[t.id_slot];
+            auto & slot = slots[batch.batch.seq_id[i][0]];
             if (slot.stats.is_set()) {
                 slot.stats.n_prompt_processed++;
             }
@@ -24037,9 +26817,8 @@ private:
         // note: a second pass, it must run after the sync to reflect the compute
         const int64_t t_now = ggml_time_us();
         for (int i = off; i < off + n_tokens; ++i) {
-            const auto & t = batch.tokens[i];
-            auto & slot = slots[t.id_slot];
-            if (t.is_prompt && slot.stats.is_set()) {
+            auto & slot = slots[batch.batch.seq_id[i][0]];
+            if (batch.prompt_tokens[i] != 0 && slot.stats.is_set()) {
                 slot.stats.set_prompt_last(t_now);
             }
         }
@@ -25696,7 +28475,7 @@ void server_context::start_loop() {
 }
 
 void server_context::terminate() {
-    impl->queue_tasks.terminate();
+    impl->terminate();
 }
 
 llama_context * server_context::get_llama_context() const {
@@ -25877,6 +28656,48 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                     data);
 
             task.params.message_spans = task.tokens.find_message_spans(delimiters);
+            if (task.params.rendered_user_message_count_present) {
+                if (task.tokens.has_media()) {
+                    SRV_WRN("%s", "final-user token span is unsupported for multimodal chat prompts; using the full prompt as the fresh query suffix\n");
+                } else {
+                    size_t user_begin = 0;
+                    size_t user_end = 0;
+                    if (task.params.message_spans.final_user_span(
+                            (size_t) task.params.rendered_user_message_count,
+                            task.tokens.size(), user_begin, user_end)) {
+                        task.params.final_user_token_begin = (int64_t) user_begin;
+                        size_t query_end = user_end;
+                        const auto & prompt_tokens = task.tokens.get_tokens();
+                        for (size_t trimmed = 0; trimmed < 8 && query_end > user_begin + 1; ++trimmed) {
+                            const std::string piece = common_token_to_piece(
+                                    ctx_server.vocab, prompt_tokens[query_end - 1]);
+                            const bool whitespace = !piece.empty() && std::all_of(
+                                    piece.begin(), piece.end(), [](unsigned char ch) {
+                                        return std::isspace(ch) != 0;
+                                    });
+                            const bool control_token = piece.size() >= 4 && piece.front() == '<' &&
+                                    piece.back() == '>' &&
+                                    (piece[1] == '|' || piece[1] == '/');
+                            if (!whitespace && !control_token) {
+                                break;
+                            }
+                            --query_end;
+                        }
+                        task.params.final_user_token_end = (int64_t) query_end;
+                        for (const auto & delimiter : delimiters.delimiters) {
+                            if (delimiter.role == COMMON_CHAT_ROLE_USER) {
+                                // The rendered role delimiter omits the newline
+                                // token used by the model's native Q positions.
+                                task.params.final_user_kv_position_offset =
+                                        -int32_t(delimiter.tokens.size()) - 1;
+                                break;
+                            }
+                        }
+                    } else {
+                        SRV_WRN("%s", "rendered final-user token span is ambiguous or outside the tokenized prompt; using the full prompt as the fresh query suffix\n");
+                    }
+                }
+            }
 
             task.id_slot = json_value(data, "id_slot", -1);
             task.cache_family_binding_token = family_binding_token;

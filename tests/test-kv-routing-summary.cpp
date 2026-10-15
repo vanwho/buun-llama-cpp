@@ -1,0 +1,503 @@
+#include "llama-kv-routing-summary.h"
+#include "llama-kv-router-ranking.h"
+
+#include <algorithm>
+#include <cassert>
+#include <limits>
+
+static llama_kv_page_record make_page(uint32_t logical, uint32_t slot, llama_pos end,
+                                      uint32_t generation = 1) {
+    llama_kv_page_record page;
+    page.id.sequence_id = 0;
+    page.id.logical_page = logical;
+    page.id.page_generation = generation;
+    page.id.position_begin = llama_pos(logical * VBR_GENERATION_PAGE_CELLS);
+    page.id.position_end = end;
+    page.physical_slot = slot;
+    page.state = uint32_t(end - page.id.position_begin) < VBR_GENERATION_PAGE_CELLS
+        ? llama_kv_page_state::filling_gpu : llama_kv_page_state::gpu_host_clean;
+    page.host_valid = true;
+    return page;
+}
+
+static llama_kv_residency_snapshot snapshot() {
+    llama_kv_residency_table table(8);
+    auto tx = table.begin();
+    assert(table.replace(tx, make_page(0, 4, 256)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, make_page(1, 1, 512)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, make_page(2, 7, 700)) == llama_kv_residency_status::ok);
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    return table.snapshot();
+}
+
+static llama_kv_routing_page_input input(const llama_kv_page_record & page, float needle) {
+    llama_kv_routing_page_input result;
+    result.id = page.id;
+    const size_t rows = size_t(page.id.position_end - page.id.position_begin);
+    result.rotated_k_rows.assign(rows * 4, 0.0f);
+    // Put the needle in the first and last sampled rows, exercising the
+    // deterministic representative selection without depending on row order.
+    result.rotated_k_rows[0] = needle;
+    result.rotated_k_rows[(rows - 1) * 4] = needle;
+    return result;
+}
+
+static llama_kv_routing_page_input sparse_input(const llama_kv_page_record & page, float needle) {
+    llama_kv_routing_page_input result;
+    result.id = page.id;
+    const uint32_t rows = uint32_t(page.id.position_end - page.id.position_begin);
+    result.row_indices = { 0, rows / 3, (2 * rows) / 3, rows - 1 };
+    result.rotated_k_rows.assign(4 * 4, 0.0f);
+    for (size_t i = 0; i < result.row_indices.size(); ++i) {
+        result.rotated_k_rows[i * 4] = needle;
+    }
+    result.source_bytes = 4 * sizeof(float) * 4;
+    return result;
+}
+
+static llama_kv_residency_snapshot many_pages(uint32_t count,
+        llama_kv_residency_table & table) {
+    auto tx = table.begin();
+    for (uint32_t i = 0; i < count; ++i) {
+        assert(table.replace(tx, make_page(i, i, llama_pos((i + 1) * VBR_GENERATION_PAGE_CELLS))) ==
+                llama_kv_residency_status::ok);
+    }
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    return table.snapshot();
+}
+
+int main() {
+    static_assert(sizeof(llama_kv_router_page_probability) == 16,
+            "ranking probability record layout is shared with GGML");
+    llama_kv_router_owner_state owner;
+    assert(owner.stage == llama_kv_router_owner_stage::idle);
+    assert(owner.probes.positions.empty() && owner.shortlist.pages.empty());
+    llama_kv_router_page_probability probability = { 4, 1, 0.75f, 0.25f };
+    assert(llama_kv_router_probability_record_valid(probability));
+    probability.mean_probability = std::numeric_limits<float>::quiet_NaN();
+    assert(!llama_kv_router_probability_record_valid(probability));
+    probability.logical_page = -1;
+    assert(llama_kv_router_probability_record_valid(probability));
+
+    const auto snap = snapshot();
+    std::vector<llama_kv_routing_page_input> inputs;
+    for (const auto & page : snap.pages()) inputs.push_back(input(page, float(page.id.logical_page + 1)));
+
+    llama_kv_routing_summary_config config;
+    config.vector_dim = 4;
+    llama_kv_routing_summary_status status;
+    const auto store = llama_kv_routing_summary_store::build(snap, inputs, config, status);
+    assert(status == llama_kv_routing_summary_status::ok && store.valid());
+    assert(store.version() == LLAMA_KV_ROUTING_SUMMARY_VERSION);
+    assert(store.accounting().page_count == 3);
+    assert(store.accounting().representative_count == 4);
+    assert(store.accounting().payload_bytes == 3 * 4 * 4 * sizeof(float));
+    assert(store.accounting().charged_bytes == store.accounting().logical_bytes);
+
+    const auto ranked = store.score(snap, { 1, 0, 0, 0 }, 2);
+    assert(ranked.status == llama_kv_routing_summary_status::ok);
+    assert(ranked.pages_scored == 3 && ranked.top_pages.size() == 2);
+    assert(ranked.top_pages[0].logical_page == 2);
+    assert(ranked.comparisons == 12);
+    assert(store.score(snap, { 0, 1, 0 }, 1).status ==
+           llama_kv_routing_summary_status::invalid_argument);
+
+    // A residency-only publication changes the table epoch but not page
+    // content. The immutable summary remains usable and byte-identical.
+    llama_kv_residency_table epoch_table(8);
+    auto epoch_tx = epoch_table.begin();
+    for (const auto & page : snap.pages()) {
+        assert(epoch_table.replace(epoch_tx, page) == llama_kv_residency_status::ok);
+    }
+    assert(epoch_table.publish(epoch_tx) == llama_kv_residency_status::ok);
+    const uint64_t epoch_hash = store.content_hash();
+    epoch_tx = epoch_table.begin();
+    auto resident_only = epoch_tx.pages()[0];
+    resident_only.pin_count = 1;
+    assert(epoch_table.update(epoch_tx, resident_only) == llama_kv_residency_status::ok);
+    assert(epoch_table.publish(epoch_tx) == llama_kv_residency_status::ok);
+    const auto resident_only_score = store.score(
+            epoch_table.snapshot(), { 1, 0, 0, 0 }, 1);
+    assert(resident_only_score.status == llama_kv_routing_summary_status::ok);
+    assert(store.content_hash() == epoch_hash);
+
+    // A cold host record is part of the logical index even though it is not in
+    // the residency snapshot. Its summary survives the residency-only view.
+    auto complete_inventory = snap.pages();
+    auto cold_page = make_page(3, UINT32_MAX, 900);
+    cold_page.state = llama_kv_page_state::host_clean;
+    cold_page.host_valid = true;
+    complete_inventory.push_back(cold_page);
+    auto complete_inputs = inputs;
+    complete_inputs.push_back(input(cold_page, 9.0f));
+    const auto complete = llama_kv_routing_summary_store::build(
+            snap, complete_inventory, complete_inputs, config, status);
+    assert(status == llama_kv_routing_summary_status::ok && complete.valid());
+    assert(complete.accounting().page_count == 4);
+    const auto complete_ranked = complete.score(
+            snap, complete_inventory, { 1, 0, 0, 0 }, 4);
+    assert(complete_ranked.status == llama_kv_routing_summary_status::ok);
+    assert(complete_ranked.pages_scored == 4);
+    assert(complete.contains(3));
+    auto retained = complete.reconcile(snap, complete_inventory, status);
+    assert(status == llama_kv_routing_summary_status::ok && retained.contains(3));
+
+    // Equal scores use logical page as the stable tie breaker.
+    std::vector<float> zero(4, 0.0f);
+    const auto ties = store.score(snap, zero, 3);
+    assert(ties.top_pages[0].logical_page == 0 && ties.top_pages[1].logical_page == 1);
+
+    llama_kv_routing_summary_config too_small = config;
+    too_small.byte_budget = store.accounting().charged_bytes - 1;
+    assert(!llama_kv_routing_summary_store::build(snap, inputs, too_small, status).valid());
+    assert(status == llama_kv_routing_summary_status::insufficient_budget);
+    auto overflow_budget = config;
+    overflow_budget.allocation_granularity = std::numeric_limits<uint64_t>::max();
+    overflow_budget.byte_budget = std::numeric_limits<uint64_t>::max() - 1;
+    assert(!llama_kv_routing_summary_store::build(snap, inputs, overflow_budget, status).valid());
+    assert(status == llama_kv_routing_summary_status::insufficient_budget);
+
+    auto missing = inputs;
+    missing.pop_back();
+    assert(!llama_kv_routing_summary_store::build(snap, missing, config, status).valid());
+    assert(status == llama_kv_routing_summary_status::missing_page);
+
+    llama_kv_residency_table changed(8);
+    auto tx = changed.begin();
+    assert(changed.replace(tx, make_page(0, 4, 256, 2)) == llama_kv_residency_status::ok);
+    assert(changed.replace(tx, make_page(1, 1, 512)) == llama_kv_residency_status::ok);
+    assert(changed.replace(tx, make_page(2, 7, 700)) == llama_kv_residency_status::ok);
+    assert(changed.publish(tx) == llama_kv_residency_status::ok);
+    assert(store.score(changed.snapshot(), { 1, 0, 0, 0 }, 1).status ==
+           llama_kv_routing_summary_status::stale_summary);
+
+    // Seal-time producers may provide only the bounded sampled rows. The
+    // store must not require a full-page source image in that form.
+    std::vector<llama_kv_routing_page_input> sparse_inputs;
+    for (const auto & page : snap.pages()) sparse_inputs.push_back(sparse_input(page, float(page.id.logical_page + 1)));
+    const auto sparse = llama_kv_routing_summary_store::build(snap, sparse_inputs, config, status);
+    assert(status == llama_kv_routing_summary_status::ok && sparse.valid());
+    assert(sparse.accounting().source_rows == 12);
+    assert(sparse.accounting().source_bytes == 12 * sizeof(float) * 4);
+
+    auto centroid_config = config;
+    centroid_config.form = llama_kv_routing_summary_form::centroid_upper_bound;
+    const auto centroid = llama_kv_routing_summary_store::build(
+            snap, sparse_inputs, centroid_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && centroid.valid());
+    assert(centroid.accounting().payload_bytes == 3 * (4 + 1) * sizeof(float));
+    const auto bounded = centroid.score(snap, { 1, 0, 0, 0 }, 3);
+    assert(bounded.status == llama_kv_routing_summary_status::ok);
+    assert(bounded.top_pages[0].upper_bound);
+
+    // The device estimator uses fixed 64-token subblocks and stores two
+    // fp16-equivalent bounds per dimension. Its CPU reference must use the
+    // same max(q*min, q*max) rule and preserve the page tie ordering.
+    const auto layout = llama_kv_routing_summary_device_layout::make(
+            10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 64, sizeof(uint16_t));
+    assert(layout.subblocks_per_page == 4);
+    assert(layout.bytes == 10ull * 16 * 4 * 4 * 256 * 2 * sizeof(uint16_t));
+    const auto catalogue = llama_kv_routing_catalogue_layout::make(10, 4, 256);
+    assert(catalogue.bytes == 10ull * 4 * 256 * 3 * sizeof(uint16_t));
+
+    // Probe/rerank storage is explicit and derived from encoded K row bytes.
+    llama_kv_router_budget_config budget_config;
+    budget_config.attention_layers = 16;
+    budget_config.valid_probe_capacity = 3;
+    budget_config.query_heads = 8;
+    budget_config.head_dim = 256;
+    budget_config.key_ne0 = 256;
+    budget_config.key_type = GGML_TYPE_F16;
+    budget_config.page_tokens = 256;
+    budget_config.score_workspace_required_bytes = 3ull * 1024 * 1024;
+    budget_config.tensor_overhead_bytes = 128;
+    budget_config.allocator_alignment_bytes = 64;
+    budget_config.cuda_temporary_bytes = 512;
+    budget_config.event_bytes = 32;
+    const auto budget = llama_kv_router_make_budget(budget_config);
+    assert(budget.status == llama_kv_router_budget_status::ok);
+    assert(budget.key_row_bytes == 512);
+    assert(budget.key_page_bytes == 256ull * 512);
+    assert(budget.key_rows_per_chunk == 256);
+    assert(budget.ledger.probe_bytes == 16ull * 3 * 8 * 256 * sizeof(float));
+    assert(budget.ledger.score_workspace_bytes == 2ull * 1024 * 1024);
+    assert(budget.ledger.gpu_key_staging_bytes == 8ull * 1024 * 1024);
+    assert(budget.ledger.pinned_key_staging_bytes == 8ull * 1024 * 1024);
+    assert(budget.ledger.total_bytes == budget.ledger.probe_bytes +
+            budget.ledger.score_workspace_bytes + budget.ledger.gpu_key_staging_bytes +
+            budget.ledger.pinned_key_staging_bytes + 128 + 64 + 512 + 32);
+    auto row_overflow = budget_config;
+    row_overflow.key_type = GGML_TYPE_F32;
+    row_overflow.head_dim = 2 * 1024 * 1024;
+    row_overflow.key_ne0 = row_overflow.head_dim;
+    assert(llama_kv_router_make_budget(row_overflow).status ==
+            llama_kv_router_budget_status::key_row_exceeds_slot);
+    auto geometry_overflow = budget_config;
+    geometry_overflow.attention_layers = UINT32_MAX;
+    geometry_overflow.valid_probe_capacity = UINT32_MAX;
+    assert(llama_kv_router_make_budget(geometry_overflow).status ==
+            llama_kv_router_budget_status::overflow);
+    auto invalid_geometry = budget_config;
+    invalid_geometry.key_ne0 = 128;
+    assert(llama_kv_router_make_budget(invalid_geometry).status ==
+            llama_kv_router_budget_status::invalid_geometry);
+    assert(llama_kv_routing_summary_device_layout::make(
+            10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 16, sizeof(uint16_t)).bytes ==
+            10ull * 16 * 4 * 16 * 256 * 2 * sizeof(uint16_t));
+    auto ranges_config = config;
+    ranges_config.form = llama_kv_routing_summary_form::minmax_ranges;
+    ranges_config.subblock_tokens = 64;
+    const auto ranges = llama_kv_routing_summary_store::build(
+            snap, inputs, ranges_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && ranges.valid());
+    assert(ranges.subblock_tokens() == 64);
+    assert(ranges.subblock_count(0) == 4);
+    assert(ranges.range_min(0) != nullptr && ranges.range_max(0) != nullptr);
+    const auto range_ranked = ranges.score(snap, { 1, 0, 0, 0 }, 3);
+    assert(range_ranked.status == llama_kv_routing_summary_status::ok);
+    assert(range_ranked.top_pages[0].logical_page == 2);
+    assert(range_ranked.comparisons == 3ull * 4 * 4);
+    auto mean_config = config;
+    mean_config.form = llama_kv_routing_summary_form::mean_k;
+    const auto means = llama_kv_routing_summary_store::build(
+            snap, inputs, mean_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && means.valid());
+    assert(means.version() == LLAMA_KV_ROUTING_SUMMARY_VERSION);
+    assert(means.mean_k(0) != nullptr && means.mean_k(0)->size() == 4);
+    assert((*means.mean_k(0))[0] == 2.0f / 256.0f);
+    const auto mean_ranked = means.score(snap, { 1, 0, 0, 0 }, 3);
+    assert(mean_ranked.status == llama_kv_routing_summary_status::ok);
+    assert(mean_ranked.top_pages[0].logical_page == 2);
+    auto sparse_mean_config = mean_config;
+    const auto sparse_mean = llama_kv_routing_summary_store::build(
+            snap, sparse_inputs, sparse_mean_config, status);
+    assert(!sparse_mean.valid() && status == llama_kv_routing_summary_status::invalid_page);
+    float range_score = 0.0f;
+    const float range_query[] = { 1.0f, -2.0f };
+    const float range_min[] = { -1.0f, -3.0f };
+    const float range_max[] = { 4.0f, 2.0f };
+    assert(llama_kv_routing_summary_score_ranges(
+            range_query, range_min, range_max, 1, 2, range_score));
+    assert(range_score == 10.0f);
+    const float nonfinite_query[] = { std::numeric_limits<float>::quiet_NaN(), -2.0f };
+    assert(!llama_kv_routing_summary_score_ranges(
+            nonfinite_query, range_min, range_max, 1, 2, range_score));
+    assert(store.score(snap, { std::numeric_limits<float>::quiet_NaN(), 0, 0, 0 }, 1).status ==
+           llama_kv_routing_summary_status::invalid_argument);
+
+    // Page seals update one summary without rereading the other pages.
+    llama_kv_residency_table incremental_table(8);
+    auto incremental_tx = incremental_table.begin();
+    assert(incremental_table.replace(incremental_tx, make_page(0, 4, 256)) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(incremental_tx) == llama_kv_residency_status::ok);
+    auto incremental = llama_kv_routing_summary_store{};
+    incremental = incremental.update_page(incremental_table.snapshot(),
+            sparse_input(incremental_table.snapshot().pages()[0], 5.0f), config, status);
+    assert(status == llama_kv_routing_summary_status::ok && incremental.contains(0));
+    const uint64_t first_hash = incremental.content_hash();
+    auto add_tx = incremental_table.begin();
+    assert(incremental_table.replace(add_tx, make_page(1, 1, 512)) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(add_tx) == llama_kv_residency_status::ok);
+    const auto page_one = incremental_table.snapshot().pages()[1];
+    incremental = incremental.update_page(incremental_table.snapshot(),
+            sparse_input(page_one, 6.0f), config, status);
+    assert(status == llama_kv_routing_summary_status::ok && incremental.contains(0) && incremental.contains(1));
+    assert(incremental.accounting().build_count == 2 && incremental.content_hash() != first_hash);
+
+    // A seal wave batches changed pages into one immutable publication while
+    // retaining the prior page summaries.
+    auto batch_tx = incremental_table.begin();
+    auto page_zero = batch_tx.pages()[0];
+    page_zero.id.page_generation++;
+    assert(incremental_table.update(batch_tx, page_zero) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(batch_tx) == llama_kv_residency_status::ok);
+    batch_tx = incremental_table.begin();
+    auto page_two = make_page(2, 7, 700);
+    assert(incremental_table.replace(batch_tx, page_two) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(batch_tx) == llama_kv_residency_status::ok);
+    std::vector<llama_kv_routing_page_input> batch_inputs = {
+        sparse_input(incremental_table.snapshot().pages()[0], 7.0f),
+        sparse_input(incremental_table.snapshot().pages()[2], 8.0f),
+    };
+    const auto batched = incremental.update_pages(
+            incremental_table.snapshot(), incremental_table.snapshot().pages(),
+            batch_inputs, config, status);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(batched.contains(0) && batched.contains(1) && batched.contains(2));
+    assert(batched.accounting().build_count == incremental.accounting().build_count + 2);
+
+    // A sealed partial tail remains a valid summary source after its state
+    // changes from filling_gpu to gpu_host_clean.
+    llama_kv_residency_table sealed_tail_table(2);
+    auto sealed_tail_tx = sealed_tail_table.begin();
+    auto sealed_tail = make_page(0, 1, 56);
+    sealed_tail.state = llama_kv_page_state::gpu_host_clean;
+    assert(sealed_tail_table.replace(sealed_tail_tx, sealed_tail) ==
+            llama_kv_residency_status::ok);
+    assert(sealed_tail_table.publish(sealed_tail_tx) == llama_kv_residency_status::ok);
+    const auto sealed_tail_snapshot = sealed_tail_table.snapshot();
+    auto sealed_tail_config = config;
+    sealed_tail_config.form = llama_kv_routing_summary_form::minmax_ranges;
+    sealed_tail_config.subblock_tokens = 64;
+    auto sealed_tail_input = sparse_input(sealed_tail_snapshot.pages()[0], 9.0f);
+    sealed_tail_input.range_min.assign(4 * sealed_tail_config.vector_dim,
+            std::numeric_limits<float>::infinity());
+    sealed_tail_input.range_max.assign(4 * sealed_tail_config.vector_dim,
+            -std::numeric_limits<float>::infinity());
+    for (uint32_t d = 0; d < sealed_tail_config.vector_dim; ++d) {
+        sealed_tail_input.range_min[d] = -1.0f;
+        sealed_tail_input.range_max[d] = 1.0f;
+    }
+    const auto sealed_tail_summary = llama_kv_routing_summary_store{}.update_pages(
+            sealed_tail_snapshot, sealed_tail_snapshot.pages(),
+            {sealed_tail_input}, sealed_tail_config, status, true);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(sealed_tail_summary.contains(0));
+
+    const auto invalidated = batched.invalidate_pages(
+            incremental_table.snapshot(), { page_zero.id, page_two.id }, status);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(!invalidated.contains(0) && invalidated.contains(1) && !invalidated.contains(2));
+
+    auto changed_tx = incremental_table.begin();
+    auto changed_page = changed_tx.pages()[0];
+    changed_page.id.page_generation++;
+    assert(incremental_table.update(changed_tx, changed_page) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(changed_tx) == llama_kv_residency_status::ok);
+    auto reconciled = incremental.reconcile(incremental_table.snapshot(), status);
+    assert(status == llama_kv_routing_summary_status::ok && !reconciled.contains(0) && reconciled.contains(1));
+    assert(reconciled.accounting().invalidation_count == 1);
+
+    // Immutable per-page payloads keep old snapshots stable and make digest
+    // work proportional to the changed page, independent of catalogue size.
+    auto delta_mean_config = config;
+    delta_mean_config.form = llama_kv_routing_summary_form::mean_k;
+    for (const uint32_t count : { 2u, 16u, 64u }) {
+        llama_kv_residency_table table(count);
+        const auto before = many_pages(count, table);
+        std::vector<llama_kv_routing_page_input> page_inputs;
+        for (const auto & page : before.pages()) {
+            page_inputs.push_back(input(page, float(page.id.logical_page + 1)));
+        }
+        const auto original = llama_kv_routing_summary_store::build(
+                before, page_inputs, delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok && original.valid());
+        assert(original.accounting().payload_floats_hashed == count * 4);
+        const auto original_hash = original.content_hash();
+        const auto * retained_page = original.mean_k(0);
+        assert(retained_page != nullptr);
+        const float retained_value = (*retained_page)[0];
+
+        auto reversed_inputs = page_inputs;
+        std::reverse(reversed_inputs.begin(), reversed_inputs.end());
+        const auto reversed = llama_kv_routing_summary_store::build(
+                before, reversed_inputs, delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok &&
+                reversed.content_hash() == original_hash);
+        auto reversed_inventory = before.pages();
+        std::reverse(reversed_inventory.begin(), reversed_inventory.end());
+        const auto permuted = llama_kv_routing_summary_store::build(
+                before, reversed_inventory, reversed_inputs, delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok &&
+                permuted.content_hash() == original_hash);
+
+        auto tx = table.begin();
+        auto changed = tx.pages().back();
+        ++changed.content_version;
+        assert(table.update(tx, changed) == llama_kv_residency_status::ok);
+        assert(table.publish(tx) == llama_kv_residency_status::ok);
+        const auto after = table.snapshot();
+        assert(original.score(after, { 1, 0, 0, 0 }, count).status ==
+                llama_kv_routing_summary_status::stale_summary);
+        const auto stale_removed = original.reconcile(after, status);
+        assert(status == llama_kv_routing_summary_status::ok &&
+                !stale_removed.contains(count - 1) && stale_removed.contains(0));
+        const auto changed_store = original.update_page(after, after.pages(),
+                input(after.pages().back(), 100.0f), delta_mean_config, status);
+        assert(status == llama_kv_routing_summary_status::ok && changed_store.valid());
+        assert(changed_store.accounting().payload_floats_hashed == 4);
+        assert(changed_store.content_hash() != original_hash);
+        assert(original.accounting().payload_bytes == count * 4 * sizeof(float));
+        assert(changed_store.accounting().payload_bytes == count * 4 * sizeof(float));
+        assert(changed_store.mean_k(0) == retained_page);
+        assert(original.mean_k(0) == retained_page && (*retained_page)[0] == retained_value);
+        assert(changed_store.mean_k(count - 1) != original.mean_k(count - 1));
+        assert(changed_store.content_version(after.pages().back().id) == changed.content_version);
+
+        const auto epoch_hash = changed_store.content_hash();
+        auto residency_tx = table.begin();
+        auto resident = residency_tx.pages()[0];
+        ++resident.pin_count;
+        assert(table.update(residency_tx, resident) == llama_kv_residency_status::ok);
+        assert(table.publish(residency_tx) == llama_kv_residency_status::ok);
+        const auto epoch_only = changed_store.reconcile(table.snapshot(), status);
+        assert(status == llama_kv_routing_summary_status::ok);
+        assert(epoch_only.content_hash() == epoch_hash);
+        assert(epoch_only.accounting().payload_floats_hashed == 0);
+
+        const auto removed = changed_store.invalidate_page(after, count - 1, status);
+        assert(status == llama_kv_routing_summary_status::ok && !removed.contains(count - 1));
+        assert(changed_store.contains(count - 1));
+        assert(changed_store.mean_k(0) == retained_page && (*retained_page)[0] == retained_value);
+        assert(removed.accounting().payload_floats_hashed == 0);
+    }
+
+    // Config and authenticated page identity remain part of the table digest.
+    auto other_coordinates = mean_config;
+    other_coordinates.coordinate_identity = 0xabcdu;
+    const auto coordinate_store = llama_kv_routing_summary_store::build(
+            snap, inputs, other_coordinates, status);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(coordinate_store.content_hash() != means.content_hash());
+
+    llama_kv_residency_table codec_table(8);
+    auto codec_tx = codec_table.begin();
+    auto codec_inputs = inputs;
+    for (size_t i = 0; i < snap.pages().size(); ++i) {
+        auto record = snap.pages()[i];
+        if (i == 0) {
+            ++record.id.codec_digest;
+            codec_inputs[i].id = record.id;
+        }
+        assert(codec_table.replace(codec_tx, record) == llama_kv_residency_status::ok);
+    }
+    assert(codec_table.publish(codec_tx) == llama_kv_residency_status::ok);
+    const auto codec_store = llama_kv_routing_summary_store::build(
+            codec_table.snapshot(), codec_inputs, mean_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && codec_store.valid());
+    assert(codec_store.content_hash() != means.content_hash());
+
+    // Summary readiness is a complete layer/head grid, never a partial set of
+    // successful insertions. Failed validation leaves the existing index
+    // byte-for-byte represented by the same store hashes.
+    auto head0_config = ranges_config;
+    head0_config.layer_index = 0;
+    head0_config.head_index = 0;
+    auto head1_config = head0_config;
+    head1_config.head_index = 1;
+    const auto head0_store = llama_kv_routing_summary_store::build(
+            snap, inputs, head0_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && head0_store.valid());
+    const auto head1_store = llama_kv_routing_summary_store::build(
+            snap, inputs, head1_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && head1_store.valid());
+    llama_kv_routing_summary_index summary_index;
+    std::vector<llama_kv_routing_summary_store> incomplete_grid;
+    incomplete_grid.push_back(head0_store);
+    assert(!summary_index.set_all(std::move(incomplete_grid), 1, 2));
+    assert(summary_index.table_count() == 0);
+    std::vector<llama_kv_routing_summary_store> complete_grid;
+    complete_grid.push_back(head0_store);
+    complete_grid.push_back(head1_store);
+    assert(summary_index.set_all(std::move(complete_grid), 1, 2));
+    assert(summary_index.table_count() == 2);
+    const uint64_t head0_hash = summary_index.find(0, 0)->content_hash();
+    std::vector<llama_kv_routing_summary_store> duplicate_grid;
+    duplicate_grid.push_back(head0_store);
+    duplicate_grid.push_back(head0_store);
+    assert(!summary_index.set_all(std::move(duplicate_grid), 1, 2));
+    assert(summary_index.table_count() == 2);
+    assert(summary_index.find(0, 0)->content_hash() == head0_hash);
+    assert(!summary_index.set(llama_kv_routing_summary_store{}));
+    return 0;
+}

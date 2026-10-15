@@ -29,6 +29,13 @@ struct llama_ubatch {
         return n_pos >= 3;
     }
 
+    // llama_batch_allocr::ubatch uses SECTION-MAJOR positions:
+    // pos[section * n_tokens + row], not pos[row * n_pos + section].
+    // Cache identity, causal attention, query routing and MTP handoff use
+    // section zero (temporal/native position), including text M-RoPE batches.
+    llama_pos pos0(uint32_t row) const {
+        GGML_ASSERT(pos != nullptr && row < n_tokens);
+        return pos[row];
     // mixed: type picks token or embd per row, pos has n_pos sections for all rows
     bool is_mixed() const {
         return type != nullptr;

@@ -356,6 +356,20 @@ void llama_kv_cache_iswa::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_ds
     kv_swa ->seq_cp(seq_id_src, seq_id_dst, p0, p1);
 }
 
+bool llama_kv_cache_iswa::try_seq_cp(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
+    const iswa_forwarded_op forwarded(kv_base.get(), kv_swa.get(),
+            iswa_edit_binding(kv_base.get(), kv_swa.get(), vbr_operation_kind::sequence_edit,
+                              vbr_operation_class::state_api, seq_id_dst, p0, p1));
+    const bool base = kv_base->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    const bool swa  = kv_swa ->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    if (!base || !swa) {
+        (void) kv_base->seq_rm_transient(seq_id_dst, -1, -1);
+        (void) kv_swa ->seq_rm_transient(seq_id_dst, -1, -1);
+    }
+    return base && swa;
+}
+
 bool llama_kv_cache_iswa::try_seq_cp_transient(
         llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
     const iswa_forwarded_op forwarded(kv_base.get(), kv_swa.get(),
@@ -363,6 +377,10 @@ bool llama_kv_cache_iswa::try_seq_cp_transient(
                               vbr_operation_class::state_api, seq_id_dst, p0, p1));
     const bool base = kv_base->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
     const bool swa  = kv_swa ->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
+    if (!base || !swa) {
+        (void) kv_base->seq_rm_transient(seq_id_dst, -1, -1);
+        (void) kv_swa ->seq_rm_transient(seq_id_dst, -1, -1);
+    }
     return base && swa;
 }
 
@@ -525,7 +543,10 @@ llama_memory_context_ptr llama_kv_cache_iswa::init_batch(llama_batch_allocr & ba
     // TODO: if we fail again, we should attempt different splitting strategies
     //       but to do that properly, we first have to refactor the batches to be more flexible
 
-    return std::make_unique<llama_kv_cache_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    return std::make_unique<llama_kv_cache_iswa_context>(
+            LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+            kv_base->last_failure_reason() != llama_memory_failure_reason::none
+                ? kv_base->last_failure_reason() : kv_swa->last_failure_reason());
 }
 
 llama_memory_context_ptr llama_kv_cache_iswa::init_full() {
@@ -807,7 +828,9 @@ llama_kv_cache * llama_kv_cache_iswa::get_swa() const {
 // llama_kv_cache_iswa_context
 //
 
-llama_kv_cache_iswa_context::llama_kv_cache_iswa_context(llama_memory_status status) : status(status) {}
+llama_kv_cache_iswa_context::llama_kv_cache_iswa_context(
+        llama_memory_status status, llama_memory_failure_reason reason) :
+    status(status), failure_reason(reason) {}
 
 llama_kv_cache_iswa_context::llama_kv_cache_iswa_context(
         llama_kv_cache_iswa * kv) : llama_kv_cache_iswa_context(kv, std::numeric_limits<uint32_t>::max()) {
@@ -922,6 +945,56 @@ uint32_t llama_kv_cache_iswa_context::get_max_graph_seqs() const {
     return std::min(ctx_base->get_max_graph_seqs(), ctx_swa->get_max_graph_seqs());
 }
 
+ggml_tensor * llama_kv_cache_iswa_context::build_kv_page_select(
+        ggml_context * ctx, ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row,
+        ggml_tensor ** probe_capture) const {
+    // The base cache owns the full-history catalogue. SWA remains on its
+    // native window and must not accidentally publish a second selector.
+    return ctx_base != nullptr ? ctx_base->build_kv_page_select(
+            ctx, q, layer, ubatch, query_row, probe_capture) : nullptr;
+}
+
+bool llama_kv_cache_iswa_context::set_kv_query_probe_inputs(
+        ggml_tensor * probes, const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->set_kv_query_probe_inputs(probes, ubatch);
+}
+
+bool llama_kv_cache_iswa_context::can_reuse_kv_query_capture(
+        const ggml_tensor * query_op, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) const {
+    return ctx_base != nullptr && ctx_base->can_reuse_kv_query_capture(
+            query_op, ubatch, sequence_id, final_batch);
+}
+
+bool llama_kv_cache_iswa_context::set_kv_page_select_inputs(
+        ggml_tensor * bounds, ggml_tensor * metadata,
+        ggml_tensor * membership, ggml_tensor * query, int layer,
+        const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->set_kv_page_select_inputs(
+            bounds, metadata, membership, query, layer, ubatch);
+}
+
+bool llama_kv_cache_iswa_context::set_kv_query_accumulate_inputs(
+        ggml_tensor * accumulator, const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->set_kv_query_accumulate_inputs(accumulator, ubatch);
+}
+
+bool llama_kv_cache_iswa_context::can_reuse_kv_page_select(
+        const ggml_tensor * bounds, int layer,
+        const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->can_reuse_kv_page_select(
+            bounds, layer, ubatch);
+}
+
+void llama_kv_cache_iswa_context::capture_kv_routing_query(
+        ggml_tensor * tensor, int layer,
+        const llama_ubatch & ubatch) const {
+    if (ctx_base != nullptr) {
+        ctx_base->capture_kv_routing_query(tensor, layer, ubatch);
+    }
+}
+
 const llama_ubatch & llama_kv_cache_iswa_context::get_ubatch() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 
@@ -930,6 +1003,17 @@ const llama_ubatch & llama_kv_cache_iswa_context::get_ubatch() const {
 
 uint64_t llama_kv_cache_iswa_context::get_vbr_epoch() const {
     return get_base()->get_vbr_epoch() + get_swa()->get_vbr_epoch();
+}
+
+bool llama_kv_cache_iswa_context::reserve_kv_attention_scratch(
+        const llama_kv_attention_scratch_request & request) const {
+    return get_base()->reserve_kv_attention_scratch(request) &&
+        get_swa()->reserve_kv_attention_scratch(request);
+}
+
+uint32_t llama_kv_cache_iswa_context::current_kv_attention_rows() const {
+    return std::max(get_base()->current_kv_attention_rows(),
+            get_swa()->current_kv_attention_rows());
 }
 
 const llama_kv_cache_context * llama_kv_cache_iswa_context::get_base() const {
@@ -944,9 +1028,10 @@ const llama_kv_cache_context * llama_kv_cache_iswa_context::get_swa()  const {
     return static_cast<const llama_kv_cache_context *>(ctx_swa.get());
 }
 
-void llama_kv_cache_iswa::vbr_commit_submitted() {
-    kv_base->vbr_commit_submitted();
-    kv_swa ->vbr_commit_submitted();
+bool llama_kv_cache_iswa::vbr_commit_submitted() {
+    const bool base_ok = kv_base->vbr_commit_submitted();
+    const bool swa_ok = kv_swa->vbr_commit_submitted();
+    return base_ok && swa_ok;
 }
 
 void llama_kv_cache_iswa::vbr_decode_ops_finish(bool ok) {

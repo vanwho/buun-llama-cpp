@@ -8,6 +8,7 @@
 #include "ggml-opt.h"
 #include "ggml.h"
 #include "llama.h"
+#include "../src/llama-kv-pager-config.h"
 
 #include <array>
 #include <filesystem>
@@ -337,6 +338,12 @@ struct common_params_model {
 };
 
 // draft-model-based speculative decoding parameters
+enum class common_speculative_draft_kv_device {
+    AUTO,
+    GPU,
+    CPU,
+};
+
 struct common_params_speculative_draft {
     int32_t n_max = 3; // maximum number of tokens to draft during speculative decoding
     int32_t n_min = 0; // minimum number of draft tokens to use for speculative decoding
@@ -367,6 +374,7 @@ struct common_params_speculative_draft {
 
     ggml_type cache_type_k = GGML_TYPE_F16; // KV cache data type for the K
     ggml_type cache_type_v = GGML_TYPE_F16; // KV cache data type for the V
+    common_speculative_draft_kv_device kv_device = common_speculative_draft_kv_device::AUTO;
 
     common_cpu_params cpuparams;
     common_cpu_params cpuparams_batch;
@@ -723,6 +731,8 @@ struct common_params {
     bool swa_full          = false; // use full-size SWA cache (https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
     bool kv_unified        = false; // enable unified KV cache
     bool logits_all        = true;  // see llama_context_params.logits_all
+
+    llama_kv_pager_config kv_pager;
 
     bool input_prefix_bos  = false; // prefix BOS to user inputs, preceding input_prefix
     bool verbose_prompt    = false; // print prompt tokens before generation
@@ -1341,6 +1351,15 @@ common_init_result_ptr common_init_from_params(common_params & params, bool mode
 
 struct llama_model_params   common_model_params_to_llama  (      common_params & params);
 struct llama_context_params common_context_params_to_llama(const common_params & params);
+
+bool common_speculative_draft_kv_offload(
+        common_speculative_draft_kv_device device, bool target_no_kv_offload);
+
+bool common_speculative_draft_kv_device_is_available(
+        common_speculative_draft_kv_device device, const llama_model * model = nullptr);
+
+const char * common_speculative_draft_kv_device_name(
+        common_speculative_draft_kv_device device);
 
 // Recompute codec-dependent entry/floor/runtime fields after model-aware auto selection.
 // Core llama_context_params must only ever receive the resolved Turbo or classic codec.

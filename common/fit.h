@@ -76,6 +76,12 @@ struct common_fit_extra_model {
     const common_fit_extra_model * next = nullptr;
     bool optional_if_no_mtp = false;
     bool borrows_target_tensors = false;
+    // Reserved for extras whose context is intentionally independent of the target candidate.
+    // Native MTP leaves this false and follows the resolved target per-sequence context.
+    bool full_target_context = false;
+    // Minimum terminal model slots that must be offloaded for this extra to execute.
+    // Native MTP sets this to two: the MTP block plus the output slot.
+    uint32_t required_gpu_layers = 0;
 };
 
 uint32_t common_fit_extra_context_size(

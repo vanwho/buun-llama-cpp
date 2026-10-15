@@ -15,7 +15,7 @@ extern "C" {
 #define RPC_PROTO_PATCH_VERSION    0
 
 #ifdef  __cplusplus
-static_assert(GGML_OP_COUNT == 107, "GGML_OP_COUNT changed - review fork RPC wire version");
+static_assert(GGML_OP_COUNT == 113, "GGML_OP_COUNT changed - review fork RPC wire version");
 static_assert(GGML_TYPE_COUNT == 92, "GGML_TYPE_COUNT changed - review fork RPC wire version");
 #endif
 

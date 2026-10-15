@@ -6,6 +6,14 @@
 
 A research and development fork of [llama.cpp](https://github.com/ggml-org/llama.cpp), providing unique KV cache codecs, inference techniques, and bleeding edge features.
 
+### ACO: Attention-Aware Context Offloading (experimental)
+
+ACO keeps a bounded target KV working set on the GPU and canonical sealed-page
+backing in host memory. Selective routing approximates full-context attention;
+it is supported only for the documented Qwen3.8 CUDA geometry and is not a
+dense-equivalence or general performance claim. See the
+[architecture, limits, build, and launch guide](docs/aco.md).
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## VBR — Variable Bit-Rate KV Cache

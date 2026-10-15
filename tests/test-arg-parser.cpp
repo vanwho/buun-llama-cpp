@@ -15,6 +15,7 @@
 #include <vector>
 #include <sstream>
 #include <unordered_set>
+#include <utility>
 
 #undef NDEBUG
 #include <cassert>
@@ -26,6 +27,68 @@
 static void test(void) {
     common_params params;
 
+    assert(params.kv_pager.mode == llama_kv_pager_mode::off);
+    assert(params.kv_pager.vram_budget.automatic);
+    assert(params.kv_pager.router_top_k == 8);
+    assert(params.kv_pager.router_refresh_tokens == 8);
+    assert(params.kv_pager.router_explore == 2);
+    assert(params.kv_pager.prefetch_depth == 2);
+    assert(params.kv_pager.telemetry_interval_tokens == 4);
+    assert(llama_kv_pager_parse_mode("SELECTIVE", params.kv_pager.mode));
+    assert(params.kv_pager.mode == llama_kv_pager_mode::selective);
+    for (const auto & mode : { "off", "observe", "selective", "exact" }) {
+        llama_kv_pager_mode parsed = llama_kv_pager_mode::off;
+        assert(llama_kv_pager_parse_mode(mode, parsed));
+    }
+    assert(!llama_kv_pager_parse_mode("unsupported", params.kv_pager.mode));
+    llama_kv_pager_auto_size size;
+    assert(llama_kv_pager_parse_size("1.5GiB", size) && size.bytes == 1610612736ULL);
+    assert(llama_kv_pager_parse_size("auto", size) && size.automatic);
+    assert(!llama_kv_pager_parse_size("18446744073709551616G", size));
+    std::string pager_error;
+    params.kv_pager.page_size = 128;
+    assert(!params.kv_pager.validate(pager_error));
+    params.kv_pager.page_size = 256;
+
+    params.kv_pager.vram_budget = { false, 1024 };
+    params.kv_pager.host_budget = { false, 2048 };
+    params.kv_pager.safety_headroom = { false, 256 };
+    params.kv_pager.pin_recent = { false, 512 };
+    params.kv_pager.hot_pages = { false, 7 };
+    params.kv_pager.router_top_k = 3;
+    params.kv_pager.router_refresh_tokens = 3;
+    params.kv_pager.router_explore = 2;
+    params.kv_pager.prefetch_depth = 4;
+    params.kv_pager.telemetry = false;
+    params.kv_pager.debug = true;
+    const std::string pager_summary = params.kv_pager.summary();
+    assert(pager_summary.find("mode=selective") != std::string::npos);
+    assert(pager_summary.find("vram_budget_bytes=1024") != std::string::npos);
+    assert(pager_summary.find("host_budget_bytes=2048") != std::string::npos);
+    assert(pager_summary.find("hot_pages_cap=7") != std::string::npos);
+    assert(pager_summary.find("router_top_k=3") != std::string::npos);
+    assert(pager_summary.find("router_refresh_tokens=3") != std::string::npos);
+    assert(pager_summary.find("telemetry=off") != std::string::npos);
+    assert(pager_summary.find("debug=on") != std::string::npos);
+
+    // Submission identity and cadence are independent: rejected/draft rows
+    // do not move the accepted-token watermark, while a later committed batch
+    // crosses the configured threshold.
+    uint64_t submission = 1;
+    uint64_t accepted = 0;
+    uint64_t watermark = 0;
+    assert(llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 1;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 2;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 3;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 64;
+    assert(llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    watermark = accepted;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    assert(llama_kv_pager_refresh_due(submission, accepted, watermark, true, 8));
     {
         common_params base;
         base.n_batch = 4096;
@@ -75,6 +138,7 @@ static void test(void) {
         assert(implicit.n_ctx == 4096);
         assert(implicit.n_seq_max == 2);
         assert(implicit.kv_unified);
+        assert(implicit.valid());
 
         // Split target: two 16K streams need a 32K shared draft pool. Extra
         // backup sequence IDs must not multiply that physical capacity.
@@ -91,12 +155,93 @@ static void test(void) {
         assert(explicit_split.n_ctx == 8192);
         assert(explicit_split.n_seq_max == 3);
         assert(!explicit_split.kv_unified);
+        assert(explicit_split.valid());
 
         const auto explicit_unified = common_speculative_mtp_context_params_resolve(
             4096, 8192, 4, true);
         assert(explicit_unified.n_ctx == 8192);
         assert(explicit_unified.n_seq_max == 4);
         assert(explicit_unified.kv_unified);
+
+        const auto native_implicit = common_speculative_mtp_context_params_resolve(
+            4096, 0, 2, false, true);
+        assert(native_implicit.valid());
+        assert(native_implicit.n_ctx == 4096);
+        assert(native_implicit.kv_unified);
+
+        const auto native_matching = common_speculative_mtp_context_params_resolve(
+            4096, 4096, 2, false, true);
+        assert(native_matching.valid());
+        assert(native_matching.n_ctx == 4096);
+        assert(native_matching.kv_unified);
+
+        const auto native_conflicting = common_speculative_mtp_context_params_resolve(
+            4096, 8192, 2, false, true);
+        assert(!native_conflicting.valid());
+        assert(native_conflicting.validation ==
+               common_speculative_mtp_context_params::status::conflicting_explicit_context);
+
+        // The fitter has not resolved the target candidate yet. Keep an explicit
+        // value for projection, then validate it again against the realized target.
+        const auto native_unresolved = common_speculative_mtp_context_params_resolve(
+            0, 8192, 2, false, true);
+        assert(native_unresolved.valid());
+        assert(native_unresolved.n_ctx == 8192);
+
+        // Native MTP follows the realized target per-sequence capacity. Keep
+        // this a small synthetic table so the contract cannot regress to a
+        // benchmark-specific long-context constant.
+        for (const uint32_t target_rows : { 256u, 4096u, 32768u }) {
+            const auto native_dynamic = common_speculative_mtp_context_params_resolve(
+                target_rows, 0, 2, false, true);
+            assert(native_dynamic.valid());
+            assert(native_dynamic.n_ctx == target_rows);
+            assert(native_dynamic.kv_unified);
+
+            const auto native_matching_dynamic = common_speculative_mtp_context_params_resolve(
+                target_rows, static_cast<int32_t>(target_rows), 2, false, true);
+            assert(native_matching_dynamic.valid());
+            assert(native_matching_dynamic.n_ctx == target_rows);
+            assert(native_matching_dynamic.kv_unified);
+        }
+
+        // The draft context is per target sequence, even when the target has
+        // several server slots. Native MTP must preserve that full-L width and
+        // unified ownership rather than multiplying or shortening it by slot.
+        for (const auto & [target_rows, slots] : {
+                std::pair<uint32_t, uint32_t>{8192u, 4u},
+                std::pair<uint32_t, uint32_t>{32768u, 8u},
+                std::pair<uint32_t, uint32_t>{131072u, 16u} }) {
+            const auto native_multi_slot = common_speculative_mtp_context_params_resolve(
+                target_rows, 0, slots, true, true);
+            assert(native_multi_slot.valid());
+            assert(native_multi_slot.n_ctx == target_rows);
+            assert(native_multi_slot.n_seq_max == slots);
+            assert(native_multi_slot.kv_unified);
+
+            const auto native_multi_slot_matching =
+                common_speculative_mtp_context_params_resolve(
+                    target_rows, static_cast<int32_t>(target_rows), slots, true, true);
+            assert(native_multi_slot_matching.valid());
+            assert(native_multi_slot_matching.n_ctx == target_rows);
+            assert(native_multi_slot_matching.n_seq_max == slots);
+            assert(native_multi_slot_matching.kv_unified);
+        }
+
+        llama_context_params mtp_cparams = llama_context_default_params();
+        mtp_cparams.vbr_dynamic = true;
+        mtp_cparams.vbr_min_bits = 2.0;
+        mtp_cparams.vbr_vram_budget_bytes = 1024;
+        common_speculative_mtp_context_params_apply(
+            mtp_cparams, native_implicit, nullptr);
+        assert(mtp_cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP);
+        assert(mtp_cparams.n_ctx == 4096);
+        assert(!mtp_cparams.vbr_dynamic);
+        assert(mtp_cparams.vbr_vram_budget_bytes == 0);
+        assert(common_speculative_mtp_cache_types_valid(
+            GGML_TYPE_TURBO4_0, GGML_TYPE_TURBO4_0));
+        assert(!common_speculative_mtp_cache_types_valid(
+            GGML_TYPE_F16, GGML_TYPE_F16));
 
         common_params_speculative pure_mtp;
         pure_mtp.types = { COMMON_SPECULATIVE_TYPE_DRAFT_MTP };
@@ -174,6 +319,22 @@ static void test(void) {
         const auto draft = common_base_params_to_speculative(base);
         assert(draft.n_outputs_max == 4);
         assert(draft.n_outputs_max_per_seq == 1);
+
+        for (const auto device : {
+                common_speculative_draft_kv_device::AUTO,
+                common_speculative_draft_kv_device::GPU,
+                common_speculative_draft_kv_device::CPU }) {
+            base.speculative.draft.kv_device = device;
+            for (const bool target_no_kv_offload : { false, true }) {
+                base.no_kv_offload = target_no_kv_offload;
+                const auto draft_params = common_base_params_to_speculative(base);
+                const auto draft_cparams = common_context_params_to_llama(draft_params);
+                const auto target_cparams = common_context_params_to_llama(base);
+                const bool expected = common_speculative_draft_kv_offload(device, target_no_kv_offload);
+                assert(draft_cparams.offload_kqv == expected);
+                assert(target_cparams.offload_kqv == !target_no_kv_offload);
+            }
+        }
 
         base.vbr_entry = "t8";
         base.vbr_entry_explicit = true;
@@ -467,6 +628,9 @@ static void test(void) {
     argv = {"binary_name", "-ngl", "hello"};
     assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
 
+    argv = {"binary_name", "--kv-router", "bogus"};
+    assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
+
     // wrong value (enum)
     argv = {"binary_name", "-sm", "hello"};
     assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
@@ -538,6 +702,43 @@ static void test(void) {
     argv = {"binary_name", "--spec-draft-n-max", "123"};
     assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_SPECULATIVE));
     assert(params.speculative.draft.n_max == 123);
+
+    for (const auto & device : {"auto", "gpu", "cpu"}) {
+        common_params placement;
+        argv = {"binary_name", "-m", "model.gguf", "--spec-draft-kv-device", device};
+        const bool parsed = common_params_parse(argv.size(), list_str_to_char(argv).data(), placement, LLAMA_EXAMPLE_SPECULATIVE);
+        assert(parsed == (std::string(device) != "gpu" || llama_supports_gpu_offload()));
+        if (parsed) {
+            assert(std::string(common_speculative_draft_kv_device_name(placement.speculative.draft.kv_device)) == device);
+        }
+    }
+    {
+        common_params cpu_main_kv;
+        argv = {"binary_name", "-m", "model.gguf", "--no-kv-offload"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+                                           cpu_main_kv, LLAMA_EXAMPLE_SPECULATIVE));
+        assert(cpu_main_kv.no_kv_offload);
+        assert(!common_context_params_to_llama(cpu_main_kv).offload_kqv);
+
+        // Target CPU-main-KV must not rewrite the independent native-MTP
+        // GPU placement selected by the speculative projection.
+        cpu_main_kv.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
+        const auto mtp_projection = common_base_params_to_speculative(cpu_main_kv);
+        assert(!mtp_projection.no_kv_offload);
+        assert(common_context_params_to_llama(mtp_projection).offload_kqv);
+    }
+    {
+        common_params placement;
+        argv = {"binary_name", "-m", "model.gguf", "--spec-draft-kv-device", "bogus"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), placement, LLAMA_EXAMPLE_SPECULATIVE));
+    }
+    for (const auto & type : {"t4", "turbo4", "turbo4_0", "4"}) {
+        common_params turbo4_params;
+        argv = {"binary_name", "-m", "model.gguf", "-ctkd", type, "-ctvd", type};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), turbo4_params, LLAMA_EXAMPLE_SPECULATIVE));
+        assert(turbo4_params.speculative.draft.cache_type_k == GGML_TYPE_TURBO4_0);
+        assert(turbo4_params.speculative.draft.cache_type_v == GGML_TYPE_TURBO4_0);
+    }
     assert(params.speculative.draft.n_max_set);
 
     {
@@ -556,6 +757,17 @@ static void test(void) {
         common_params default_params;
         assert(!default_params.speculative.draft.n_max_set);
         assert(default_params.speculative.draft.mtp_vocab_size == 0);
+        assert(default_params.kv_pager.router == llama_kv_router_mode::legacy);
+
+        argv = {"binary_name", "-m", "model.gguf", "--kv-router", "probe-rerank"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+                                           default_params, LLAMA_EXAMPLE_COMMON));
+        assert(default_params.kv_pager.router == llama_kv_router_mode::probe_rerank);
+
+        argv = {"binary_name", "-m", "model.gguf", "--kv-router", "legacy"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+                                           default_params, LLAMA_EXAMPLE_COMMON));
+        assert(default_params.kv_pager.router == llama_kv_router_mode::legacy);
     }
 
     argv = {"binary_name", "--spec-mtp-vocab-size", "32768"};
@@ -662,6 +874,15 @@ static void test(void) {
         assert(vbr_cache_explicit_on.vbr_prompt_cache);
         assert(common_vbr_prompt_cache_mode_for(vbr_cache_explicit_on) ==
                common_vbr_prompt_cache_mode::enabled_explicit);
+
+        common_params bounded_attention;
+        argv = {"binary_name", "-m", "model.gguf", "--kv-attention-tokens", "8192"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+            bounded_attention, LLAMA_EXAMPLE_SERVER));
+        assert(bounded_attention.kv_pager.attention_tokens == 8192);
+        argv = {"binary_name", "-m", "model.gguf", "--kv-attention-tokens", "0"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+            bounded_attention, LLAMA_EXAMPLE_SERVER));
 
         common_params implicit_cpu = vbr_default;
         assert(common_params_apply_vbr_cpu_fallback(implicit_cpu, false) ==
@@ -1283,6 +1504,16 @@ static void test(void) {
     assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
     assert(params.model.path == "blah.gguf");
     assert(params.cpuparams.n_threads == 1010);
+
+    setenv("LLAMA_ARG_SPEC_DRAFT_KV_DEVICE", "cpu", true);
+    common_params env_placement;
+    argv = {"binary_name"};
+    assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), env_placement, LLAMA_EXAMPLE_SPECULATIVE));
+    assert(env_placement.speculative.draft.kv_device == common_speculative_draft_kv_device::CPU);
+    argv = {"binary_name", "--spec-draft-kv-device", "auto"};
+    assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), env_placement, LLAMA_EXAMPLE_SPECULATIVE));
+    assert(env_placement.speculative.draft.kv_device == common_speculative_draft_kv_device::AUTO);
+    unsetenv("LLAMA_ARG_SPEC_DRAFT_KV_DEVICE");
 
     setenv("LLAMA_ARG_LOAD_MODE", "blah", true);
     argv = {"binary_name"};

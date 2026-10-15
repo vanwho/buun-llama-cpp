@@ -3271,6 +3271,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
         /*.pin_v                 =*/ cparams.vbr_pin_v,
         /*.trace_label           =*/ nullptr,
         /*.compute_backend_for_buft =*/ params.compute_backend_for_buft,
+        /*.graph_scratch_admission =*/ params.ctx_type == LLAMA_CONTEXT_TYPE_MTP,
     };
 
     switch (arch) {
@@ -3732,7 +3733,8 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
                             /* unified           */ cparams.kv_unified,
                             /* filter_attn       */ std::move(filter_attn),
                             /* filter_recr       */ std::move(filter_recr),
-                            /* vbr               */ vbr);
+                            /* vbr               */ vbr,
+                            /* pager_plan        */ params.kv_pager_plan);
                     }
                 } else {
                     llama_kv_cache::layer_filter_cb filter = nullptr;

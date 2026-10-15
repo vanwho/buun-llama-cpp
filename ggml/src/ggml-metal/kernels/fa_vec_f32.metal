@@ -34,4 +34,3 @@ template [[host_name("kernel_flash_attn_ext_vec_f32_dk576_dv512")]]  kernel flas
 
 #undef FA_TYPES
 #undef FA_TYPES_F32
-

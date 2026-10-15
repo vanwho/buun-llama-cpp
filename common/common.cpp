@@ -1429,14 +1429,17 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         auto mparams_dft = common_model_params_to_llama(params_dft);
         auto cparams_dft = common_context_params_to_llama(params_dft);
         const bool extra_is_mtp = params.speculative.uses_mtp_as_primary_drafter();
+        const bool native_mtp = extra_is_mtp && !params.speculative.has_external_mtp_sidecar();
+        if (native_mtp && !common_speculative_draft_kv_offload(
+                params.speculative.draft.kv_device, params.no_kv_offload)) {
+            throw std::runtime_error(
+                "native MTP requires GPU-resident K/V; use a GPU draft K/V device and Turbo4 K/V types");
+        }
         if (extra_is_mtp) {
             const auto mtp_context = common_speculative_mtp_context_params_resolve(
                 0, params.speculative.draft.n_ctx,
-                cparams_dft.n_seq_max, cparams_dft.kv_unified);
-            cparams_dft.n_ctx      = mtp_context.n_ctx;
-            cparams_dft.n_seq_max  = mtp_context.n_seq_max;
-            cparams_dft.kv_unified = mtp_context.kv_unified;
-            cparams_dft.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
+                cparams_dft.n_seq_max, cparams_dft.kv_unified, native_mtp);
+            common_speculative_mtp_context_params_apply(cparams_dft, mtp_context, nullptr);
         }
         cparams_dft.n_rs_seq = 0;
 
@@ -1445,11 +1448,8 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         llama_context_params cparams_mtp = cparams_dft;
         const auto mtp_context = common_speculative_mtp_context_params_resolve(
             0, params.speculative.draft.n_ctx,
-            cparams_mtp.n_seq_max, cparams_mtp.kv_unified);
-        cparams_mtp.n_ctx      = mtp_context.n_ctx;
-        cparams_mtp.n_seq_max  = mtp_context.n_seq_max;
-        cparams_mtp.kv_unified = mtp_context.kv_unified;
-        cparams_mtp.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
+            cparams_mtp.n_seq_max, cparams_mtp.kv_unified, native_mtp);
+        common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, nullptr);
 
         const common_fit_extra_model extra_mtp = {
             /*.path_model   =*/ params.model.path.c_str(),
@@ -1461,6 +1461,9 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
                 ? (uint32_t) params.speculative.draft.n_ctx : 0,
             /*.next         =*/ nullptr,
             /*.optional_if_no_mtp =*/ true,
+            /*.borrows_target_tensors =*/ false,
+            /*.full_target_context =*/ false,
+            /*.required_gpu_layers =*/ native_mtp ? 2u : 0u,
         };
 
         const common_fit_extra_model extra_dft = {
@@ -1474,6 +1477,8 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             /*.next         =*/ spec_mtp && !extra_is_mtp ? &extra_mtp : nullptr,
             /*.optional_if_no_mtp =*/ false,
             /*.borrows_target_tensors =*/ has_draft && extra_is_mtp,
+            /*.full_target_context =*/ false,
+            /*.required_gpu_layers =*/ extra_is_mtp && native_mtp ? 2u : 0u,
         };
 
         const common_params_fit_status fit_status = common_fit_params(
@@ -1497,9 +1502,11 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             mparams.tensor_buft_overrides = params.tensor_buft_overrides.empty()
                 ? nullptr : params.tensor_buft_overrides.data();
 
-            if (fit_status == COMMON_PARAMS_FIT_STATUS_ERROR) {
+            if (fit_status == COMMON_PARAMS_FIT_STATUS_ERROR || spec_mtp) {
                 throw std::runtime_error(
-                    "failed to fit parameters to device memory (hard error); retry with -fit off");
+                    spec_mtp
+                        ? "failed to reserve the full native MTP context in device memory"
+                        : "failed to fit parameters to device memory (hard error); retry with -fit off");
             }
         } else {
             // surface the RESOLVED placement: auto-fit decided the real offload count in
@@ -1681,6 +1688,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
     // fallback. Rebind the borrowed C pointer after the final policy decision.
     cparams.moe_cache_profile_path = params.moe_cache.profile_path.empty()
         ? nullptr : params.moe_cache.profile_path.c_str();
+    cparams.kv_pager_config = &params.kv_pager;
     llama_context * lctx = llama_init_from_model(model, cparams);
     if (lctx == NULL) {
         COM_ERR("failed to create context with model '%s'\n", params.model.path.c_str());
@@ -2031,6 +2039,54 @@ struct llama_model_params common_model_params_to_llama(common_params & params) {
     mparams.load_mtp                    = params.load_mtp || std::find(params.speculative.types.begin(), params.speculative.types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != params.speculative.types.end();
 
     return mparams;
+}
+
+bool common_speculative_draft_kv_offload(
+        common_speculative_draft_kv_device device, bool target_no_kv_offload) {
+    switch (device) {
+        case common_speculative_draft_kv_device::AUTO:
+            return !target_no_kv_offload;
+        case common_speculative_draft_kv_device::GPU:
+            return true;
+        case common_speculative_draft_kv_device::CPU:
+            return false;
+    }
+
+    GGML_ABORT("invalid speculative draft K/V device");
+}
+
+bool common_speculative_draft_kv_device_is_available(
+        common_speculative_draft_kv_device device, const llama_model * model) {
+    if (device != common_speculative_draft_kv_device::GPU) {
+        return true;
+    }
+
+    if (!llama_supports_gpu_offload()) {
+        return false;
+    }
+    if (model == nullptr) {
+        return true;
+    }
+    for (int32_t i = 0; i < llama_model_n_devices(model); ++i) {
+        const ggml_backend_dev_t backend_device = llama_model_get_device(model, i);
+        if (backend_device != nullptr &&
+                (ggml_backend_dev_type(backend_device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                 ggml_backend_dev_type(backend_device) == GGML_BACKEND_DEVICE_TYPE_IGPU)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const char * common_speculative_draft_kv_device_name(
+        common_speculative_draft_kv_device device) {
+    switch (device) {
+        case common_speculative_draft_kv_device::AUTO: return "auto";
+        case common_speculative_draft_kv_device::GPU:  return "gpu";
+        case common_speculative_draft_kv_device::CPU:  return "cpu";
+    }
+
+    return "invalid";
 }
 
 struct llama_context_params common_context_params_to_llama(const common_params & params) {

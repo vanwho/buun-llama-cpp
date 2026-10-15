@@ -8886,6 +8886,238 @@ struct test_top_k : public test_case {
     }
 };
 
+// GGML_OP_KV_PAGE_SELECT. Keep the catalogue metadata in the graph so the
+// backend comparison exercises the same generation/position filters as the
+// production selector. layer_id is intentionally non-contiguous in several
+// cases: the selector ranks logical pages and never derives identity from a
+// physical slot or a compact layer ordinal.
+struct test_kv_page_select : public test_case {
+    const int64_t n_queries;
+    const int scenario;
+    const int layer_id;
+    ggml_tensor * q = nullptr;
+    ggml_tensor * bounds = nullptr;
+    ggml_tensor * metadata = nullptr;
+    ggml_tensor * membership = nullptr;
+    ggml_tensor * query = nullptr;
+
+    test_kv_page_select(int64_t n_queries, int scenario, int layer_id)
+        : n_queries(n_queries), scenario(scenario), layer_id(layer_id) {}
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "KV_PAGE_SELECT";
+    }
+
+    std::string vars() override {
+        return VARS_TO_STR3(n_queries, scenario, layer_id);
+    }
+
+    double max_err() override { return 0.0; }
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        constexpr int64_t d = 8;
+        constexpr int64_t n_q_heads = 4;
+        constexpr int64_t n_kv_heads = 2;
+        constexpr int64_t n_pages = 7;
+        q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, n_queries);
+        bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 3, n_kv_heads, n_pages);
+        metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 4, n_pages);
+        membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
+        query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+        ggml_tensor * out = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
+                4, 4, 4, int(n_queries - 1), 0, 0);
+        ggml_set_name(out, "out");
+        return out;
+    }
+
+    void initialize_tensors(ggml_context * ctx) override {
+        GGML_UNUSED(ctx);
+        constexpr int64_t d = 8;
+        constexpr int64_t n_q_heads = 4;
+        constexpr int64_t n_kv_heads = 2;
+        constexpr int64_t n_pages = 7;
+
+        std::vector<float> q_data(size_t(d * n_q_heads * n_queries), 0.0f);
+        for (int64_t row = 0; row < n_queries; ++row) {
+            for (int64_t head = 0; head < n_q_heads; ++head) {
+                float * dst = q_data.data() + size_t((row * n_q_heads + head) * d);
+                dst[0] = 1.0f;
+                dst[1] = -2.0f;
+                dst[2] = 3.0f;
+                dst[3] = -4.0f;
+                dst[4] = 0.5f;
+                dst[5] = -0.75f;
+            }
+        }
+        ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+
+        std::vector<ggml_fp16_t> bound_data(size_t(d * 2 * n_kv_heads * n_pages));
+        for (int64_t page = 0; page < n_pages; ++page) {
+            const float high = scenario == 1 ? 1.0f :
+                (page == 1 ? 2.0f : page == 2 ? 3.0f : page == 3 ? 2.0f : 1.0f);
+            for (int64_t head = 0; head < n_kv_heads; ++head) {
+                for (int64_t coord = 0; coord < d; ++coord) {
+                    const size_t base = size_t(coord + d * (2 * (head + n_kv_heads * page)));
+                    bound_data[base] = ggml_fp32_to_fp16(-1.0f);
+                    bound_data[base + d] = ggml_fp32_to_fp16(high);
+                }
+            }
+        }
+        ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+
+        std::vector<int64_t> metadata_data(size_t(4 * n_pages));
+        for (int64_t page = 0; page < n_pages; ++page) {
+            metadata_data[size_t(0 + 4 * page)] = page == 4 ? 32 : page * 4;
+            metadata_data[size_t(1 + 4 * page)] = 4;
+            metadata_data[size_t(2 + 4 * page)] = page == 5 ? 8 : 7;
+            metadata_data[size_t(3 + 4 * page)] = 1;
+        }
+        if (scenario == 2) {
+            for (int64_t page = 0; page < n_pages; ++page) {
+                metadata_data[size_t(1 + 4 * page)] = 0;
+            }
+        } else if (scenario == 3) {
+            for (int64_t page = 1; page < n_pages; ++page) {
+                if (page != 2) metadata_data[size_t(1 + 4 * page)] = 0;
+            }
+        }
+        ggml_backend_tensor_set(metadata, metadata_data.data(), 0, ggml_nbytes(metadata));
+
+        const std::vector<int32_t> membership_data = { 1, 1, 0, 0, 0, 0, 0 };
+        ggml_backend_tensor_set(membership, membership_data.data(), 0, ggml_nbytes(membership));
+        const int64_t query_data[] = { 32, 7, 2, scenario == 2 ? 0 : 1 };
+        ggml_backend_tensor_set(query, query_data, 0, ggml_nbytes(query));
+
+        for (ggml_tensor * t = ggml_get_first_tensor(ctx); t != nullptr; t = ggml_get_next_tensor(ctx, t)) {
+            if (t != q && t != bounds && t != metadata && t != membership && t != query) {
+                init_tensor_uniform(t, 0.0f, 0.0f);
+            }
+        }
+    }
+};
+
+struct test_kv_query_accumulate : public test_case {
+    ggml_tensor * q = nullptr;
+    ggml_tensor * positions = nullptr;
+    ggml_tensor * sum = nullptr;
+    ggml_tensor * count = nullptr;
+    ggml_tensor * control = nullptr;
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "KV_QUERY_ACCUMULATE";
+    }
+
+    std::string vars() override { return "user-span-filter"; }
+    double max_err() override { return 1e-6; }
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 8, 2, 4);
+        positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+        sum = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 8, 2);
+        count = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 2);
+        control = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
+        return ggml_kv_query_accumulate(ctx, q, positions, sum, count, control);
+    }
+
+    void initialize_tensors(ggml_context * ctx) override {
+        GGML_UNUSED(ctx);
+        std::vector<float> q_data(64);
+        for (size_t i = 0; i < q_data.size(); ++i) q_data[i] = float(i % 11) - 5.0f;
+        const int64_t position_data[] = { 9, 10, 11, 13 };
+        const int64_t count_data[] = { 0, INT64_MIN };
+        const int64_t control_data[] = { 17, 10, 12 };
+        std::vector<float> sum_data(16, 0.0f);
+        ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+        ggml_backend_tensor_set(positions, position_data, 0, ggml_nbytes(positions));
+        ggml_backend_tensor_set(sum, sum_data.data(), 0, ggml_nbytes(sum));
+        ggml_backend_tensor_set(count, count_data, 0, ggml_nbytes(count));
+        ggml_backend_tensor_set(control, control_data, 0, ggml_nbytes(control));
+    }
+};
+
+// qwen4exp QSA indexer top-k fusion: expand per-block scores to cells, add the f16 mask, top-k.
+struct test_topk_qsa : public test_case {
+    const int64_t n_blocks;
+    const int64_t n_kv;
+    const int64_t n_tps;
+    const int64_t n_stream;
+    const int     width;
+    ggml_tensor * out {};
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "TOPK_QSA";
+    }
+
+    std::string vars() override {
+        return VARS_TO_STR5(n_blocks, n_kv, n_tps, n_stream, width);
+    }
+
+    test_topk_qsa(int64_t n_blocks = 512, int64_t n_kv = 2048, int64_t n_tps = 2, int64_t n_stream = 1, int width = 1500)
+        : n_blocks(n_blocks), n_kv(n_kv), n_tps(n_tps), n_stream(n_stream), width(width) {}
+
+    double max_err() override { return 0.0; }
+    bool run_whole_graph() override { return true; }
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        ggml_tensor * score = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, n_blocks, n_tps, n_stream);
+        ggml_set_name(score, "score");
+        ggml_tensor * cell_blk = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, n_kv, n_stream);
+        ggml_set_name(cell_blk, "cell_blk");
+        ggml_tensor * kq_mask = ggml_new_tensor_3d(ctx, GGML_TYPE_F16, n_kv, n_tps, n_stream);
+        ggml_set_name(kq_mask, "kq_mask");
+
+        ggml_tensor * a = ggml_cont(ctx, ggml_permute(ctx, score, 1, 0, 2, 3));
+        ggml_tensor * e = ggml_get_rows(ctx, a, cell_blk);
+        e = ggml_cont(ctx, ggml_permute(ctx, e, 1, 0, 2, 3));
+        ggml_tensor * m = ggml_cast(ctx, kq_mask, GGML_TYPE_F32);
+        e = ggml_add(ctx, e, ggml_reshape_3d(ctx, m, n_kv, n_tps, n_stream));
+        out = ggml_top_k(ctx, e, width);
+        ggml_set_name(out, "out");
+        return out;
+    }
+
+    std::vector<ggml_tensor *> fusion_test_nodes() override { return { out }; }
+
+    // distinct mask ramp + small scores keep every cell value unique, so no top-k ties
+    void initialize_tensors(ggml_context * ctx) override {
+        for (ggml_tensor * t = ggml_get_first_tensor(ctx); t != NULL; t = ggml_get_next_tensor(ctx, t)) {
+            if (t->op != GGML_OP_NONE) {
+                continue;
+            }
+            if (t->type == GGML_TYPE_I32) {
+                std::vector<int32_t> data(ggml_nelements(t));
+                for (auto & v : data) { v = rand() % n_blocks; }
+                ggml_backend_tensor_set(t, data.data(), 0, data.size() * sizeof(int32_t));
+            } else if (t->type == GGML_TYPE_F16) {
+                std::vector<ggml_fp16_t> data(ggml_nelements(t));
+                for (int64_t r = 0; r < ggml_nrows(t); r++) {
+                    for (int64_t i = 0; i < n_kv; i++) {
+                        data[r * n_kv + i] = ggml_fp32_to_fp16((float) i);
+                    }
+                }
+                ggml_backend_tensor_set(t, data.data(), 0, data.size() * sizeof(ggml_fp16_t));
+            } else {
+                init_tensor_uniform(t, 0.0f, 0.5f);
+            }
+        }
+    }
+
+    // top-k output order is unspecified; compare as a set of indices
+    double err(const float * a, const float * b, size_t n) override {
+        std::vector<int32_t> ia(n), ib(n);
+        double diff = 0.0;
+        for (size_t i = 0; i < n; i++) {
+            ia[i] = (int32_t) a[i];
+            ib[i] = (int32_t) b[i];
+            diff += std::fabs(a[i] - ia[i]) + std::fabs(b[i] - ib[i]);
+        }
+        return diff + jdst(ia.data(), ib.data(), n);
+    }
+};
+
 enum MoeGatingFunc {
     GATING_FUNC_SOFTMAX,
     GATING_FUNC_SIGMOID,
@@ -13321,6 +13553,18 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
             test_cases.emplace_back(new test_top_k(GGML_TYPE_F32, {n, 2, 1, 3}, k, true));
         }
     }
+
+    // Current-Q page selection: exercise query-row shapes, mixed signs,
+    // multiple KV groups, deterministic ties, invalid generations, and
+    // capacities larger than the valid candidate set.
+    for (int64_t n_queries : { 1, 2, 64 }) {
+        test_cases.emplace_back(new test_kv_page_select(n_queries, 0, 3));
+    }
+    test_cases.emplace_back(new test_kv_page_select(2, 1, 17)); // exact ties
+    test_cases.emplace_back(new test_kv_page_select(1, 2, 29)); // no candidates
+    test_cases.emplace_back(new test_kv_page_select(64, 3, 41)); // K > valid count
+    test_cases.emplace_back(new test_kv_query_accumulate());
+
     // Qwen4 QSA: HIP packs these sorted rows from VMM-backed scratch.
     test_cases.emplace_back(new test_top_k(GGML_TYPE_F32, {512, 64, 1, 1}, 256));
     for (int64_t n : {4095, 4096, 4097, 16385}) {
@@ -13647,6 +13891,7 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     test_cases.emplace_back(new test_flash_attn_ext(65, 67, 4, {1, 1}, 113, 75, false, false, 0, 1.0f, GGML_PREC_F32, GGML_TYPE_F16, GGML_TYPE_F16));
 
     // mixed quant and Q1_0 test cases
+    test_cases.emplace_back(new test_flash_attn_ext(256, 256, 4, {1, 1}, 128, 1, true, false, 0, 0, GGML_PREC_F32, GGML_TYPE_TURBO4_0, GGML_TYPE_TURBO4_0));
     test_cases.emplace_back(new test_flash_attn_ext(64, 64, 4, {1, 1}, 128, 2, true, false, 0, 0, GGML_PREC_F32, GGML_TYPE_Q8_0, GGML_TYPE_Q4_0));
     test_cases.emplace_back(new test_flash_attn_ext(64, 64, 4, {1, 1}, 128, 2, true, false, 0, 0, GGML_PREC_F32, GGML_TYPE_Q4_0, GGML_TYPE_F16));
     test_cases.emplace_back(new test_flash_attn_ext(72, 72, 4, {1, 1}, 96, 2, true, false, 0, 0, GGML_PREC_F32, GGML_TYPE_Q4_0, GGML_TYPE_Q8_0));

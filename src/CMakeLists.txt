@@ -39,6 +39,21 @@ set(LLAMA_CORE_SOURCES
             llama-kv-cache-dsa-iswa.cpp
             llama-kv-cache-msa.cpp
             llama-kv-cache-dsv4.cpp
+            llama-kv-fixed-window.cpp
+            llama-kv-attention-view.cpp
+            llama-kv-attention-op.cpp
+            llama-kv-attention-execution.cpp
+            llama-kv-attention-exact.cpp
+            llama-kv-pager-config.cpp
+            llama-kv-pager.cpp
+            llama-kv-routing-summary.cpp
+            llama-kv-routing-retrieval.cpp
+            llama-kv-attention-telemetry.cpp
+            llama-kv-live-policy.cpp
+            llama-kv-live-lifecycle.cpp
+            llama-kv-residency.cpp
+            llama-kv-residency-transfer.cpp
+            llama-kv-residency-transaction.cpp
             llama-memory.cpp
             llama-memory-hybrid.cpp
             llama-memory-hybrid-iswa.cpp
@@ -67,6 +82,9 @@ set(LLAMA_CORE_SOURCES
             llama-vocab.cpp
             llama-cache-accounting.cpp
             llama-cache-budget.cpp
+            llama-kv-policy.cpp
+            llama-kv-prefetch.cpp
+            llama-kv-router-job.cpp
             llama-cache-authority.cpp
             llama-vbr-hard-seal.cpp
             llama-vbr-extent.cpp

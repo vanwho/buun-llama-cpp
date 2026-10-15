@@ -49,6 +49,8 @@ GGML_BACKEND_API bool   ggml_backend_cuda_vmm_available(int device);
 GGML_BACKEND_API size_t ggml_backend_cuda_vmm_granularity(int device);
 GGML_BACKEND_API struct ggml_vbr_vmm_pool * ggml_backend_cuda_vmm_pool_init(int device, size_t va_size);
 GGML_BACKEND_API void   ggml_backend_cuda_vmm_pool_free(struct ggml_vbr_vmm_pool * pool);
+// Release a newly-created pool that was never returned to a caller or read by a kernel.
+GGML_BACKEND_API void   ggml_backend_cuda_vmm_pool_discard(struct ggml_vbr_vmm_pool * pool);
 GGML_BACKEND_API void * ggml_backend_cuda_vmm_pool_base(struct ggml_vbr_vmm_pool * pool);
 GGML_BACKEND_API size_t ggml_backend_cuda_vmm_pool_mapped(struct ggml_vbr_vmm_pool * pool);
 GGML_BACKEND_API uint64_t ggml_backend_cuda_vmm_pool_residency_epoch(struct ggml_vbr_vmm_pool * pool);
@@ -79,6 +81,7 @@ GGML_BACKEND_API void ggml_backend_cuda_get_device_memory(int device, size_t * f
 // (ggml-vbr.h vtable slot)
 GGML_BACKEND_API bool ggml_backend_cuda_kv_dequant_scratch_reserve(
         ggml_backend_t backend, size_t k_bytes, size_t v_bytes);
+GGML_BACKEND_API void ggml_backend_cuda_kv_dequant_scratch_flush_retired(ggml_backend_t backend);
 GGML_BACKEND_API void ggml_backend_cuda_kv_dequant_scratch_memory(
         ggml_backend_t backend, size_t k_bytes, size_t v_bytes,
         size_t * physical_now, size_t * physical_if_reserved);

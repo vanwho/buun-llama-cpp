@@ -782,4 +782,3 @@ vk_buffer ggml_vk_buffer_from_host_ptr(vk_device & device, void * ptr, size_t si
 
     return buf;
 }
-

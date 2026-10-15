@@ -269,6 +269,26 @@ LLAMA_API float * llama_get_embeddings_nextn(struct llama_context * ctx);
 // LLAMA_API float * llama_get_embeddings_ith(struct llama_context * ctx, int32_t i);
 LLAMA_API float * llama_get_embeddings_nextn_ith(struct llama_context * ctx, int32_t i);
 
+// Copy contiguous target nextn hidden rows directly into a compatible MTP
+// context's device input for its next decode. Returns false when the portable
+// host-input path must be used.
+LLAMA_API bool llama_set_embeddings_nextn_device(
+        struct llama_context * ctx, struct llama_context * source,
+        int32_t source_offset, int32_t destination_offset, int32_t n_rows,
+        const llama_pos * expected_positions, const llama_seq_id * expected_sequences);
+LLAMA_API bool llama_mark_embeddings_nextn_device_consumed(
+        struct llama_context * source, struct llama_context * consumer);
+LLAMA_API void llama_get_embeddings_nextn_transfer_bytes(
+        struct llama_context * ctx, uint64_t * d2h, uint64_t * h2d);
+LLAMA_API uint64_t llama_get_embeddings_nextn_device_generation(
+        struct llama_context * ctx);
+
+// Mark the target graph as native-MTP verification while it is being built.
+// This is a staging hook for speculative consumers; it does not alter public
+// context geometry or the draft KV allocation.
+LLAMA_API void llama_set_kv_attention_mtp_verification(
+        struct llama_context * ctx, bool enabled);
+
 // Set whether the context outputs the input embeddings of a specific layer
 LLAMA_API void llama_set_embeddings_layer_inp(struct llama_context * ctx, uint32_t lid, bool value);
 

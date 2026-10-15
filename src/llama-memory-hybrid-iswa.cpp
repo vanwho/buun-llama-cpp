@@ -110,27 +110,35 @@ llama_memory_context_ptr llama_memory_hybrid_iswa::init_batch(llama_batch_allocr
         if (!mem_recr->prepare(ubatches)) {
             // TODO: will the recurrent cache be in an undefined context at this point?
             LLAMA_LOG_ERROR("%s: failed to prepare recurrent ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_iswa_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    llama_memory_failure_reason::logical_capacity);
         }
 
         // prepare the attention cache (iswa version returns both base and swa slot infos)
         auto sinfos_base = mem_attn->get_base()->prepare(ubatches);
         if (sinfos_base.empty()) {
             LLAMA_LOG_ERROR("%s: failed to prepare attention base ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_iswa_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->get_base()->last_failure_reason());
         }
 
         auto sinfos_swa = mem_attn->get_swa()->prepare(ubatches);
         if (sinfos_swa.empty()) {
             LLAMA_LOG_ERROR("%s: failed to prepare attention swa ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_iswa_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->get_swa()->last_failure_reason());
         }
 
         return std::make_unique<llama_memory_hybrid_iswa_context>(
                 this, std::move(sinfos_base), std::move(sinfos_swa), std::move(ubatches));
     } while(false);
 
-    return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    return std::make_unique<llama_memory_hybrid_iswa_context>(
+            LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+            mem_attn->get_base()->last_failure_reason());
 }
 
 llama_memory_context_ptr llama_memory_hybrid_iswa::init_full() {
@@ -195,8 +203,8 @@ bool llama_memory_hybrid_iswa::try_seq_cp(
         return true;
     }
 
-    const bool removed_recr = mem_recr->seq_rm(seq_id_dst, -1, -1);
-    const bool removed_attn = mem_attn->seq_rm(seq_id_dst, -1, -1);
+    const bool removed_recr = mem_recr->seq_rm_transient(seq_id_dst, -1, -1);
+    const bool removed_attn = mem_attn->seq_rm_transient(seq_id_dst, -1, -1);
     GGML_ASSERT(removed_recr && removed_attn);
     GGML_UNUSED(removed_recr);
     GGML_UNUSED(removed_attn);
@@ -213,7 +221,7 @@ bool llama_memory_hybrid_iswa::try_seq_cp_transient(
         return true;
     }
 
-    const bool removed_recr = mem_recr->seq_rm(seq_id_dst, -1, -1);
+    const bool removed_recr = mem_recr->seq_rm_transient(seq_id_dst, -1, -1);
     const bool removed_attn = mem_attn->seq_rm_transient(seq_id_dst, -1, -1);
     GGML_ASSERT(removed_recr && removed_attn);
     GGML_UNUSED(removed_recr);
@@ -307,7 +315,9 @@ llama_memory_recurrent * llama_memory_hybrid_iswa::get_mem_recr() const {
 // llama_memory_hybrid_iswa_context
 //
 
-llama_memory_hybrid_iswa_context::llama_memory_hybrid_iswa_context(llama_memory_status status) : status(status) {}
+llama_memory_hybrid_iswa_context::llama_memory_hybrid_iswa_context(
+        llama_memory_status status, llama_memory_failure_reason reason) :
+    status(status), failure_reason(reason) {}
 
 llama_memory_hybrid_iswa_context::llama_memory_hybrid_iswa_context(llama_memory_hybrid_iswa * mem) :
     ctx_recr(mem->get_mem_recr()->init_full()),
@@ -376,8 +386,65 @@ uint32_t llama_memory_hybrid_iswa_context::get_max_graph_seqs() const {
     return std::min(ctx_attn->get_max_graph_seqs(), ctx_recr->get_max_graph_seqs());
 }
 
+ggml_tensor * llama_memory_hybrid_iswa_context::build_kv_page_select(
+        ggml_context * ctx, ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row,
+        ggml_tensor ** probe_capture) const {
+    return get_attn() != nullptr ? get_attn()->build_kv_page_select(
+            ctx, q, layer, ubatch, query_row, probe_capture) : nullptr;
+}
+
+bool llama_memory_hybrid_iswa_context::set_kv_query_probe_inputs(
+        ggml_tensor * probes, const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->set_kv_query_probe_inputs(probes, ubatch);
+}
+
+bool llama_memory_hybrid_iswa_context::can_reuse_kv_query_capture(
+        const ggml_tensor * query_op, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) const {
+    return get_attn() != nullptr && get_attn()->can_reuse_kv_query_capture(
+            query_op, ubatch, sequence_id, final_batch);
+}
+
+bool llama_memory_hybrid_iswa_context::set_kv_page_select_inputs(
+        ggml_tensor * bounds, ggml_tensor * metadata,
+        ggml_tensor * membership, ggml_tensor * query, int layer,
+        const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->set_kv_page_select_inputs(
+            bounds, metadata, membership, query, layer, ubatch);
+}
+
+bool llama_memory_hybrid_iswa_context::set_kv_query_accumulate_inputs(
+        ggml_tensor * accumulator, const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->set_kv_query_accumulate_inputs(accumulator, ubatch);
+}
+
+bool llama_memory_hybrid_iswa_context::can_reuse_kv_page_select(
+        const ggml_tensor * bounds, int layer,
+        const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->can_reuse_kv_page_select(
+            bounds, layer, ubatch);
+}
+
+void llama_memory_hybrid_iswa_context::capture_kv_routing_query(
+        ggml_tensor * tensor, int layer,
+        const llama_ubatch & ubatch) const {
+    if (get_attn() != nullptr) {
+        get_attn()->capture_kv_routing_query(tensor, layer, ubatch);
+    }
+}
+
 uint64_t llama_memory_hybrid_iswa_context::get_vbr_epoch() const {
     return get_attn()->get_vbr_epoch();
+}
+
+bool llama_memory_hybrid_iswa_context::reserve_kv_attention_scratch(
+        const llama_kv_attention_scratch_request & request) const {
+    return get_attn() != nullptr && get_attn()->reserve_kv_attention_scratch(request);
+}
+
+uint32_t llama_memory_hybrid_iswa_context::current_kv_attention_rows() const {
+    return get_attn() != nullptr ? get_attn()->current_kv_attention_rows() : 0;
 }
 
 const llama_kv_cache_iswa_context * llama_memory_hybrid_iswa_context::get_attn() const {

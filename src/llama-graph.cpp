@@ -16,9 +16,20 @@
 #include "llama-kv-cache-dsa-iswa.h"
 #include "llama-kv-cache-msa.h"
 #include "llama-kv-cache-dsv4.h"
+#include "llama-kv-attention-telemetry.h"
 #include "llama-memory-hybrid.h"
 #include "llama-memory-hybrid-iswa.h"
 #include "llama-memory-recurrent.h"
+
+#include <chrono>
+#include <cinttypes>
+#include <cstdlib>
+#include <cstring>
+
+llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
+    // Transient packed staging is owned by this graph's ggml context and is
+    // reclaimed with the graph after the scheduler completion boundary.
+}
 
 #include <cassert>
 #include <algorithm>
@@ -29,10 +40,61 @@
 #include <map>
 #include <mutex>
 #include <numeric>
+#include <limits>
 #include <sstream>
+
+#include <stdexcept>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+// Page-mass observation uses a different CUDA consumer plus auxiliary scratch.
+// It must never silently change a production timing/MTP run just because
+// ordinary telemetry was enabled. Opt in explicitly, only for small diagnostics.
+static bool diagnostic_page_mass_enabled() {
+    static const bool enabled = [] {
+        const char * value = std::getenv("LLAMA_KV_PAGER_DIAGNOSTIC_PAGE_MASS");
+        return value != nullptr && std::strcmp(value, "1") == 0;
+    }();
+    return enabled;
+}
+
+static bool build_paged_row_lookup(
+        const std::vector<ggml_flash_attn_ext_paged_turbo4_page> & pages,
+        uint32_t active_page_count, uint32_t row_capacity,
+        std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> & output) {
+    const ggml_flash_attn_ext_paged_turbo4_row_lookup invalid = {
+        UINT32_MAX, UINT32_MAX };
+    try {
+        output.assign(row_capacity, invalid);
+        if (active_page_count == 0 || active_page_count > pages.size()) {
+            return false;
+        }
+        for (uint32_t page_index = 0; page_index < active_page_count; ++page_index) {
+            const auto & page = pages[page_index];
+            if (page.row_count == 0 || page.compact_row_begin > row_capacity ||
+                    page.row_count > row_capacity - page.compact_row_begin) {
+                return false;
+            }
+            for (uint32_t page_row = 0; page_row < page.row_count; ++page_row) {
+                output[page.compact_row_begin + page_row] = { page_index, page_row };
+            }
+        }
+        return true;
+    } catch (...) {
+        output.clear();
+        return false;
+    }
+}
+
+static bool paged_row_lookup_equal(
+        const std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> & lhs,
+        const std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> & rhs) {
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(),
+        [](const auto & a, const auto & b) {
+            return a.page_index == b.page_index && a.page_row == b.page_row;
+        });
+}
 
 static bool is_dynamic_fp8_bf16_channel_scale(
         const ggml_tensor * weight, const ggml_tensor * scale, const ggml_tensor * input_scale) {
@@ -244,8 +306,9 @@ static ggml_tensor * build_attn_inp_kq_mask(
         ggml_context * ctx,
         const llama_kv_cache_context * mctx,
         const llama_ubatch & ubatch,
-        const llama_cparams & cparams) {
-    const auto n_kv     = mctx->get_n_kv();
+        const llama_cparams & cparams,
+        uint32_t selected_n_kv = 0) {
+    const auto n_kv     = selected_n_kv != 0 ? selected_n_kv : mctx->get_n_kv();
     const auto n_tokens = ubatch.n_tokens;
     const auto n_stream = cparams.kv_unified ? 1 : ubatch.n_seqs_unq;
 
@@ -263,8 +326,9 @@ static bool can_reuse_kq_mask(
         ggml_tensor * kq_mask,
         const llama_kv_cache_context * mctx,
         const llama_ubatch & ubatch,
-        const llama_cparams & cparams) {
-    const auto n_kv     = mctx->get_n_kv();
+        const llama_cparams & cparams,
+        uint32_t selected_n_kv = 0) {
+    const auto n_kv     = selected_n_kv != 0 ? selected_n_kv : mctx->get_n_kv();
     const auto n_tokens = ubatch.n_tokens;
     const auto n_stream = cparams.kv_unified ? 1 : ubatch.n_seqs_unq;
 
@@ -280,14 +344,18 @@ static bool can_reuse_kq_mask(
 
 // impl
 
+static bool graph_input_allocated(const ggml_tensor * tensor) {
+    return tensor != nullptr && tensor->buffer != nullptr;
+}
+
 void llm_graph_input_embd::set_input(const llama_ubatch * ubatch) {
-    if (ubatch->token) {
+    if (ubatch->token && graph_input_allocated(tokens)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         ggml_backend_tensor_set(tokens, ubatch->token, 0, n_tokens*ggml_element_size(tokens));
     }
 
-    if (ubatch->embd && embd && !ubatch->is_mixed()) {
+    if (ubatch->embd && graph_input_allocated(embd) && !ubatch->is_mixed()) {
         GGML_ASSERT(n_embd == embd->ne[0]);
 
         const int64_t n_tokens = ubatch->n_tokens;
@@ -372,13 +440,33 @@ void llm_graph_input_dflash_stage_rows::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_embd_h::set_input(const llama_ubatch * ubatch) {
-    ASSERT_EMBD_OR_TOKEN(*ubatch);
+    set_input_mtp_handoff(ubatch, -2);
+}
 
+void llm_graph_input_embd_h::set_hidden_backend(ggml_tensor * tensor) {
+    if (sched == nullptr || tensor == nullptr) {
+        return;
+    }
+    for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+        ggml_backend_t backend = ggml_backend_sched_get_backend(sched, i);
+        ggml_backend_dev_t device = backend != nullptr ? ggml_backend_get_device(backend) : nullptr;
+        if (device != nullptr && ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU) {
+            // Keep the MTP hidden input on the same device as native GPU MTP
+            // compute so the target-owned rows can be copied directly into it.
+            ggml_backend_sched_set_tensor_backend(sched, tensor, backend);
+            return;
+        }
+    }
+}
+
+void llm_graph_input_embd_h::set_input_mtp_handoff(
+        const llama_ubatch * ubatch, int32_t host_hidden_row) {
+    ASSERT_EMBD_OR_TOKEN(*ubatch);
     const int64_t n_tokens = ubatch->n_tokens;
 
-    if (ubatch->token) {
+    if (ubatch->token && graph_input_allocated(tokens)) {
         ggml_backend_tensor_set(tokens, ubatch->token, 0, n_tokens*ggml_element_size(tokens));
-    } else {
+    } else if (ubatch->embd && graph_input_allocated(embd)) {
         // note: mtmd embedding input goes through here
         GGML_ASSERT(ubatch->embd);
         GGML_ASSERT(n_embd == embd->ne[0]);
@@ -389,10 +477,16 @@ void llm_graph_input_embd_h::set_input(const llama_ubatch * ubatch) {
     // TODO: extend llama_ubatch to differentiate between token embeddings and hidden states
     //       for now, we assume that the hidden state is always provided as an embedding
     //       ref: https://github.com/ggml-org/llama.cpp/pull/23643
-    if (ubatch->embd) {
+    if (ubatch->embd && graph_input_allocated(h) && host_hidden_row == -2) {
         GGML_ASSERT(n_embd == h->ne[0]);
 
         ggml_backend_tensor_set(h, ubatch->embd, 0, n_tokens*n_embd*ggml_element_size(h));
+    } else if (ubatch->embd && graph_input_allocated(h) && host_hidden_row >= 0) {
+        GGML_ASSERT(n_embd == h->ne[0] && host_hidden_row < n_tokens);
+        const size_t row_bytes = (size_t) n_embd * ggml_element_size(h);
+        ggml_backend_tensor_set(h,
+                ubatch->embd + (size_t) host_hidden_row * n_embd,
+                (size_t) host_hidden_row * row_bytes, row_bytes);
     }
 }
 
@@ -407,10 +501,25 @@ bool llm_graph_input_embd_h::can_reuse(const llm_graph_params & params) {
 }
 
 void llm_graph_input_pos::set_input(const llama_ubatch * ubatch) {
-    if (ubatch->pos && pos) {
+    if (ubatch->pos && graph_input_allocated(pos)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
-        ggml_backend_tensor_set(pos, ubatch->pos, 0, n_tokens*n_pos_per_embd*ggml_element_size(pos));
+        if (ubatch->token && n_pos_per_embd == 4) {
+            // in case we're using M-RoPE with text tokens, convert the 1D positions to 4D
+            // the 3 first dims are the same, and 4th dim is all 0
+            pos_data.resize(size_t(n_tokens) * n_pos_per_embd);
+            // copy the first dimension
+            for (int i = 0; i < n_tokens; ++i) {
+                pos_data[               i] = ubatch->pos[i];
+                pos_data[    n_tokens + i] = ubatch->pos[i];
+                pos_data[2 * n_tokens + i] = ubatch->pos[i];
+                pos_data[3 * n_tokens + i] = 0; // 4th dim is 0
+            }
+            ggml_backend_tensor_set(pos, pos_data.data(), 0, pos_data.size()*ggml_element_size(pos));
+        } else {
+            ggml_backend_tensor_set(pos, ubatch->pos, 0,
+                    n_tokens*n_pos_per_embd*ggml_element_size(pos));
+        }
     }
 }
 
@@ -423,13 +532,13 @@ bool llm_graph_input_pos::can_reuse(const llm_graph_params & params) {
 }
 
 void llm_graph_input_attn_temp::set_input(const llama_ubatch * ubatch) {
-    if (ubatch->pos && attn_scale) {
+    if (ubatch->pos && graph_input_allocated(attn_scale)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         GGML_ASSERT(f_attn_temp_scale != 0.0f);
         GGML_ASSERT(n_attn_temp_floor_scale != 0);
 
-        std::vector<float> attn_scale_data(n_tokens, 0.0f);
+        attn_scale_data.resize(n_tokens);
         for (int i = 0; i < n_tokens; ++i) {
             const float pos = ubatch->pos[i];
             attn_scale_data[i] = std::log(
@@ -442,7 +551,7 @@ void llm_graph_input_attn_temp::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_pos_bucket::set_input(const llama_ubatch * ubatch) {
-    if (pos_bucket) {
+    if (graph_input_allocated(pos_bucket)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         GGML_ASSERT(ggml_backend_buffer_is_host(pos_bucket->buffer));
@@ -745,23 +854,270 @@ void llm_graph_input_attn_no_cache::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
-    // the idxs are left unallocated when the KV cache is bypassed during training
-    if (self_k_idxs && self_k_idxs->buffer) {
-        mctx->set_input_k_idxs(self_k_idxs, ubatch);
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    if (self_k_idxs_by_layer.empty()) {
+        if (graph_input_allocated(self_k_idxs)) {
+            mctx->set_input_k_idxs(self_k_idxs, ubatch);
+        }
+        if (graph_input_allocated(self_v_idxs)) {
+            mctx->set_input_v_idxs(self_v_idxs, ubatch);
+        }
+    } else {
+        const auto & layer_ids = direct_layer_ids;
+        GGML_ASSERT(layer_ids.size() == self_k_idxs_by_layer.size());
+        GGML_ASSERT(layer_ids.size() == self_v_idxs_by_layer.size());
+        for (size_t ordinal = 0; ordinal < layer_ids.size(); ++ordinal) {
+            if (graph_input_allocated(self_k_idxs_by_layer[ordinal])) {
+                mctx->set_input_k_idxs(self_k_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+            }
+            if (graph_input_allocated(self_v_idxs_by_layer[ordinal])) {
+                mctx->set_input_v_idxs(self_v_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+            }
+        }
     }
-    if (self_v_idxs && self_v_idxs->buffer) {
-        mctx->set_input_v_idxs(self_v_idxs, ubatch);
+
+    const bool initialize_selected = selected_attention && !selected_static_inputs_initialized;
+    const bool content_changed = selected_attention && !exact_wave_attention &&
+        selected_content_key != selected_metadata.graph_content_key();
+    const bool update_selected = initialize_selected || content_changed;
+    const int64_t selected_input_start = update_selected && kv_attention_metrics
+        ? ggml_time_us() : 0;
+    const auto set_direct_tensor = [&](ggml_tensor * tensor, const void * data,
+                                       size_t offset, size_t size) {
+        if (!graph_input_allocated(tensor)) {
+            return;
+        }
+        if (direct_backend != nullptr) {
+            ggml_backend_tensor_set_async(direct_backend, tensor, data, offset, size);
+        } else {
+            ggml_backend_tensor_set(tensor, data, offset, size);
+        }
+    };
+
+    if (selected_attention) {
+        if (direct_attention && kv_attention_telemetry != nullptr) {
+            direct_telemetry_published = false;
+            direct_telemetry_skipped = false;
+            direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::none;
+            direct_telemetry_token_index = ubatch->pos != nullptr
+                ? uint64_t(std::max<llama_pos>(0, ubatch->pos[0])) : 0;
+        }
+        if (exact_wave_attention) {
+            direct_telemetry_published = false;
+            if (direct_explicit_native_metadata && !direct_native_positions_host.empty()) {
+                set_direct_tensor(direct_native_positions,
+                        direct_native_positions_host.data(), 0,
+                        direct_native_positions_host.size() * sizeof(direct_native_positions_host[0]));
+                set_direct_tensor(direct_native_mask, direct_native_mask_host.data(), 0,
+                        direct_native_mask_host.size());
+            }
+            if (ubatch->pos != nullptr) {
+                direct_query_positions_host.resize(ubatch->n_tokens);
+                for (uint32_t token = 0; token < ubatch->n_tokens; ++token) {
+                    direct_query_positions_host[token] = ubatch->pos0(token);
+                }
+                set_direct_tensor(direct_query_positions, direct_query_positions_host.data(), 0,
+                        direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
+            }
+            for (auto & wave : exact_waves) {
+                wave.device_control.active_page_count = wave.active_page_count;
+                wave.device_control.active_row_count = wave.active_row_count;
+                wave.device_control.active_tail_length = wave.active_tail_length;
+                wave.device_control.page_capacity = uint32_t(wave.pages_host.size());
+                wave.device_control.row_capacity = wave.active_row_count;
+                wave.device_control.selection_generation = wave.selection_generation;
+                set_direct_tensor(wave.pages, &wave.device_control, 0,
+                        sizeof(wave.device_control));
+                set_direct_tensor(wave.pages, wave.pages_host.data(),
+                        sizeof(wave.device_control),
+                        wave.pages_host.size() * sizeof(wave.pages_host[0]));
+                set_direct_tensor(wave.pages, wave.row_lookup_host.data(),
+                        sizeof(wave.device_control) +
+                            wave.pages_host.size() * sizeof(wave.pages_host[0]),
+                        wave.row_lookup_host.size() * sizeof(wave.row_lookup_host[0]));
+            }
+        } else if (direct_attention) {
+            direct_telemetry_published = false;
+            direct_telemetry_skipped = false;
+            direct_device_control.active_page_count = direct_active_page_count;
+            direct_device_control.active_row_count = direct_active_row_count;
+            direct_device_control.active_tail_length = direct_active_tail_length;
+            direct_device_control.page_capacity = direct_page_capacity;
+            direct_device_control.row_capacity = direct_row_capacity;
+            direct_device_control.selection_generation = direct_selection_generation;
+            if (!direct_device_control_uploaded) {
+                set_direct_tensor(direct_pages, &direct_device_control, 0,
+                        sizeof(direct_device_control));
+                direct_device_control_uploaded = true;
+                direct_device_control_uploaded_value = direct_device_control;
+            } else {
+                // Keep the tiny control descriptor ordered with the graph,
+                // but avoid rewriting it when only telemetry or an unchanged
+                // selection is replayed.
+                if (std::memcmp(&direct_device_control,
+                        &direct_device_control_uploaded_value,
+                        sizeof(direct_device_control)) != 0) {
+                    set_direct_tensor(direct_pages, &direct_device_control, 0,
+                            sizeof(direct_device_control));
+                    direct_device_control_uploaded_value = direct_device_control;
+                }
+            }
+            if (update_selected) {
+                // The page table's shape and device address are graph-static,
+                // while residency changes usually touch only a small number
+                // of descriptors. Patch changed runs in place so a stable
+                // graph does not pay for a full table upload on every fault.
+                auto page_equal = [](const auto & a, const auto & b) {
+                    return a.logical_page == b.logical_page &&
+                        a.source_physical_slot == b.source_physical_slot &&
+                        a.compact_row_begin == b.compact_row_begin &&
+                        a.row_count == b.row_count &&
+                        a.native_position_begin == b.native_position_begin;
+                };
+                if (direct_pages_uploaded.size() != direct_pages_host.size()) {
+                    set_direct_tensor(direct_pages, direct_pages_host.data(),
+                            sizeof(ggml_flash_attn_ext_paged_turbo4_device_control),
+                            direct_pages_host.size() * sizeof(direct_pages_host[0]));
+                } else {
+                    size_t begin = 0;
+                    while (begin < direct_pages_host.size()) {
+                        while (begin < direct_pages_host.size() &&
+                               page_equal(direct_pages_host[begin], direct_pages_uploaded[begin])) {
+                            ++begin;
+                        }
+                        const size_t run_begin = begin;
+                        while (begin < direct_pages_host.size() &&
+                               !page_equal(direct_pages_host[begin], direct_pages_uploaded[begin])) {
+                            ++begin;
+                        }
+                        if (run_begin != begin) {
+                            set_direct_tensor(direct_pages,
+                                    direct_pages_host.data() + run_begin,
+                                    sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                                        run_begin * sizeof(direct_pages_host[0]),
+                                    (begin - run_begin) * sizeof(direct_pages_host[0]));
+                        }
+                    }
+                }
+                direct_pages_uploaded = direct_pages_host;
+            }
+            if (update_selected && !paged_row_lookup_equal(
+                    direct_row_lookup_uploaded, direct_row_lookup_host)) {
+                set_direct_tensor(direct_pages, direct_row_lookup_host.data(),
+                        sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                            direct_page_capacity * sizeof(direct_pages_host[0]),
+                        direct_row_lookup_host.size() * sizeof(direct_row_lookup_host[0]));
+                direct_row_lookup_uploaded = direct_row_lookup_host;
+            }
+            // Query positions are mutable input values even when the selected
+            // pages and their content generation did not change.  Upload only
+            // this small Q-shaped vector on the ordinary causal route; native
+            // row positions are derived in the kernel from page_start + row.
+            const auto & queries = selected_metadata.query_positions();
+            if (direct_query_positions_uploaded != queries) {
+                // llama_pos is I32, but the paged CUDA consumer reads I64.
+                // Uploading the original vector concatenated pairs of
+                // positions and left the second half of the device input
+                // unwritten, breaking causal masks and MTP verification.
+                direct_query_positions_host.assign(queries.begin(), queries.end());
+                set_direct_tensor(direct_query_positions, direct_query_positions_host.data(), 0,
+                        direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
+                direct_query_positions_uploaded = queries;
+            }
+            if (direct_explicit_native_metadata) {
+                const auto & positions = selected_metadata.native_positions();
+                const auto & valid = selected_metadata.native_mask();
+                if (direct_native_positions_uploaded != positions) {
+                    direct_native_positions_host.assign(positions.begin(), positions.end());
+                    set_direct_tensor(direct_native_positions, direct_native_positions_host.data(), 0,
+                            direct_native_positions_host.size() * sizeof(direct_native_positions_host[0]));
+                    direct_native_positions_uploaded = positions;
+                }
+                if (direct_native_mask_uploaded != valid) {
+                    set_direct_tensor(direct_native_mask, valid.data(), 0, valid.size());
+                    direct_native_mask_uploaded = valid;
+                }
+            }
+            refresh_direct_telemetry(ubatch);
+            if (diagnostic_page_mass_enabled() && direct_page_mass == nullptr && kv_attention_telemetry != nullptr &&
+                       kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+                       ubatch->pos != nullptr &&
+                       !kv_attention_telemetry->cadence_due(uint64_t(
+                           std::max<llama_pos>(0, ubatch->pos[0])))) {
+                direct_telemetry_skipped = true;
+            }
+        } else if (dense_attention) {
+            // The dense selected route is a no-copy typed view over the
+            // persistent contiguous Turbo4 slab. It has no row-ID or page
+            // descriptor input to refresh; falling through to the reference
+            // gather assertion would incorrectly reject a large B graph.
+        } else if (packed_attention) {
+            // Packed historical and current rows are copied from the canonical
+            // cache by graph nodes immediately before this layer's attention.
+            // The graph scheduler reuses their transient storage between layers.
+        } else {
+            if (graph_input_allocated(self_selected_idxs)) {
+                GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
+            }
+            if (update_selected && graph_input_allocated(self_selected_idxs)) {
+                ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
+                        selected_rows.size() * sizeof(selected_rows[0]));
+            }
+        }
+    }
+
+    if (selected_input_start != 0 && kv_attention_metrics != nullptr) {
+        kv_attention_metrics->record_descriptor_prepare_us(uint64_t(
+                std::max<int64_t>(0, ggml_time_us() - selected_input_start)));
     }
 
     // the mask is left unallocated when the graph only stores K/V without attending
     // (e.g. DFlash's KV-injection pass)
     if (self_kq_mask && self_kq_mask->buffer) {
-        mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
+        if (!selected_attention) {
+            mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
+        } else if (!direct_attention) {
+            GGML_ASSERT(ggml_backend_buffer_is_host(self_kq_mask->buffer));
+            const auto & positions = selected_metadata.native_positions();
+            const auto & valid = selected_metadata.native_mask();
+            const auto & queries = selected_metadata.query_positions();
+            const uint32_t n_kv = uint32_t(self_kq_mask->ne[0]);
+            const uint32_t n_queries = uint32_t(queries.size());
+            GGML_ASSERT(self_kq_mask->ne[0] == n_kv);
+            GGML_ASSERT(self_kq_mask->ne[1] == n_queries);
+
+            auto fill = [&](auto * data) {
+                using T = std::remove_reference_t<decltype(*data)>;
+                for (uint32_t query = 0; query < n_queries; ++query) {
+                    for (uint32_t row = 0; row < n_kv; ++row) {
+                        const float value = llama_kv_attention_selected_mask_value(
+                                row, positions, valid, queries[query],
+                                cparams.causal_attn, hparams.use_alibi);
+                        data[size_t(query) * n_kv + row] = llama_cast<T>(value);
+                    }
+                }
+            };
+            if (self_kq_mask->type == GGML_TYPE_F16) {
+                fill((ggml_fp16_t *) self_kq_mask->data);
+            } else {
+                fill((float *) self_kq_mask->data);
+            }
+        }
+    }
+
+    if (selected_attention && !exact_wave_attention && update_selected) {
+        selected_content_key = selected_metadata.graph_content_key();
+    }
+
+    if (initialize_selected) {
+        selected_static_inputs_initialized = true;
     }
 
     // DDTree: overwrite the tree×tree block of the attention mask with the visibility matrix
     // Sets BOTH allow (0) and block (-inf) to fully override seq_id-based masking
-    if (tree_mask && tree_mask->active) {
+    if (tree_mask && tree_mask->active && graph_input_allocated(self_kq_mask) &&
+            graph_input_allocated(self_k_idxs)) {
         GGML_ASSERT(ggml_backend_buffer_is_host(self_kq_mask->buffer));
 
         float   * mask_data = (float *)   self_kq_mask->data;
@@ -791,25 +1147,382 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     turbo_vmean_fill(self_vmean, turbo_vmean_data);
 }
 
+ggml_tensor * llm_graph_input_attn_kv::get_k_idxs(int32_t il) const {
+    if (self_k_idxs_by_layer.empty()) {
+        return self_k_idxs;
+    }
+    const auto it = std::find(direct_layer_ids.begin(), direct_layer_ids.end(), uint32_t(il));
+    return it == direct_layer_ids.end()
+        ? nullptr : self_k_idxs_by_layer[size_t(it - direct_layer_ids.begin())];
+}
+
+ggml_tensor * llm_graph_input_attn_kv::get_v_idxs(int32_t il) const {
+    if (self_v_idxs_by_layer.empty()) {
+        return self_v_idxs;
+    }
+    const auto it = std::find(direct_layer_ids.begin(), direct_layer_ids.end(), uint32_t(il));
+    return it == direct_layer_ids.end()
+        ? nullptr : self_v_idxs_by_layer[size_t(it - direct_layer_ids.begin())];
+}
+
+void llm_graph_input_attn_kv::refresh_direct_telemetry(
+        const llama_ubatch * ubatch) noexcept {
+    if (!direct_attention || !diagnostic_page_mass_enabled() || direct_page_mass == nullptr ||
+        kv_attention_telemetry == nullptr || mctx == nullptr) {
+        // Ordinary telemetry does not own a page-mass observer. In particular,
+        // do not copy the full logical residency catalogue on every token just
+        // to discard it during publish_kv_attention_telemetry().
+        return;
+    }
+    direct_telemetry_pages.clear();
+    direct_telemetry_snapshot = {};
+    direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::none;
+    const auto * pager = mctx->get_kv_pager();
+    if (pager == nullptr || ubatch == nullptr || ubatch->n_seq_id == nullptr ||
+        ubatch->seq_id == nullptr || ubatch->n_seq_id[0] == 0 ||
+        ubatch->seq_id[0] == nullptr) {
+        direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::no_metadata;
+        return;
+    }
+    const llama_seq_id sequence_id = ubatch->seq_id[0][0];
+    if (sequence_id < 0) {
+        direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::no_metadata;
+        return;
+    }
+    try {
+        const auto snapshot = pager->residency(sequence_id);
+        if (snapshot.epoch() == 0) {
+            direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_snapshot;
+            return;
+        }
+        direct_telemetry_snapshot = snapshot;
+        if (kv_attention_telemetry->reconcile(snapshot) !=
+                llama_kv_attention_telemetry_status::ok) {
+            direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_snapshot;
+            return;
+        }
+        std::vector<llama_kv_page_record> pages;
+        const auto append_page = [&](uint32_t logical_page, uint32_t physical_slot) {
+            const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                    [&](const auto & record) {
+                return record.id.logical_page == logical_page &&
+                    record.physical_slot == physical_slot;
+            });
+            if (it == snapshot.pages().end()) {
+                return false;
+            }
+            pages.push_back(*it);
+            return true;
+        };
+        pages.reserve(direct_active_page_count);
+        for (uint32_t page_index = 0; page_index < direct_active_page_count; ++page_index) {
+            const auto & view_page = direct_pages_host[page_index];
+            if (!append_page(view_page.logical_page, view_page.source_physical_slot)) {
+                direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_identity;
+                return;
+            }
+        }
+        direct_telemetry_pages = std::move(pages);
+    } catch (...) {
+        direct_telemetry_pages.clear();
+        direct_telemetry_snapshot = {};
+        direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::no_metadata;
+    }
+}
+
 bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     const auto * mctx = static_cast<const llama_kv_cache_context *>(params.mctx);
 
     this->mctx = mctx;
 
     bool res = true;
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    bool reason_recorded = false;
+    const auto record_rebuild_reason = [&](llama_kv_attention_graph_rebuild_reason reason) {
+        if (!profile || kv_attention_metrics == nullptr) return;
+        kv_attention_metrics->record_graph_rebuild_reason_if_profiled(reason, profile_env);
+        reason_recorded = true;
+    };
 
-    res &= self_k_idxs->ne[0] == params.ubatch.n_tokens;
+    const bool ubatch_shape_changed = self_k_idxs->ne[0] != params.ubatch.n_tokens;
+    if (ubatch_shape_changed) {
+        record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::ubatch_shape);
+    }
+    res &= !ubatch_shape_changed;
   //res &= self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
-    res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams);
+    const bool exact_wave = params.kv_attention_exact_plan != nullptr;
+    const bool selected = exact_wave ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_dense ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_packed ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
+    const bool dense = params.kv_attention_route == llama_kv_attention_execution_route::selected_dense;
+    const bool packed = params.kv_attention_route == llama_kv_attention_execution_route::selected_packed;
+    const bool direct = exact_wave ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
+    res &= selected_attention == selected;
+    res &= direct_attention == direct;
+    res &= dense_attention == dense;
+    res &= packed_attention == packed;
+    if (exact_wave) {
+        res &= exact_wave_attention && exact_graph_plan == params.kv_attention_exact_plan;
+        res &= !exact_waves.empty() && direct_staging_storage != nullptr;
+        res &= exact_n_rows != 0;
+        return res;
+    }
 
+    if (selected && !exact_wave) {
+        const auto & metadata = params.kv_attention_metadata;
+        if (!metadata.valid() || !metadata.enabled()) {
+            return false;
+        }
+        if (packed && (metadata.graph_layout_key() != selected_metadata.graph_layout_key() ||
+                       metadata.graph_physical_key() != selected_metadata.graph_physical_key())) {
+            record_rebuild_reason(metadata.graph_layout_key() != selected_metadata.graph_layout_key()
+                    ? llama_kv_attention_graph_rebuild_reason::row_capacity
+                    : llama_kv_attention_graph_rebuild_reason::physical_key);
+            return false;
+        }
+        if (packed) {
+            const auto * pager = mctx->get_kv_pager();
+            if (pager == nullptr) {
+                return false;
+            }
+            const uint32_t page_tokens = pager->snapshot().geometry.page_tokens;
+            // Keep the owner at the selected-view bucket. It may grow as the
+            // selected compact extent grows, but must not reserve every H row
+            // in every layer for a sparse selection.
+            if (llama_kv_attention_packed_row_capacity(metadata, page_tokens,
+                    0) != packed_row_capacity) {
+                record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::row_capacity);
+                return false;
+            }
+        }
+        if (dense && metadata.graph_physical_key() !=
+                selected_metadata.graph_physical_key()) {
+            record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::physical_key);
+            return false;
+        }
+        if (metadata.graph_content_key() != selected_content_key &&
+                !refresh_selected_data(metadata)) {
+            record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::content_key);
+            return false;
+        }
+        selected_metadata = metadata;
+    }
+
+    if (!direct) {
+        res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
+                selected ? (packed ? packed_row_capacity
+                                   : (dense ? uint32_t(GGML_PAD(params.kv_attention_metadata.get_n_kv(),
+                                               VBR_GENERATION_PAGE_CELLS))
+                                            : params.kv_attention_metadata.get_n_kv())) : 0);
+    }
+    if (selected && !direct && !dense && !packed) {
+        res &= self_selected_idxs != nullptr;
+        res &= self_selected_idxs->ne[0] == params.kv_attention_metadata.get_n_kv();
+    }
+    if (dense) {
+        res &= dense_source_row_begin != UINT32_MAX;
+    }
+    if (packed) {
+        res &= !packed_layers.empty() &&
+            packed_staging_k != nullptr && packed_staging_v != nullptr;
+        for (const auto & layer : packed_layers) {
+            res &= layer.k != nullptr && layer.v != nullptr &&
+                layer.source_k != nullptr && layer.source_v != nullptr;
+            res &= layer.row_capacity != 0;
+            res &= layer.k->view_src == packed_staging_k &&
+                layer.v->view_src == packed_staging_v;
+            res &= layer.k->ne[2] == int64_t(layer.row_capacity);
+            res &= layer.v->ne[2] == int64_t(layer.row_capacity);
+            res &= packed_staging_k->ne[2] == int64_t(layer.row_capacity) &&
+                packed_staging_v->ne[2] == int64_t(layer.row_capacity);
+            res &= layer.row_capacity == packed_row_capacity;
+        }
+        // Packed selective attention has one mature packed FA consumer. Its
+        // page-mass observer is intentionally not part of the production
+        // graph; telemetry remains available on the explicit direct route.
+        res &= direct_page_mass == nullptr;
+    }
+    if (direct) {
+        res &= direct_pages != nullptr && direct_native_positions != nullptr &&
+            direct_native_mask != nullptr && direct_query_positions != nullptr;
+        const bool diagnostic_scratch = diagnostic_page_mass_enabled() && direct_page_capacity <= 64 &&
+            params.ubatch.n_seq_tokens == 1 && params.kv_attention_telemetry != nullptr &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off;
+        res &= (direct_split_kv_scratch != nullptr) == diagnostic_scratch;
+        res &= direct_page_capacity >= params.kv_attention_metadata.page_table().size();
+        res &= direct_row_capacity >= params.kv_attention_metadata.get_n_kv();
+        res &= direct_pages->ne[0] == int64_t(
+                sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page) +
+                direct_row_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup));
+        res &= direct_row_lookup_host.size() == direct_row_capacity;
+        res &= direct_native_positions->ne[0] == direct_row_capacity;
+        res &= direct_native_mask->ne[0] == direct_row_capacity;
+        res &= direct_query_positions->ne[0] == int64_t(
+                params.kv_attention_metadata.query_positions().size());
+        const uint32_t telemetry_ordinal = params.kv_attention_telemetry != nullptr
+            ? params.kv_attention_telemetry->layer_index() : UINT32_MAX;
+        const bool telemetry_layer_valid = telemetry_ordinal < direct_layer_ids.size();
+        const uint32_t telemetry_model_layer = telemetry_layer_valid
+            ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
+        const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
+            diagnostic_scratch &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            params.ubatch.n_seq_tokens == 1 &&
+            telemetry_layer_valid &&
+            params.kv_attention_telemetry->head_begin() < uint32_t(
+                hparams.n_head(telemetry_model_layer)) &&
+            params.kv_attention_telemetry->cadence_due(params.ubatch.pos != nullptr
+                ? uint64_t(std::max<llama_pos>(0, params.ubatch.pos0(0))) : 0);
+        res &= (direct_page_mass != nullptr) == telemetry_enabled;
+    }
+
+    if (!res && !reason_recorded) {
+        record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::other);
+    }
     return res;
 }
 
-void llm_graph_input_attn_k::set_input(const llama_ubatch * ubatch) {
-    mctx->set_input_k_idxs(self_k_idxs, ubatch);
+bool llm_graph_input_attn_kv::refresh_selected_data(
+        const llama_kv_attention_operator_metadata & metadata) {
+    struct hotpath_timer {
+        llama_kv_attention_execution_metrics * metrics;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~hotpath_timer() {
+            if (!active || metrics == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            metrics->record_hotpath_time(metrics->selected_refresh_us,
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
+    } timer { kv_attention_metrics, std::chrono::steady_clock::now(),
+        std::getenv("LLAMA_HOTPATH_PROFILE") != nullptr &&
+        std::strcmp(std::getenv("LLAMA_HOTPATH_PROFILE"), "1") == 0 };
+    if (!selected_attention || exact_wave_attention || !metadata.valid()) {
+        return false;
+    }
 
-    mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
+    if (direct_attention) {
+        const auto & pages = metadata.page_table();
+        if (direct_pages == nullptr || direct_native_positions == nullptr ||
+                direct_native_mask == nullptr || direct_query_positions == nullptr ||
+                direct_page_capacity < pages.size() || direct_row_capacity < metadata.get_n_kv() ||
+                direct_pages_host.size() != direct_page_capacity) {
+            return false;
+        }
+        direct_active_page_count = uint32_t(pages.size());
+        direct_active_row_count = metadata.get_n_kv();
+        direct_active_tail_length = pages.empty() ? 0 : pages.back().row_count;
+        direct_selection_generation = metadata.graph_content_key();
+        const ggml_flash_attn_ext_paged_turbo4_page invalid_page = {
+            UINT32_MAX, UINT32_MAX, 0, 0, -1 };
+        std::fill(direct_pages_host.begin(), direct_pages_host.end(), invalid_page);
+        for (size_t i = 0; i < pages.size(); ++i) {
+            const auto & page = pages[i];
+            direct_pages_host[i] = {
+                page.logical_page, page.source_physical_slot,
+                page.compact_row_begin, page.row_count,
+                page.native_position_begin };
+        }
+        if (!build_paged_row_lookup(direct_pages_host,
+                direct_active_page_count, direct_row_capacity,
+                direct_row_lookup_host)) {
+            return false;
+        }
+        return direct_pages->ne[0] == int64_t(
+                    sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                    direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page) +
+                    direct_row_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup)) &&
+            direct_row_capacity == uint32_t(direct_native_positions->ne[0]) &&
+            direct_row_capacity == uint32_t(direct_native_mask->ne[0]) &&
+            metadata.query_positions().size() == size_t(direct_query_positions->ne[0]);
+    }
+
+    if (dense_attention) {
+        const auto * pager = mctx->get_kv_pager();
+        if (pager == nullptr) {
+            return false;
+        }
+        const auto eligibility = llama_kv_attention_dense_view_check(
+                metadata, pager->snapshot().physical_page_count);
+        return eligibility.eligible && eligibility.source_row_begin == dense_source_row_begin;
+    }
+
+    if (packed_attention) {
+        if (packed_staging_k == nullptr || packed_staging_v == nullptr) {
+            return false;
+        }
+        if (metadata.graph_layout_key() != selected_metadata.graph_layout_key() ||
+                metadata.graph_physical_key() != selected_metadata.graph_physical_key()) {
+            return false;
+        }
+        std::vector<llama_kv_attention_view_copy_interval> expected_copies;
+        if (!llama_kv_attention_view_copy_intervals(metadata.page_table(), {}, expected_copies) ||
+                expected_copies.empty()) {
+            return false;
+        }
+        for (const auto & layer : packed_layers) {
+            if (layer.k == nullptr || layer.v == nullptr ||
+                    layer.source_k == nullptr || layer.source_v == nullptr ||
+                    layer.k->view_src != packed_staging_k ||
+                    layer.v->view_src != packed_staging_v ||
+                    layer.copies.size() != expected_copies.size()) {
+                return false;
+            }
+            for (size_t i = 0; i < layer.copies.size(); ++i) {
+                const auto & copy = layer.copies[i];
+                if (copy.source_k == nullptr || copy.source_v == nullptr ||
+                        copy.packed_k == nullptr || copy.packed_v == nullptr ||
+                        // ggml flattens nested views to their allocation
+                        // owner. Comparing view_src with the intermediate
+                        // layer view falsely rejects every reusable graph.
+                        copy.source_k->view_src != layer.source_k->view_src ||
+                        copy.source_v->view_src != layer.source_v->view_src ||
+                        copy.packed_k->view_src != packed_staging_k ||
+                        copy.packed_v->view_src != packed_staging_v ||
+                        copy.source_k->view_offs != layer.source_k->view_offs + copy.source_offset_k ||
+                        copy.source_v->view_offs != layer.source_v->view_offs + copy.source_offset_v ||
+                        copy.packed_k->view_offs != uint64_t(metadata.page_table()[i].compact_row_begin) * layer.k->nb[2] ||
+                        copy.packed_v->view_offs != uint64_t(metadata.page_table()[i].compact_row_begin) * layer.v->nb[2] ||
+                        expected_copies[i].page_index != copy.page_index ||
+                        expected_copies[i].row_count != copy.row_count) {
+                    return false;
+                }
+            }
+        }
+        // Every graph execution recopies every selected Turbo4 page into its
+        // transient layer staging. Page generations therefore never authorize
+        // reuse of bytes left by an earlier layer or graph execution.
+        return !packed_layers.empty();
+    }
+
+    if (self_selected_idxs == nullptr ||
+            metadata.get_n_kv() != uint32_t(self_selected_idxs->ne[0])) {
+        return false;
+    }
+    selected_rows.clear();
+    if (!mctx->selected_attention_rows(metadata.native_positions(), selected_rows)) {
+        return false;
+    }
+    return selected_rows.size() == size_t(self_selected_idxs->ne[0]);
+}
+
+void llm_graph_input_attn_k::set_input(const llama_ubatch * ubatch) {
+    if (graph_input_allocated(self_k_idxs)) {
+        mctx->set_input_k_idxs(self_k_idxs, ubatch);
+    }
+
+    if (graph_input_allocated(self_kq_mask)) {
+        mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
+    }
 }
 
 bool llm_graph_input_attn_k::can_reuse(const llm_graph_params & params) {
@@ -839,7 +1552,7 @@ llm_graph_input_attn_kv_msa::llm_graph_input_attn_kv_msa(
 void llm_graph_input_attn_kv_msa::set_input(const llama_ubatch * ubatch) {
     llm_graph_input_attn_kv::set_input(ubatch);
 
-    if (self_k_idxs_idx) {
+    if (graph_input_allocated(self_k_idxs_idx)) {
         mctx_msa->get_idx()->set_input_k_idxs(self_k_idxs_idx, ubatch);
     }
 }
@@ -1394,19 +2107,11 @@ void llm_graph_input_attn_cross::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_mem_hybrid::set_input(const llama_ubatch * ubatch) {
-    mctx->get_attn()->set_input_k_idxs(inp_attn->self_k_idxs, ubatch);
-    mctx->get_attn()->set_input_v_idxs(inp_attn->self_v_idxs, ubatch);
-    mctx->get_attn()->set_input_kq_mask(inp_attn->self_kq_mask, ubatch, cparams.causal_attn);
-
-    if (inp_attn->self_k_rot) {
-        mctx->get_attn()->set_input_k_rot(inp_attn->self_k_rot);
-    }
-
-    if (inp_attn->self_v_rot) {
-        mctx->get_attn()->set_input_v_rot(inp_attn->self_v_rot);
-    }
-
-    turbo_vmean_fill(inp_attn->self_vmean, inp_attn->turbo_vmean_data);
+    // Keep the attention child as the single owner of selected-row IDs and
+    // native-position masking.  Hybrid Qwen forwards this input explicitly
+    // and otherwise bypasses the child input object's set_input().
+    inp_attn->mctx = mctx->get_attn();
+    inp_attn->set_input(ubatch);
 
     const int64_t n_rs = mctx->get_recr()->get_n_rs();
 
@@ -1425,24 +2130,28 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
     const auto * mctx = static_cast<const llama_memory_hybrid_context *>(params.mctx);
 
     this->mctx = mctx;
+    // Run the same full attention validation and refresh path used by the
+    // non-hybrid graph. In particular, the child sees the attention context,
+    // not the hybrid wrapper, and owns selected content/capacity checks.
+    llm_graph_params attention_params = params;
+    attention_params.mctx = mctx->get_attn();
+    const bool attention_reusable = inp_attn->can_reuse(attention_params);
+    // Use the recurrent child's complete reuse policy too. Shape/head alone
+    // do not authenticate a decode-only direct state view after src0 remaps;
+    // the child checks identity gathers and refreshes its context binding.
+    llm_graph_params recurrent_params = params;
+    recurrent_params.mctx = mctx->get_recr();
+    const bool recurrent_reusable = inp_rs->can_reuse(recurrent_params);
 
-    bool res = true;
-
-    res &= inp_attn->self_k_idxs->ne[0] == params.ubatch.n_tokens;
-  //res &= inp_attn->self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
-
-    res &= can_reuse_kq_mask(inp_attn->self_kq_mask, mctx->get_attn(), params.ubatch, params.cparams);
-
-    res &= inp_rs->s_copy->ne[0] == mctx->get_recr()->get_n_rs();
-
-    res &= inp_rs->s_copy_main->ne[0] == params.ubatch.n_seqs;
-
-    res &= inp_rs->head == mctx->get_recr()->get_head();
-    res &= inp_rs->rs_z == mctx->get_recr()->get_rs_z();
-    res &= inp_rs->tensor_binding_epoch ==
-        mctx->get_recr()->get_tensor_binding_epoch();
-
-    return res;
+    if (attention_reusable && !recurrent_reusable &&
+            inp_attn->kv_attention_metrics != nullptr) {
+        const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+        if (profile_env != nullptr && std::strcmp(profile_env, "1") == 0) {
+            inp_attn->kv_attention_metrics->record_graph_rebuild_reason_if_profiled(
+                    llama_kv_attention_graph_rebuild_reason::other, profile_env);
+        }
+    }
+    return attention_reusable && recurrent_reusable;
 }
 
 // TODO: Hybrid input classes are a bit redundant.
@@ -1633,6 +2342,7 @@ int64_t llm_graph_result::get_max_nodes() const {
 }
 
 void llm_graph_result::reset() {
+    kv_attention_fence.release();
     t_inp_tokens        = nullptr;
     t_inp_embd          = nullptr;
     t_logits            = nullptr;
@@ -1694,9 +2404,9 @@ bool llm_graph_all_outputs_have_samplers(
     return true;
 }
 
-void llm_graph_result::set_inputs(const llama_ubatch * ubatch) {
+void llm_graph_result::set_inputs(const llama_ubatch * ubatch, int32_t mtp_host_hidden_row) {
     for (auto & input : inputs) {
-        input->set_input(ubatch);
+        input->set_input_mtp_handoff(ubatch, mtp_host_hidden_row);
     }
 }
 
@@ -1827,7 +2537,12 @@ void llm_graph_result::add_fused_node(llm_graph_fused_node result) {
 }
 
 void llm_graph_result::set_params(const llm_graph_params & params) {
+    kv_attention_fence.release();
     this->params = params;
+
+    if (params.kv_attention_metadata.enabled()) {
+        kv_attention_fence = params.kv_attention_metadata.acquire_graph_fence();
+    }
 
     vbr_epoch = params.mctx != nullptr ? params.mctx->get_vbr_epoch() : 0;
 }
@@ -1837,6 +2552,7 @@ void llm_graph_result::set_params(const llm_graph_params & params) {
 //
 
 llm_graph_context::llm_graph_context(const llm_graph_params & params) :
+    gtype            (params.gtype),
     arch             (params.arch),
     hparams          (params.hparams),
     cparams          (params.cparams),
@@ -1879,6 +2595,12 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
     tree_parent_ids           (params.tree_parent_ids),
     tree_ssm_intermediates    (params.tree_ssm_intermediates),
     tree_n_recurrent_layers   (params.tree_n_recurrent_layers),
+    kv_attention_metadata(params.kv_attention_metadata),
+    kv_attention_route(params.kv_attention_route),
+    kv_attention_exact_plan(params.kv_attention_exact_plan),
+    kv_attention_metrics(params.kv_attention_metrics),
+    kv_attention_telemetry(params.kv_attention_telemetry),
+    kv_attention_packed_cache(params.kv_attention_packed_cache),
     prec_policy      (params.prec_policy),
     samplers         (params.samplers),
     cb_func          (params.cb),
@@ -1888,9 +2610,279 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
         res->set_params(params);
     }
 
+namespace {
+
+bool graph_selector_trace_enabled() {
+    static const bool enabled = []() {
+        const char * value = std::getenv("LLAMA_KV_PAGER_SELECTOR_TRACE");
+        return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+    }();
+    return enabled;
+}
+
+// The selector's Q is part of the model graph, while its catalogue and
+// generation sidebands are mutable boundary inputs. Keep the latter in the
+// normal graph-input lifecycle so graph reuse never leaves a pointer to a
+// temporary llama_memory_context.
+// Graph reuse must preserve both the accumulator's sequence owner and whether
+// this batch closes the user span. Otherwise an equal-sized final ubatch can
+// reuse an intermediate capture graph and never produce a selector result.
+static bool routing_query_batch_matches(const llama_memory_context_i * mctx,
+        const ggml_tensor * accumulator, const llama_ubatch & ubatch,
+        llama_seq_id sequence_id, bool final_batch) {
+    if (mctx == nullptr || accumulator == nullptr || accumulator->src[0] == nullptr ||
+            accumulator->src[1] == nullptr || accumulator->op != GGML_OP_KV_QUERY_ACCUMULATE ||
+            ubatch.n_tokens == 0 || ubatch.n_pos == 0 || ubatch.pos == nullptr ||
+            ubatch.n_seqs_unq != 1 || ubatch.seq_id == nullptr || ubatch.n_seq_id == nullptr ||
+            ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
+            ubatch.seq_id[0][0] != sequence_id ||
+            uint64_t(accumulator->src[0]->ne[2]) != ubatch.n_tokens ||
+            size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) return false;
+    return mctx->can_reuse_kv_query_capture(accumulator, ubatch, sequence_id, final_batch);
+}
+
+// The selector's Q is part of the model graph, while its catalogue and
+// generation sidebands are mutable boundary inputs. Keep the latter in the
+// normal graph-input lifecycle so graph reuse never leaves a pointer to a
+// temporary llama_memory_context.
+class llm_graph_input_kv_page_select final : public llm_graph_input_i {
+public:
+    llm_graph_input_kv_page_select(
+            const llama_memory_context_i * mctx,
+            ggml_tensor * bounds,
+            ggml_tensor * metadata,
+            ggml_tensor * membership,
+            ggml_tensor * query,
+            ggml_tensor * selected,
+            int layer, llama_seq_id sequence_id) :
+        mctx_(mctx), bounds_(bounds), metadata_(metadata),
+        membership_(membership), query_(query), selected_(selected), layer_(layer), sequence_id_(sequence_id) {
+    }
+
+    void set_input(const llama_ubatch * ubatch) override {
+        const bool probe = selected_ != nullptr && selected_->op == GGML_OP_KV_PAGE_RANK;
+        const auto * query_op = selected_ != nullptr
+            ? (probe ? selected_->src[5] : selected_->src[0]) : nullptr;
+        const bool accumulate = query_op != nullptr && query_op->op == GGML_OP_KV_QUERY_ACCUMULATE;
+        const bool query_shape = query_op != nullptr && query_op->src[0] != nullptr &&
+                query_op->src[0]->ne[2] > 0 && query_op->src[0]->ne[3] == 1 &&
+                uint64_t(query_op->src[0]->ne[2]) == (ubatch != nullptr ? ubatch->n_tokens : 0);
+        const bool query_inputs_ready = probe
+            ? mctx_ != nullptr && ubatch != nullptr &&
+                mctx_->set_kv_query_probe_inputs(const_cast<ggml_tensor *>(query_op), *ubatch)
+            : accumulate && mctx_ != nullptr && ubatch != nullptr &&
+                mctx_->set_kv_query_accumulate_inputs(const_cast<ggml_tensor *>(query_op), *ubatch);
+        if (mctx_ == nullptr || ubatch == nullptr || selected_ == nullptr ||
+                !query_shape || !query_inputs_ready ||
+                !mctx_->set_kv_page_select_inputs(
+                    bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
+            if (graph_selector_trace_enabled() && mctx_ != nullptr && ubatch != nullptr) {
+                mctx_->note_kv_page_select_gate(
+                    llama_kv_pager_selector_gate::sideband_inputs_rejected,
+                    selected_ != nullptr ? selected_->src[0] : nullptr,
+                    layer_, *ubatch, ubatch->n_tokens > 0 ? ubatch->n_tokens - 1 : 0);
+            }
+            // A selector is advisory. The owner keeps the previous valid
+            // selection when a boundary cannot refresh its sideband inputs.
+            return;
+        }
+        // Graph reuse skips llm_graph_context::cb(), which is where the
+        // selector output is first registered with the pager. Re-register it
+        // here after its generation/epoch sidebands have been refreshed so a
+        // completed current-Q result can reach the next policy boundary.
+        if (graph_selector_trace_enabled()) {
+            mctx_->note_kv_page_select_gate(llama_kv_pager_selector_gate::capture_called,
+                    selected_->src[0], layer_, *ubatch, ubatch->n_tokens - 1);
+        }
+        mctx_->capture_kv_routing_query(selected_, layer_, *ubatch);
+    }
+
+    bool can_reuse(const llm_graph_params & params) override {
+        mctx_ = params.mctx;
+        const bool probe = selected_ != nullptr && selected_->op == GGML_OP_KV_PAGE_RANK;
+        const auto * query_op = selected_ != nullptr
+            ? (probe ? selected_->src[5] : selected_->src[0]) : nullptr;
+        const bool supported_query = query_op != nullptr &&
+                (query_op->op == GGML_OP_KV_QUERY_ACCUMULATE ||
+                 query_op->op == GGML_OP_KV_QUERY_PROBES);
+        const bool valid = params.ubatch.n_tokens > 0 && selected_ != nullptr && selected_->src[0] != nullptr &&
+                supported_query && query_op->src[0] != nullptr && query_op->src[0]->ne[2] > 0 &&
+                query_op->src[0]->ne[3] == 1 &&
+                uint64_t(query_op->src[0]->ne[2]) == params.ubatch.n_tokens &&
+                params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
+                size_t(params.ubatch.n_tokens - 1) <=
+                    std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
+                mctx_ != nullptr &&
+                (probe ? mctx_->can_reuse_kv_query_capture(
+                    query_op, params.ubatch, sequence_id_, true)
+                 : routing_query_batch_matches(
+                    mctx_, query_op, params.ubatch, sequence_id_, true)) &&
+                mctx_->can_reuse_kv_page_select(bounds_, layer_, params.ubatch);
+        if (!valid && graph_selector_trace_enabled() && mctx_ != nullptr) {
+            mctx_->note_kv_page_select_gate(
+                llama_kv_pager_selector_gate::graph_input_rejected_reuse,
+                selected_ != nullptr ? selected_->src[0] : nullptr,
+                layer_, params.ubatch,
+                params.ubatch.n_tokens > 0 ? params.ubatch.n_tokens - 1 : 0);
+        }
+        return valid;
+    }
+
+private:
+    const llama_memory_context_i * mctx_ = nullptr;
+    ggml_tensor * bounds_ = nullptr;
+    ggml_tensor * metadata_ = nullptr;
+    ggml_tensor * membership_ = nullptr;
+    ggml_tensor * query_ = nullptr;
+    ggml_tensor * selected_ = nullptr;
+    int layer_ = -1;
+    llama_seq_id sequence_id_ = -1;
+};
+
+class llm_graph_input_kv_query_accumulate final : public llm_graph_input_i {
+public:
+    llm_graph_input_kv_query_accumulate(
+            const llama_memory_context_i * mctx, ggml_tensor * accumulator, llama_seq_id sequence_id) :
+        mctx_(mctx), accumulator_(accumulator), sequence_id_(sequence_id) {}
+
+    void set_input(const llama_ubatch * ubatch) override {
+        if (mctx_ != nullptr && ubatch != nullptr) {
+            mctx_->set_kv_query_accumulate_inputs(accumulator_, *ubatch);
+        }
+    }
+
+    bool can_reuse(const llm_graph_params & params) override {
+        mctx_ = params.mctx;
+        // set_input refreshes positions and generation every execution after
+        // allocation. A stable intermediate shape need not rebuild the graph.
+        return routing_query_batch_matches(mctx_, accumulator_, params.ubatch, sequence_id_, false);
+    }
+
+private:
+    const llama_memory_context_i * mctx_ = nullptr;
+    ggml_tensor * accumulator_ = nullptr;
+    llama_seq_id sequence_id_ = -1;
+};
+
+class llm_graph_input_kv_query_probes final : public llm_graph_input_i {
+public:
+    llm_graph_input_kv_query_probes(
+            const llama_memory_context_i * mctx, ggml_tensor * probes) :
+        mctx_(mctx), probes_(probes) {}
+
+    void set_input(const llama_ubatch * ubatch) override {
+        if (mctx_ != nullptr && ubatch != nullptr) {
+            mctx_->set_kv_query_probe_inputs(probes_, *ubatch);
+        }
+    }
+
+    bool can_reuse(const llm_graph_params & params) override {
+        mctx_ = params.mctx;
+        if (mctx_ == nullptr || probes_ == nullptr || params.ubatch.n_seqs_unq != 1 ||
+                params.ubatch.seq_id == nullptr || params.ubatch.seq_id[0] == nullptr) return false;
+        return mctx_->can_reuse_kv_query_capture(probes_, params.ubatch,
+                params.ubatch.seq_id[0][0], false);
+    }
+
+private:
+    const llama_memory_context_i * mctx_ = nullptr;
+    ggml_tensor * probes_ = nullptr;
+};
+
+} // namespace
+
 void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
     if (cb_func) {
         cb_func(ubatch, cur, name, il);
+    }
+
+    // Selector diagnostics concern Qcur_routing only. Recording a mismatch
+    // for every unrelated model tensor adds work and overwrites useful gates.
+    if (graph_selector_trace_enabled() && mctx != nullptr && name != nullptr && strcmp(name, "Qcur_routing") != 0) {
+        mctx->note_kv_page_select_gate(
+            llama_kv_pager_selector_gate::callback_name_mismatch,
+            cur, il, ubatch, ubatch.n_tokens > 0 ? ubatch.n_tokens - 1 : 0);
+    }
+    if (name != nullptr && strcmp(name, "Qcur_routing") == 0) {
+        // This callback is reached from build_attn_mha before its head/query
+        // permutation. A configured memory owner may therefore attach one
+        // selector node to the actual post-RoPE Q dependency without copying
+        // Q to the host. Expand the result explicitly so it cannot be
+        // optimized out.
+        if (mctx == nullptr) return;
+        const auto query_gate = cur == nullptr
+            ? llama_kv_pager_selector_gate::invalid_query_shape
+            : llama_kv_pager_selector_q_shape_gate(cur->ne[3] == 1 ? 3 : 4,
+                    cur->ne[0], cur->ne[1],
+                    cur->ne[2], cur->ne[3], ubatch.n_tokens);
+        if (graph_selector_trace_enabled()) {
+            std::fprintf(stderr, "selector graph callback layer=%d tensor=%s shape=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "] tokens=%u gate=%u mctx=%d\n",
+                    il, cur != nullptr ? cur->name : "null",
+                    cur != nullptr ? cur->ne[0] : 0, cur != nullptr ? cur->ne[1] : 0,
+                    cur != nullptr ? cur->ne[2] : 0, cur != nullptr ? cur->ne[3] : 0,
+                    ubatch.n_tokens, uint32_t(query_gate), mctx != nullptr);
+        }
+        if (query_gate != llama_kv_pager_selector_gate::callback_matched) {
+            mctx->note_kv_page_select_gate(
+                query_gate,
+                cur, il, ubatch, 0);
+            return;
+        }
+        if (ubatch.n_pos == 0 || ubatch.pos == nullptr ||
+                size_t(ubatch.n_tokens - 1) >
+                    std::numeric_limits<size_t>::max() / ubatch.n_pos) {
+            mctx->note_kv_page_select_gate(
+                llama_kv_pager_selector_gate::invalid_positions,
+                cur, il, ubatch, 0);
+            return;
+        }
+        const uint32_t query_row = uint32_t(cur->ne[2] - 1);
+        if (graph_selector_trace_enabled()) {
+            mctx->note_kv_page_select_gate(llama_kv_pager_selector_gate::callback_matched,
+                    cur, il, ubatch, query_row);
+        }
+        ggml_tensor * probe_capture = nullptr;
+        ggml_tensor * selected = mctx->build_kv_page_select(
+                ctx0, cur, il, ubatch, query_row, &probe_capture);
+        if (graph_selector_trace_enabled()) {
+            std::fprintf(stderr, "selector graph capture layer=%d probe=%d selected=%d\n",
+                    il, probe_capture != nullptr,
+                    selected != nullptr ? int(selected->op) : -1);
+        }
+        if (probe_capture != nullptr) {
+            // Keep the query capture's generation/position sideband in the
+            // graph-input lifecycle even when the selector also owns it.
+            // Its can_reuse() deliberately rejects a final-user graph, so a
+            // CUDA graph captured for an earlier query cannot retain a stale
+            // probe control tensor across the final-user transition.
+            res->add_input(std::make_unique<llm_graph_input_kv_query_probes>(
+                    mctx, probe_capture));
+            ggml_set_output(probe_capture);
+            ggml_build_forward_expand(gf, probe_capture);
+        }
+        if (selected != nullptr) {
+            if (selected->op == GGML_OP_KV_QUERY_ACCUMULATE) {
+                res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
+                        mctx, selected, ubatch.seq_id[0][0]));
+                ggml_set_output(selected);
+                ggml_build_forward_expand(gf, selected);
+                return;
+            }
+            // The selector is consumed after the scheduler fence by the
+            // pager's mailbox producer.  Expanding it makes the node run,
+            // but does not keep its compact ID buffer alive after the last
+            // graph consumer; without an output flag the allocator may
+            // recycle it before the pager reads the completed Q sample.
+            ggml_set_output(selected);
+            ggml_build_forward_expand(gf, selected);
+            // Do not upload or capture sidebands during graph construction.
+            // Their buffers are allocated later; set_input is the sole owner
+            // of uploads and registration on both first dispatch and reuse.
+            mctx->capture_kv_routing_query(selected, il, ubatch);
+            res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
+                    mctx, selected->src[1]->src[2], selected->src[2], selected->src[3],
+                    selected->src[4], selected, il, ubatch.seq_id[0][0]));
+        }
     }
 
     // DFlash GPU capture staging: embed a copy of this captured layer's output into
@@ -3321,6 +4313,11 @@ ggml_tensor * llm_graph_context::build_attn_mha(
                float   kq_scale,
                  int   il,
                 bool   sparse_mask) const {
+    // q is still [D, n_head_q, n_query] here. The selector contract is before
+    // the attention-specific permutation below, and row zero is the causal
+    // boundary for a multi-token microbatch.
+    cb(q, "Qcur_routing", il);
+
     const bool v_trans = v->nb[1] > v->nb[2];
 
     // split the batch into streams if needed
@@ -3573,13 +4570,689 @@ ggml_tensor * llm_graph_context::build_attn(
 
 static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
            ggml_context * ctx0,
+    ggml_backend_sched_t sched,
      const llama_ubatch & ubatch,
     const llama_hparams & hparams,
     const llama_cparams & cparams,
     const llama_kv_cache_context * mctx_cur,
-    const llama_tree_mask * tree_mask = nullptr) {
+    const llama_tree_mask * tree_mask = nullptr,
+    const llama_kv_attention_operator_metadata * selected_metadata = nullptr,
+    bool direct_attention = false,
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan = nullptr,
+    llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr,
+    llama_kv_attention_telemetry * kv_attention_telemetry = nullptr,
+    bool dense_attention = false,
+    bool packed_attention = false,
+    llama_kv_attention_packed_cache * packed_cache = nullptr) {
 
-    auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur, tree_mask);
+    struct packed_graph_build_guard {
+        const llama_kv_cache_context * mctx;
+        bool committed = false;
+
+        ~packed_graph_build_guard() {
+            if (committed) {
+                return;
+            }
+            if (mctx != nullptr) {
+                const_cast<llama_kv_cache_context *>(mctx)->finish(false);
+            }
+        }
+    } build_guard { mctx_cur };
+    GGML_UNUSED(packed_cache);
+
+    auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur,
+            tree_mask, kv_attention_metrics, kv_attention_telemetry);
+
+    if (selected_metadata != nullptr && selected_metadata->enabled()) {
+        inp->selected_attention = true;
+        inp->direct_attention = direct_attention;
+        inp->dense_attention = dense_attention;
+        inp->packed_attention = packed_attention;
+        inp->selected_metadata = *selected_metadata;
+        if (dense_attention && packed_attention) {
+            throw std::runtime_error("selected attention cannot be both dense and packed");
+        }
+        if (dense_attention) {
+            const auto * pager = mctx_cur->get_kv_pager();
+            if (pager == nullptr) {
+                throw std::runtime_error("dense selected attention has no pager geometry");
+            }
+            const auto eligibility = llama_kv_attention_dense_view_check(
+                    *selected_metadata, pager->snapshot().physical_page_count);
+            if (!eligibility.eligible) {
+                throw std::runtime_error(std::string("dense selected attention is ineligible: ") +
+                        eligibility.reason);
+            }
+            inp->dense_source_row_begin = eligibility.source_row_begin;
+        }
+        if (!direct_attention && !dense_attention && !packed_attention &&
+                !mctx_cur->selected_attention_rows(
+                    selected_metadata->native_positions(), inp->selected_rows)) {
+            throw std::runtime_error("selected KV attention rows are not available");
+        }
+        if (!direct_attention && !dense_attention && !packed_attention) {
+            inp->self_selected_idxs = ggml_new_tensor_1d(
+                    ctx0, GGML_TYPE_I32, selected_metadata->get_n_kv());
+            ggml_set_input(inp->self_selected_idxs);
+            ggml_set_name(inp->self_selected_idxs, "kv_selected_row_ids");
+        } else if (packed_attention) {
+            const auto * pager = mctx_cur->get_kv_pager();
+            if (pager == nullptr) {
+                throw std::runtime_error("packed selected attention has no pager");
+            }
+            const auto & packed_pages = selected_metadata->page_table();
+            if (packed_pages.empty()) {
+                throw std::runtime_error("packed selected attention has no selected pages");
+            }
+            const auto pager_snapshot = pager->snapshot();
+            const uint32_t page_tokens = pager_snapshot.geometry.page_tokens;
+            if (page_tokens == 0) {
+                throw std::runtime_error("packed selected attention has invalid page geometry");
+            }
+            // Allocate only the selected compact extent. These graph-owned
+            // tensors are staging for one layer at a time; graph liveness
+            // allows their storage to be reused by later layer consumers.
+            const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
+                    *selected_metadata, page_tokens);
+            if (packed_row_capacity == 0 ||
+                    packed_row_capacity > pager_snapshot.physical_rows) {
+                throw std::runtime_error("packed selected attention row capacity overflows");
+            }
+            inp->packed_row_capacity = uint32_t(packed_row_capacity);
+            const uint32_t packed_active_rows = selected_metadata->get_n_kv();
+            uint64_t compact_end = 0;
+            for (const auto & page : packed_pages) {
+                if (page.compact_row_begin != compact_end || page.row_count == 0) {
+                    throw std::runtime_error("packed selected rows are not a contiguous compact prefix");
+                }
+                compact_end += page.row_count;
+            }
+            if (compact_end != packed_active_rows || packed_active_rows > packed_row_capacity) {
+                throw std::runtime_error("packed selected active extent disagrees with copy plan");
+            }
+            const auto storage_device = pager->residency_storage_tensor() != nullptr
+                ? ggml_backend_buft_get_device(ggml_backend_buffer_get_type(
+                    pager->residency_storage_tensor()->buffer)) : nullptr;
+            ggml_backend_t packed_backend = nullptr;
+            for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+                ggml_backend_t candidate = ggml_backend_sched_get_backend(sched, i);
+                if (candidate && ggml_backend_get_device(candidate) == storage_device) {
+                    packed_backend = candidate;
+                    break;
+                }
+            }
+            if (packed_backend == nullptr) {
+                throw std::runtime_error("packed selected attention backend is unavailable");
+            }
+            const auto layer_ids = mctx_cur->get_layer_ids();
+            ggml_tensor * first_source_k = mctx_cur->get_k(ctx0, int32_t(layer_ids.front()));
+            ggml_tensor * first_source_v = mctx_cur->get_v(ctx0, int32_t(layer_ids.front()));
+            if (first_source_k == nullptr || first_source_v == nullptr ||
+                    first_source_k->type != GGML_TYPE_TURBO4_0 ||
+                    first_source_v->type != GGML_TYPE_TURBO4_0 ||
+                    first_source_k->ne[3] != 1 || first_source_v->ne[3] != 1 ||
+                    first_source_k->ne[2] < int64_t(packed_row_capacity) ||
+                    first_source_v->ne[2] < int64_t(packed_row_capacity)) {
+                throw std::runtime_error("packed selected attention has invalid cache views");
+            }
+            inp->packed_staging_k = ggml_new_tensor_4d(ctx0, first_source_k->type,
+                    first_source_k->ne[0], first_source_k->ne[1], packed_row_capacity, 1);
+            inp->packed_staging_v = ggml_new_tensor_4d(ctx0, first_source_v->type,
+                    first_source_v->ne[0], first_source_v->ne[1], packed_row_capacity, 1);
+            if (inp->packed_staging_k == nullptr || inp->packed_staging_v == nullptr) {
+                throw std::runtime_error("packed selected attention shared staging allocation failed");
+            }
+            ggml_set_name(inp->packed_staging_k, "kv_packed_staging_k");
+            ggml_set_name(inp->packed_staging_v, "kv_packed_staging_v");
+            ggml_backend_sched_set_tensor_backend(sched, inp->packed_staging_k, packed_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->packed_staging_v, packed_backend);
+            for (const uint32_t layer_id : layer_ids) {
+                ggml_tensor * source_k = mctx_cur->get_k(ctx0, int32_t(layer_id));
+                ggml_tensor * source_v = mctx_cur->get_v(ctx0, int32_t(layer_id));
+                if (source_k == nullptr || source_v == nullptr ||
+                        source_k->type != GGML_TYPE_TURBO4_0 ||
+                        source_v->type != GGML_TYPE_TURBO4_0 ||
+                        source_k->ne[3] != 1 || source_v->ne[3] != 1 ||
+                        source_k->ne[2] < int64_t(packed_row_capacity) ||
+                        source_v->ne[2] < int64_t(packed_row_capacity)) {
+                    throw std::runtime_error("packed selected attention has invalid cache views");
+                }
+                llm_graph_input_attn_kv::packed_layer layer;
+                layer.layer_id = layer_id;
+                layer.backend = packed_backend;
+                layer.row_capacity = uint32_t(packed_row_capacity);
+                layer.source_k = source_k;
+                layer.source_v = source_v;
+                layer.source_lifetime_epoch = uint64_t(
+                        reinterpret_cast<uintptr_t>(source_k));
+                layer.source_physical_key = selected_metadata->graph_physical_key();
+                // Each layer has a distinct view node for its copy operations,
+                // while all views alias the same graph-owned staging slab.
+                // The transformer graph orders layer N+1's K/V producers
+                // after layer N's attention consumes these bytes.
+                layer.k = ggml_view_4d(ctx0, inp->packed_staging_k,
+                        inp->packed_staging_k->ne[0], inp->packed_staging_k->ne[1],
+                        packed_row_capacity, 1, inp->packed_staging_k->nb[1],
+                        inp->packed_staging_k->nb[2], inp->packed_staging_k->nb[3], 0);
+                layer.v = ggml_view_4d(ctx0, inp->packed_staging_v,
+                        inp->packed_staging_v->ne[0], inp->packed_staging_v->ne[1],
+                        packed_row_capacity, 1, inp->packed_staging_v->nb[1],
+                        inp->packed_staging_v->nb[2], inp->packed_staging_v->nb[3], 0);
+                if (layer.k == nullptr || layer.v == nullptr) {
+                    throw std::runtime_error("packed selected attention staging tensor allocation failed");
+                }
+                ggml_set_name(layer.k, source_k->name);
+                ggml_set_name(layer.v, source_v->name);
+                // All layers share this slab and copy only the same active
+                // compact prefix. Clear its untouched tail once per graph
+                // execution, through the first layer, rather than once per
+                // transformer layer. The owner remains live through the last
+                // consumer, so later copies cannot overwrite these zeros.
+                if (packed_active_rows < packed_row_capacity && layer_id == layer_ids.front()) {
+                    const uint32_t padding_rows = packed_row_capacity - packed_active_rows;
+                    layer.padding_k = ggml_view_4d(ctx0, layer.k,
+                            layer.k->ne[0], layer.k->ne[1], padding_rows, 1,
+                            layer.k->nb[1], layer.k->nb[2], layer.k->nb[3],
+                            uint64_t(packed_active_rows) * layer.k->nb[2]);
+                    layer.padding_v = ggml_view_4d(ctx0, layer.v,
+                            layer.v->ne[0], layer.v->ne[1], padding_rows, 1,
+                            layer.v->nb[1], layer.v->nb[2], layer.v->nb[3],
+                            uint64_t(packed_active_rows) * layer.v->nb[2]);
+                }
+                if (kv_attention_metrics != nullptr) {
+                    const uint64_t staging_bytes = uint64_t(ggml_nbytes(layer.k)) +
+                        uint64_t(ggml_nbytes(layer.v));
+                    kv_attention_metrics->packed_storage_bytes = std::max(
+                            kv_attention_metrics->packed_storage_bytes, staging_bytes);
+                }
+                std::vector<llama_kv_attention_view_copy_interval> intervals;
+                if (!llama_kv_attention_view_copy_intervals(
+                        selected_metadata->page_table(), {}, intervals) || intervals.empty()) {
+                    throw std::runtime_error("packed selected attention page copy plan is invalid");
+                }
+                for (size_t page_index = 0; page_index < selected_metadata->page_table().size(); ++page_index) {
+                    const auto & page = selected_metadata->page_table()[page_index];
+                    const uint64_t source_row = uint64_t(page.source_physical_slot) *
+                        VBR_GENERATION_PAGE_CELLS;
+                    const auto & interval = intervals[page_index];
+                    const uint32_t row_count = interval.row_count;
+                    const uint64_t source_k_offset = source_row * source_k->nb[2];
+                    const uint64_t source_v_offset = source_row * source_v->nb[2];
+                    const uint64_t packed_k_offset =
+                        uint64_t(page.compact_row_begin) * layer.k->nb[2];
+                    const uint64_t packed_v_offset =
+                        uint64_t(page.compact_row_begin) * layer.v->nb[2];
+                    ggml_tensor * source_k_view = ggml_view_4d(ctx0, source_k,
+                            source_k->ne[0], source_k->ne[1], row_count, 1,
+                            source_k->nb[1], source_k->nb[2], source_k->nb[3], source_k_offset);
+                    ggml_tensor * source_v_view = ggml_view_4d(ctx0, source_v,
+                            source_v->ne[0], source_v->ne[1], row_count, 1,
+                            source_v->nb[1], source_v->nb[2], source_v->nb[3], source_v_offset);
+                    ggml_tensor * packed_k_view = ggml_view_4d(ctx0, layer.k,
+                            layer.k->ne[0], layer.k->ne[1], row_count, 1,
+                            layer.k->nb[1], layer.k->nb[2], layer.k->nb[3], packed_k_offset);
+                    ggml_tensor * packed_v_view = ggml_view_4d(ctx0, layer.v,
+                            layer.v->ne[0], layer.v->ne[1], row_count, 1,
+                            layer.v->nb[1], layer.v->nb[2], layer.v->nb[3], packed_v_offset);
+                    // Copy ops require identical logical layouts. These are
+                    // one-stream page views, so mirror the canonical fourth
+                    // stride on the compact destinations.
+                    packed_k_view->nb[3] = source_k_view->nb[3];
+                    packed_v_view->nb[3] = source_v_view->nb[3];
+                    layer.copies.push_back({ source_k_view, source_v_view,
+                            packed_k_view, packed_v_view,
+                            uint32_t(page_index), page.page_generation, 0,
+                            mctx_cur->get_vbr_epoch(), source_k_offset, source_v_offset,
+                            false, page.row_count, row_count,
+                            uint64_t(row_count) * (source_k->nb[2] + source_v->nb[2]) });
+                }
+                inp->packed_layers.push_back(std::move(layer));
+            }
+
+        } else {
+            const auto * pager = mctx_cur->get_kv_pager();
+            if (pager == nullptr || pager->residency_storage_tensor() == nullptr) {
+                throw std::runtime_error("direct paged attention has no physical storage");
+            }
+            inp->direct_storage = pager->residency_storage_tensor();
+            inp->direct_bytes_per_slot = pager->residency_bytes_per_slot();
+            const auto & geometry = pager->snapshot().geometry;
+            inp->direct_layer_k_offsets = geometry.layer_k_offsets;
+            inp->direct_layer_v_offsets = geometry.layer_v_offsets;
+            inp->direct_layer_ids = geometry.model_layer_ids;
+            const auto cache_layer_ids = mctx_cur->get_layer_ids();
+            if (inp->direct_layer_ids != cache_layer_ids) {
+                throw std::runtime_error("direct paged attention layer ordinal map disagrees with cache");
+            }
+            bool duplicate_layer_id = false;
+            for (size_t i = 0; i < inp->direct_layer_ids.size() && !duplicate_layer_id; ++i) {
+                duplicate_layer_id = std::find(inp->direct_layer_ids.begin(),
+                        inp->direct_layer_ids.begin() + i, inp->direct_layer_ids[i]) !=
+                        inp->direct_layer_ids.begin() + i;
+            }
+            if (inp->direct_bytes_per_slot == 0 ||
+                inp->direct_layer_k_offsets.empty() ||
+                inp->direct_layer_k_offsets.size() != inp->direct_layer_v_offsets.size() ||
+                inp->direct_layer_k_offsets.size() != geometry.layer_k_page_bytes.size() ||
+                inp->direct_layer_k_offsets.size() != geometry.layer_v_page_bytes.size() ||
+                inp->direct_layer_ids.size() != inp->direct_layer_k_offsets.size() ||
+                duplicate_layer_id) {
+                throw std::runtime_error("direct paged attention has incomplete slot geometry");
+            }
+            // Device descriptors track the admitted resident map, not the
+            // logical context length. Maps may change in place while their
+            // active count remains within this reusable bound.
+            const uint64_t page_capacity64 = pager->snapshot().physical_page_count;
+            const uint64_t row_capacity64 = page_capacity64 *
+                pager->snapshot().geometry.page_tokens;
+            if (page_capacity64 < selected_metadata->page_table().size() ||
+                    page_capacity64 == 0 || page_capacity64 > UINT32_MAX ||
+                    row_capacity64 > UINT32_MAX) {
+                throw std::runtime_error("direct paged attention capacity overflows");
+            }
+            inp->direct_page_capacity = uint32_t(page_capacity64);
+            inp->direct_row_capacity = uint32_t(row_capacity64);
+            inp->direct_physical_page_count = pager->snapshot().physical_page_count;
+            if (inp->direct_physical_page_count == 0) {
+                throw std::runtime_error("direct paged attention has no physical page capacity");
+            }
+            inp->direct_active_page_count = uint32_t(selected_metadata->page_table().size());
+            inp->direct_active_row_count = selected_metadata->get_n_kv();
+            inp->direct_active_tail_length = selected_metadata->page_table().back().row_count;
+            inp->direct_selection_generation = selected_metadata->graph_content_key();
+            inp->direct_explicit_native_metadata = false;
+            inp->direct_pages_host.resize(inp->direct_page_capacity, {
+                    UINT32_MAX, UINT32_MAX, 0, 0, -1 });
+            size_t page_index = 0;
+            for (const auto & page : selected_metadata->page_table()) {
+                inp->direct_pages_host[page_index++] = {
+                        page.logical_page, page.source_physical_slot,
+                        page.compact_row_begin, page.row_count,
+                        page.native_position_begin };
+            }
+            if (!build_paged_row_lookup(inp->direct_pages_host,
+                    inp->direct_active_page_count, inp->direct_row_capacity,
+                    inp->direct_row_lookup_host)) {
+                throw std::runtime_error("direct paged attention row lookup geometry is invalid");
+            }
+            inp->direct_pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                    int64_t(sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                        inp->direct_page_capacity * sizeof(inp->direct_pages_host[0]) +
+                        inp->direct_row_capacity * sizeof(inp->direct_row_lookup_host[0])));
+            inp->direct_native_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                    inp->direct_row_capacity);
+            inp->direct_native_mask = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                    inp->direct_row_capacity);
+            inp->direct_query_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                    selected_metadata->query_positions().size());
+            ggml_set_input(inp->direct_pages);
+            ggml_set_input(inp->direct_native_positions);
+            ggml_set_input(inp->direct_native_mask);
+            ggml_set_input(inp->direct_query_positions);
+            ggml_set_name(inp->direct_pages, "kv_direct_page_table");
+            ggml_set_name(inp->direct_native_positions, "kv_direct_native_positions");
+            ggml_set_name(inp->direct_native_mask, "kv_direct_native_mask");
+            ggml_set_name(inp->direct_query_positions, "kv_direct_query_positions");
+
+            // Graph inputs normally default to the CPU scheduler backend.
+            // These four arrays are dereferenced by the CUDA kernel, so bind
+            // them to the same device as the persistent pager slab up front;
+            // otherwise a host input would be passed as a device pointer.
+            const auto storage_device = ggml_backend_buft_get_device(
+                    ggml_backend_buffer_get_type(inp->direct_storage->buffer));
+            ggml_backend_t direct_backend = nullptr;
+            for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+                ggml_backend_t candidate = ggml_backend_sched_get_backend(sched, i);
+                if (candidate && ggml_backend_get_device(candidate) == storage_device) {
+                    direct_backend = candidate;
+                    break;
+                }
+            }
+            if (direct_backend == nullptr) {
+                throw std::runtime_error("direct paged attention CUDA backend is unavailable");
+            }
+            inp->direct_backend = direct_backend;
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_pages, direct_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
+
+            // Allocate the diagnostic arena ONLY when its consumer can run.
+            // Ordinary direct/MMA attention has no page-mass sidecar and must
+            // not reserve unused O(queries * heads * pages) device scratch.
+            if (diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+                    ubatch.n_seq_tokens == 1 && kv_attention_telemetry != nullptr &&
+                    kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off) {
+            // Reserve a bounded flat scratch arena once per reusable graph.
+            // The CUDA dispatcher chooses the active partition count at
+            // submission time; the arena is sized from the selected rows and
+            // resolved logical page span, not from a server-specific SM
+            // count.  The page-state suffix is used only when telemetry is
+            // enabled, but keeping it in the same input preserves the graph
+            // key while cadence changes.
+            const uint32_t split_queries = uint32_t(selected_metadata->n_query_tokens());
+            const uint32_t split_pages = inp->direct_page_capacity;
+            uint32_t split_heads = uint32_t(std::max<int64_t>(1, hparams.n_head()));
+            for (const uint32_t layer_id : inp->direct_layer_ids) {
+                split_heads = std::max(split_heads, uint32_t(hparams.n_head(layer_id)));
+            }
+            // Keep the direct production graph on its single-partition
+            // cooperative kernel until the split/merge path has an
+            // independent long-prefill proof. The direct page table remains
+            // the selected view; this bounds the fallback without creating a
+            // packed owner or changing route selection.
+            const uint32_t split_capacity = 1;
+            const uint64_t state_values = uint64_t(split_capacity) * split_queries * split_heads *
+                (2 + selected_metadata->head_dim_v());
+            const uint64_t page_values = uint64_t(split_capacity) * split_queries * split_heads *
+                split_pages * 2;
+            if (split_pages == 0 || state_values > uint64_t(INT64_MAX) - page_values) {
+                throw std::runtime_error("split-KV scratch geometry overflows");
+            }
+            inp->direct_split_kv_partition_capacity = split_capacity;
+            inp->direct_split_kv_page_count = split_pages;
+            inp->direct_split_kv_scratch = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32,
+                    int64_t(state_values + page_values));
+            ggml_set_input(inp->direct_split_kv_scratch);
+            ggml_set_name(inp->direct_split_kv_scratch, "kv_direct_split_kv_scratch");
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_split_kv_scratch, direct_backend);
+            }
+
+            // The CUDA reduction writes one F32 vector per query head. Keep a
+            // single configured layer and the resolved logical-page bound so
+            // device storage scales with L, never with K/V or an attention
+            // matrix. The host only reads this page-level tensor after the
+            // scheduler fence.
+            const uint32_t telemetry_ordinal = kv_attention_telemetry != nullptr
+                ? kv_attention_telemetry->layer_index() : UINT32_MAX;
+            const bool telemetry_layer_valid = telemetry_ordinal < inp->direct_layer_ids.size();
+            const uint32_t telemetry_model_layer = telemetry_layer_valid
+                ? inp->direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
+            if (diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+                kv_attention_telemetry != nullptr &&
+                kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+                ubatch.n_seq_tokens == 1 &&
+                telemetry_layer_valid &&
+                kv_attention_telemetry->head_begin() < uint32_t(
+                    hparams.n_head(telemetry_model_layer))) {
+                const uint32_t telemetry_head_total = uint32_t(
+                    hparams.n_head(telemetry_model_layer));
+                const uint32_t available_heads = telemetry_head_total -
+                    kv_attention_telemetry->head_begin();
+                const uint32_t requested_heads = kv_attention_telemetry->head_count();
+                const uint32_t sampled_heads = requested_heads == 0
+                    ? available_heads : std::min(requested_heads, available_heads);
+                const uint64_t telemetry_token_index = ubatch.pos != nullptr
+                    ? uint64_t(std::max<llama_pos>(0, ubatch.pos[0])) : 0;
+                if (diagnostic_page_mass_enabled() && sampled_heads != 0 &&
+                        pager->snapshot().logical_page_count != 0 &&
+                    kv_attention_telemetry->cadence_due(telemetry_token_index)) {
+                    const llama_seq_id sequence_id = ubatch.n_seq_id != nullptr &&
+                        ubatch.n_seq_id[0] != 0 && ubatch.seq_id != nullptr &&
+                        ubatch.seq_id[0] != nullptr ? ubatch.seq_id[0][0] : -1;
+                    if (sequence_id >= 0) {
+                        inp->direct_telemetry_snapshot = pager->residency(sequence_id);
+                        if (inp->direct_telemetry_snapshot.epoch() != 0 &&
+                            kv_attention_telemetry->reconcile(inp->direct_telemetry_snapshot) ==
+                                llama_kv_attention_telemetry_status::ok) {
+                            inp->direct_telemetry_pages.reserve(inp->direct_active_page_count);
+                            bool complete = true;
+                            for (uint32_t page_index = 0;
+                                 page_index < inp->direct_active_page_count; ++page_index) {
+                                const auto & view_page = inp->direct_pages_host[page_index];
+                                const auto it = std::find_if(
+                                    inp->direct_telemetry_snapshot.pages().begin(),
+                                    inp->direct_telemetry_snapshot.pages().end(),
+                                    [&](const auto & record) {
+                                        return record.id.logical_page == view_page.logical_page &&
+                                            record.physical_slot == view_page.source_physical_slot;
+                                    });
+                                if (it == inp->direct_telemetry_snapshot.pages().end()) {
+                                    complete = false;
+                                    break;
+                                }
+                                inp->direct_telemetry_pages.push_back(*it);
+                            }
+                            if (complete) {
+                                inp->direct_page_mass = ggml_new_tensor_3d(
+                                    ctx0, GGML_TYPE_F32,
+                                    pager->snapshot().logical_page_count, telemetry_head_total,
+                                    selected_metadata->n_query_tokens());
+                                ggml_set_input(inp->direct_page_mass);
+                                // The CUDA operator writes this auxiliary tensor as a
+                                // side effect. Mark it as an output so the graph
+                                // allocator keeps its buffer alive until the host
+                                // publication boundary instead of reusing it for a
+                                // later node.
+                                ggml_set_output(inp->direct_page_mass);
+                                ggml_set_name(inp->direct_page_mass, "kv_direct_page_mass");
+                                ggml_backend_sched_set_tensor_backend(
+                                    sched, inp->direct_page_mass, direct_backend);
+                                inp->direct_telemetry_token_index = telemetry_token_index;
+                            }
+                        }
+                    }
+                } else if (sampled_heads != 0 &&
+                           !kv_attention_telemetry->cadence_due(telemetry_token_index)) {
+                    inp->direct_telemetry_skipped = true;
+                }
+            }
+        }
+    }
+
+    if (exact_graph_plan != nullptr && exact_graph_plan->coverage != nullptr) {
+        if (selected_metadata != nullptr) {
+            throw std::runtime_error("exact page-wave graph cannot share selected metadata");
+        }
+        const auto * pager = mctx_cur->get_kv_pager();
+        if (pager == nullptr || pager->residency_storage_tensor() == nullptr ||
+            exact_graph_plan->page_bytes == 0 || exact_graph_plan->page_tokens == 0) {
+            throw std::runtime_error("exact page-wave graph has no pager staging boundary");
+        }
+        inp->selected_attention = true;
+        inp->direct_attention = true;
+        inp->exact_wave_attention = true;
+        inp->exact_graph_plan = exact_graph_plan;
+        inp->direct_storage = pager->residency_storage_tensor();
+        inp->direct_bytes_per_slot = pager->residency_bytes_per_slot();
+        const auto & geometry = pager->snapshot().geometry;
+        inp->direct_layer_k_offsets = geometry.layer_k_offsets;
+        inp->direct_layer_v_offsets = geometry.layer_v_offsets;
+        inp->direct_layer_ids = geometry.model_layer_ids;
+        if (inp->direct_layer_k_offsets.size() != geometry.attention_layers ||
+            inp->direct_layer_v_offsets.size() != geometry.attention_layers ||
+            inp->direct_layer_ids.size() != geometry.attention_layers ||
+            geometry.layer_k_page_bytes.size() != geometry.attention_layers ||
+            geometry.layer_v_page_bytes.size() != geometry.attention_layers) {
+            throw std::runtime_error("exact page-wave graph has incomplete layer geometry");
+        }
+
+        const uint32_t staging_pages = std::max<uint64_t>(1,
+                exact_graph_plan->coverage->ledger().peak_staging_pages);
+        inp->exact_staging_layer_k_offsets.resize(geometry.layer_k_page_bytes.size());
+        inp->exact_staging_layer_v_offsets.resize(geometry.layer_v_page_bytes.size());
+        uint64_t staging_bytes = 0;
+        for (size_t layer = 0; layer < geometry.layer_k_page_bytes.size(); ++layer) {
+            const uint64_t k_bytes = geometry.layer_k_page_bytes[layer];
+            const uint64_t v_bytes = geometry.layer_v_page_bytes[layer];
+            if (k_bytes == 0 || v_bytes == 0 ||
+                staging_bytes > std::numeric_limits<uint64_t>::max() -
+                    uint64_t(staging_pages) * k_bytes) {
+                throw std::runtime_error("exact page-wave staging K geometry overflows");
+            }
+            inp->exact_staging_layer_k_offsets[layer] = staging_bytes;
+            staging_bytes += uint64_t(staging_pages) * k_bytes;
+            if (staging_bytes > std::numeric_limits<uint64_t>::max() -
+                    uint64_t(staging_pages) * v_bytes) {
+                throw std::runtime_error("exact page-wave staging V geometry overflows");
+            }
+            inp->exact_staging_layer_v_offsets[layer] = staging_bytes;
+            staging_bytes += uint64_t(staging_pages) * v_bytes;
+        }
+        if (staging_bytes != uint64_t(staging_pages) * exact_graph_plan->page_bytes) {
+            throw std::runtime_error("exact page-wave staging geometry is inconsistent");
+        }
+        if (staging_bytes == 0 || staging_bytes > uint64_t(std::numeric_limits<int64_t>::max())) {
+            throw std::runtime_error("exact page-wave staging window overflows");
+        }
+        inp->exact_staging_pages = staging_pages;
+        inp->direct_staging_storage = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                int64_t(staging_bytes));
+        if (inp->direct_staging_storage == nullptr) {
+            throw std::runtime_error("failed to create exact page-wave staging slab");
+        }
+        ggml_set_input(inp->direct_staging_storage);
+
+        const auto storage_device = ggml_backend_buft_get_device(
+                ggml_backend_buffer_get_type(inp->direct_storage->buffer));
+        ggml_backend_t direct_backend = nullptr;
+        for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+            ggml_backend_t candidate = ggml_backend_sched_get_backend(sched, i);
+            if (candidate && ggml_backend_get_device(candidate) == storage_device) {
+                direct_backend = candidate;
+                break;
+            }
+        }
+        if (direct_backend == nullptr) {
+            throw std::runtime_error("exact page-wave CUDA backend is unavailable");
+        }
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_staging_storage, direct_backend);
+
+        // Build one compact logical-row array in the immutable plan order.
+        // Every descriptor points into this array; tails and causal positions
+        // are retained explicitly instead of inferred from physical slots.
+        std::vector<llama_kv_page_record> records = pager->exact_page_records(
+                exact_graph_plan->sequence_id);
+        std::vector<const llama_kv_page_record *> by_logical(
+                exact_graph_plan->coverage->logical_page_count(), nullptr);
+        for (const auto & record : records) {
+            if (record.id.logical_page < by_logical.size()) {
+                by_logical[record.id.logical_page] = &record;
+            }
+        }
+        std::vector<llama_pos> exact_positions;
+        for (const auto & wave : exact_graph_plan->coverage->waves()) {
+            for (const auto & page : wave.pages) {
+                if (page.logical_page >= by_logical.size() || by_logical[page.logical_page] == nullptr) {
+                    throw std::runtime_error("exact page-wave record disappeared during graph build");
+                }
+                for (uint32_t row = 0; row < page.valid_tokens; ++row) {
+                    if (page.native_position_begin >
+                            std::numeric_limits<llama_pos>::max() - llama_pos(row)) {
+                        throw std::runtime_error("exact page-wave native position overflow");
+                    }
+                    exact_positions.push_back(page.native_position_begin + llama_pos(row));
+                }
+            }
+        }
+        if (exact_positions.empty() || exact_positions.size() > UINT32_MAX) {
+            throw std::runtime_error("exact page-wave graph has no bounded logical rows");
+        }
+        inp->exact_n_rows = uint32_t(exact_positions.size());
+        inp->direct_native_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                exact_positions.size());
+        inp->direct_native_mask = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                exact_positions.size());
+        inp->direct_query_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                ubatch.n_tokens);
+        ggml_set_input(inp->direct_native_positions);
+        ggml_set_input(inp->direct_native_mask);
+        ggml_set_input(inp->direct_query_positions);
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
+        inp->direct_native_positions_host.assign(exact_positions.begin(), exact_positions.end());
+        inp->direct_native_mask_host.assign(inp->exact_n_rows, 1);
+        inp->direct_query_positions_host.reserve(ubatch.n_tokens);
+        for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+            inp->direct_query_positions_host.push_back(ubatch.pos0(token));
+        }
+
+        uint32_t total_compact_row_begin = 0;
+        for (const auto & wave : exact_graph_plan->coverage->waves()) {
+            llm_graph_input_attn_kv::exact_wave_input wave_input;
+            wave_input.active_page_count = uint32_t(wave.pages.size());
+            wave_input.active_tail_length = wave.pages.empty() ? 0 : wave.pages.back().valid_tokens;
+            wave_input.selection_generation = exact_graph_plan->coverage->ledger().logical_page_count;
+            wave_input.pages_host.resize(wave.pages.size(), {
+                    UINT32_MAX, UINT32_MAX, 0, 0, -1 });
+            uint32_t compact_row_begin = 0;
+            const bool cold = wave.contains_cold_pages;
+            for (size_t page_index = 0; page_index < wave.pages.size(); ++page_index) {
+                const auto & page = wave.pages[page_index];
+                uint32_t source_slot = page.physical_slot;
+                if (cold) source_slot = uint32_t(page_index);
+                wave_input.pages_host[page_index] = { page.logical_page, source_slot,
+                        compact_row_begin, page.valid_tokens, page.native_position_begin };
+                compact_row_begin += page.valid_tokens;
+            }
+            wave_input.active_row_count = compact_row_begin;
+            if (!build_paged_row_lookup(wave_input.pages_host,
+                    wave_input.active_page_count, inp->exact_n_rows,
+                    wave_input.row_lookup_host)) {
+                throw std::runtime_error("exact page-wave row lookup geometry is invalid");
+            }
+            total_compact_row_begin += compact_row_begin;
+            if (cold) {
+                wave_input.host_upload.assign(size_t(staging_bytes), 0);
+                const auto & host_pages = pager->host_catalog() != nullptr
+                    ? pager->host_catalog()->pages() : std::vector<vbr_selected_page_host_view>{};
+                for (size_t page_index = 0; page_index < wave.pages.size(); ++page_index) {
+                    const auto & page = wave.pages[page_index];
+                    const llama_kv_page_record * record = by_logical[page.logical_page];
+                    const auto host = std::find_if(host_pages.begin(), host_pages.end(),
+                            [&](const auto & value) { return value.page.identity == record->id; });
+                    if (host == host_pages.end()) {
+                        throw std::runtime_error("exact cold page has no canonical host payload");
+                    }
+                    for (const auto & unit : host->page.units) {
+                        if (unit.layer >= geometry.layer_k_page_bytes.size() || !unit.bytes ||
+                            unit.valid_rows == 0 || unit.row_bytes == 0 ||
+                            unit.bytes->size() != uint64_t(unit.valid_rows) * unit.row_bytes) {
+                            throw std::runtime_error("exact cold page has invalid host unit");
+                        }
+                        const bool value = unit.side == vbr_artifact_side::value;
+                        const uint64_t layer_offset = value
+                            ? inp->exact_staging_layer_v_offsets[unit.layer]
+                            : inp->exact_staging_layer_k_offsets[unit.layer];
+                        const uint64_t layer_bytes = value
+                            ? geometry.layer_v_page_bytes[unit.layer]
+                            : geometry.layer_k_page_bytes[unit.layer];
+                        const uint64_t page_offset = uint64_t(page_index) *
+                            (value ? geometry.layer_v_page_bytes[unit.layer]
+                                   : geometry.layer_k_page_bytes[unit.layer]);
+                        if (page_index >= staging_pages || unit.bytes->size() > layer_bytes ||
+                            layer_offset > wave_input.host_upload.size() ||
+                            page_offset > wave_input.host_upload.size() - layer_offset ||
+                            unit.bytes->size() > wave_input.host_upload.size() -
+                                layer_offset - page_offset) {
+                            throw std::runtime_error("exact cold page host unit exceeds staging window");
+                        }
+                        if (!unit.bytes->read(0, wave_input.host_upload.data() + page_offset + layer_offset,
+                                size_t(unit.bytes->size()))) {
+                            throw std::runtime_error("exact cold page host read failed");
+                        }
+                    }
+                }
+            }
+            wave_input.pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                    int64_t(sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                        wave_input.pages_host.size() * sizeof(wave_input.pages_host[0]) +
+                        wave_input.row_lookup_host.size() * sizeof(wave_input.row_lookup_host[0])));
+            ggml_set_input(wave_input.pages);
+            ggml_backend_sched_set_tensor_backend(sched, wave_input.pages, direct_backend);
+            inp->exact_waves.push_back(std::move(wave_input));
+        }
+        if (kv_attention_metrics != nullptr) {
+            auto ledger = exact_graph_plan->coverage->ledger();
+            ledger.pages_visited = 0;
+            for (const auto & wave : exact_graph_plan->coverage->waves()) {
+                ledger.pages_visited += wave.pages.size();
+            }
+            ledger.valid_tokens = total_compact_row_begin;
+            kv_attention_metrics->record_exact_ledger(ledger);
+        }
+    }
 
     {
         GGML_ASSERT(hparams.swa_type == LLAMA_SWA_TYPE_NONE && "Use llama_kv_cache_iswa for SWA");
@@ -3587,7 +5260,41 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         inp->self_k_idxs = mctx_cur->build_input_k_idxs(ctx0, ubatch);
         inp->self_v_idxs = mctx_cur->build_input_v_idxs(ctx0, ubatch);
 
-        inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams);
+        // The pager's physical row map is layer-scoped. Build all maps once
+        // in deterministic cache-layer order so each cpy node and its later
+        // attention load use the same layer ordinal. Legacy caches retain the
+        // single input tensors and avoid the additional graph inputs.
+        if (mctx_cur->get_kv_pager() != nullptr) {
+            inp->direct_layer_ids = mctx_cur->get_layer_ids();
+            inp->self_k_idxs_by_layer.reserve(inp->direct_layer_ids.size());
+            inp->self_v_idxs_by_layer.reserve(inp->direct_layer_ids.size());
+            for (const uint32_t layer_id : inp->direct_layer_ids) {
+                inp->self_k_idxs_by_layer.push_back(
+                        mctx_cur->build_input_k_idxs(ctx0, ubatch, layer_id));
+                inp->self_v_idxs_by_layer.push_back(
+                        mctx_cur->build_input_v_idxs(ctx0, ubatch, layer_id));
+            }
+            // Per-layer direct cache maps share the pager slab backend.
+            if (inp->direct_backend != nullptr) {
+                for (ggml_tensor * tensor : inp->self_k_idxs_by_layer) {
+                    ggml_backend_sched_set_tensor_backend(sched, tensor, inp->direct_backend);
+                }
+                for (ggml_tensor * tensor : inp->self_v_idxs_by_layer) {
+                    ggml_backend_sched_set_tensor_backend(sched, tensor, inp->direct_backend);
+                }
+            }
+        }
+
+        if (!inp->direct_attention) {
+            inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams,
+                    inp->selected_attention
+                        ? (inp->packed_attention ? inp->packed_row_capacity
+                                                  : (inp->dense_attention
+                                                      ? uint32_t(GGML_PAD(selected_metadata->get_n_kv(),
+                                                              VBR_GENERATION_PAGE_CELLS))
+                                                      : selected_metadata->get_n_kv()))
+                        : 0);
+        }
         inp->self_kq_mask_cnv = inp->self_kq_mask;
     }
 
@@ -3604,13 +5311,27 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         }
     }
 
+    build_guard.committed = true;
     return inp;
 }
 
 llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
     const auto * mctx_cur = static_cast<const llama_kv_cache_context *>(mctx);
 
-    auto inp = build_attn_inp_kv_impl(ctx0, ubatch, hparams, cparams, mctx_cur, tree_mask);
+    auto inp = build_attn_inp_kv_impl(ctx0, sched, ubatch, hparams, cparams, mctx_cur, tree_mask,
+            (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_dense ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_packed ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+             kv_attention_route == llama_kv_attention_execution_route::exact_direct)
+                ? &kv_attention_metadata : nullptr,
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+            kv_attention_route == llama_kv_attention_execution_route::exact_direct,
+            kv_attention_exact_plan,
+            kv_attention_metrics, kv_attention_telemetry,
+            kv_attention_route == llama_kv_attention_execution_route::selected_dense,
+            kv_attention_route == llama_kv_attention_execution_route::selected_packed,
+            kv_attention_packed_cache);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
 }
@@ -3653,6 +5374,120 @@ ggml_tensor * llm_graph_context::build_attn(
     ggml_build_forward_expand(gf, k_cur);
 
     const auto * mctx_cur = inp->mctx;
+    ggml_tensor * cache_k_write = nullptr;
+    ggml_tensor * cache_v_write = nullptr;
+
+    // store to KV cache
+    if (!cparams.training) {
+      {
+        ggml_tensor * k_idxs = inp->get_k_idxs(il);
+        ggml_tensor * v_idxs = inp->get_v_idxs(il);
+        if (k_idxs == nullptr || v_idxs == nullptr) {
+            throw std::runtime_error("layer-paged KV row map is unavailable");
+        }
+
+        cache_k_write = mctx_cur->cpy_k(ctx0, k_cur, k_idxs, il);
+        cache_v_write = mctx_cur->cpy_v(ctx0, v_cur, v_idxs, il);
+        ggml_build_forward_expand(gf, cache_k_write);
+        ggml_build_forward_expand(gf, cache_v_write);
+    }
+
+    if (inp->packed_attention) {
+        for (const auto & layer : inp->packed_layers) {
+            if (layer.layer_id != uint32_t(il)) {
+                continue;
+            }
+            if (cache_k_write == nullptr || cache_v_write == nullptr ||
+                    layer.copies.empty()) {
+                throw std::runtime_error("packed selected attention cache writes are unavailable");
+            }
+            // A -inf attention mask is not a data initializer: an unwritten
+            // Turbo4 norm can be NaN, and both NaN + -inf and 0 * NaN remain
+            // NaN inside fused attention. Clear only the page-rounded tail
+            // (at most page_tokens-1 rows), not the selected history or H.
+            // Only the first layer owns these GPU graph nodes. They run once
+            // per graph execution/replay, before any packed attention uses
+            // the slab. Later layers copy only the active prefix; the shared
+            // owner keeps its initialized padding live through the last
+            // consumer. No host transfer or synchronization is added.
+            if (layer.padding_k != nullptr && layer.padding_v != nullptr) {
+                ggml_build_forward_expand(gf, ggml_fill_inplace(ctx0, layer.padding_k, 0.0f));
+                ggml_build_forward_expand(gf, ggml_fill_inplace(ctx0, layer.padding_v, 0.0f));
+            }
+            // Cache writes were expanded above. Copy every selected page,
+            // including current rows, on every graph execution. Read through
+            // the cache-write results below: merely expanding the write nodes
+            // first does not establish a data dependency from the raw cache
+            // input views, so graph scheduling could otherwise pack a stale
+            // current row on a reused partial page.
+            for (const auto & copy : layer.copies) {
+                if (copy.source_k == nullptr || copy.source_v == nullptr ||
+                        copy.packed_k == nullptr || copy.packed_v == nullptr) {
+                    throw std::runtime_error("packed selected attention copy views are unavailable");
+                }
+                const auto updated_view = [&](ggml_tensor * updated_cache,
+                        ggml_tensor * source_view, ggml_tensor * layer_source) {
+                    const auto * updated_owner = updated_cache->view_src != nullptr
+                        ? updated_cache->view_src : updated_cache;
+                    const auto * source_owner = source_view->view_src != nullptr
+                        ? source_view->view_src : source_view;
+                    if (updated_owner != source_owner || updated_cache->type != source_view->type ||
+                            updated_cache->view_offs != layer_source->view_offs) {
+                        throw std::runtime_error("packed selected source does not share the cache-write owner/base");
+                    }
+                    if (source_view->view_offs < updated_cache->view_offs) {
+                        throw std::runtime_error("packed selected source view offset precedes layer base");
+                    }
+                    // view_offs is absolute in the pager's shared byte slab.
+                    // ggml_view_4d adds the updated_cache base itself, so use
+                    // a relative offset; otherwise a later layer is rebased
+                    // twice and reads another layer or exceeds its owner.
+                    const size_t relative_offset = source_view->view_offs - updated_cache->view_offs;
+                    if (relative_offset > ggml_nbytes(updated_cache) ||
+                            ggml_nbytes(source_view) > ggml_nbytes(updated_cache) -
+                                relative_offset) {
+                        throw std::runtime_error("packed selected cache-write view exceeds update result: " +
+                            std::to_string(relative_offset) + "/" +
+                            std::to_string(ggml_nbytes(source_view)) + "/" +
+                            std::to_string(ggml_nbytes(updated_cache)) + ", page=" +
+                            std::to_string(copy.page_index) + ", source_off=" +
+                            std::to_string(copy.source_offset_k) + ", physical_slot=" +
+                            std::to_string(inp->selected_metadata.page_table()[copy.page_index].source_physical_slot) +
+                            ", source_dims=" + std::to_string(source_view->view_src->ne[0]) + "x" +
+                            std::to_string(source_view->view_src->ne[1]) + "x" +
+                            std::to_string(source_view->view_src->ne[2]) + "x" +
+                            std::to_string(source_view->view_src->ne[3]) + ", view=" +
+                            std::to_string(source_view->ne[0]) + "x" +
+                            std::to_string(source_view->ne[1]) + "x" +
+                            std::to_string(source_view->ne[2]) + "x" +
+                            std::to_string(source_view->ne[3]) + ", nb=" +
+                            std::to_string(source_view->nb[1]) + "/" +
+                            std::to_string(source_view->nb[2]) + "/" +
+                            std::to_string(source_view->nb[3]) + ", offs=" +
+                            std::to_string(source_view->view_offs));
+                    }
+                    return ggml_view_4d(ctx0, updated_cache,
+                            source_view->ne[0], source_view->ne[1],
+                            source_view->ne[2], source_view->ne[3],
+                            source_view->nb[1], source_view->nb[2], source_view->nb[3],
+                            relative_offset);
+                };
+                ggml_tensor * source_k = updated_view(
+                        cache_k_write, copy.source_k, layer.source_k);
+                ggml_tensor * source_v = updated_view(
+                        cache_v_write, copy.source_v, layer.source_v);
+                if (source_k == nullptr || source_v == nullptr) {
+                    throw std::runtime_error("packed selected updated cache views are unavailable");
+                }
+                ggml_build_forward_expand(gf, ggml_cpy(ctx0,
+                        source_k, copy.packed_k));
+                ggml_build_forward_expand(gf, ggml_cpy(ctx0,
+                        source_v, copy.packed_v));
+            }
+            break;
+        }
+      }
+    }
 
     ggml_tensor * q = q_cur;
     ggml_tensor * k;
@@ -3664,14 +5499,6 @@ ggml_tensor * llm_graph_context::build_attn(
         k = k_cur;
         v = v_cur;
     } else {
-        {
-            const auto & k_idxs = inp->get_k_idxs();
-            const auto & v_idxs = inp->get_v_idxs();
-
-            ggml_build_forward_expand(gf, mctx_cur->cpy_k(ctx0, k_cur, k_idxs, il));
-            ggml_build_forward_expand(gf, mctx_cur->cpy_v(ctx0, v_cur, v_idxs, il));
-        }
-
         k = mctx_cur->get_k(ctx0, il);
         v = mctx_cur->get_v(ctx0, il);
     }
@@ -3682,21 +5509,298 @@ ggml_tensor * llm_graph_context::build_attn(
 
     ggml_tensor * kq_mask = inp->get_kq_mask();
 
+    ggml_tensor * v_for_unrotate = v;
+
+    cb(k, "Ksource", il);
+    cb(v, "Vsource", il);
+    cb(kq_mask, "attn_inp_kq_mask", il);
+
+    if (inp->dense_attention) {
+        const auto * pager = mctx_cur->get_kv_pager();
+        const auto eligibility = pager != nullptr
+            ? llama_kv_attention_dense_view_check(inp->selected_metadata,
+                pager->snapshot().physical_page_count)
+            : llama_kv_attention_dense_view_eligibility{};
+        if (!eligibility.eligible || eligibility.source_row_begin != inp->dense_source_row_begin ||
+                k->type != inp->selected_metadata.type_k() ||
+                v->type != inp->selected_metadata.type_v() ||
+                k->ne[3] != 1 || v->ne[3] != 1 ||
+                k->nb[2] != ggml_row_size(k->type, k->ne[0]) * size_t(k->ne[1]) ||
+                v->nb[2] != ggml_row_size(v->type, v->ne[0]) * size_t(v->ne[1])) {
+            throw std::runtime_error("selected dense view lost contiguous row eligibility");
+        }
+        // Keep the mature CUDA FA tile contract: K/V and mask extents must
+        // include the already-owned final page. Padding is always -INFINITY
+        // in set_input's native-position mask; no copy/allocation is needed.
+        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1], eligibility.padded_row_count, 1,
+                k->nb[1], k->nb[2], k->nb[3],
+                uint64_t(eligibility.source_row_begin) * k->nb[2]);
+        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1], eligibility.padded_row_count, 1,
+                v->nb[1], v->nb[2], v->nb[3],
+                uint64_t(eligibility.source_row_begin) * v->nb[2]);
+        v_for_unrotate = v;
+    } else if (inp->packed_attention) {
+        const auto layer_it = std::find_if(inp->packed_layers.begin(), inp->packed_layers.end(),
+                [&](const auto & layer) { return layer.layer_id == uint32_t(il); });
+        if (layer_it == inp->packed_layers.end()) {
+            throw std::runtime_error("selected packed attention layer is unavailable");
+        }
+        // SET_ROWS returns a flat view used to express the write dependency;
+        // the owner remains the original 4-D attention tensor.
+        k = layer_it->k;
+        v = layer_it->v;
+        // The owner and mask use the admitted A capacity. Rows beyond the
+        // active selection are masked out as mutable descriptor values.
+        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1],
+                inp->packed_row_capacity, 1,
+                k->nb[1], k->nb[2], k->nb[3], 0);
+        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1],
+                inp->packed_row_capacity, 1,
+                v->nb[1], v->nb[2], v->nb[3], 0);
+        v_for_unrotate = v;
+    }
+
+    ggml_tensor * cur = nullptr;
+
+    if (inp->exact_wave_attention) {
+        GGML_ASSERT(inp->direct_staging_storage != nullptr);
+        const auto * pager = inp->mctx->get_kv_pager();
+        if (pager == nullptr || inp->exact_waves.empty()) {
+            throw std::runtime_error("exact page-wave graph has no wave inputs");
+        }
+        if (il < 0) {
+            throw std::runtime_error("exact page-wave attention received a negative layer id");
+        }
+        const auto layer_it = std::find(inp->direct_layer_ids.begin(),
+                inp->direct_layer_ids.end(), uint32_t(il));
+        if (layer_it == inp->direct_layer_ids.end()) {
+            throw std::runtime_error("exact page-wave layer is not a cache attention layer");
+        }
+        const size_t layer_ordinal = size_t(layer_it - inp->direct_layer_ids.begin());
+        if (layer_ordinal >= inp->direct_layer_k_offsets.size() ||
+            layer_ordinal >= inp->direct_layer_v_offsets.size() ||
+            layer_ordinal >= inp->exact_staging_layer_k_offsets.size() ||
+            layer_ordinal >= inp->exact_staging_layer_v_offsets.size()) {
+            throw std::runtime_error("exact page-wave layer mapping is out of range");
+        }
+        GGML_ASSERT(k->type == GGML_TYPE_TURBO4_0 && v->type == GGML_TYPE_TURBO4_0);
+        ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
+            ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+        ggml_tensor * previous_state = nullptr;
+        ggml_tensor * final_output = nullptr;
+        const auto & geometry = pager->snapshot().geometry;
+        for (size_t wave_index = 0; wave_index < inp->exact_waves.size(); ++wave_index) {
+            auto & wave = inp->exact_waves[wave_index];
+            const bool cold = inp->exact_graph_plan->coverage->waves()[wave_index].contains_cold_pages;
+            ggml_tensor * storage = cold ? inp->direct_staging_storage : inp->direct_storage;
+            const uint64_t k_offset = cold ? inp->exact_staging_layer_k_offsets[layer_ordinal]
+                                           : inp->direct_layer_k_offsets[layer_ordinal];
+            const uint64_t v_offset = cold ? inp->exact_staging_layer_v_offsets[layer_ordinal]
+                                           : inp->direct_layer_v_offsets[layer_ordinal];
+            ggml_tensor * k_raw = ggml_view_1d(ctx0, storage, 1, k_offset);
+            ggml_tensor * v_raw = ggml_view_1d(ctx0, storage, 1, v_offset);
+            if (k_raw == nullptr || v_raw == nullptr) {
+                throw std::runtime_error("exact page-wave storage view failed");
+            }
+            k_raw->nb[1] = k->nb[2];
+            k_raw->nb[2] = k->nb[1];
+            // Both shared resident storage and cold-wave staging store this
+            // layer's physical pages contiguously.
+            k_raw->nb[3] = geometry.layer_k_page_bytes[layer_ordinal];
+            v_raw->nb[1] = v->nb[2];
+            v_raw->nb[2] = v->nb[1];
+            v_raw->nb[3] = geometry.layer_v_page_bytes[layer_ordinal];
+
+            ggml_flash_attn_ext_paged_turbo4_params wave_params = {};
+            wave_params.head_dim_k = uint32_t(n_embd_head_k);
+            wave_params.head_dim_v = uint32_t(n_embd_head_v);
+            wave_params.n_head_kv = uint32_t(n_head_kv);
+            wave_params.scale = kq_scale;
+            wave_params.causal = true;
+            wave_params.partial_state = previous_state;
+            wave_params.partial_state_accumulate = previous_state != nullptr;
+            wave_params.partial_state_output = wave_index + 1 < inp->exact_waves.size();
+            wave_params.page_capacity = uint32_t(wave.pages_host.size());
+            wave_params.physical_page_count = cold
+                ? inp->exact_staging_pages
+                : pager->snapshot().physical_page_count;
+            // The shared position input is graph-sized for the complete
+            // exact plan.  The device active-row count still limits this
+            // wave's traversal and keeps the padded suffix invalid.
+            wave_params.row_capacity = inp->exact_n_rows;
+            wave_params.active_page_count_host = &wave.active_page_count;
+            wave_params.active_row_count_host = &wave.active_row_count;
+            wave_params.explicit_native_metadata = false;
+            if (cold && !wave.host_upload.empty()) {
+                wave_params.host_upload = wave.host_upload.data();
+                wave_params.host_upload_bytes = wave.host_upload.size();
+            }
+            ggml_tensor * current = ggml_flash_attn_ext_paged_turbo4(
+                    ctx0, q_direct, k_raw, v_raw, storage, wave.pages,
+                    inp->direct_native_positions, inp->direct_native_mask,
+                    inp->direct_query_positions, &wave_params,
+                    wave.pages_host.data());
+            ggml_build_forward_expand(gf, current);
+            previous_state = wave_params.partial_state_output ? current : nullptr;
+            final_output = current;
+        }
+        GGML_ASSERT(final_output != nullptr);
+        cur = ggml_reshape_2d(ctx0, final_output,
+                final_output->ne[0] * final_output->ne[1],
+                final_output->ne[2] * final_output->ne[3]);
+        cb(cur, "kqv_out_exact_wave", il);
+    } else if (inp->direct_attention) {
+        GGML_ASSERT(inp->direct_storage != nullptr);
+        // Direct paged attention does not enter build_attn_mha(), where the
+        // selector normally captures the current post-RoPE query. Preserve
+        // that graph-registration boundary for the direct CUDA consumer.
+        cb(q_cur, "Qcur_routing", il);
+        const auto * pager = inp->mctx->get_kv_pager();
+        if (pager == nullptr) {
+            throw std::runtime_error("direct paged attention has no pager geometry");
+        }
+        if (il < 0) {
+            throw std::runtime_error("direct paged attention received a negative model layer id");
+        }
+        const auto layer_it = std::find(inp->direct_layer_ids.begin(),
+                inp->direct_layer_ids.end(), uint32_t(il));
+        if (layer_it == inp->direct_layer_ids.end()) {
+            throw std::runtime_error("direct paged attention model layer is not a cache attention layer");
+        }
+        const size_t layer_ordinal = size_t(layer_it - inp->direct_layer_ids.begin());
+        if (layer_ordinal >= inp->direct_layer_k_offsets.size() ||
+            layer_ordinal >= inp->direct_layer_v_offsets.size()) {
+            throw std::runtime_error("direct paged attention layer mapping is out of range");
+        }
+        const auto & geometry = pager->snapshot().geometry;
+        if (layer_ordinal >= geometry.layer_k_page_bytes.size() ||
+            layer_ordinal >= geometry.layer_v_page_bytes.size()) {
+            throw std::runtime_error("direct paged attention layer page stride is unavailable");
+        }
+        GGML_ASSERT(v->type == GGML_TYPE_TURBO4_0 && k->type == GGML_TYPE_TURBO4_0);
+
+            // Each layer owns contiguous physical pages in its K/V slab runs.
+            // nb[3] indexes a physical slot within this layer, so it must use
+            // this layer's page size rather than the aggregate all-layer slot size.
+            ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                    inp->direct_layer_k_offsets[layer_ordinal]);
+        ggml_tensor * v_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                inp->direct_layer_v_offsets[layer_ordinal]);
+            GGML_ASSERT(k_raw && v_raw);
+            k_raw->nb[1] = k->nb[2];
+            k_raw->nb[2] = k->nb[1];
+            k_raw->nb[3] = geometry.layer_k_page_bytes[layer_ordinal];
+            v_raw->nb[1] = v->nb[2];
+            v_raw->nb[2] = v->nb[1];
+            v_raw->nb[3] = geometry.layer_v_page_bytes[layer_ordinal];
+
+        ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
+            ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+        ggml_tensor * telemetry_page_mass =
+            diagnostic_page_mass_enabled() && inp->direct_page_capacity <= 64 &&
+            inp->selected_metadata.n_query_tokens() == 1 &&
+            inp->kv_attention_telemetry != nullptr &&
+            inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            inp->kv_attention_telemetry->layer_index() < inp->direct_layer_ids.size() &&
+            uint32_t(il) == inp->direct_layer_ids[inp->kv_attention_telemetry->layer_index()]
+                ? inp->direct_page_mass : nullptr;
+        ggml_flash_attn_ext_paged_turbo4_params direct_params = {};
+        direct_params.head_dim_k = inp->selected_metadata.head_dim_k();
+        direct_params.head_dim_v = inp->selected_metadata.head_dim_v();
+        direct_params.n_head_kv = inp->selected_metadata.n_head_kv();
+        direct_params.scale = kq_scale;
+        direct_params.causal = true;
+        direct_params.page_mass = telemetry_page_mass;
+        // Keep the bounded scratch arena attached to the ordinary direct
+        // nodes at the small geometry used by the long-run continuation
+        // proof.  At full L, however, the cooperative consumer's page-state
+        // shared-memory footprint scales with query_tokens * page_capacity;
+        // attaching it to a long prefill can exceed CUDA's dynamic shared
+        // memory limit before the request is submitted.  The full-L graph
+        // therefore retains the fused MMA path used by the occupied-frontier
+        // measurement, while small page tables keep the 89-01 continuation
+        // parity path.
+        // Ordinary single-query decode does not need a split reduction, and
+        // attaching scratch forces the cooperative consumer. Keep scratch
+        // only for the telemetry layer, which consumes page-mass output.
+        direct_params.split_kv_scratch = telemetry_page_mass != nullptr
+            ? inp->direct_split_kv_scratch : nullptr;
+        direct_params.split_kv_partition_capacity = telemetry_page_mass != nullptr
+            ? inp->direct_split_kv_partition_capacity : 0;
+        direct_params.split_kv_page_count = telemetry_page_mass != nullptr
+            ? inp->direct_split_kv_page_count : 0;
+        direct_params.page_capacity = inp->direct_page_capacity;
+        direct_params.row_capacity = inp->direct_row_capacity;
+        direct_params.physical_page_count = inp->direct_physical_page_count;
+        direct_params.active_page_count_host = &inp->direct_active_page_count;
+        direct_params.active_row_count_host = &inp->direct_active_row_count;
+        direct_params.explicit_native_metadata = inp->direct_explicit_native_metadata;
+        ggml_tensor * direct = ggml_flash_attn_ext_paged_turbo4(
+                ctx0, q_direct, k_raw, v_raw, inp->direct_storage,
+                inp->direct_pages, inp->direct_native_positions,
+                inp->direct_native_mask, inp->direct_query_positions,
+                &direct_params, inp->direct_pages_host.data());
+        ggml_build_forward_expand(gf, direct);
+        cur = ggml_reshape_2d(ctx0, direct,
+                direct->ne[0] * direct->ne[1], direct->ne[2] * direct->ne[3]);
+        cb(cur, "kqv_out_direct", il);
+    } else if (inp->selected_attention && !inp->dense_attention && !inp->packed_attention) {
+        // This generic gather/dequant/MHA graph is the selected_reference
+        // correctness oracle. It is deliberately retained for explicit
+        // parity diagnostics, but automatic production paging must not reach
+        // it: route admission must choose a GPU-native dense, direct Turbo4,
+        // or bounded packed consumer, or refuse the unsupported shape.
+        GGML_ASSERT(inp->self_selected_idxs != nullptr);
+        GGML_ASSERT(v->nb[1] <= v->nb[2] &&
+                "selected reference requires non-transposed Turbo4 V");
+
+        const int64_t selected_rows = inp->self_selected_idxs->ne[0];
+        auto build_selected_rows = [&](ggml_tensor * source, const char * name) {
+            GGML_ASSERT(source->ne[3] == 1);
+            ggml_tensor * flat = ggml_reshape_2d(
+                    ctx0, source, source->ne[0] * source->ne[1],
+                    source->ne[2] * source->ne[3]);
+            ggml_tensor * gathered = ggml_get_rows(ctx0, flat, inp->self_selected_idxs);
+            ggml_tensor * compact = ggml_reshape_3d(
+                    ctx0, gathered, source->ne[0], source->ne[1], selected_rows);
+            cb(compact, name, il);
+            return compact;
+        };
+
+        k = build_selected_rows(k, "kv_selected_k");
+        // GET_ROWS dequantizes Turbo4 K to F32 coefficients, but those
+        // coefficients are still in the cache's forward-FWHT domain.  The
+        // ordinary MHA reference has no Turbo provenance and therefore does
+        // not rotate Q on its behalf.  Restore K to the original domain once,
+        // matching the dense Turbo FA decoder.  The CUDA FA path also applies
+        // the calibrated InnerQ inverse channel scale as part of its fused
+        // decode; the generic graph WHT is the canonical transform here and
+        // the scale must remain identity unless a graph-visible calibration
+        // tensor is supplied by that backend.
+        if (ggml_is_turbo_kv_type(mctx_cur->type_k())) {
+            k = ggml_turbo_wht(ctx0, ggml_cont(ctx0, k), 1);
+        }
+        v = build_selected_rows(v, "kv_selected_v");
+    }
+
     // TurboQuant Q pre-rotation is handled inline in CUDA FA kernels:
     // - Vec kernel: shared memory FWHT (fattn-vec.cuh)
     // - Prefill MMA: separate Q rotation kernel (fattn.cu)
 
     // Pad Q to match K's padded head_dim (turbo FWHT requires 128-aligned heads)
     const int64_t orig_head_dim = q->ne[0];
-    const bool head_padded = (q->ne[0] < k->ne[0]);
+    const bool head_padded = !inp->direct_attention && q->ne[0] < k->ne[0];
     if (head_padded) {
         q = ggml_pad(ctx0, q, k->ne[0] - q->ne[0], 0, 0, 0);
     }
 
-    ggml_tensor * cur = build_attn_mha(q, k, v, kq_b, kq_mask, sinks, v_mla, 0, kq_scale, il);
-    cb(cur, "kqv_out", il);
+    if (!inp->direct_attention) {
+        cur = build_attn_mha(q, k, v, kq_b, kq_mask, sinks, v_mla, 0, kq_scale, il);
+        cb(cur, "kqv_out", il);
+    }
 
-    cur = build_attn_v_unrotate(cur, v, inp->self_v_rot, cparams.training ? nullptr : inp->self_vmean, il);
+    cur = build_attn_v_unrotate(cur, v_for_unrotate, inp->self_v_rot,
+            cparams.training ? nullptr : inp->self_vmean, il);
 
     // Crop output back to original head_dim after turbo head padding
     // cur is 2D [padded_head * n_head_q, n_tokens] — unflatten, crop per-head, reflatten
@@ -3795,6 +5899,10 @@ ggml_tensor * llm_graph_context::build_attn(
     ggml_tensor * q = q_cur;
     ggml_tensor * k = mctx_cur->get_k(ctx0, il);
     ggml_tensor * v = ggml_view_4d(ctx0, k, v_cur->ne[0], k->ne[1], k->ne[2], k->ne[3], k->nb[1], k->nb[2], k->nb[3], 0);
+
+    cb(k, "Ksource", il);
+    cb(v, "Vsource", il);
+    cb(kq_mask, "attn_inp_kq_mask", il);
 
     ggml_tensor * cur = build_attn_mha(q, k, v, kq_b, kq_mask, sinks, v_mla, 0, kq_scale, il);
     cb(cur, "kqv_out", il);
@@ -4477,7 +6585,20 @@ llm_graph_input_mem_hybrid * llm_graph_context::build_inp_mem_hybrid() const {
     const auto * mctx_cur = static_cast<const llama_memory_hybrid_context *>(mctx);
 
     auto inp_rs   = build_rs_inp_impl     (ctx0, ubatch, mctx_cur->get_recr());
-    auto inp_attn = build_attn_inp_kv_impl(ctx0, ubatch, hparams, cparams, mctx_cur->get_attn(), tree_mask);
+    auto inp_attn = build_attn_inp_kv_impl(ctx0, sched, ubatch, hparams, cparams, mctx_cur->get_attn(), tree_mask,
+            (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_dense ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_packed ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+             kv_attention_route == llama_kv_attention_execution_route::exact_direct)
+                ? &kv_attention_metadata : nullptr,
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+            kv_attention_route == llama_kv_attention_execution_route::exact_direct,
+            kv_attention_exact_plan,
+            kv_attention_metrics, kv_attention_telemetry,
+            kv_attention_route == llama_kv_attention_execution_route::selected_dense,
+            kv_attention_route == llama_kv_attention_execution_route::selected_packed,
+            kv_attention_packed_cache);
 
     auto inp = std::make_unique<llm_graph_input_mem_hybrid>(cparams, std::move(inp_attn), std::move(inp_rs), mctx_cur);
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "llama-cache-accounting.h"
+#include "llama-vbr-generation-types.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,6 +28,158 @@ enum class llama_cache_budget_fit_state : uint8_t {
     unavailable,
     _count,
 };
+
+enum class llama_cache_budget_admission_refusal : uint8_t {
+    none = 0,
+    invalid_geometry,
+    context_mismatch,
+    mtp_not_turbo4,
+    missing_scratch,
+    overflow,
+    insufficient_capacity,
+    diagnostic_capacity_exceeds_budget,
+    _count,
+};
+
+enum class llama_cache_budget_admission_provenance : uint8_t {
+    actual = 0,
+    estimated,
+    mixed,
+    unavailable,
+    _count,
+};
+
+enum class llama_cache_budget_reconciliation_status : uint8_t {
+    not_requested = 0,
+    pending,
+    matched,
+    mismatch,
+    _count,
+};
+
+struct llama_cache_budget_admission_input {
+    uint64_t capacity_bytes = 0;
+    // Optional narrower limits. Zero means that this source is unavailable;
+    // capacity_bytes remains the caller's usable aggregate limit.
+    uint64_t user_budget_bytes = 0;
+    uint64_t backend_safe_limit_bytes = 0;
+    uint64_t allocation_granularity = 1;
+    uint64_t weights_bytes = 0;
+    uint64_t fixed_bytes = 0;
+    // Late startup allocations must be explicit inputs to admission.  They
+    // are separate from fixed_bytes so a planner cannot hide them in a
+    // post-admission free-byte sample.
+    uint64_t recurrent_state_bytes = 0;
+    uint64_t mtp_compute_bytes = 0;
+    uint64_t external_bytes = 0;
+    uint64_t graph_bytes = 0;
+    uint64_t turbo4_scratch_bytes = 0;
+    // Persistent selected-attention storage is bounded by A, not by L or H.
+    // The page unit is the measured, cross-layer Turbo4 K/V owner size.  A
+    // zero page unit keeps the legacy admission contract for non-pager users.
+    uint64_t packed_workspace_page_bytes = 0;
+    uint64_t packed_workspace_owner_count = 0;
+    uint64_t packed_dequant_page_bytes = 0;
+    uint64_t packed_dequant_bytes = 0;
+    // These are fixed live allocations. A transfer destination is represented
+    // as a page count instead: it must fit in the H slab, never as an
+    // unbudgeted allocation beyond H.
+    uint64_t copy_ring_bytes = 0;
+    uint64_t catalogue_bytes = 0;
+    uint64_t minimum_resident_pages = 0;
+    uint64_t transfer_destination_pages = 0;
+    uint64_t attention_page_limit = 0; // 0 = bounded auto A, otherwise explicit A
+    uint64_t routing_bytes = 0;
+    uint64_t staging_bytes = 0;
+    uint64_t allocator_guard_bytes = 0;
+    uint64_t headroom_bytes = 0;
+    // Must come from the resolved native-MTP target rows. Zero is explicit
+    // not-configured input; admission must not guess a model context floor.
+    uint64_t mtp_tokens = 0;
+    uint64_t mtp_values_per_token = 2048;
+    uint64_t mtp_bits_per_value = 33; // 4.125 effective bits/value
+    // When available, prefer the row sizes measured from the constructed MTP cache. These
+    // fields make admission match allocator-visible tensor geometry rather than a model-family
+    // estimate; zero means use the reference bits/value fallback above.
+    uint64_t mtp_k_row_bytes = 0;
+    uint64_t mtp_v_row_bytes = 0;
+    // False for a target context without a native MTP companion. True preserves
+    // the strict context-sized MTP requirement used by existing callers.
+    bool mtp_present = true;
+    bool mtp_is_turbo4 = true;
+    uint64_t target_page_bytes = 0; // actual measured/encoded cross-layer page size
+    uint64_t page_tokens = VBR_GENERATION_PAGE_CELLS;
+    uint64_t logical_page_count = 0; // required resolved L; zero is not configured
+    uint64_t user_page_cap = 0; // optional upper bound; never increases admitted capacity
+    uint64_t diagnostic_max_pages = 0; // zero means no diagnostic cap
+    // The request and resolution are carried separately so a caller can prove
+    // that admission did not silently shorten the requested context.  The
+    // pager fills both from its resolved context; other callers may leave the
+    // request unset and use mtp_tokens as the resolved value.
+    uint64_t requested_context_tokens = 0;
+    uint64_t resolved_context_tokens = 0;
+    llama_cache_budget_admission_provenance provenance =
+        llama_cache_budget_admission_provenance::estimated;
+    llama_cache_budget_reconciliation_status reconciliation =
+        llama_cache_budget_reconciliation_status::pending;
+};
+
+struct llama_cache_budget_admission_result {
+    llama_cache_budget_admission_refusal refusal =
+        llama_cache_budget_admission_refusal::none;
+    uint64_t usable_device_bytes = 0;
+    uint64_t fixed_bytes = 0;
+    uint64_t weights_bytes = 0;
+    uint64_t fixed_context_bytes = 0;
+    uint64_t recurrent_state_bytes = 0;
+    uint64_t mtp_bytes = 0;
+    uint64_t mtp_compute_bytes = 0;
+    uint64_t graph_bytes = 0;
+    uint64_t turbo4_scratch_bytes = 0;
+    uint64_t scratch_bytes = 0;
+    uint64_t packed_workspace_bytes = 0;
+    uint64_t packed_dequant_bytes = 0;
+    uint64_t copy_ring_bytes = 0;
+    uint64_t catalogue_bytes = 0;
+    uint64_t routing_table_bytes = 0;
+    uint64_t staging_bytes = 0;
+    uint64_t routing_bytes = 0;
+    uint64_t external_bytes = 0;
+    uint64_t allocator_guard_bytes = 0;
+    uint64_t headroom_bytes = 0;
+    uint64_t reserved_bytes = 0;
+    uint64_t charged_bytes = 0;
+    uint64_t remaining_bytes = 0;
+    uint64_t target_page_bytes = 0;
+    uint64_t page_charge_bytes = 0;
+    uint64_t page_tokens = 0;
+    uint64_t logical_page_count = 0;
+    uint64_t capacity_pages = 0;
+    uint64_t capacity_tokens = 0;
+    uint64_t admitted_pages = 0;
+    uint64_t requested_context_tokens = 0;
+    uint64_t resolved_context_tokens = 0;
+    uint64_t accepted_target_tokens = 0;
+    uint64_t attention_pages = 0;
+    uint64_t attention_tokens = 0;
+    uint64_t transfer_destination_pages = 0;
+    uint64_t unused_bytes = 0;
+    bool accepted = false;
+    llama_cache_budget_admission_provenance provenance =
+        llama_cache_budget_admission_provenance::unavailable;
+    llama_cache_budget_reconciliation_status reconciliation =
+        llama_cache_budget_reconciliation_status::not_requested;
+};
+
+llama_cache_budget_admission_result llama_cache_budget_admit(
+        const llama_cache_budget_admission_input & input) noexcept;
+
+const char * llama_cache_budget_admission_refusal_name(
+        llama_cache_budget_admission_refusal refusal) noexcept;
+const char * llama_cache_budget_admission_provenance_name(
+        llama_cache_budget_admission_provenance provenance) noexcept;
+const char * llama_cache_budget_reconciliation_status_name(
+        llama_cache_budget_reconciliation_status status) noexcept;
 
 // The classification vocabulary is closed. The CI census requires exactly one
 // entry for every llama_cache_acct_category. `excluded` means the budget has no

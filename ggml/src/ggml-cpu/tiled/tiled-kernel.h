@@ -176,5 +176,3 @@ void tiled_repack_src1(tiled_tile_src1 * src1, int row0, int num_k, bool bias);
 // Repack the entire src0 panel in place, called by the driver immediately after dequant
 template <int SUBBLK>
 void tiled_repack_src0(tiled_tile_src0 * tile, int n_rows, int num_k, int BIAS, bool corr);
-
-

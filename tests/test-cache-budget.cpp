@@ -2,6 +2,7 @@
 // durable+reserved accounting, hierarchical constraints, and fail-closed plans.
 
 #include "llama-cache-budget.h"
+#include "ggml.h"
 
 #include <cstdio>
 #include <limits>
@@ -99,6 +100,343 @@ static llama_cache_budget_config base_config() {
     config.host.pinned_cap = 10;
     config.host.pinned_state = llama_cache_budget_capacity_state::known;
     return config;
+}
+
+static void test_mtp_reference_payload_uses_actual_rows() {
+    llama_cache_budget_admission_input unconfigured;
+    unconfigured.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    unconfigured.target_page_bytes = 1;
+    unconfigured.turbo4_scratch_bytes = 1;
+    CHECK(llama_cache_budget_admit(unconfigured).refusal ==
+          llama_cache_budget_admission_refusal::invalid_geometry);
+
+    constexpr uint64_t tokens = 262144;
+    constexpr uint64_t values_per_head = 1024;
+    const uint64_t k_row = ggml_row_size(GGML_TYPE_TURBO4_0, values_per_head);
+    const uint64_t v_row = ggml_row_size(GGML_TYPE_TURBO4_0, values_per_head);
+    CHECK(k_row == 528);
+    CHECK(v_row == 528);
+
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    input.target_page_bytes = 1;
+    input.turbo4_scratch_bytes = 1;
+    input.mtp_tokens = tokens;
+    input.logical_page_count = tokens / input.page_tokens;
+    input.mtp_k_row_bytes = k_row;
+    input.mtp_v_row_bytes = v_row;
+
+    const auto admitted = llama_cache_budget_admit(input);
+    CHECK(admitted.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(admitted.mtp_bytes == 264ull * 1024 * 1024);
+    CHECK(admitted.mtp_bytes / tokens == 1056);
+
+    input.capacity_bytes = admitted.mtp_bytes - 1;
+    const auto insufficient = llama_cache_budget_admit(input);
+    CHECK(insufficient.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+
+    input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    input.mtp_is_turbo4 = false;
+    const auto f16 = llama_cache_budget_admit(input);
+    CHECK(f16.refusal == llama_cache_budget_admission_refusal::mtp_not_turbo4);
+}
+
+static void test_dynamic_admission_ledger() {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = 5000;
+    input.user_budget_bytes = 4800;
+    input.backend_safe_limit_bytes = 4500;
+    input.allocation_granularity = 64;
+    input.fixed_bytes = 100;
+    input.turbo4_scratch_bytes = 100;
+    input.routing_bytes = 30;
+    input.allocator_guard_bytes = 10;
+    input.headroom_bytes = 20;
+    input.mtp_tokens = 10;
+    input.mtp_k_row_bytes = 5;
+    input.mtp_v_row_bytes = 7;
+    input.target_page_bytes = 100;
+    input.page_tokens = 4;
+    input.logical_page_count = 100;
+    input.provenance = llama_cache_budget_admission_provenance::actual;
+    input.reconciliation = llama_cache_budget_reconciliation_status::matched;
+
+    const auto admitted = llama_cache_budget_admit(input);
+    CHECK(admitted.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(admitted.usable_device_bytes == 4500);
+    CHECK(admitted.fixed_bytes == 128);
+    CHECK(admitted.mtp_bytes == 128);
+    CHECK(admitted.scratch_bytes == 128);
+    CHECK(admitted.routing_bytes == 64);
+    CHECK(admitted.allocator_guard_bytes == 10);
+    CHECK(admitted.reserved_bytes == 330);
+    CHECK(admitted.charged_bytes == 522);
+    CHECK(admitted.page_charge_bytes == 128);
+    CHECK(admitted.admitted_pages == 31);
+    CHECK(admitted.accepted);
+    CHECK(admitted.requested_context_tokens == input.mtp_tokens);
+    CHECK(admitted.resolved_context_tokens == input.mtp_tokens);
+    CHECK(admitted.accepted_target_tokens == admitted.capacity_tokens);
+    CHECK(admitted.capacity_tokens == 124);
+    CHECK(admitted.unused_bytes == 10);
+    CHECK(admitted.provenance == input.provenance);
+    CHECK(admitted.reconciliation == input.reconciliation);
+
+    input.user_page_cap = 5;
+    const auto capped = llama_cache_budget_admit(input);
+    CHECK(capped.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(capped.admitted_pages == 5);
+    CHECK(capped.unused_bytes == 3338);
+
+    input.user_page_cap = 0;
+    input.mtp_tokens = std::numeric_limits<uint64_t>::max();
+    const auto overflow = llama_cache_budget_admit(input);
+    CHECK(overflow.refusal == llama_cache_budget_admission_refusal::overflow);
+}
+
+static void test_late_startup_categories_are_checked() {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = 4096;
+    input.allocation_granularity = 64;
+    input.weights_bytes = 512;
+    input.fixed_bytes = 128;
+    input.recurrent_state_bytes = 256;
+    input.mtp_compute_bytes = 192;
+    input.external_bytes = 64;
+    input.graph_bytes = 128;
+    input.turbo4_scratch_bytes = 64;
+    input.routing_bytes = 64;
+    input.staging_bytes = 64;
+    input.allocator_guard_bytes = 64;
+    input.headroom_bytes = 64;
+    input.mtp_present = false;
+    input.target_page_bytes = 256;
+    input.page_tokens = 256;
+    input.logical_page_count = 8;
+
+    const auto result = llama_cache_budget_admit(input);
+    CHECK(result.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(result.weights_bytes == input.weights_bytes);
+    CHECK(result.fixed_context_bytes == input.fixed_bytes);
+    CHECK(result.recurrent_state_bytes == input.recurrent_state_bytes);
+    CHECK(result.mtp_compute_bytes == input.mtp_compute_bytes);
+    CHECK(result.graph_bytes == input.graph_bytes);
+    CHECK(result.routing_table_bytes == input.routing_bytes);
+    CHECK(result.staging_bytes == input.staging_bytes);
+    CHECK(result.external_bytes == input.external_bytes);
+    CHECK(result.reserved_bytes == 896);
+    CHECK(result.charged_bytes == 1600);
+
+    input.capacity_bytes = result.charged_bytes + 2 * result.page_charge_bytes;
+    const auto exact = llama_cache_budget_admit(input);
+    CHECK(exact.admitted_pages == 2);
+    input.capacity_bytes--;
+    const auto rounded_deficit = llama_cache_budget_admit(input);
+    CHECK(rounded_deficit.admitted_pages == 1);
+    input.capacity_bytes = result.charged_bytes + result.page_charge_bytes - 1;
+    const auto no_legal_slot = llama_cache_budget_admit(input);
+    CHECK(!no_legal_slot.accepted);
+    CHECK(no_legal_slot.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+}
+
+static void test_scratch_rounding_is_separate_from_full_mtp_rows() {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    input.allocation_granularity = 64;
+    input.fixed_bytes = 128;
+    input.turbo4_scratch_bytes = 65;
+    input.mtp_tokens = 4096;
+    input.mtp_k_row_bytes = 528;
+    input.mtp_v_row_bytes = 528;
+    input.target_page_bytes = 256;
+    input.logical_page_count = 16;
+
+    const auto result = llama_cache_budget_admit(input);
+    CHECK(result.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(result.scratch_bytes == 128);
+    CHECK(result.mtp_bytes == 4096ull * 1056);
+
+    // Increasing the logical target history does not turn the separately
+    // rounded late scratch reservation into a full-context MTP reservation.
+    input.logical_page_count = 1024;
+    const auto wider = llama_cache_budget_admit(input);
+    CHECK(wider.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(wider.scratch_bytes == result.scratch_bytes);
+    CHECK(wider.mtp_bytes == result.mtp_bytes);
+}
+
+static void test_context_ladder_reserves_native_mtp_first() {
+    const uint64_t mtp_k_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    const uint64_t mtp_v_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    const uint64_t contexts[] = { 256, 16384, 32768, 65536, 65537, 131072, 262144 };
+
+    for (const uint64_t context : contexts) {
+        llama_cache_budget_admission_input input;
+        input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+        input.fixed_bytes = 4096;
+        input.turbo4_scratch_bytes = 4096;
+        input.target_page_bytes = 8192;
+        input.mtp_tokens = context;
+        input.mtp_k_row_bytes = mtp_k_row;
+        input.mtp_v_row_bytes = mtp_v_row;
+        input.logical_page_count = (context + input.page_tokens - 1) / input.page_tokens;
+
+        const auto full = llama_cache_budget_admit(input);
+        CHECK(full.refusal == llama_cache_budget_admission_refusal::none);
+        CHECK(full.admitted_pages == full.logical_page_count);
+        CHECK(full.capacity_tokens == full.logical_page_count * input.page_tokens);
+        CHECK(full.mtp_bytes == context * (mtp_k_row + mtp_v_row));
+    }
+
+    // An odd tail is a real page, while the target hotset is whatever remains
+    // after the complete context-sized MTP reservation.
+    llama_cache_budget_admission_input ladder;
+    ladder.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    ladder.fixed_bytes = 4096;
+    ladder.turbo4_scratch_bytes = 4096;
+    ladder.target_page_bytes = 8192;
+    ladder.mtp_tokens = 65537;
+    ladder.mtp_k_row_bytes = mtp_k_row;
+    ladder.mtp_v_row_bytes = mtp_v_row;
+    ladder.logical_page_count = (ladder.mtp_tokens + ladder.page_tokens - 1) / ladder.page_tokens;
+    const auto full = llama_cache_budget_admit(ladder);
+    CHECK(full.logical_page_count == 257);
+    CHECK(full.admitted_pages == 257);
+
+    ladder.capacity_bytes = full.charged_bytes + 5 * full.page_charge_bytes + full.page_charge_bytes - 1;
+    const auto intermediate = llama_cache_budget_admit(ladder);
+    CHECK(intermediate.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(intermediate.admitted_pages == 5);
+    CHECK(intermediate.mtp_bytes == full.mtp_bytes);
+    CHECK(intermediate.capacity_tokens == 5 * ladder.page_tokens);
+
+    // Below the complete MTP reservation is an explicit startup refusal; it
+    // must not be converted into a smaller draft or a fixed hot-page count.
+    ladder.capacity_bytes = full.charged_bytes - 1;
+    const auto impossible = llama_cache_budget_admit(ladder);
+    CHECK(impossible.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+    CHECK(!impossible.accepted);
+    CHECK(impossible.requested_context_tokens == ladder.mtp_tokens);
+    CHECK(impossible.resolved_context_tokens == ladder.mtp_tokens);
+
+    // A budget that covers the fixed/MTP reservation but cannot fit one target
+    // page is also an explicit refusal; it must not be exposed as a successful
+    // zero-capacity pager.
+    ladder.capacity_bytes = full.charged_bytes + full.page_charge_bytes - 1;
+    const auto no_page = llama_cache_budget_admit(ladder);
+    CHECK(no_page.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+    CHECK(!no_page.accepted);
+}
+
+static llama_cache_budget_admission_input make_lha_fixture(uint64_t context,
+                                                            uint64_t capacity) {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = capacity;
+    input.allocation_granularity = 64;
+    input.weights_bytes = 4096;
+    input.fixed_bytes = 2048;
+    input.graph_bytes = 4096;
+    input.turbo4_scratch_bytes = 1024;
+    input.routing_bytes = 4096;
+    input.headroom_bytes = 4096;
+    input.mtp_tokens = context;
+    input.mtp_k_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    input.mtp_v_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    input.target_page_bytes = 8192;
+    input.page_tokens = 256;
+    input.logical_page_count = (context + input.page_tokens - 1) / input.page_tokens;
+    input.packed_workspace_page_bytes = input.target_page_bytes;
+    input.packed_workspace_owner_count = 2;
+    input.packed_dequant_page_bytes = 256 * 4096;
+    input.catalogue_bytes = input.logical_page_count * 4096;
+    input.minimum_resident_pages = 2;
+    input.transfer_destination_pages = 1;
+    return input;
+}
+
+static void test_dynamic_lha_admission() {
+    // The same geometry is admitted at three L values. A remains bounded by
+    // the solved H and the resolved L is never shortened to make the ledger fit.
+    for (const uint64_t context : { uint64_t(8192), uint64_t(32768), uint64_t(131072) }) {
+        auto large = make_lha_fixture(context, std::numeric_limits<uint64_t>::max());
+        const auto full = llama_cache_budget_admit(large);
+        CHECK(full.refusal == llama_cache_budget_admission_refusal::none);
+        CHECK(full.resolved_context_tokens == context);
+        CHECK(full.logical_page_count == context / 256);
+        CHECK(full.attention_pages <= full.admitted_pages);
+        CHECK(full.attention_pages == full.admitted_pages);
+        CHECK(full.admitted_pages == full.logical_page_count);
+        CHECK(full.attention_tokens == full.attention_pages * 256);
+
+        auto bounded = make_lha_fixture(context,
+                full.charged_bytes + 8 * full.page_charge_bytes);
+        const auto result = llama_cache_budget_admit(bounded);
+        CHECK(result.refusal == llama_cache_budget_admission_refusal::none);
+        CHECK(result.requested_context_tokens == context);
+        CHECK(result.resolved_context_tokens == context);
+        CHECK(result.admitted_pages >= 3);
+        CHECK(result.attention_pages <= result.admitted_pages);
+        CHECK(result.attention_pages == result.admitted_pages);
+        CHECK(result.packed_workspace_bytes != 0);
+        CHECK(result.packed_dequant_bytes != 0);
+        CHECK(result.catalogue_bytes == ((bounded.catalogue_bytes + 63) / 64) * 64);
+    }
+
+    // A second head/page geometry exercises a distinct layer/head/GPU budget;
+    // the admission contract is not tied to the first fixture's dimensions.
+    auto alternate = make_lha_fixture(32768, std::numeric_limits<uint64_t>::max());
+    alternate.mtp_k_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 768);
+    alternate.mtp_v_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 768);
+    alternate.target_page_bytes = 12288;
+    alternate.packed_workspace_page_bytes = alternate.target_page_bytes;
+    alternate.packed_dequant_page_bytes = 256 * 3072;
+    alternate.catalogue_bytes = alternate.logical_page_count * 3072;
+    const auto alternate_full = llama_cache_budget_admit(alternate);
+    CHECK(alternate_full.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(alternate_full.admitted_pages == alternate.logical_page_count);
+    CHECK(alternate_full.attention_pages <= alternate_full.admitted_pages);
+
+    auto explicit_a = make_lha_fixture(32768, std::numeric_limits<uint64_t>::max());
+    explicit_a.attention_page_limit = 4;
+    const auto explicit_result = llama_cache_budget_admit(explicit_a);
+    CHECK(explicit_result.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(explicit_result.attention_pages == 4);
+    CHECK(explicit_result.attention_tokens == 4 * explicit_a.page_tokens);
+
+    // Explicit H can measure lazy route buffers instead of treating a
+    // prospective packed/F16 workspace as an already allocated resource.
+    // The attention bound must still be enforced when its charge is zero.
+    auto measured = make_lha_fixture(131072, std::numeric_limits<uint64_t>::max());
+    measured.packed_workspace_page_bytes = 0;
+    measured.packed_workspace_owner_count = 0;
+    measured.packed_dequant_page_bytes = 0;
+    const auto measured_full = llama_cache_budget_admit(measured);
+    CHECK(measured_full.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(measured_full.packed_workspace_bytes == 0);
+    CHECK(measured_full.packed_dequant_bytes == 0);
+    CHECK(measured_full.attention_pages == measured_full.admitted_pages);
+    measured.user_page_cap = 200;
+    measured.capacity_bytes = measured_full.charged_bytes + 200 * measured_full.page_charge_bytes;
+    const auto explicit_h = llama_cache_budget_admit(measured);
+    CHECK(explicit_h.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(explicit_h.admitted_pages == 200);
+    CHECK(explicit_h.attention_pages == 200);
+    measured.attention_page_limit = 4;
+    CHECK(llama_cache_budget_admit(measured).attention_pages == 4);
+    measured.attention_page_limit = measured.logical_page_count + 1;
+    CHECK(llama_cache_budget_admit(measured).refusal ==
+          llama_cache_budget_admission_refusal::insufficient_capacity);
+
+    auto mismatch = make_lha_fixture(8192, std::numeric_limits<uint64_t>::max());
+    mismatch.requested_context_tokens = 8192;
+    mismatch.resolved_context_tokens = 4096;
+    CHECK(llama_cache_budget_admit(mismatch).refusal ==
+          llama_cache_budget_admission_refusal::context_mismatch);
+
+    auto overflow = make_lha_fixture(8192, std::numeric_limits<uint64_t>::max());
+    overflow.packed_workspace_page_bytes = std::numeric_limits<uint64_t>::max();
+    CHECK(llama_cache_budget_admit(overflow).refusal ==
+          llama_cache_budget_admission_refusal::overflow);
 }
 
 static const llama_cache_budget_row * find_group(
@@ -445,6 +783,12 @@ static void test_f2_capacity_activation_is_inert_until_observed() {
 }
 
 int main() {
+    test_mtp_reference_payload_uses_actual_rows();
+    test_dynamic_admission_ledger();
+    test_late_startup_categories_are_checked();
+    test_scratch_rounding_is_separate_from_full_mtp_rows();
+    test_context_ladder_reserves_native_mtp_first();
+    test_dynamic_lha_admission();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();
     test_fail_closed_inputs();

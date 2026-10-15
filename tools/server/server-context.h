@@ -3,17 +3,90 @@
 #include "server-http.h"
 #include "server-task.h"
 #include "server-queue.h"
+#include "llama.h"
 
 #include "json.h"
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <set>
 
 struct server_context_impl; // private implementation
 class server_cache_control_authority;
+enum class llama_memory_failure_reason : uint8_t;
+struct common_speculative;
+
+// Shared final-user boundary transition. The server loop and its model-backed
+// regression fixture supply the real pager commit and checkpoint restore
+// operations; this helper owns the commit/replay decision.
+enum class server_query_replay_transition_status : uint8_t {
+    failed,
+    unchanged,
+    replay,
+};
+
+struct server_query_replay_transition_result {
+    server_query_replay_transition_status status =
+        server_query_replay_transition_status::failed;
+    bool committed = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_replay_transition_result server_query_replay_transition(
+    bool checkpoint_prepared,
+    uint32_t replay_count,
+    const std::function<bool(bool &, uint64_t &)> & commit,
+    const std::function<bool()> & restore,
+    const std::function<bool()> & before_commit = {});
+
+// Opt-in model-backed fixture seam. The callbacks execute real decode and
+// pager commit operations; this function owns the production checkpoint and
+// replay transition used by the server slot loop.
+struct server_query_checkpoint_fixture_result {
+    bool captured = false;
+    bool provisional_decode_succeeded = false;
+    bool restored = false;
+    bool replay_decode_succeeded = false;
+    bool control_restored = false;
+    bool control_decode_succeeded = false;
+    server_query_replay_transition_status status =
+        server_query_replay_transition_status::failed;
+    bool history_changed = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_checkpoint_fixture_result server_query_checkpoint_replay_for_test(
+    llama_context * target, llama_context * draft,
+    common_speculative * speculative, llama_seq_id sequence_id,
+    uint64_t request_id, uint64_t generation, llama_pos query_begin,
+    int64_t processed_tokens, bool require_mtp_carry,
+    const std::function<bool()> & provisional_decode,
+    const std::function<bool(bool &, uint64_t &)> & commit,
+    const std::function<bool()> & replay_decode,
+    const std::function<bool()> & control_decode);
+
+struct server_query_checkpoint_cancel_fixture_result {
+    bool captured = false;
+    bool provisional_decode_succeeded = false;
+    bool publication_succeeded = false;
+    bool history_changed = false;
+    bool restored = false;
+    bool recovery_decode_succeeded = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_checkpoint_cancel_fixture_result server_query_checkpoint_cancel_for_test(
+    llama_context * target, llama_context * draft,
+    common_speculative * speculative, llama_seq_id sequence_id,
+    uint64_t request_id, uint64_t generation, llama_pos query_begin,
+    int64_t processed_tokens, bool require_mtp_carry,
+    const std::function<bool()> & provisional_decode,
+    const std::function<bool(bool &, uint64_t &)> & publish,
+    const std::function<bool()> & recovery_decode);
 
 enum class server_speculative_decode_terminal {
     success,
@@ -30,6 +103,48 @@ server_speculative_decode_terminal_resolve(
     bool single_token_batch,
     bool selected_exception,
     bool speculative_ok) noexcept;
+
+// A single-token return code is legacy-compatible, but only these reasons are
+// allowed to produce the user-facing logical-context diagnosis.
+bool server_memory_failure_is_logical_capacity(
+        llama_memory_failure_reason reason) noexcept;
+
+// A configured native MTP drafter is not enough to classify a target batch as
+// verification: prompt chunks are also multi-token.  Verification batches are
+// generated-only proposal batches.
+bool server_is_native_mtp_verification_batch(
+    bool native_mtp_configured,
+    int32_t n_tokens,
+    bool has_prompt_tokens) noexcept;
+
+// Live-rewind snapshots are needed at the final user seam and at the final
+// prefill rollback frontier. Near-end intermediate frontiers can be omitted
+// before serializing their target/draft state.
+bool server_live_rewind_checkpoint_admit(
+    int64_t checkpoint_frontier,
+    int64_t prompt_cursor,
+    int64_t prompt_tokens,
+    bool required_user_seam) noexcept;
+
+// Exercises the direct server-batch assembly path without a model or service.
+bool server_batch_direct_assembly_contract_for_test();
+
+// The page authority is deliberately single-slot until its multi-sequence
+// accounting and publication proof are complete.  The off/observe paths do
+// not acquire that authority and therefore retain ordinary multi-slot use.
+struct server_slot_pager_lifecycle_test_result {
+    bool single_slot_authority = false;
+    bool selective_multi_slot_rejected = false;
+    bool observe_multi_slot_unchanged = false;
+    bool generation_minted_before_completion = false;
+    bool stale_completion_rejected = false;
+    bool current_completion_accepted = false;
+    bool cancelled_completion_rejected = false;
+    bool generation_rollover_safe = false;
+};
+
+server_slot_pager_lifecycle_test_result
+server_slot_pager_lifecycle_for_test();
 
 struct server_committed_decode_reset_test_result {
     bool processing_prompt_cleared = false;

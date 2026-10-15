@@ -1,0 +1,1140 @@
+#pragma once
+
+#include "llama-cache-budget.h"
+#include "llama-kv-pager-config.h"
+#include "llama-kv-live-policy.h"
+#include "llama-kv-prefetch.h"
+#include "llama-kv-routing-summary.h"
+#include "llama-kv-residency.h"
+#include "llama-kv-residency-transfer.h"
+#include "llama-vbr-artifact-catalog.h"
+#include "llama-vbr-artifact-capture.h"
+
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <condition_variable>
+#include <deque>
+#include <functional>
+#include <memory>
+#include <map>
+#include <mutex>
+#include <thread>
+#include <tuple>
+#include <vector>
+
+class vbr_h2d_chunk_ring;
+struct llama_model;
+
+// Runtime transport geometry. This is deliberately process-local and is not
+// the legacy fixed-width VBR snapshot schema. A unit is one K or V tensor for
+// one admitted attention layer, in compact layer order.
+struct llama_kv_pager_unit_geometry {
+    uint32_t logical_unit_id = UINT32_MAX;
+    uint32_t layer = UINT32_MAX;
+    uint32_t model_layer_id = UINT32_MAX;
+    uint8_t side = 0; // 0 = K, 1 = V
+    ggml_type type = GGML_TYPE_COUNT;
+    uint32_t kv_heads = 0;
+    uint32_t head_length = 0;
+    uint64_t row_bytes = 0;
+    uint64_t page_bytes = 0;
+    uint64_t offset = 0;
+};
+
+struct llama_kv_pager_geometry {
+    uint64_t context_tokens = 0;
+    uint32_t page_tokens = 256;
+    uint32_t attention_layers = 0;
+    uint32_t kv_heads = 0;
+    uint32_t key_length = 0;
+    uint32_t value_length = 0;
+    uint64_t page_bytes = 0; // complete opaque K/V page across all attention layers
+    // Byte offsets in the physical slab after admission. Each layer stores all
+    // admitted K rows followed by all admitted V rows, so set_rows has a
+    // regular row stride and the direct kernel uses the per-layer page span.
+    std::vector<uint64_t> layer_k_offsets;
+    std::vector<uint64_t> layer_v_offsets;
+    std::vector<uint64_t> layer_k_page_bytes;
+    std::vector<uint64_t> layer_v_page_bytes;
+    // Equal initial H_l capacities and flattened layer-slot bases. These are
+    // separate from canonical bundle byte offsets so later policy updates can
+    // assign per-layer budgets without a union-based coupling.
+    std::vector<uint32_t> layer_slot_counts;
+    std::vector<uint32_t> layer_slot_bases;
+    // Model layer IDs are not necessarily compact attention ordinals in a
+    // hybrid model. Keep the checked map beside the offsets.
+    std::vector<uint32_t> model_layer_ids;
+    // Complete live K/V bundle descriptors. Legacy VBR artifacts retain
+    // their fixed schema; live capture uses this vector instead.
+    std::vector<llama_kv_pager_unit_geometry> unit_descriptors;
+};
+
+// Construct geometry from model metadata without allocating context-sized
+// tensors. This is the admission-time planner input.
+bool llama_kv_pager_geometry_from_model(
+        const llama_model & model,
+        ggml_type type_k,
+        ggml_type type_v,
+        bool v_trans,
+        uint32_t page_tokens,
+        uint64_t context_tokens,
+        llama_kv_pager_geometry & output) noexcept;
+
+struct llama_kv_pager_resources {
+    llama_cache_budget_admission_input admission;
+    uint64_t host_budget_bytes = 0;
+    uint64_t host_metadata_bytes = 0;
+    uint64_t allocator_granularity = 1;
+    // Optional upper bound carried from the pre-allocation plan. It prevents
+    // reconciliation from growing the pager beyond the slab already owned by
+    // the cache.
+    uint64_t physical_page_cap = 0;
+    bool host_budget_known = false;
+    bool duplicate_representation_authority = false;
+
+    // The host copy is optional for the unit-test/observe pager, but when it is
+    // enabled these are the complete production transport binding.  The ring
+    // is charged once at construction and is never expanded per page.
+    bool host_capture_enabled = false;
+    llama_cache_budget_config host_budget;
+    uint64_t host_source_namespace = 0;
+    uint64_t host_topology_identity = 0;
+    uint32_t host_child_id = 0;
+    uint32_t host_stream_index = 0;
+    std::vector<vbr_capture_lane> host_lanes;
+    ggml_backend_t host_backend = nullptr;
+    // Dedicated owner for ranking H2D and rerank kernels. This is borrowed by
+    // the pager/cache and must outlive their terminal events.
+    ggml_backend_t ranking_backend = nullptr;
+    ggml_backend_buffer_type_t ranking_host_buft = nullptr;
+    uint64_t host_ring_bytes = 0;
+    size_t host_chunk_bytes = 0;
+    vbr_selected_page_capture_limits host_capture_limits;
+    llama_kv_routing_summary_config routing_summary;
+
+    // Selective/exact target storage is constructed by the cache and borrowed
+    // here. The pager must not allocate a second physical target KV backing.
+    ggml_backend_buffer_t external_storage_buffer = nullptr;
+    ggml_tensor * external_storage_tensor = nullptr;
+};
+
+// The cache owns the representation-specific sampler. It is called only at a
+// completed page boundary, after the graph fence, and may read a bounded set
+// of rotated Turbo4 K rows into the input descriptor.
+struct llama_kv_pager_routing_summary_provider {
+    using build_fn = bool (*) (
+            void * context,
+            const llama_kv_page_record & page,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_page_input & output) noexcept;
+
+    void * context = nullptr;
+    build_fn build = nullptr;
+};
+
+struct llama_kv_pager_allocation {
+    void * handle = nullptr;
+    uint64_t requested_bytes = 0;
+    uint64_t realized_bytes = 0;
+};
+
+struct llama_kv_pager_backend {
+    std::function<bool(uint64_t, llama_kv_pager_allocation &)> allocate;
+    std::function<void(llama_kv_pager_allocation &)> release;
+};
+
+enum class llama_kv_pager_host_status : uint8_t {
+    ok = 0,
+    not_configured,
+    invalid_page,
+    prepare_failed,
+    capture_failed,
+    catalog_failed,
+    accounting_failed,
+    ring_unavailable,
+};
+
+const char * llama_kv_pager_host_status_name(
+        llama_kv_pager_host_status status) noexcept;
+
+// The live owner supplies exact tensor sources and a snapshot provider.  The
+// pager host boundary owns the ring, immutable pageable chains, and catalog
+// accounting; it never knows how a model stores or decodes Turbo4 rows.
+struct llama_kv_pager_host_provider {
+    using prepare_fn = bool (*) (
+        void * context,
+        const llama_kv_page_record & page,
+        vbr_selected_page_capture_request & request,
+        std::vector<vbr_selected_page_unit_source> & sources,
+        vbr_selected_page_capture_snapshot_provider & snapshots) noexcept;
+
+    void * context = nullptr;
+    prepare_fn prepare = nullptr;
+};
+
+struct llama_kv_pager_host_result {
+    llama_kv_pager_host_status status =
+        llama_kv_pager_host_status::not_configured;
+    vbr_selected_page_capture_status capture_status =
+        vbr_selected_page_capture_status::invalid_argument;
+    vbr_selected_page_host_status catalog_status =
+        vbr_selected_page_host_status::internal_error;
+    uint64_t pageable_bytes = 0;
+    uint64_t metadata_bytes = 0;
+    uint64_t pinned_bytes = 0;
+    vbr_capture_stream_stats transfer;
+    bool queued = false;
+};
+
+struct llama_kv_pager_host_completion {
+    llama_kv_page_id page;
+    uint64_t content_version = 0;
+    llama_kv_pager_host_result result;
+};
+
+class llama_kv_pager_host {
+public:
+    static std::unique_ptr<llama_kv_pager_host> create(
+            const llama_kv_pager_resources & resources,
+            llama_kv_pager_host_provider provider,
+            llama_kv_pager_host_status & status) noexcept;
+
+    ~llama_kv_pager_host();
+    llama_kv_pager_host(const llama_kv_pager_host &) = delete;
+    llama_kv_pager_host & operator=(const llama_kv_pager_host &) = delete;
+
+    void set_provider(llama_kv_pager_host_provider provider) noexcept {
+        provider_ = provider;
+    }
+
+    llama_kv_pager_host_result seal(
+            const llama_kv_page_record & page) noexcept;
+    // Queue a complete page for the backend event path.  Unsupported or
+    // force-synchronous lanes use seal() directly, preserving the old
+    // deterministic behavior for CPU and fake backends.
+    llama_kv_pager_host_result enqueue(
+            const llama_kv_page_record & page,
+            uint64_t content_version) noexcept;
+    size_t drain(
+            std::vector<llama_kv_pager_host_completion> & output) noexcept;
+    bool completion_ready() const noexcept;
+    // Wait until queued host captures have either completed or failed. This is
+    // used only when a writer has no immediately evictable slot.
+    size_t wait() noexcept;
+    bool async_enabled() const noexcept { return async_enabled_; }
+    bool find_page(
+            const llama_kv_page_id & page,
+            vbr_selected_page_host_view & output) const noexcept;
+    std::vector<vbr_selected_page_host_view> pages() const noexcept;
+    bool invalidate(const llama_kv_page_id & page) noexcept;
+    vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
+    vbr_h2d_chunk_ring * upload_ring() const noexcept { return upload_ring_.get(); }
+
+private:
+    struct prepared_capture {
+        vbr_selected_page_capture_request request;
+        std::vector<vbr_selected_page_unit_source> sources;
+        // The owner thread acquires this snapshot before handing the bundle to
+        // the worker.  The worker only sees this immutable copy; callbacks
+        // into the cache owner are reserved for the completion boundary.
+        vbr_selected_page_capture_snapshot snapshot;
+        vbr_selected_page_capture_snapshot_provider owner_snapshots;
+        bool snapshot_acquired = false;
+    };
+
+    struct pending_capture;
+    struct completed_capture {
+        llama_kv_pager_host_completion completion;
+        prepared_capture prepared;
+    };
+
+    explicit llama_kv_pager_host(
+            const llama_kv_pager_resources & resources);
+
+    bool prepare(
+            const llama_kv_page_record & page,
+            prepared_capture & output) noexcept;
+    static bool prepared_snapshot_acquire(
+            void * context,
+            const vbr_selected_page_capture_request & request,
+            vbr_selected_page_capture_snapshot & output) noexcept;
+    static bool prepared_snapshot_recheck(
+            void * context,
+            const vbr_selected_page_capture_snapshot & expected) noexcept;
+    static void prepared_snapshot_release(
+            void * context,
+            const vbr_selected_page_capture_snapshot & snapshot) noexcept;
+    void release_prepared(prepared_capture & prepared) noexcept;
+    llama_kv_pager_host_result execute(
+            const llama_kv_page_record & page,
+            prepared_capture & prepared) noexcept;
+    void worker_main() noexcept;
+
+    llama_kv_pager_resources resources_;
+    llama_kv_pager_host_provider provider_;
+    llama_cache_acct_ledger ledger_;
+    llama_vbr_selected_page_host_catalog catalog_;
+    std::unique_ptr<vbr_pinned_chunk_ring> ring_;
+    std::shared_ptr<vbr_h2d_chunk_ring> upload_ring_;
+    bool async_enabled_ = false;
+    bool worker_stop_ = false;
+    size_t max_pending_ = 1;
+    mutable std::mutex worker_mutex_;
+    mutable std::mutex catalog_mutex_;
+    std::condition_variable worker_cv_;
+    std::deque<std::shared_ptr<pending_capture>> pending_;
+    std::vector<std::shared_ptr<pending_capture>> active_;
+    std::deque<completed_capture> completed_;
+    std::thread worker_;
+};
+
+struct llama_kv_pager_admission_attempt {
+    uint32_t page_cap = 0;
+    uint32_t admitted_pages = 0;
+    uint64_t requested_bytes = 0;
+    uint64_t fingerprint = 0;
+    bool allocation_succeeded = false;
+};
+
+struct llama_kv_pager_snapshot {
+    llama_kv_pager_geometry geometry;
+    llama_cache_budget_admission_result admission;
+    uint32_t router_refresh_tokens = 8;
+    uint32_t logical_page_count = 0;
+    uint32_t physical_page_count = 0;
+    uint64_t physical_rows = 0;
+    uint64_t physical_bytes = 0;
+    uint32_t physical_layer_slot_count = 0;
+    // Admission-derived retrieval and generation geometry. R + G is always
+    // bounded by H; spare historical slots remain borrowable by generation.
+    uint32_t retrieval_pages = 0;
+    uint32_t generation_pages = 0;
+    uint32_t generation_tail_tokens = 0;
+    uint64_t turn_id = 0;
+    uint64_t retrieval_epoch = 0;
+    uint64_t frozen_history_generation = 0;
+    uint64_t mutable_page_table_epoch = 0;
+    uint32_t selected_history_count = 0;
+    uint8_t turn_phase = 0;
+    int64_t query_start = -1;
+    int64_t query_end = -1;
+    uint64_t host_metadata_bytes = 0;
+    uint64_t mtp_rows = 0;
+    uint64_t host_budget_bytes = 0;
+    uint64_t vram_budget_bytes = 0;
+    uint64_t realized_bytes = 0;
+    // Every materialization candidate is retained. This is intentionally a
+    // compact process-local receipt: retries are descending and page-aligned,
+    // and a failed allocation is never silently retried with the same tuple.
+    std::vector<llama_kv_pager_admission_attempt> admission_attempts;
+    bool initialized = false;
+};
+
+enum class llama_kv_pager_turn_phase : uint8_t {
+    idle = 0,
+    query_provisional,
+    retrieval_commit,
+    query_replay,
+    generating,
+};
+
+enum class llama_kv_pager_turn_status : uint8_t {
+    ok = 0,
+    stale_turn,
+    stale_epoch,
+    invalid_transition,
+    invalid_query,
+};
+
+struct llama_kv_pager_selected_history {
+    llama_kv_page_id identity;
+    uint64_t content_version = 0;
+};
+
+bool llama_kv_pager_history_selection_equal(
+        const std::vector<llama_kv_pager_selected_history> & lhs,
+        const std::vector<llama_kv_pager_selected_history> & rhs) noexcept;
+
+bool llama_kv_pager_page_is_before_query(
+        int64_t page_position_begin, uint32_t page_tokens,
+        int64_t query_start) noexcept;
+
+struct llama_kv_pager_turn_state {
+    uint64_t turn_id = 0;
+    uint64_t retrieval_epoch = 0;
+    llama_kv_pager_turn_phase phase = llama_kv_pager_turn_phase::idle;
+    int64_t query_start = -1;
+    int64_t query_end = -1;
+    llama_kv_page_id committed_frontier;
+    bool has_committed_frontier = false;
+    uint64_t frozen_history_generation = 0;
+    uint64_t mutable_page_table_epoch = 0;
+    // Retrieved prior-turn R only, not the full attention view. Resident
+    // current-query Q and generated output are separately visible without
+    // being frozen here; replay rewrites Q and the FIFO evicts clean output.
+    std::vector<llama_kv_pager_selected_history> selected_history;
+    // Clean generation pages in logical order. Entries are authenticated by
+    // full page identity and discarded lazily after rollback or rewrite.
+    std::vector<llama_kv_page_id> completed_generation_pages;
+};
+
+// One bounded, process-local receipt for a naturally ranked cold page.  This
+// is diagnostic state only: it is populated after the normal policy boundary
+// commits a candidate and never participates in selection or residency.
+struct llama_kv_pager_natural_proof {
+    int32_t sequence_id = -1;
+    uint64_t sequence_generation = 0;
+    uint64_t query_generation = 0;
+    uint64_t query_position = 0;
+    uint64_t catalogue_epoch = 0;
+    uint64_t published_epoch = 0;
+    uint64_t page_generation = 0;
+    uint64_t content_version = 0;
+    uint32_t logical_page = UINT32_MAX;
+    uint32_t attention_layer = UINT32_MAX;
+    uint32_t selector_rank = UINT32_MAX;
+    uint32_t physical_slot = UINT32_MAX;
+    bool candidate_was_cold = false;
+    bool host_ready = false;
+    bool promotion_published = false;
+    // The receipt joins an authenticated selector nomination to its admission
+    // in the final query-commit target for this exact logical page/version.
+    bool candidate_authenticated = false;
+    bool query_commit_admitted = false;
+    // One bounded physical edge receipt. These flags are set only at the
+    // corresponding owner boundary; a table epoch or attention sample alone
+    // never implies a completed target use.
+    bool selector_published = false;
+    bool h2d_queued = false;
+    bool h2d_completed = false;
+    bool mapping_published = false;
+    bool target_graph_used = false;
+    uint64_t h2d_useful_bytes = 0;
+    uint64_t h2d_aligned_bytes = 0;
+    uint64_t target_use_epoch = 0;
+    uint64_t target_use_query_generation = 0;
+    uint64_t selector_event_sequence = 0;
+    uint64_t h2d_event_sequence = 0;
+    uint64_t publication_event_sequence = 0;
+    uint64_t target_event_sequence = 0;
+    uint64_t draft_event_sequence = 0;
+    bool draft_graph_used = false;
+    uint64_t draft_use_epoch = 0;
+    uint64_t draft_use_query_generation = 0;
+
+    bool matches_query(int32_t sequence, uint64_t sequence_gen,
+            uint64_t query_gen) const noexcept {
+        return sequence_id >= 0 && sequence == sequence_id &&
+            sequence_generation != 0 && sequence_gen != 0 &&
+            sequence_gen == sequence_generation && query_generation != 0 &&
+            query_gen != 0 && query_gen == query_generation;
+    }
+};
+
+// Bounded rejection accounting for the current-Q promotion boundary. The
+// counters are diagnostic only and deliberately avoid retaining prompts,
+// tensors, or candidate vectors.
+struct llama_kv_pager_rejection_histogram {
+    uint64_t no_candidate = 0;
+    uint64_t invalid_candidate = 0;
+    uint64_t not_cold = 0;
+    uint64_t identity_mismatch = 0;
+    uint64_t missing_host_source = 0;
+    uint64_t admission_rejected = 0;
+    uint64_t transfer_rejected = 0;
+    uint64_t publication_rejected = 0;
+};
+
+enum class llama_kv_pager_selector_trace_outcome : uint8_t {
+    none = 0,
+    selector_not_run,
+    no_eligible_cold_page,
+    selector_no_rankable_score,
+    selector_no_eligible_candidate,
+    eligible_ranked_out,
+    selected_pending,
+    mailbox_dropped,
+    stale_invalid_identity,
+    no_host_source,
+    mandatory_capacity,
+    policy_target_omission,
+    query_commit_selection_truncated,
+    query_commit_capacity_refusal,
+    budget_limited,
+    slot_admission,
+    transfer_plan_rejected,
+    async_transfer_failed,
+    publication_failed,
+    promoted,
+    target_used,
+};
+
+const char * llama_kv_pager_selector_trace_outcome_name(
+        llama_kv_pager_selector_trace_outcome outcome) noexcept;
+
+// Opt-in graph-registration evidence for the Qcur_routing selector path.
+// Values are diagnostic only and never affect routing decisions.
+enum class llama_kv_pager_selector_gate : uint8_t {
+    callback_not_invoked = 0,
+    callback_name_mismatch,
+    null_memory_context,
+    invalid_query_shape,
+    query_rows_mismatch,
+    invalid_positions,
+    callback_matched,
+    routing_query_created,
+    selector_nodes_created,
+    selector_builder_returned_null,
+    graph_input_rejected_reuse,
+    sideband_inputs_rejected,
+    capture_called,
+    missing_owner_context_or_query,
+    invalid_query_or_ubatch,
+    pager_sequence_or_inventory_absent,
+    layer_not_registered,
+    invalid_geometry_or_count,
+    no_attention_capacity,
+    tensor_allocation_failed,
+    unsupported_query_head_width,
+    kv_layer_storage_absent,
+};
+
+const char * llama_kv_pager_selector_gate_name(
+        llama_kv_pager_selector_gate gate) noexcept;
+llama_kv_pager_selector_gate llama_kv_pager_selector_q_shape_gate(
+        int32_t rank, int64_t query_dim, int64_t query_heads,
+        int64_t query_rows, int64_t outer_dim, uint32_t ubatch_tokens) noexcept;
+
+// One refresh-scoped selector trace. Fixed arrays and scalar page metadata
+// keep diagnostics bounded; this never stores prompts, tensors, or inventory.
+struct llama_kv_pager_selector_trace {
+    bool enabled = false;
+    uint64_t query_generation = 0;
+    uint64_t query_position = 0;
+    int64_t turn_query_start = -1;
+    int64_t turn_query_end = -1;
+    uint8_t turn_phase = UINT8_MAX;
+    uint64_t table_epoch = 0;
+    uint32_t query_row = UINT32_MAX;
+    int32_t target_logical_page = -1;
+    bool target_found = false;
+    bool target_resident = false;
+    uint32_t target_valid_length = 0;
+    int64_t target_position_begin = -1;
+    uint64_t target_sequence_generation = 0;
+    uint64_t target_page_generation = 0;
+    uint64_t target_content_version = 0;
+    uint64_t target_summary_version = 0;
+    bool target_summary_ready = false;
+    bool target_host_backed = false;
+    bool target_eligible = false;
+    std::array<int32_t, LLAMA_KV_QUERY_COLD_SELECTOR_PAGES> raw_cold_indices = [] {
+        std::array<int32_t, LLAMA_KV_QUERY_COLD_SELECTOR_PAGES> ids; ids.fill(-1); return ids;
+    }();
+    std::array<int32_t, LLAMA_KV_QUERY_COLD_SELECTOR_PAGES> raw_cold_logical_pages = raw_cold_indices;
+    uint32_t raw_cold_count = 0;
+    bool raw_selector_output_valid = false;
+    int32_t selector_diagnostic_failure = 0;
+    bool async_readback_submitted = false;
+    bool async_readback_completed = false;
+    bool synchronous_readback_completed = false;
+    bool mailbox_published = false;
+    bool mailbox_dropped = false;
+    bool target_candidate_nominated = false;
+    uint32_t target_cold_bundle_rank = UINT32_MAX;
+    uint32_t cold_bundle_count = 0;
+    uint32_t cold_bundle_budget = 0;
+    float target_cold_bundle_score = 0.0f;
+    bool target_candidate_in_cold_budget = false;
+    bool target_cold_budget_limited = false;
+    bool target_candidate_scan_complete = false;
+    bool policy_decision_evaluated = false;
+    bool query_commit_enabled = false;
+    bool query_commit_selection_truncated = false;
+    uint32_t query_commit_selected_count = 0;
+    std::array<char, 64> query_target_failure{};
+    uint8_t live_policy_result_status = UINT8_MAX;
+    uint8_t live_policy_failure_stage = 0;
+    uint32_t live_policy_failure_logical_page = UINT32_MAX;
+    uint32_t live_policy_failure_page_generation = 0;
+    uint32_t live_policy_failure_layer = UINT32_MAX;
+    uint64_t live_policy_failure_content_version = 0;
+    uint32_t planned_promotion_pages = 0;
+    bool planned_promotion_valid = false;
+    bool planned_promotion_contains_target = false;
+    bool candidate_authenticated = false;
+    bool policy_admitted = false;
+    uint32_t victim_logical_page = UINT32_MAX;
+    uint32_t target_physical_slot = UINT32_MAX;
+    uint64_t h2d_queued_bytes = 0;
+    uint64_t h2d_completed_bytes = 0;
+    uint64_t h2d_event_completions = 0;
+    bool h2d_completion_observed = false;
+    uint8_t transaction_status = UINT8_MAX;
+    uint8_t transaction_failed_phase = UINT8_MAX;
+    uint8_t transfer_failure_status = UINT8_MAX;
+    uint64_t published_epoch = 0;
+    bool mapping_published = false;
+    bool target_graph_used = false;
+    llama_kv_pager_selector_trace_outcome outcome =
+        llama_kv_pager_selector_trace_outcome::none;
+    llama_kv_pager_selector_gate graph_gate =
+        llama_kv_pager_selector_gate::callback_not_invoked;
+    uint32_t graph_query_rank = 0;
+    uint32_t graph_query_dim = 0;
+    uint32_t graph_query_heads = 0;
+    uint32_t graph_query_rows = 0;
+    uint32_t graph_ubatch_tokens = 0;
+    uint32_t graph_position_count = 0;
+    int64_t graph_last_position = -1;
+    int32_t graph_layer = -1;
+    bool graph_callback_seen = false;
+    bool routing_q_created = false;
+    bool selected_created = false;
+    bool capture_handoff_created = false;
+};
+
+constexpr size_t LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY = 16;
+
+enum class llama_kv_pager_status : uint8_t {
+    ok = 0,
+    disabled,
+    invalid_geometry,
+    unsupported_authority,
+    missing_backend,
+    host_budget,
+    admission,
+    allocation,
+    realized_mismatch,
+    overflow,
+};
+
+const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept;
+
+enum class llama_kv_pager_write_status : uint8_t {
+    ok = 0,
+    disabled,
+    invalid_position,
+    no_victim,
+    all_pinned,
+    stale_generation,
+    transaction,
+    overflow,
+    pending_copy,
+};
+
+const char * llama_kv_pager_write_status_name(llama_kv_pager_write_status status) noexcept;
+
+struct llama_kv_pager_write_ticket {
+    int32_t sequence_id = -1;
+    uint64_t sequence_generation = 0;
+    uint32_t logical_page = UINT32_MAX;
+    uint32_t physical_slot = UINT32_MAX;
+    uint32_t physical_row = UINT32_MAX;
+    uint32_t page_generation = 0;
+    uint32_t attention_layer = UINT32_MAX;
+    llama_pos position = -1;
+    bool page_created = false;
+    bool row_was_valid = false;
+    uint64_t content_version_before = 0;
+};
+
+enum class llama_kv_pager_mutation_kind : uint8_t {
+    remove = 0,
+    copy,
+    keep,
+    shift,
+    rewind,
+    clear,
+};
+
+struct llama_kv_pager_mutation {
+    llama_kv_pager_mutation_kind kind = llama_kv_pager_mutation_kind::remove;
+    int32_t sequence_id = -1;
+    int32_t destination_sequence_id = -1;
+    llama_pos position_begin = 0;
+    llama_pos position_end = 0;
+    llama_pos shift = 0;
+    uint64_t sequence_generation = 0;
+    // Optional residency-table epoch captured by the caller. Zero retains the
+    // legacy unchecked form used by observers; runtime mutations bind this to
+    // the table snapshot they are about to edit.
+    uint64_t expected_epoch = 0;
+    // Stage completed write-frontier pin release with the mutation.
+    bool release_sequence_pins = false;
+};
+
+bool llama_kv_pager_plan(
+        const llama_kv_pager_config & config,
+        const llama_kv_pager_geometry & geometry,
+        llama_kv_pager_resources resources,
+        llama_kv_pager_snapshot & output,
+        llama_kv_pager_status & status) noexcept;
+
+class llama_kv_pager {
+public:
+    static std::unique_ptr<llama_kv_pager> create(
+            const llama_kv_pager_config & config,
+            const llama_kv_pager_geometry & geometry,
+            llama_kv_pager_resources resources,
+            llama_kv_pager_backend backend,
+            llama_kv_pager_status & status) noexcept;
+
+    ~llama_kv_pager();
+    llama_kv_pager(const llama_kv_pager &) = delete;
+    llama_kv_pager & operator=(const llama_kv_pager &) = delete;
+
+    const llama_kv_pager_snapshot & snapshot() const noexcept { return snapshot_; }
+    llama_kv_router_mode router_mode() const noexcept { return router_mode_; }
+    llama_kv_residency_snapshot residency() const noexcept { return residency_.snapshot(); }
+    llama_kv_residency_snapshot residency(int32_t sequence_id) const noexcept {
+        return residency_.snapshot().for_sequence(sequence_id);
+    }
+    llama_kv_pager_turn_state turn_state(int32_t sequence_id) const;
+    llama_kv_pager_turn_status transition_turn(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch,
+            llama_kv_pager_turn_phase next_phase, int64_t query_start, int64_t query_end,
+            const llama_kv_page_id & committed_frontier, uint64_t frozen_history_generation,
+            std::vector<llama_kv_pager_selected_history> selected_history = {}) noexcept;
+    llama_kv_pager_turn_status clear_turn_state(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept;
+    llama_kv_pager_turn_status end_turn(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept {
+        return clear_turn_state(sequence_id, turn_id, expected_retrieval_epoch);
+    }
+    llama_kv_pager_turn_status abort_turn(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept {
+        return clear_turn_state(sequence_id, turn_id, expected_retrieval_epoch);
+    }
+
+    // Reconcile the current resident table with authenticated canonical host
+    // pages for exact attention.  The result contains at most one live record
+    // per logical page; cold records have no physical slot and require the
+    // exact wave upload callback.
+    std::vector<llama_kv_page_record> exact_page_records(
+            int32_t sequence_id) const noexcept;
+
+    // Reserve the physical row for one logical position before graph submission. The returned
+    // row is an implementation detail; callers must continue to use the logical position for
+    // RoPE and masking. A page is kept pinned while it is the current partial write page.
+    llama_kv_pager_write_status begin_write(
+            int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+            llama_kv_pager_write_ticket & ticket) noexcept;
+    llama_kv_pager_write_status begin_write(
+            int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+            uint32_t attention_layer, llama_kv_pager_write_ticket & ticket) noexcept;
+    // Reserve all rows for one graph submission as one recoverable operation.
+    // If any row cannot be admitted, previously reserved rows are cancelled in
+    // reverse order and no partial batch remains visible to the caller.
+    llama_kv_pager_write_status begin_write_batch(
+            int32_t sequence_id, uint64_t sequence_generation,
+            const std::vector<llama_pos> & positions,
+            std::vector<llama_kv_pager_write_ticket> & tickets) noexcept;
+    // Restore one row while retaining the authenticated logical page identity
+    // carried by a compact checkpoint. The physical slot remains allocator-owned.
+    llama_kv_pager_write_status begin_restore_page(
+            const llama_kv_page_id & identity, llama_pos position,
+            llama_kv_pager_write_ticket & ticket) noexcept;
+    llama_kv_pager_write_status complete_write(
+            const llama_kv_pager_write_ticket & ticket, uint32_t completed_segments,
+            bool graph_succeeded) noexcept;
+    llama_kv_pager_write_status cancel_write(
+            const llama_kv_pager_write_ticket & ticket) noexcept;
+    bool physical_row(
+        int32_t sequence_id, llama_pos position, uint32_t & row) const noexcept;
+    bool physical_row(
+            int32_t sequence_id, llama_pos position, uint32_t attention_layer,
+            uint32_t & row) const noexcept;
+    // Validate a row reserved for a graph write. Unlike the logical lookup,
+    // this also authenticates the page generation and published destination.
+    bool physical_row(
+            const llama_kv_pager_write_ticket & ticket, uint32_t attention_layer,
+            uint32_t & row) const noexcept;
+
+    // Apply a metadata mutation as one table publication. Payload movement is deliberately
+    // deferred to the residency transfer owner; this method never publishes a half mutation.
+    llama_kv_pager_write_status mutate(const llama_kv_pager_mutation & mutation) noexcept;
+
+    // A completed full-sequence reset is a lifecycle boundary.  Release the
+    // partial write-frontier pin before publishing that removal so an empty
+    // sequence can be reset after a short warmup/decode batch.
+    void release_sequence_pins(int32_t sequence_id) noexcept;
+
+    // Attach the cache-owned source/snapshot provider after pager admission.
+    // A page becomes evictable only after seal_ready_pages() reports a
+    // successful catalog publication.
+    void set_host_provider(llama_kv_pager_host_provider provider) noexcept;
+    void set_routing_summary_provider(
+            llama_kv_pager_routing_summary_provider provider) noexcept;
+    uint32_t seal_ready_pages(bool publish_catalogue = true) noexcept;
+    bool host_maintenance_pending() const noexcept;
+    bool catalogue_maintenance_pending() const noexcept;
+    void poll_host_completions() noexcept;
+    bool invalidate_host_page(const llama_kv_page_id & page) noexcept;
+    void bind_representation_identity(
+            uint64_t model_identity,
+            uint64_t topology_identity,
+            uint64_t codec_digest,
+            uint64_t codebook_digest,
+            uint64_t rotation_digest,
+            uint64_t meansub_digest,
+            uint64_t representation_epoch) noexcept;
+    const llama_kv_pager_host * host_catalog() const noexcept {
+        return host_.get();
+    }
+    ggml_backend_t ranking_backend() const noexcept {
+        return resources_ranking_backend_;
+    }
+    ggml_backend_buffer_type_t ranking_host_buft() const noexcept {
+        return resources_ranking_host_buft_;
+    }
+    ggml_backend_t host_backend() const noexcept {
+        return host_ ? resources_host_backend_ : nullptr;
+    }
+    bool selector_async_enabled() const noexcept {
+        return prefetch_candidate_mailbox_.configured() &&
+            prefetch_candidate_mailbox_.slot_count() != 0 &&
+            prefetch_candidate_buffers_.size() ==
+            prefetch_candidate_mailbox_.slot_count();
+    }
+    uint64_t host_source_namespace() const noexcept {
+        return host_ ? resources_host_source_namespace_ : 0;
+    }
+    uint64_t host_topology_identity() const noexcept {
+        return host_ ? resources_host_topology_identity_ : 0;
+    }
+    uint32_t host_child_id() const noexcept {
+        return host_ ? resources_host_child_id_ : UINT32_MAX;
+    }
+    uint32_t host_stream_index() const noexcept {
+        return host_ ? resources_host_stream_index_ : UINT32_MAX;
+    }
+
+    // Cumulative counters from observed residency transactions. They remain
+    // separate from the immutable page snapshot so metrics do not alter the
+    // table epoch or page identities.
+    const llama_kv_residency_transfer_counters & transfer_counters() const noexcept {
+        return transfer_counters_;
+    }
+    const llama_kv_residency_transfer_counters & h2d_counters() const noexcept {
+        return h2d_counters_;
+    }
+    const llama_kv_residency_transfer_counters & d2h_counters() const noexcept {
+        return d2h_counters_;
+    }
+    uint64_t promotion_pages() const noexcept { return promotion_pages_; }
+    uint64_t eviction_pages() const noexcept { return eviction_pages_; }
+    uint64_t seal_calls() const noexcept { return seal_calls_; }
+    uint64_t diagnostic_seal_us() const noexcept { return diagnostic_seal_us_; }
+    uint64_t diagnostic_seal_boundary_us() const noexcept { return diagnostic_seal_boundary_us_; }
+    void record_diagnostic_seal_boundary_us(uint64_t value) noexcept {
+        diagnostic_seal_boundary_us_ = diagnostic_seal_boundary_us_ > UINT64_MAX - value
+            ? UINT64_MAX : diagnostic_seal_boundary_us_ + value;
+    }
+    uint64_t diagnostic_host_enqueue_us() const noexcept { return diagnostic_host_enqueue_us_; }
+    uint64_t diagnostic_host_completion_us() const noexcept { return diagnostic_host_completion_us_; }
+    uint64_t diagnostic_queue_wait_us() const noexcept { return diagnostic_queue_wait_us_; }
+    uint64_t diagnostic_queue_waits() const noexcept { return diagnostic_queue_waits_; }
+    void record_diagnostic_policy_us(uint64_t value) noexcept {
+        diagnostic_policy_us_ = diagnostic_policy_us_ > UINT64_MAX - value
+            ? UINT64_MAX : diagnostic_policy_us_ + value;
+    }
+    uint64_t diagnostic_policy_us() const noexcept { return diagnostic_policy_us_; }
+    uint64_t seal_pages_scanned() const noexcept { return seal_pages_scanned_; }
+    uint64_t seal_pages_changed() const noexcept { return seal_pages_changed_; }
+    uint64_t host_seal_d2h_calls() const noexcept { return host_seal_d2h_calls_; }
+    uint64_t host_seal_d2h_bytes() const noexcept { return host_seal_d2h_bytes_; }
+    uint64_t host_seal_d2h_async_completions() const noexcept {
+        return host_seal_d2h_async_completions_;
+    }
+    uint64_t host_seal_queued() const noexcept { return host_seal_queued_; }
+    uint64_t host_inflight_pages() const noexcept {
+        return uint64_t(std::count_if(pages_.begin(), pages_.end(),
+                [](const auto & page) { return page.present && page.host_inflight; }));
+    }
+    uint64_t inventory_copy_count() const noexcept { return inventory_copy_count_; }
+    uint64_t store_copy_count() const noexcept { return store_copy_count_; }
+    void note_query_refresh() noexcept { ++query_refresh_count_; }
+    uint64_t query_refresh_count() const noexcept { return query_refresh_count_; }
+    uint64_t summary_build_calls() const noexcept { return summary_build_calls_; }
+    uint64_t summary_build_bytes() const noexcept { return summary_build_bytes_; }
+    uint64_t summary_read_calls() const noexcept { return summary_read_calls_; }
+    uint64_t summary_read_bytes() const noexcept { return summary_read_bytes_; }
+    void record_summary_read(uint64_t bytes) noexcept {
+        summary_read_calls_ = summary_read_calls_ == UINT64_MAX ? UINT64_MAX : summary_read_calls_ + 1;
+        summary_read_bytes_ = summary_read_bytes_ > UINT64_MAX - bytes
+            ? UINT64_MAX : summary_read_bytes_ + bytes;
+    }
+
+    const llama_kv_pager_natural_proof & natural_proof() const noexcept {
+        return natural_proof_;
+    }
+    void begin_natural_proof_request() noexcept {
+        natural_proof_ = {};
+        selector_trace_ = {};
+        selector_trace_history_ = {};
+        selector_trace_history_count_ = 0;
+        selector_trace_history_next_ = 0;
+    }
+    void record_natural_proof(const llama_kv_pager_natural_proof & proof) noexcept;
+    // Called after the scheduler fence with the logical IDs from the graph
+    // metadata that just completed. This is the only target-use edge in the
+    // natural receipt; selected IDs from an uncompleted graph are insufficient.
+    void record_natural_proof_target_use(
+            const std::vector<uint32_t> & selected_page_ids,
+            uint64_t table_epoch, uint64_t query_generation) noexcept;
+    void record_natural_proof_draft_use(
+            const std::vector<uint32_t> & selected_page_ids,
+            uint64_t table_epoch, uint64_t query_generation) noexcept;
+    const llama_kv_pager_rejection_histogram & rejection_histogram() const noexcept {
+        return rejection_histogram_;
+    }
+    const llama_kv_pager_selector_trace & selector_trace() const noexcept {
+        return selector_trace_;
+    }
+    const std::array<llama_kv_pager_selector_trace,
+            LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY> & selector_trace_history() const noexcept {
+        return selector_trace_history_;
+    }
+    uint32_t selector_trace_history_count() const noexcept {
+        return selector_trace_history_count_;
+    }
+    uint32_t selector_trace_history_next() const noexcept {
+        return selector_trace_history_next_;
+    }
+    llama_kv_pager_selector_trace & selector_trace_for_update() noexcept {
+        return selector_trace_;
+    }
+    void reset_selector_trace() noexcept {
+        if (selector_trace_.enabled && selector_trace_.query_generation != 0) {
+            selector_trace_history_[selector_trace_history_next_] = selector_trace_;
+            selector_trace_history_next_ = uint32_t(
+                (selector_trace_history_next_ + 1) % LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY);
+            selector_trace_history_count_ = std::min<uint32_t>(
+                selector_trace_history_count_ + 1,
+                uint32_t(LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY));
+        }
+        selector_trace_ = {};
+    }
+    void record_rejection_no_candidate() noexcept;
+    void record_rejection_invalid_candidate() noexcept;
+    void record_rejection_not_cold() noexcept;
+    void record_rejection_identity_mismatch() noexcept;
+    void record_rejection_missing_host_source() noexcept;
+    void record_rejection_admission() noexcept;
+    void record_rejection_transfer() noexcept;
+    void record_rejection_publication() noexcept;
+
+    const llama_kv_routing_summary_store & routing_summaries() const noexcept {
+        return routing_summaries_;
+    }
+    const llama_kv_routing_summary_accounting & routing_summary_accounting() const noexcept {
+        return routing_summaries_.accounting();
+    }
+    const llama_kv_routing_summary_index & routing_summary_index() const noexcept {
+        return routing_summary_index_;
+    }
+    uint64_t routing_summary_index_bytes() const noexcept {
+        return routing_summary_index_.charged_bytes();
+    }
+
+    // The pager table remains the logical authority; these are the real
+    // backend-owned slot/event doors used by the residency transfer owner.
+    llama_kv_residency_pool_backend residency_backend() const noexcept {
+        return residency_backend_;
+    }
+    vbr_h2d_chunk_ring * upload_ring() const noexcept {
+        return host_ ? host_->upload_ring() : nullptr;
+    }
+
+    // Apply one complete runtime-H target through the pager-owned pool and
+    // immutable table. The boundary snapshot must be from this pager.
+    llama_kv_live_policy_result apply_live_policy(
+            const llama_kv_live_policy_boundary & boundary,
+            const llama_kv_residency_transfer_transport & transport,
+            const llama_kv_residency_transaction_hooks & hooks = {}) noexcept;
+    // Production boundary: bind the pager-owned upload ring, canonical host
+    // inventory, layer-aware GGML adapter, and synchronous completion/recheck
+    // hooks for one complete policy request.
+    llama_kv_live_policy_result apply_live_policy(
+            const llama_kv_live_policy_boundary & boundary) noexcept;
+
+    ggml_tensor * residency_storage_tensor() const noexcept {
+        return residency_adapter_ ? residency_adapter_->storage_tensor() : nullptr;
+    }
+    uint64_t residency_bytes_per_slot() const noexcept {
+        return residency_adapter_ ? residency_adapter_->bytes_per_slot_value() : 0;
+    }
+    uint64_t resident_bytes() const noexcept {
+        return residency_pool_ ? residency_pool_->resident_bytes() : 0;
+    }
+    uint32_t test_force_logical_page() const noexcept {
+        return test_force_logical_page_;
+    }
+    // The cache/graph owner binds the GPU ranking producer to this fixed,
+    // double-buffered mailbox. Consumers only poll at a boundary; ownership
+    // and event lifetime remain inside the pager.
+    llama_kv_prefetch_mailbox & prefetch_candidate_mailbox() noexcept {
+        return prefetch_candidate_mailbox_;
+    }
+    const llama_kv_prefetch_mailbox & prefetch_candidate_mailbox() const noexcept {
+        return prefetch_candidate_mailbox_;
+    }
+    bool is_current_page(const llama_kv_page_id & id) const noexcept {
+        return current_page_index_ < pages_.size() && pages_[current_page_index_].present &&
+            pages_[current_page_index_].record.id == id;
+    }
+    bool current_page(int32_t sequence_id, uint32_t & logical_page,
+            uint32_t & physical_slot) const noexcept {
+        if (current_page_index_ >= pages_.size()) return false;
+        const auto & page = pages_[current_page_index_];
+        if (!page.present || page.record.id.sequence_id != sequence_id ||
+                page.record.physical_slot == UINT32_MAX) return false;
+        logical_page = page.record.id.logical_page;
+        physical_slot = page.record.physical_slot;
+        return true;
+    }
+    bool test_page_checksums(uint32_t logical_page, uint64_t & host_checksum,
+            uint64_t & device_checksum, uint32_t & physical_slot,
+            uint64_t & page_generation, uint64_t & content_version) const noexcept;
+    uint64_t routing_summary_content_version(
+            const llama_kv_page_id & id) const noexcept;
+
+private:
+    enum class page_owner : uint8_t {
+        prior_turn_history = 0,
+        frozen_history,
+        current_turn_generation,
+        mutable_current_write,
+    };
+
+    struct page_state {
+        llama_kv_page_record record;
+        std::vector<uint8_t> valid_rows;
+        uint32_t completed_segments = 0;
+        uint64_t content_version = 0;
+        uint64_t host_content_version = 0;
+        uint64_t summary_content_version = 0;
+        uint64_t host_inflight_version = 0;
+        bool host_inflight = false;
+        bool maintenance_pending = false;
+        bool present = false;
+        page_owner owner = page_owner::prior_turn_history;
+        uint64_t owner_turn_id = 0;
+        bool generation_queued = false;
+    };
+
+    llama_kv_pager_write_status publish_page(page_state & page) noexcept;
+    llama_kv_pager_write_status erase_page(page_state & page,
+            bool preserve_host = false) noexcept;
+    llama_kv_routing_page_inventory routing_inventory() const noexcept;
+    std::vector<llama_kv_routing_summary_config> routing_summary_configs() const noexcept;
+    bool invalidate_routing_summaries(
+            const std::vector<llama_kv_page_id> & page_ids) noexcept;
+    void queue_maintenance(page_state & page) noexcept;
+    void remember_logical_page(const llama_kv_page_record & page) noexcept;
+    void forget_logical_page(const llama_kv_page_id & page) noexcept;
+    void rebuild_maintenance_queue() noexcept;
+    void drain_host_completions() noexcept;
+    void wait_host_completions() noexcept;
+    void reconcile_live_target(
+            const std::vector<llama_kv_page_record> & target) noexcept;
+    page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;
+    const page_state * find_page(int32_t sequence_id, uint32_t logical_page) const noexcept;
+    page_state * find_slot(uint32_t slot) noexcept;
+    void release_current_pin(page_state * except) noexcept;
+    bool frozen_history_page(const page_state * page) const noexcept;
+    static bool write_victim_before(const page_state & lhs,
+            const page_state & rhs) noexcept;
+    bool generation_page_evictable(const page_state * page, int32_t sequence_id,
+            uint64_t turn_id) const noexcept;
+    page_state * oldest_generation_victim(int32_t sequence_id,
+            uint64_t turn_id) noexcept;
+    page_state * oldest_unselected_history_victim(int32_t sequence_id,
+            const llama_kv_pager_turn_state & turn,
+            const std::vector<uint32_t> & excluded_logical_pages) noexcept;
+    void queue_generation_page(page_state & page) noexcept;
+    llama_kv_pager_write_status begin_write_planned(
+            int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+            llama_kv_pager_write_ticket & ticket, uint32_t planned_slot,
+            const llama_kv_page_id * planned_victim,
+            uint64_t planned_victim_content_version) noexcept;
+
+    llama_kv_pager() = default;
+    llama_kv_pager_snapshot snapshot_;
+    llama_kv_pager_backend backend_;
+    std::unique_ptr<llama_kv_pager_host> host_;
+    std::unique_ptr<llama_kv_residency_ggml_adapter> residency_adapter_;
+    std::unique_ptr<llama_kv_residency_pool> residency_pool_;
+    llama_kv_residency_pool_backend residency_backend_;
+    ggml_backend_t resources_host_backend_ = nullptr;
+    ggml_backend_t resources_ranking_backend_ = nullptr;
+    ggml_backend_buffer_type_t resources_ranking_host_buft_ = nullptr;
+    uint64_t resources_host_source_namespace_ = 0;
+    uint64_t resources_host_topology_identity_ = 0;
+    uint32_t resources_host_child_id_ = UINT32_MAX;
+    uint32_t resources_host_stream_index_ = UINT32_MAX;
+    uint32_t test_force_logical_page_ = UINT32_MAX;
+    llama_kv_routing_summary_config routing_summary_config_;
+    llama_kv_router_mode router_mode_ = llama_kv_router_mode::legacy;
+    llama_kv_pager_routing_summary_provider routing_summary_provider_;
+    llama_kv_routing_summary_store routing_summaries_;
+    llama_kv_routing_summary_index routing_summary_index_;
+    llama_kv_pager_natural_proof natural_proof_;
+    uint64_t natural_proof_event_sequence_ = 0;
+    llama_kv_pager_rejection_histogram rejection_histogram_;
+    llama_kv_pager_selector_trace selector_trace_;
+    std::array<llama_kv_pager_selector_trace,
+        LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY> selector_trace_history_{};
+    uint32_t selector_trace_history_count_ = 0;
+    uint32_t selector_trace_history_next_ = 0;
+    // A complete refresh carries the bounded resident/cold regions for the
+    // attention layers. Keep the two-slot owner, but size each fixed slot for
+    // the runtime layer count rather than dropping later layer records.
+    std::vector<ggml_backend_buffer_t> prefetch_candidate_buffers_;
+    llama_kv_prefetch_mailbox prefetch_candidate_mailbox_;
+    llama_kv_page_id page_identity_;
+    llama_kv_pager_allocation allocation_;
+    bool owns_allocation_ = true;
+    std::vector<page_state> pages_;
+    // Stable logical ownership, not the mutable content/representation tag.
+    // Publishing another row replaces this owner's record in O(log P), rather
+    // than scanning every cold page. The record retains the complete identity.
+    using logical_page_key = std::tuple<uint64_t, int32_t, uint64_t, uint32_t, uint32_t>;
+    std::map<logical_page_key, llama_kv_page_record> logical_catalogue_;
+    std::vector<int32_t> slot_pages_;
+    std::vector<size_t> maintenance_page_indices_;
+    std::vector<size_t> maintenance_processing_indices_;
+    bool maintenance_queue_complete_ = true;
+    uint32_t current_page_index_ = UINT32_MAX;
+    uint64_t mutation_generation_ = 1;
+    llama_kv_residency_table residency_{0};
+    std::map<int32_t, llama_kv_pager_turn_state> turn_states_;
+    llama_kv_residency_transfer_counters transfer_counters_;
+    llama_kv_residency_transfer_counters h2d_counters_;
+    llama_kv_residency_transfer_counters d2h_counters_;
+    uint64_t promotion_pages_ = 0;
+    uint64_t eviction_pages_ = 0;
+    uint64_t query_refresh_count_ = 0;
+    uint64_t seal_calls_ = 0;
+    uint64_t diagnostic_seal_us_ = 0;
+    uint64_t diagnostic_seal_boundary_us_ = 0;
+    uint64_t diagnostic_host_enqueue_us_ = 0;
+    uint64_t diagnostic_host_completion_us_ = 0;
+    uint64_t diagnostic_queue_wait_us_ = 0;
+    uint64_t diagnostic_queue_waits_ = 0;
+    uint64_t diagnostic_policy_us_ = 0;
+    uint64_t seal_pages_scanned_ = 0;
+    uint64_t seal_pages_changed_ = 0;
+    uint64_t host_seal_d2h_calls_ = 0;
+    uint64_t host_seal_d2h_bytes_ = 0;
+    uint64_t host_seal_d2h_async_completions_ = 0;
+    uint64_t host_seal_queued_ = 0;
+    mutable uint64_t inventory_copy_count_ = 0;
+    uint64_t store_copy_count_ = 0;
+    uint64_t summary_build_calls_ = 0;
+    uint64_t summary_build_bytes_ = 0;
+    uint64_t summary_read_calls_ = 0;
+    uint64_t summary_read_bytes_ = 0;
+};

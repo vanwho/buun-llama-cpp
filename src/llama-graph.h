@@ -4,6 +4,9 @@
 #include "llama-batch.h"
 #include "llama-hparams.h"
 #include "llama-adapter.h"
+#include "llama-kv-attention-op.h"
+#include "llama-kv-attention-execution.h"
+#include "llama-kv-attention-telemetry.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -70,6 +73,7 @@ class llama_kv_cache_iswa_context;
 class llama_memory_recurrent_context;
 class llama_memory_hybrid_context;
 class llama_memory_hybrid_iswa_context;
+class llama_kv_attention_telemetry;
 
 // certain models (typically multi-modal) can produce different types of graphs
 enum llm_graph_type {
@@ -189,6 +193,10 @@ public:
     virtual ~llm_graph_input_i() = default;
 
     virtual void set_input(const llama_ubatch * ubatch) = 0;
+    virtual void set_input_mtp_handoff(const llama_ubatch * ubatch, int32_t host_hidden_row) {
+        GGML_UNUSED(host_hidden_row);
+        set_input(ubatch);
+    }
 
     // return true if the resulting input tensors using the provided graph parameters would be
     //   the same as the previous input tensors that we have currently stored in the object
@@ -245,10 +253,12 @@ public:
 // similar to llm_graph_input_embd but with an additional hidden state input
 class llm_graph_input_embd_h : public llm_graph_input_i {
 public:
-    llm_graph_input_embd_h(int64_t n_embd) : n_embd(n_embd) {}
+    llm_graph_input_embd_h(int64_t n_embd, ggml_backend_sched_t sched = nullptr) : n_embd(n_embd), sched(sched) {}
     virtual ~llm_graph_input_embd_h() = default;
 
     void set_input(const llama_ubatch * ubatch) override;
+    void set_input_mtp_handoff(const llama_ubatch * ubatch, int32_t host_hidden_row) override;
+    void set_hidden_backend(ggml_tensor * tensor);
 
     bool can_reuse(const llm_graph_params & params) override;
 
@@ -257,6 +267,7 @@ public:
     ggml_tensor * h      = nullptr; // F32 [n_embd, n_batch]
 
     const int64_t n_embd = 0;
+    ggml_backend_sched_t sched = nullptr;
 };
 
 class llm_graph_input_pos : public llm_graph_input_i {
@@ -269,6 +280,11 @@ public:
     bool can_reuse(const llm_graph_params & params) override;
 
     ggml_tensor * pos = nullptr; // I32 [n_batch]
+
+    // Reused host staging for M-RoPE expansion.  A graph input lives for the
+    // lifetime of its graph, so growing this once is sufficient and avoids a
+    // temporary allocation on every submission.
+    std::vector<llama_pos> pos_data;
 
     const uint32_t n_pos_per_embd = 1;
 };
@@ -283,6 +299,10 @@ public:
     void set_input(const llama_ubatch * ubatch) override;
 
     ggml_tensor * attn_scale = nullptr; // F32 [n_batch]
+
+    // Grow-only host staging; the values are refreshed for every submission,
+    // but the backing allocation is retained by the graph input.
+    std::vector<float> attn_scale_data;
 
     const uint32_t n_attn_temp_floor_scale;
     const float    f_attn_temp_scale;
@@ -433,28 +453,202 @@ public:
             const llama_hparams & hparams,
             const llama_cparams & cparams,
             const llama_kv_cache_context * mctx,
-            const llama_tree_mask * tree_mask = nullptr) :
+            const llama_tree_mask * tree_mask = nullptr,
+            llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr,
+            llama_kv_attention_telemetry * kv_attention_telemetry = nullptr) :
         hparams(hparams),
         cparams(cparams),
         mctx(mctx),
-        tree_mask(tree_mask) {
+        tree_mask(tree_mask),
+        kv_attention_metrics(kv_attention_metrics),
+        kv_attention_telemetry(kv_attention_telemetry) {
     }
-    ~llm_graph_input_attn_kv() = default;
+    ~llm_graph_input_attn_kv() override;
 
     void set_input(const llama_ubatch * ubatch) override;
 
     bool can_reuse(const llm_graph_params & params) override;
 
+    // Refresh only the bounded host-side descriptor data when a reused graph
+    // sees a new residency/content generation. The tensor shapes and backing
+    // addresses are validated by can_reuse before this is called.
+    bool refresh_selected_data(
+            const llama_kv_attention_operator_metadata & metadata);
+
+    // Rebind the sampled page identities to the snapshot used by this
+    // submission. This is required when a captured graph is reused after a
+    // page fault or overwrite; graph-owned telemetry metadata must never be
+    // published against the snapshot from graph construction.
+    void refresh_direct_telemetry(const llama_ubatch * ubatch) noexcept;
+
     ggml_tensor * get_k_idxs() const { return self_k_idxs; }
     ggml_tensor * get_v_idxs() const { return self_v_idxs; }
+    ggml_tensor * get_k_idxs(int32_t il) const;
+    ggml_tensor * get_v_idxs(int32_t il) const;
 
     ggml_tensor * get_kq_mask() const { return self_kq_mask_cnv; }
 
     ggml_tensor * self_k_idxs = nullptr; // I64 [n_batch]
     ggml_tensor * self_v_idxs = nullptr; // I64 [n_batch] or [n_batch*n_embd_v_gqa]
+    // A layer-paged cache has one physical row map per full-attention layer.
+    // Keep the legacy tensors above for non-paged/reference paths, while the
+    // vectors below bind cpy_k/cpy_v to the same layer ordinal used by the
+    // attention views.
+    std::vector<ggml_tensor *> self_k_idxs_by_layer;
+    std::vector<ggml_tensor *> self_v_idxs_by_layer;
 
     ggml_tensor * self_kq_mask     = nullptr; // F32/F16 [n_kv, n_batch/n_stream, 1, n_stream]
     ggml_tensor * self_kq_mask_cnv = nullptr; //         [n_kv, n_batch/n_stream, 1, n_stream]
+
+    // Selected reference attention gathers only the rows named by the live
+    // page view.  The IDs address the ordinary cache's bounded physical view;
+    // the immutable metadata retains the native logical positions and table
+    // lifetime for the graph.
+    bool selected_attention = false;
+    bool direct_attention = false;
+    bool dense_attention = false;
+    bool packed_attention = false;
+    bool exact_wave_attention = false;
+    uint32_t dense_source_row_begin = UINT32_MAX;
+    // Page descriptors, selected row IDs, native positions/masks, and query
+    // positions have stable graph-owned storage. Their values are refreshed
+    // only when the content generation changes; telemetry state is refreshed
+    // at its own cadence.
+    bool selected_static_inputs_initialized = false;
+    uint64_t selected_content_key = 0;
+    ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
+    // Packed attention has a selected-view, page-aligned, graph-stable row
+    // capacity. The compact destination of each current cache row is mutable
+    // input data.
+    uint32_t packed_row_capacity = 0;
+    std::vector<int32_t> selected_rows;
+    llama_kv_attention_operator_metadata selected_metadata;
+
+    // The packed route retains the cache's native Turbo4 bytes. Each page
+    // copy is a typed view, so packing never passes through F16/F32 rows.
+    struct packed_copy {
+        ggml_tensor * source_k = nullptr;
+        ggml_tensor * source_v = nullptr;
+        ggml_tensor * packed_k = nullptr;
+        ggml_tensor * packed_v = nullptr;
+        uint32_t page_index = 0;
+        uint32_t page_generation = 0;
+        uint64_t content_version = 0;
+        uint64_t source_lifetime_epoch = 0;
+        uint64_t source_offset_k = 0;
+        uint64_t source_offset_v = 0;
+        bool current_rows = false;
+        uint32_t page_row_count = 0;
+        uint32_t row_count = 0;
+        uint64_t bytes = 0;
+    };
+    struct packed_layer {
+        uint32_t layer_id = 0;
+        ggml_tensor * k = nullptr;
+        ggml_tensor * v = nullptr;
+        // First-layer-only tail views: masked rows still pass through
+        // quantized tile loads, and must be zeroed once per slab execution.
+        ggml_tensor * padding_k = nullptr;
+        ggml_tensor * padding_v = nullptr;
+        ggml_tensor * source_k = nullptr;
+        ggml_tensor * source_v = nullptr;
+        ggml_backend_t backend = nullptr;
+        uint32_t row_capacity = 0;
+        // Borrowed source tensors remain owned by the pager/cache context;
+        // these identities document the lifetime and physical slab against
+        // which the compact duplicate was captured.
+        uint64_t source_lifetime_epoch = 0;
+        uint64_t source_physical_key = 0;
+        std::vector<packed_copy> copies;
+    };
+    std::vector<packed_layer> packed_layers;
+    // One graph-owned Turbo4 workspace is shared by layer-specific views.
+    // Transformer dependencies serialize its producers and consumers, so
+    // every layer can repopulate it after the preceding attention completes.
+    ggml_tensor * packed_staging_k = nullptr;
+    ggml_tensor * packed_staging_v = nullptr;
+
+    // Direct CUDA paged Turbo4 inputs. The K/V views are created per layer
+    // over the pager's persistent physical slot slab; metadata is copied into
+    // graph inputs once per submission and remains capture-safe.
+    ggml_tensor * direct_storage = nullptr;
+    ggml_tensor * direct_k = nullptr;
+    ggml_tensor * direct_v = nullptr;
+    ggml_tensor * direct_pages = nullptr;
+    ggml_tensor * direct_native_positions = nullptr;
+    ggml_tensor * direct_native_mask = nullptr;
+    ggml_tensor * direct_query_positions = nullptr;
+    ggml_tensor * direct_staging_storage = nullptr;
+    ggml_tensor * direct_page_mass = nullptr;
+    // Direct metadata uploads must use the CUDA backend stream that will
+    // consume the graph. The synchronous buffer setter uses
+    // cudaStreamPerThread, which is not ordered with the scheduler stream.
+    ggml_backend_t direct_backend = nullptr;
+    // Explicit diagnostic-only graph-owned F32 storage for partition/page
+    // states. Ordinary direct attention leaves this null: no unused arena or
+    // per-token observer may alter the production consumer or its memory budget.
+    ggml_tensor * direct_split_kv_scratch = nullptr;
+    uint32_t direct_split_kv_partition_capacity = 0;
+    uint32_t direct_split_kv_page_count = 0;
+    uint32_t direct_page_capacity = 0;
+    uint32_t direct_row_capacity = 0;
+    uint32_t direct_physical_page_count = 0;
+    uint32_t direct_active_page_count = 0;
+    uint32_t direct_active_row_count = 0;
+    uint32_t direct_active_tail_length = 0;
+    uint64_t direct_selection_generation = 0;
+    bool direct_explicit_native_metadata = false;
+    ggml_flash_attn_ext_paged_turbo4_device_control direct_device_control = {};
+    bool direct_device_control_uploaded = false;
+    ggml_flash_attn_ext_paged_turbo4_device_control direct_device_control_uploaded_value = {};
+    std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
+    std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_uploaded;
+    std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> direct_row_lookup_host;
+    std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> direct_row_lookup_uploaded;
+    // Device position inputs are GGML_TYPE_I64 even though llama_pos is
+    // int32_t. Keep widened staging alive until the asynchronous upload has
+    // been consumed; the *_uploaded vectors below are only host cache keys.
+    std::vector<int64_t> direct_native_positions_host;
+    std::vector<llama_pos> direct_native_positions_uploaded;
+    std::vector<uint8_t> direct_native_mask_host;
+    std::vector<uint8_t> direct_native_mask_uploaded;
+    std::vector<int64_t> direct_query_positions_host;
+    std::vector<llama_pos> direct_query_positions_uploaded;
+    struct exact_wave_input {
+        ggml_tensor * pages = nullptr;
+        std::vector<ggml_flash_attn_ext_paged_turbo4_page> pages_host;
+        std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> row_lookup_host;
+        std::vector<uint8_t> host_upload;
+        uint32_t active_page_count = 0;
+        uint32_t active_row_count = 0;
+        uint32_t active_tail_length = 0;
+        uint64_t selection_generation = 0;
+        ggml_flash_attn_ext_paged_turbo4_device_control device_control = {};
+    };
+    std::vector<exact_wave_input> exact_waves;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan;
+    uint32_t exact_n_rows = 0;
+    uint32_t exact_staging_pages = 0;
+    std::vector<llama_kv_page_record> direct_telemetry_pages;
+    llama_kv_residency_snapshot direct_telemetry_snapshot;
+    uint64_t direct_telemetry_token_index = 0;
+    bool direct_telemetry_published = false;
+    bool direct_telemetry_skipped = false;
+    llama_kv_attention_telemetry_drop_reason direct_telemetry_drop_reason =
+        llama_kv_attention_telemetry_drop_reason::none;
+    std::vector<uint64_t> direct_layer_k_offsets;
+    std::vector<uint64_t> direct_layer_v_offsets;
+    // Cold waves use a compact layer-major staging slab whose offsets are
+    // derived from the bounded staging-page count, not from the resident
+    // pager's physical-slot count.
+    std::vector<uint64_t> exact_staging_layer_k_offsets;
+    std::vector<uint64_t> exact_staging_layer_v_offsets;
+    // Pager geometry is indexed by compact attention-layer ordinal, while
+    // build_attn() is called with the model layer ID.  Retain the explicit
+    // mapping captured with the graph input; hybrid models have gaps and must
+    // never use the model ID as a pager offset index.
+    std::vector<uint32_t> direct_layer_ids;
+    uint64_t direct_bytes_per_slot = 0;
 
     // note: assumes v_rot^2 == I
     ggml_tensor * self_k_rot = nullptr;
@@ -474,6 +668,8 @@ public:
 
     const llama_kv_cache_context * mctx;
     const llama_tree_mask * tree_mask;
+    llama_kv_attention_execution_metrics * kv_attention_metrics;
+    llama_kv_attention_telemetry * kv_attention_telemetry;
 };
 
 // V-less input for the KV cache
@@ -889,6 +1085,9 @@ public:
 // callback that allows us to apply custom logic to each tensor (e.g. ggml-alloc, offloading, etc.)
 using llm_graph_cb = std::function<void(const llama_ubatch & ubatch, ggml_tensor * cur, const char * name, int il)>;
 
+// Some graph shapes omit optional tensors but still pass them through naming callbacks.
+void llm_graph_name_tensor(ggml_tensor * cur, const char * name, int il);
+
 class llm_graph_result;
 
 struct llm_graph_params {
@@ -941,6 +1140,21 @@ struct llm_graph_params {
     llm_graph_cb cb;
 
     llm_graph_result * res;
+
+    // The epoch/content key describe mutable selected-KV data. Layout key is
+    // the graph identity; equal layout permits the bounded descriptor inputs
+    // to be refreshed without rebuilding or recapturing the graph.
+    uint64_t kv_attention_table_epoch = 0;
+    uint64_t kv_attention_content_key = 0;
+    uint64_t kv_attention_layout_key = 0;
+    uint64_t kv_attention_representation_epoch = 0;
+    uint64_t kv_attention_shape_epoch = 0;
+    llama_kv_attention_execution_route kv_attention_route = llama_kv_attention_execution_route::dense;
+    llama_kv_attention_operator_metadata kv_attention_metadata;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> kv_attention_exact_plan;
+    llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
+    llama_kv_attention_telemetry * kv_attention_telemetry = nullptr;
+    llama_kv_attention_packed_cache * kv_attention_packed_cache = nullptr;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
@@ -1009,6 +1223,7 @@ struct llm_graph_params {
             cparams.embeddings_nextn        == other.cparams.embeddings_nextn        &&
             cparams.embeddings_nextn_masked == other.cparams.embeddings_nextn_masked &&
             cparams.causal_attn             == other.cparams.causal_attn             &&
+            cparams.n_rs_seq                == other.cparams.n_rs_seq                &&
             cparams.dflash_inject_stage     == other.cparams.dflash_inject_stage     &&
             cparams.dflash_oneg_n_inject    == other.cparams.dflash_oneg_n_inject    &&
             cparams.dflash_target_mmq_batch == other.cparams.dflash_target_mmq_batch &&
@@ -1018,6 +1233,12 @@ struct llm_graph_params {
             cvec  == other.cvec  &&
             loras == other.loras &&
             cross == other.cross &&
+            kv_attention_layout_key == other.kv_attention_layout_key &&
+            kv_attention_representation_epoch == other.kv_attention_representation_epoch &&
+            kv_attention_shape_epoch == other.kv_attention_shape_epoch &&
+            kv_attention_route == other.kv_attention_route &&
+            kv_attention_exact_plan.get() == other.kv_attention_exact_plan.get() &&
+            kv_attention_telemetry == other.kv_attention_telemetry &&
             hadamard_rotations == other.hadamard_rotations &&
             hadamard_inverses == other.hadamard_inverses &&
             (tree_parent_ids != nullptr) == (other.tree_parent_ids != nullptr);
@@ -1051,7 +1272,7 @@ public:
 
     void reset();
 
-    void set_inputs(const llama_ubatch * ubatch);
+    void set_inputs(const llama_ubatch * ubatch, int32_t mtp_host_hidden_row = -2);
     void set_outputs(const llm_graph_params & params);
 
     // try to update the existing graph result using the new graph parameters in order to reuse it
@@ -1116,6 +1337,7 @@ private:
     // memory context's VBR tier-flip epoch at build; can_reuse fences on it (in-place tier
     // flips rewrite the cache tensors' type/strides under this graph's baked views)
     uint64_t vbr_epoch = 0;
+    llama_kv_attention_view::graph_fence kv_attention_fence;
 
     // env: LLAMA_GRAPH_RESULT_DEBUG
     int debug = 0;
@@ -1145,6 +1367,7 @@ struct llm_graph_qkv {
 };
 
 struct llm_graph_context {
+    const llm_graph_type gtype;
     const llm_arch arch;
 
     const llama_hparams & hparams;
@@ -1204,6 +1427,12 @@ struct llm_graph_context {
     const std::vector<ggml_tensor *> * tree_ssm_intermediates = nullptr;
     int tree_n_recurrent_layers = 0;
 
+    const llama_kv_attention_operator_metadata & kv_attention_metadata;
+    const llama_kv_attention_execution_route kv_attention_route;
+    const std::shared_ptr<const llama_kv_attention_exact_graph_plan> kv_attention_exact_plan;
+    llama_kv_attention_execution_metrics * const kv_attention_metrics;
+    llama_kv_attention_telemetry * const kv_attention_telemetry;
+    llama_kv_attention_packed_cache * const kv_attention_packed_cache;
     const llama_prec_policy * prec_policy;
 
     std::map<llama_seq_id, llama_sampler *> samplers;

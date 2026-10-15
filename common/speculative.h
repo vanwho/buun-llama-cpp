@@ -29,6 +29,15 @@ struct common_speculative_proposal {
     size_t matching_prefix_size(llama_seq_id seq, const llama_tokens & draft) const;
 };
 
+struct common_speculative_mtp_reject_trace {
+    llama_pos position = -1;
+    llama_token proposal = LLAMA_TOKEN_NULL;
+    llama_tokens candidate_ids;
+    std::vector<float> candidate_logits;
+    std::vector<float> candidate_probs;
+    uint64_t carry_generation = 0;
+};
+
 // comma separated list the provided types
 std::string common_speculative_type_name_str(const std::vector<enum common_speculative_type> & types);
 
@@ -62,20 +71,55 @@ const std::vector<double> & common_speculative_get_synth_probs(const common_spec
 common_params common_base_params_to_speculative(const common_params & params);
 
 struct common_speculative_mtp_context_params {
+    enum class status : uint8_t {
+        ok = 0,
+        conflicting_explicit_context,
+    };
+
+    status validation = status::ok;
     uint32_t n_ctx;
     uint32_t n_seq_max;
     bool kv_unified;
+
+    bool valid() const noexcept {
+        return validation == status::ok;
+    }
 };
 
-// Native and sidecar MTP share one unified pool across user sequences. Its
-// implicit capacity must cover the target's realized TOTAL context, including
-// all split target streams, without multiplying by backup sequence IDs.
-// An explicit -cd remains an exact user override, including KV topology.
+const char * common_speculative_mtp_context_status_name(
+        common_speculative_mtp_context_params::status status) noexcept;
+
+// Native MTP contexts must expose the target's realized context width per
+// sequence. An implicit native context can do that without multiplying its KV
+// allocation by the number of server slots by using unified KV. External MTP
+// sidecars retain an exact explicit -cd override, including requested topology.
+// Native callers set native_mtp=true; there an explicit -cd is accepted only
+// when it equals the resolved target width.
 common_speculative_mtp_context_params common_speculative_mtp_context_params_resolve(
         uint32_t target_n_ctx,
         int32_t explicit_draft_n_ctx,
         uint32_t requested_n_seq_max,
-        bool requested_kv_unified);
+        bool requested_kv_unified,
+        bool native_mtp = false);
+
+// Apply the native MTP context contract after the common target conversion. MTP has a separate
+// KV allocation, so it keeps the requested draft placement while never arming an independent
+// VBR/pager controller.
+void common_speculative_mtp_context_params_apply(
+        llama_context_params & cparams,
+        const common_speculative_mtp_context_params & geometry,
+        llama_context * target);
+
+bool common_speculative_mtp_cache_types_valid(
+        ggml_type type_k, ggml_type type_v) noexcept;
+
+// Validate and report the realized MTP KV allocation. The report is deliberately based on the
+// constructed context's memory breakdown rather than a projected target budget.
+bool common_speculative_mtp_log_residency(
+        const llama_context * context,
+        ggml_type type_k,
+        ggml_type type_v,
+        const char * budget_category = "mtp_gpu_reserved");
 
 bool common_speculative_mtp_context_available(const common_params_speculative & params);
 
@@ -195,6 +239,92 @@ private:
     bool ready = false;
 };
 
+// The target verification batch is [sampled, draft...].  Keep the accepted
+// frontier in one representation so target KV/page metadata, recurrent
+// rollback, MTP KV, and the deferred carry all consume the same boundary.
+// `committed_tokens` is the logical token count before that batch; the sampled
+// token is always retained and `accepted_draft_tokens` is the accepted prefix
+// of the proposed draft.
+struct common_speculative_rollback_frontier {
+    int64_t committed_tokens = 0;
+    uint64_t proposed_draft_tokens = 0;
+    uint64_t accepted_draft_tokens = 0;
+    uint64_t rejected_draft_tokens = 0;
+    int64_t accepted_token_count = 0;
+    int64_t rejected_suffix_begin = 0;
+    int64_t rejected_suffix_end = 0;
+
+    bool valid() const noexcept {
+        if (committed_tokens < 0 ||
+                accepted_draft_tokens > proposed_draft_tokens) {
+            return false;
+        }
+        const uint64_t committed = uint64_t(committed_tokens);
+        if (committed > uint64_t(INT64_MAX) - 1u -
+                accepted_draft_tokens ||
+                committed > uint64_t(INT64_MAX) - 1u -
+                proposed_draft_tokens) {
+            return false;
+        }
+        const int64_t accepted = committed_tokens + 1 +
+            int64_t(accepted_draft_tokens);
+        const int64_t rejected_end = committed_tokens + 1 +
+            int64_t(proposed_draft_tokens);
+        return rejected_draft_tokens ==
+                   proposed_draft_tokens - accepted_draft_tokens &&
+               accepted_token_count == accepted &&
+               rejected_suffix_begin == accepted &&
+               rejected_suffix_end == rejected_end;
+    }
+};
+
+common_speculative_rollback_frontier
+common_speculative_rollback_frontier_resolve(
+        int64_t committed_tokens,
+        size_t proposed_draft_tokens,
+        size_t accepted_draft_tokens) noexcept;
+
+// Resolve the target-hidden row that carries the next MTP boundary. The
+// verification batch is [sampled, draft0, ...], while accepted_draft_tokens
+// counts only draft rows; clamp defensively for a short or empty batch.
+int32_t common_speculative_mtp_carry_row(
+        int32_t verify_rows,
+        uint16_t accepted_draft_tokens) noexcept;
+
+// Return the target position used for a native-MTP proposal row. Ordinary
+// MTP advances one position per proposal; shared-memory assistants keep all
+// proposal rows at the sampled position.
+llama_pos common_speculative_mtp_draft_position(
+        llama_pos sampled_position,
+        size_t    draft_index,
+        bool      shared_position) noexcept;
+
+// A target/draft rollback is owned by the acceptance controller. The guard
+// makes a repeated cleanup callback idempotent without hiding a new frontier.
+class common_speculative_mtp_rollback_guard {
+public:
+    bool should_apply(llama_pos frontier) noexcept;
+    void reset() noexcept;
+
+private:
+    llama_pos last_frontier = -1;
+    bool applied = false;
+};
+
+// Native MTP verification is tied to the history chosen for one server turn.
+// Mutable generation-tail page-table epochs may advance between proposals;
+// only a changed turn or frozen-history generation invalidates this binding.
+class common_speculative_mtp_history_epoch {
+public:
+    bool bind(uint64_t turn_id, uint64_t frozen_history_generation) noexcept;
+    bool matches(uint64_t turn_id, uint64_t frozen_history_generation) const noexcept;
+    void clear() noexcept;
+
+private:
+    uint64_t turn = 0;
+    uint64_t history = 0;
+};
+
 // Host-checkpoint codec for the deferred MTP hidden row. A complete draft
 // sequence image is not usable without this carry at a nonzero frontier.
 bool common_speculative_mtp_carry_state_save(
@@ -292,12 +422,18 @@ const common_speculative_proposal * common_speculative_get_proposal(
         const common_speculative * spec,
         llama_seq_id               seq_id);
 
+// Bounded draft-side candidates retained only when
+// LLAMA_MTP_FIRST_REJECT_TRACE is enabled; queried only at the first rejection.
+bool common_speculative_get_mtp_reject_trace(
+        const common_speculative * spec, llama_seq_id seq_id,
+        size_t rejected_index, common_speculative_mtp_reject_trace & trace);
+
 // fork: logit/state management
 void   common_speculative_update_logits(common_speculative * spec, llama_seq_id seq_id, llama_context * ctx, const llama_tokens & batch_tokens, int n_accepted);
 void   common_speculative_update_logits(common_speculative * spec, llama_context * ctx, const llama_tokens & batch_tokens, int n_accepted);
 void   common_speculative_flush_prefill(common_speculative * spec);
 
-void   common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted);
+bool   common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted);
 
 // fork: DFlash ring buffer state save/load
 size_t common_speculative_ring_state_size(const common_speculative * spec);

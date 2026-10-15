@@ -60,6 +60,8 @@
 #include "ggml-cuda/sum.cuh"
 #include "ggml-cuda/sumrows.cuh"
 #include "ggml-cuda/top-k.cuh"
+#include "ggml-cuda/kv-page-select.cuh"
+#include "ggml-cuda/kv-page-summary.cuh"
 #include "ggml-cuda/mean.cuh"
 #include "ggml-cuda/tsembd.cuh"
 #include "ggml-cuda/topk-moe.cuh"
@@ -1524,7 +1526,9 @@ static size_t ggml_backend_cuda_buffer_type_get_alloc_size(ggml_backend_buffer_t
     ggml_backend_cuda_buffer_type_context * buft_ctx = (ggml_backend_cuda_buffer_type_context *) buft->context;
 
     size_t size = tensor->op == GGML_OP_FLASH_ATTN_EXT
-        ? ggml_cuda_flash_attn_ext_get_alloc_size(buft_ctx->device, tensor)
+        ? (ggml_flash_attn_ext_is_paged_turbo4(tensor)
+            ? ggml_nbytes(tensor)
+            : ggml_cuda_flash_attn_ext_get_alloc_size(buft_ctx->device, tensor))
         : ggml_nbytes(tensor);
     int64_t ne0 = tensor->ne[0];
 
@@ -1982,6 +1986,7 @@ static void * ggml_backend_cuda_step_capture_end(ggml_backend_t backend) {
     cuda_ctx->external_capture = false;
     cudaGraph_t graph = nullptr;
     const cudaError_t err = cudaStreamEndCapture(cuda_ctx->stream(), &graph);
+    ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
     {
         std::lock_guard<std::mutex> lock(ggml_cuda_lock);
         if (ggml_cuda_lock_counter.fetch_sub(1, std::memory_order_relaxed) == 1) {
@@ -4033,11 +4038,36 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
         case GGML_OP_TOP_K:
             ggml_cuda_op_top_k(ctx, dst);
             break;
+        case GGML_OP_KV_PAGE_SELECT:
+            ggml_cuda_op_kv_page_select(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_RANK:
+            ggml_cuda_op_kv_page_rank(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_RERANK:
+            ggml_cuda_op_kv_page_rerank(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_MASS:
+            ggml_cuda_op_kv_page_mass(ctx, dst);
+            break;
+        case GGML_OP_KV_QUERY_ACCUMULATE:
+            ggml_cuda_op_kv_query_accumulate(ctx, dst);
+            break;
+        case GGML_OP_KV_QUERY_PROBES:
+            ggml_cuda_op_kv_query_probes(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_SUMMARY:
+            ggml_cuda_op_kv_page_summary(ctx, dst);
+            break;
         case GGML_OP_ARGSORT:
             ggml_cuda_op_argsort(ctx, dst);
             break;
         case GGML_OP_FLASH_ATTN_EXT:
-            ggml_cuda_flash_attn_ext(ctx, dst);
+            if (ggml_flash_attn_ext_is_paged_turbo4(dst)) {
+                ggml_cuda_flash_attn_ext_paged_turbo4(ctx, dst);
+            } else {
+                ggml_cuda_flash_attn_ext(ctx, dst);
+            }
             break;
         case GGML_OP_CROSS_ENTROPY_LOSS:
             ggml_cuda_cross_entropy_loss(ctx, dst);
@@ -4336,6 +4366,29 @@ static bool ggml_cuda_is_view_or_noop(const ggml_tensor * t) {
 }
 
 #ifdef USE_CUDA_GRAPH
+static bool ggml_cuda_graph_diagnostics_enabled() {
+    static const bool enabled = getenv("GGML_CUDA_GRAPH_DIAGNOSTICS") != nullptr;
+    return enabled;
+}
+
+static void ggml_cuda_graph_diagnostics_log(
+        const ggml_cuda_graph & graph, uint64_t graph_key) {
+    if (!ggml_cuda_graph_diagnostics_enabled()) {
+        return;
+    }
+    GGML_LOG_INFO("cuda-graph: key=%" PRIu64
+            " capture=%" PRIu64 " instantiate=%" PRIu64
+            " update=%" PRIu64 " update_fail=%" PRIu64
+            " launch=%" PRIu64 " capture_cpu_us=%" PRIu64
+            " instantiate_cpu_us=%" PRIu64 " update_cpu_us=%" PRIu64
+            " launch_cpu_us=%" PRIu64 "\n",
+            graph_key, graph.actual_capture_count,
+            graph.actual_instantiate_count, graph.actual_update_count,
+            graph.actual_update_failure_count, graph.actual_launch_count,
+            graph.actual_capture_cpu_us, graph.actual_instantiate_cpu_us,
+            graph.actual_update_cpu_us, graph.actual_launch_cpu_us);
+}
+
 static bool ggml_cuda_graph_check_compability(ggml_cgraph * cgraph) {
 
     bool use_cuda_graph = true;
@@ -4473,10 +4526,16 @@ static void ggml_cuda_graph_instantiate(ggml_backend_cuda_context * cuda_ctx, gg
     CUDA_CHECK(err);
 }
 
-static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_ctx, ggml_cuda_graph * graph,
+static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_ctx, uint64_t graph_key,
+        ggml_cuda_graph * graph,
         cudaGraphExec_t & instance, cudaGraph_t source) {
+    const int64_t start_us = ggml_time_us();
     if (instance == nullptr) {
         ggml_cuda_graph_instantiate(cuda_ctx, graph, instance, source);
+        ++graph->actual_instantiate_count;
+        graph->actual_instantiate_cpu_us += uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - start_us));
+        ggml_cuda_graph_diagnostics_log(*graph, graph_key);
         return;
     }
 #if CUDART_VERSION >= 12000
@@ -4489,6 +4548,7 @@ static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_c
 #endif // CUDART_VERSION >= 12000
 
     if (stat == cudaErrorGraphExecUpdateFailure) {
+        ++graph->actual_update_failure_count;
 #ifndef NDEBUG
         GGML_LOG_DEBUG("%s: CUDA graph update failed\n", __func__);
 #endif
@@ -4499,9 +4559,15 @@ static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_c
         CUDA_CHECK(cudaGraphExecDestroy(instance));
         instance = nullptr;
         ggml_cuda_graph_instantiate(cuda_ctx, graph, instance, source);
+        ++graph->actual_instantiate_count;
+        graph->actual_instantiate_cpu_us += uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - start_us));
     } else {
         GGML_ASSERT(stat == cudaSuccess);
     }
+    ++graph->actual_update_count;
+    graph->actual_update_cpu_us += uint64_t(std::max<int64_t>(0, ggml_time_us() - start_us));
+    ggml_cuda_graph_diagnostics_log(*graph, graph_key);
 }
 #endif // USE_CUDA_GRAPH
 
@@ -8592,6 +8658,7 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
 
 static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, const bool use_cuda_graph, const bool cuda_graph_update_required, uint64_t graph_key) {
     bool graph_evaluated_or_captured = false;
+    static const bool trace_node_sync = getenv("GGML_CUDA_TRACE_NODE_SYNC") != nullptr;
 
     // flag used to determine whether it is an integrated_gpu
     const bool integrated            = ggml_cuda_info().devices[cuda_ctx->device].integrated;
@@ -8770,6 +8837,17 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                     i += nodes_to_skip;
                     continue;
                 }
+                if (trace_node_sync) {
+                    GGML_LOG_INFO("cuda-node-start: op=%s name=%s type=%s tensor=%p data=%p "
+                                  "ne=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "] "
+                                  "src0=%p/%p src1=%p/%p stream=%d\n",
+                        ggml_op_name(node->op), node->name, ggml_type_name(node->type),
+                        (void *) node, node->data,
+                        node->ne[0], node->ne[1], node->ne[2], node->ne[3],
+                        (void *) node->src[0], node->src[0] != nullptr ? node->src[0]->data : nullptr,
+                        (void *) node->src[1], node->src[1] != nullptr ? node->src[1]->data : nullptr,
+                        cuda_ctx->curr_stream_no);
+                }
 #ifndef NDEBUG
                 // On integrated GPUs (APUs, e.g. RDNA3.5) the scheduler may place a
                 // node's output on the host-visible buffer, which the compute path
@@ -8792,6 +8870,65 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                     GGML_LOG_ERROR("%s: op not supported %s (%s)\n", __func__, node->name, ggml_op_name(node->op));
                 }
                 GGML_ASSERT(ok);
+                if (trace_node_sync) {
+                    const cudaError_t sync_err = cudaStreamSynchronize(
+                        cuda_ctx->stream(cuda_ctx->device, cuda_ctx->curr_stream_no));
+                    if (sync_err != cudaSuccess) {
+                        GGML_LOG_ERROR("cuda-node-diagnostic: op=%s name=%s type=%s tensor=%p data=%p "
+                                       "ne=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "] "
+                                       "src0=%p/%p src1=%p/%p stream=%d error=%s\n",
+                            ggml_op_name(node->op), node->name, ggml_type_name(node->type),
+                            (void *) node, node->data,
+                            node->ne[0], node->ne[1], node->ne[2], node->ne[3],
+                            (void *) node->src[0], node->src[0] != nullptr ? node->src[0]->data : nullptr,
+                            (void *) node->src[1], node->src[1] != nullptr ? node->src[1]->data : nullptr,
+                            cuda_ctx->curr_stream_no, cudaGetErrorString(sync_err));
+                        if (node->op == GGML_OP_FLASH_ATTN_EXT &&
+                                ggml_flash_attn_ext_is_paged_turbo4(node)) {
+                            const auto * extra = static_cast<const ggml_flash_attn_ext_paged_turbo4_extra *>(
+                                    node->extra);
+                            const ggml_tensor * k = node->src[1];
+                            const ggml_tensor * v = node->src[2];
+                            const ggml_tensor * storage = node->src[7];
+                            GGML_LOG_ERROR("cuda-node-paged-diagnostic: extra=%p page_host=%p "
+                                           "active_pages=%u active_rows=%u page_capacity=%u row_capacity=%u "
+                                           "k=%p strides=[%zu,%zu,%zu,%zu] v=%p strides=[%zu,%zu,%zu,%zu] "
+                                           "storage=%p bytes=%zu\n",
+                                (const void *) extra,
+                                extra != nullptr ? extra->pages_host : nullptr,
+                                extra != nullptr && extra->active_page_count_host != nullptr
+                                    ? *extra->active_page_count_host : 0,
+                                extra != nullptr && extra->active_row_count_host != nullptr
+                                    ? *extra->active_row_count_host : 0,
+                                extra != nullptr ? extra->page_capacity : 0,
+                                extra != nullptr ? extra->row_capacity : 0,
+                                k != nullptr ? k->data : nullptr,
+                                k != nullptr ? k->nb[0] : 0, k != nullptr ? k->nb[1] : 0,
+                                k != nullptr ? k->nb[2] : 0, k != nullptr ? k->nb[3] : 0,
+                                v != nullptr ? v->data : nullptr,
+                                v != nullptr ? v->nb[0] : 0, v != nullptr ? v->nb[1] : 0,
+                                v != nullptr ? v->nb[2] : 0, v != nullptr ? v->nb[3] : 0,
+                                storage != nullptr ? storage->data : nullptr,
+                                storage != nullptr ? ggml_nbytes(storage) : 0);
+                            if (extra != nullptr && extra->pages_host != nullptr &&
+                                    extra->active_page_count_host != nullptr) {
+                                const auto * pages = static_cast<const ggml_flash_attn_ext_paged_turbo4_page *>(
+                                        extra->pages_host);
+                                const uint32_t count = std::min(*extra->active_page_count_host,
+                                        extra->page_capacity);
+                                for (uint32_t page = 0; page < count; ++page) {
+                                    GGML_LOG_ERROR("cuda-node-paged-page: index=%u logical=%u slot=%u "
+                                                   "compact_begin=%u rows=%u native_begin=%" PRId64 "\n",
+                                        page, pages[page].logical_page,
+                                        pages[page].source_physical_slot,
+                                        pages[page].compact_row_begin, pages[page].row_count,
+                                        pages[page].native_position_begin);
+                                }
+                            }
+                        }
+                        CUDA_CHECK(sync_err);
+                    }
+                }
 
                 if (!is_concurrent_event_active) {
                     try_launch_concurrent_event(node);
@@ -8808,6 +8945,12 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
             }
 
             CUDA_CHECK(cudaStreamEndCapture(cuda_ctx->stream(), &graph->graph));
+            ++graph->actual_capture_count;
+            if (graph->actual_capture_start_us != 0) {
+                graph->actual_capture_cpu_us += uint64_t(std::max<int64_t>(
+                        0, ggml_time_us() - int64_t(graph->actual_capture_start_us)));
+                graph->actual_capture_start_us = 0;
+            }
             graph_evaluated_or_captured = true; // CUDA graph has been captured
             for (size_t s = n_head; s < graph->head.size(); s++) {
                 if (graph->head[s].instance != nullptr) {
@@ -8830,15 +8973,20 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
         ggml_cuda_graph * graph = cuda_ctx->cuda_graph(graph_key);
         if (cuda_graph_update_required || graph->instance == nullptr) {
             for (auto & seg : graph->head) {
-                ggml_cuda_graph_update_executable(cuda_ctx, graph, seg.instance, seg.graph);
+                ggml_cuda_graph_update_executable(cuda_ctx, graph_key, graph, seg.instance, seg.graph);
             }
-            ggml_cuda_graph_update_executable(cuda_ctx, graph, graph->instance, graph->graph);
+            ggml_cuda_graph_update_executable(cuda_ctx, graph_key, graph, graph->instance, graph->graph);
         }
         // Launch graph
+        const int64_t start_us = ggml_time_us();
         for (auto & seg : graph->head) {
             CUDA_CHECK(cudaGraphLaunch(seg.instance, cuda_ctx->stream()));
         }
         CUDA_CHECK(cudaGraphLaunch(graph->instance, cuda_ctx->stream()));
+        ++graph->actual_launch_count;
+        graph->actual_launch_cpu_us += uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - start_us));
+        ggml_cuda_graph_diagnostics_log(*graph, graph_key);
 #else
         GGML_UNUSED(graph_key);
         graph_evaluated_or_captured = true;
@@ -8959,6 +9107,7 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend, 
         }
 
         CUDA_CHECK(cudaStreamBeginCapture(cuda_ctx->stream(), cudaStreamCaptureModeRelaxed));
+        cuda_ctx->cuda_graph(graph_key)->actual_capture_start_us = uint64_t(ggml_time_us());
     }
 
     try {
@@ -8985,8 +9134,11 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend, 
         }
 #endif
         GGML_LOG_ERROR("%s: CUDA pool allocation failed (out of VRAM), failing graph compute\n", __func__);
+        ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
         return GGML_STATUS_ALLOC_FAILED;
     }
+
+    ggml_backend_cuda_kv_dequant_scratch_flush_retired(backend);
 
     return GGML_STATUS_SUCCESS;
 }
@@ -10037,6 +10189,12 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             } break;
         case GGML_OP_SET_ROWS:
             {
+                if (op->src[3] != nullptr) {
+                    return op->src[0]->type == op->type &&
+                        op->src[0]->nb[1] == op->nb[1] &&
+                        (op->src[1]->type == GGML_TYPE_I64 || op->src[1]->type == GGML_TYPE_I32) &&
+                        (op->src[3]->type == GGML_TYPE_I64 || op->src[3]->type == GGML_TYPE_I32);
+                }
                 return (
                            (
                                (op->type == GGML_TYPE_F32 || op->type == GGML_TYPE_F16 || op->type == GGML_TYPE_BF16 ||
@@ -10112,7 +10270,18 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                 if (src0_type == GGML_TYPE_I32 && src1_type == GGML_TYPE_I32) {
                     return true;
                 }
-                if (src0_type == src1_type && ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op->src[1])) {
+                const bool raw_quantized_3d = src0_type == src1_type &&
+                    ggml_is_quantized(src0_type) && op->src[0]->ne[3] == 1 &&
+                    op->src[1]->ne[3] == 1 && op->src[0]->ne[0] == op->src[1]->ne[0] &&
+                    op->src[0]->ne[1] == op->src[1]->ne[1] &&
+                    op->src[0]->ne[2] == op->src[1]->ne[2] &&
+                    op->src[0]->nb[1] == ggml_row_size(src0_type, op->src[0]->ne[0]) &&
+                    op->src[0]->nb[2] == op->src[0]->nb[1] * op->src[0]->ne[1] &&
+                    op->src[1]->nb[1] == ggml_row_size(src1_type, op->src[1]->ne[0]) &&
+                    op->src[1]->nb[2] == op->src[1]->nb[1] * op->src[1]->ne[1];
+                if (raw_quantized_3d ||
+                    (src0_type == src1_type && ggml_is_contiguous(op->src[0]) &&
+                     ggml_is_contiguous(op->src[1]))) {
                     return true;
                 }
                 return false;
@@ -10124,6 +10293,67 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             {
                 return true;
             } break;
+        case GGML_OP_KV_PAGE_SELECT:
+            return op->type == GGML_TYPE_I32 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_F16 && op->src[2]->type == GGML_TYPE_I64 &&
+                op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_PAGE_RANK:
+            return op->type == GGML_TYPE_I64 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_F16 && op->src[2]->type == GGML_TYPE_I64 &&
+                op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64 &&
+                op->src[5]->type == GGML_TYPE_F32 && op->src[6]->type == GGML_TYPE_I64 &&
+                op->ne[0] == 2 && op->src[1]->ne[1] == 3 &&
+                op->src[2]->ne[0] >= 7 && op->src[2]->ne[1] == op->src[1]->ne[3] &&
+                op->src[3]->ne[0] == op->src[1]->ne[3] &&
+                op->src[4]->ne[0] == 4 && op->src[5]->ne[0] == op->src[0]->ne[0] &&
+                op->src[5]->ne[1] == op->src[0]->ne[1] && op->src[5]->ne[2] > 0 &&
+                op->src[5]->ne[2] <= 4 && op->src[6]->ne[0] == 9 &&
+                op->src[0]->ne[1] % op->src[1]->ne[2] == 0 &&
+                op->src[1]->ne[0] == op->src[5]->ne[0] && op->src[1]->ne[3] <= 4096;
+        case GGML_OP_KV_PAGE_RERANK:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_TURBO4_0 && op->src[2]->type == GGML_TYPE_TURBO4_0 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64 &&
+                op->src[5]->type == GGML_TYPE_I64 && op->src[6]->type == GGML_TYPE_F32 &&
+                op->src[0]->ne[0] > 0 && op->src[1]->ne[0] % op->src[0]->ne[0] == 0 &&
+                op->src[0]->ne[1] % (op->src[1]->ne[0] / op->src[0]->ne[0]) == 0 &&
+                op->src[0]->ne[0] <= 256 && op->src[0]->ne[0] % 32 == 0 &&
+                (op->src[0]->ne[1] / (op->src[1]->ne[0] / op->src[0]->ne[0])) * op->src[0]->ne[2] <= 64 &&
+                op->src[0]->ne[2] <= 4 && op->src[1]->ne[0] == op->src[2]->ne[0] && op->src[1]->ne[1] > 0 && op->src[1]->ne[2] > 0 &&
+                op->src[2]->ne[1] > 0 && op->src[2]->ne[2] > 0 && op->src[3]->ne[0] == 10 && op->src[3]->ne[1] > 0 &&
+                op->src[4]->ne[0] == 2 && op->src[4]->ne[1] == op->src[3]->ne[1] + 1 &&
+                op->src[5]->ne[0] == 9 && op->src[6]->ne[0] == 2 &&
+                op->src[6]->ne[1] == op->src[3]->ne[1] && op->src[6]->ne[2] == op->src[0]->ne[1] &&
+                op->src[6]->ne[3] == op->src[0]->ne[2] &&
+                op->src[4]->ne[0] == 2 && op->src[4]->ne[1] == op->src[3]->ne[1] + 1 && op->src[5]->ne[0] == 9;
+        case GGML_OP_KV_PAGE_MASS:
+            return op->type == GGML_TYPE_I64 && op->ne[0] == 2 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_I64 && op->src[3]->type == GGML_TYPE_I64 &&
+                op->src[0]->ne[0] == 2 && op->src[0]->ne[1] > 0 && op->src[0]->ne[2] > 0 &&
+                op->src[0]->ne[3] > 0 && op->src[0]->ne[3] <= 4 && op->src[1]->type == GGML_TYPE_I64 &&
+                op->src[1]->ne[0] == 10 && op->src[1]->ne[1] == op->src[0]->ne[1] &&
+                op->src[2]->type == GGML_TYPE_I64 && op->src[2]->ne[0] == 2 && op->src[2]->ne[1] == op->src[0]->ne[1] + 1 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[3]->ne[0] == 9;
+        case GGML_OP_KV_QUERY_ACCUMULATE:
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F32 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_QUERY_PROBES: {
+            ggml_kv_query_probe_params capture{};
+            memcpy(&capture, op->op_params, sizeof(capture));
+            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 &&
+                (capture.indexed
+                    ? op->src[1] == nullptr
+                    : op->src[1] != nullptr && op->src[1]->type == GGML_TYPE_I64 &&
+                      op->src[1]->ne[0] == op->src[0]->ne[2]) && op->src[2]->type == GGML_TYPE_F32 &&
+                op->src[3]->type == GGML_TYPE_I64 && op->src[0]->ne[1] > 0 &&
+                op->src[2]->ne[0] == op->src[0]->ne[0] &&
+                op->src[2]->ne[1] == op->src[0]->ne[1] && op->src[2]->ne[2] == 4 &&
+                ggml_nelements(op->src[3]) == 9;
+        }
+        case GGML_OP_KV_PAGE_SUMMARY:
+            return op->type == GGML_TYPE_F16 && op->src[0]->type == GGML_TYPE_TURBO4_0 &&
+                op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F16;
         case GGML_OP_REPEAT:
             {
                 // the CUDA REPEAT path only implements F32/F16; other types assert at runtime
@@ -10361,12 +10591,17 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                 op->type == GGML_TYPE_F32 && ggml_is_contiguous(op->src[0]) &&
                 ggml_is_contiguous(op->src[1]) && ggml_is_contiguous(op->src[2]);
         case GGML_OP_FLASH_ATTN_EXT:
-            return ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
+            return ggml_flash_attn_ext_is_paged_turbo4(op)
+                ? ggml_cuda_flash_attn_ext_paged_turbo4_supported(dev_ctx->device, op)
+                : ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
+        case GGML_OP_FILL:
+            return ggml_is_contiguous(op) &&
+                (op->type == GGML_TYPE_F32 || op->type == GGML_TYPE_F16 ||
+                 (op->type == GGML_TYPE_TURBO4_0 && ggml_get_op_params_f32(op, 0) == 0.0f));
         case GGML_OP_CROSS_ENTROPY_LOSS:
         case GGML_OP_CROSS_ENTROPY_LOSS_BACK:
         case GGML_OP_OPT_STEP_ADAMW:
         case GGML_OP_OPT_STEP_SGD:
-        case GGML_OP_FILL:
         case GGML_OP_CUMSUM:
         case GGML_OP_TRI:
         case GGML_OP_DIAG:
@@ -10439,6 +10674,19 @@ static void ggml_backend_cuda_device_event_synchronize(ggml_backend_dev_t dev, g
     CUDA_CHECK(cudaEventSynchronize((cudaEvent_t)event->context));
 }
 
+static bool ggml_backend_cuda_device_event_query(ggml_backend_dev_t dev, ggml_backend_event_t event) {
+    GGML_UNUSED(dev);
+    const cudaError_t status = cudaEventQuery((cudaEvent_t) event->context);
+    if (status == cudaSuccess) return true;
+    if (status == cudaErrorNotReady) {
+        // cudaGetLastError() would clear an unrelated launch error. The query
+        // result itself is sufficient for this non-blocking ownership poll.
+        return false;
+    }
+    CUDA_CHECK(status);
+    return false;
+}
+
 static const ggml_backend_device_i ggml_backend_cuda_device_interface = {
     /* .get_name                = */ ggml_backend_cuda_device_get_name,
     /* .get_description         = */ ggml_backend_cuda_device_get_description,
@@ -10455,6 +10703,7 @@ static const ggml_backend_device_i ggml_backend_cuda_device_interface = {
     /* .event_new               = */ ggml_backend_cuda_device_event_new,
     /* .event_free              = */ ggml_backend_cuda_device_event_free,
     /* .event_synchronize       = */ ggml_backend_cuda_device_event_synchronize,
+    /* .event_query             = */ ggml_backend_cuda_device_event_query,
 };
 
 // backend reg
@@ -10613,6 +10862,9 @@ static void * ggml_backend_cuda_reg_get_proc_address(ggml_backend_reg_t reg, con
     GGML_UNUSED(reg);
     if (strcmp(name, GGML_VBR_BACKEND_IFACE_PROC) == 0) {
         return (void *)ggml_backend_cuda_vbr_iface;
+    }
+    if (strcmp(name, GGML_VBR_FUSED_TURBO4_ATTN_V1_PROC) == 0) {
+        return (void *)ggml_backend_cuda_fused_turbo4_attn_v1;
     }
     if (strcmp(name, GGML_VBR_CROSS_DOMAIN_IFACE_V1_PROC) == 0) {
         return (void *)ggml_backend_cuda_vbr_cross_domain_iface_v1;

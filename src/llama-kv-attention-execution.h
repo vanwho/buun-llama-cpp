@@ -1,0 +1,708 @@
+#pragma once
+
+#include "llama-kv-attention-exact.h"
+#include "llama-kv-attention-op.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
+
+struct llama_kv_attention_execution_metrics;
+
+// A graph arena holds tensor objects as well as executable nodes. Packed
+// selected attention creates page-copy views outside the model's dense graph.
+// Budget those objects from admitted physical pages, never logical context L.
+bool llama_kv_attention_graph_capacity(uint32_t base_capacity,
+        uint32_t physical_pages, uint32_t attention_layers,
+        uint32_t & capacity) noexcept;
+
+// Serialize the exact selected view descriptors and causal visibility used by
+// an attention graph. This is only consumed by opt-in diagnostics.
+std::string llama_kv_attention_visibility_snapshot_json(
+        const llama_kv_attention_operator_metadata & metadata);
+
+// This is an internal execution seam.  It deliberately does not add a public
+// C API: selection policy owns the page list, while this object owns the
+// prompt/decode route and the graph lifetime of the selected view.
+enum class llama_kv_attention_execution_mode : uint8_t {
+    off = 0,
+    observe,
+    selective,
+    exact,
+};
+
+enum class llama_kv_attention_execution_phase : uint8_t {
+    prefill = 0,
+    decode,
+    mtp_verify,
+};
+
+// Detailed host-side timing is an explicit diagnostic. The route or pager mode
+// must not enable it implicitly on ordinary inference requests.
+inline bool llama_kv_attention_hotpath_profile_enabled(const char * value) noexcept {
+    return value != nullptr && std::strcmp(value, "1") == 0;
+}
+
+bool llama_kv_attention_committed_pages(
+        const std::vector<std::vector<uint32_t>> & layer_pages,
+        const std::vector<uint32_t> & committed_pages,
+        std::vector<uint32_t> & output) noexcept;
+
+enum class llama_kv_attention_execution_route : uint8_t {
+    dense = 0,
+    observe,
+    // Correctness/diagnostic selected-view consumer. This route is not a
+    // production fallback. Automatic selective dispatch must choose a
+    // GPU-native dense, direct, or bounded packed route, or refuse the shape.
+    selected_reference,
+    selected_dense,
+    selected_packed,
+    selected_direct,
+    exact_reference,
+    exact_direct,
+    refusal,
+};
+
+// Diagnostic-only route forcing.  Automatic selection remains the production
+// default; a forced route is fail-closed when the same selected view cannot
+// satisfy that route's geometry/capability contract.
+enum class llama_kv_attention_execution_route_override : uint8_t {
+    automatic = 0,
+    reference,
+    dense,
+    packed,
+    direct,
+    invalid,
+};
+
+// Keep the direct Turbo4 pager kernel page-friendly and bounded. The CUDA
+// kernel uses the same bound for its fixed shared-memory query workspace.
+constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
+
+// Compact packed storage is page-aligned in rows. This is the selected-view
+// extent, not the admitted physical cache window.
+uint32_t llama_kv_attention_packed_row_capacity(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+        uint64_t admitted_rows = 0) noexcept;
+
+// Return the causal/alibi mask value for one compact selected row. Callers
+// pass the full admitted capacity; rows beyond native validity are always
+// masked so old contents in a stable owner can never become visible.
+float llama_kv_attention_selected_mask_value(
+        uint32_t row,
+        const std::vector<llama_pos> & native_positions,
+        const std::vector<uint8_t> & native_mask,
+        llama_pos query_position,
+        bool causal,
+        bool use_alibi) noexcept;
+
+size_t llama_kv_attention_packed_allocation_bytes(
+        uint32_t row_capacity,
+        size_t k_bytes_per_row,
+        size_t v_bytes_per_row) noexcept;
+
+// Context-lifetime destination storage for the bounded packed Turbo4 bridge.
+// Graphs retain only source views and copy descriptors. Entries from an older
+// graph are retired at the scheduler fence, after all in-flight consumers have
+// completed, so graph rebuilds do not create an unbounded duplicate cache.
+class llama_kv_attention_packed_cache {
+public:
+    struct slot {
+        uint32_t logical_page = UINT32_MAX;
+        uint32_t source_physical_slot = UINT32_MAX;
+        uint32_t page_generation = 0;
+        llama_pos native_position_begin = -1;
+        llama_pos native_position_end = -1;
+        uint32_t valid_rows = 0;
+        uint32_t destination_row_begin = 0;
+        uint64_t copied_content_version = UINT64_MAX;
+    };
+
+    struct dirty_interval {
+        uint32_t row_begin = 0;
+        uint32_t row_end = 0;
+    };
+
+    struct entry {
+        ~entry() {
+            if (buffer != nullptr) {
+                ggml_backend_buffer_free(buffer);
+            }
+            if (context != nullptr) {
+                ggml_free(context);
+            }
+        }
+
+        ggml_context * context = nullptr;
+        ggml_backend_buffer_t buffer = nullptr;
+        ggml_tensor * k = nullptr;
+        ggml_tensor * v = nullptr;
+        uint32_t layer_id = 0;
+        int32_t sequence_id = -1;
+        uint64_t representation_epoch = 0;
+        // The representation epoch is diagnostic only. Page generations and
+        // the source tensor identity determine whether packed bytes need a
+        // refresh; an in-place representation change must not duplicate them.
+        uint64_t source_lifetime_epoch = 0;
+        uint64_t owner_generation = 0;
+        uint32_t row_capacity = 0;
+        ggml_backend_t backend = nullptr;
+        ggml_backend_dev_t device = nullptr;
+        ggml_type source_k_type = GGML_TYPE_COUNT;
+        ggml_type source_v_type = GGML_TYPE_COUNT;
+        int64_t source_k_ne0 = 0;
+        int64_t source_k_ne1 = 0;
+        int64_t source_v_ne0 = 0;
+        int64_t source_v_ne1 = 0;
+        ggml_tensor * source_k = nullptr;
+        ggml_tensor * source_v = nullptr;
+        ggml_backend_buffer_t source_k_buffer = nullptr;
+        ggml_backend_buffer_t source_v_buffer = nullptr;
+        bool current_graph_use = false;
+        bool draining = false;
+        uint64_t in_flight_leases = 0;
+        std::vector<llama_kv_attention_view_page> pages;
+        std::vector<slot> slots;
+        std::vector<dirty_interval> dirty_intervals;
+        std::vector<uint64_t> content_versions;
+    };
+
+    ~llama_kv_attention_packed_cache();
+
+    entry * find_or_create(
+            uint32_t layer_id,
+            int32_t sequence_id,
+            uint64_t representation_epoch,
+            uint64_t source_lifetime_epoch,
+            const std::vector<llama_kv_attention_view_page> & pages,
+            ggml_tensor * source_k,
+            ggml_tensor * source_v,
+            ggml_backend_t backend,
+            uint32_t row_capacity = 0,
+            llama_kv_attention_execution_metrics * metrics = nullptr) noexcept;
+
+    void begin_graph_build() noexcept;
+    // Discard owners created by the current graph build when graph
+    // construction or input binding fails before submit_graph(). Existing
+    // leased owners are left alive; they belong to an already submitted
+    // graph and are released only at its completion fence.
+    void abort_graph_build() noexcept;
+    // A graph input calls this once after all packed owners have been bound.
+    // The lease is released only at the scheduler completion boundary.
+    bool submit_graph(const std::vector<entry *> & owners) noexcept;
+    void complete_one_graph() noexcept;
+    void complete_all_graphs() noexcept;
+    void release_completed() noexcept;
+    void clear_sequence(int32_t sequence_id) noexcept;
+    void clear() noexcept;
+    size_t size() const noexcept { return entries_.size(); }
+    size_t allocation_count() const noexcept { return entries_.size(); }
+    uint64_t content_version(
+            const entry * cached,
+            uint32_t page_index) const noexcept;
+    void set_content_version(
+            entry * cached,
+            uint32_t page_index,
+            uint64_t version) noexcept;
+    // Mark the selected page generations after the graph's current-row
+    // writes and any historical interval copies have been enqueued. Rebuild
+    // the dirty interval queue once for the whole selection.
+    void set_content_versions(
+            entry * cached,
+            const std::vector<llama_kv_attention_view_page> & pages) noexcept;
+
+private:
+    static bool same_structural_key(
+            const entry & cached,
+            uint32_t layer_id,
+            int32_t sequence_id,
+            uint64_t source_lifetime_epoch,
+            uint32_t row_capacity,
+            ggml_tensor * source_k,
+            ggml_tensor * source_v,
+            ggml_backend_t backend) noexcept;
+    static bool same_domain(
+            const entry & cached,
+            uint32_t layer_id,
+            int32_t sequence_id,
+            ggml_backend_t backend) noexcept;
+    static void update_slots(
+            entry & cached,
+            const std::vector<llama_kv_attention_view_page> & pages);
+    static void rebuild_dirty_intervals(entry & cached) noexcept;
+    static void release_entry(entry * cached) noexcept;
+    std::vector<std::unique_ptr<entry>> entries_;
+    std::vector<std::vector<entry *>> graph_leases_;
+    std::vector<entry *> graph_build_entries_;
+    bool graph_build_active_ = false;
+    uint64_t next_owner_generation_ = 1;
+};
+
+enum class llama_kv_attention_packed_page_action : uint8_t {
+    reuse = 0,
+    direct_write = 1,
+    copy = 2,
+};
+
+// Select the historical packed-page action. Appended rows are written by the
+// graph into the packed owner, so a growing tail never recopies its prefix.
+llama_kv_attention_packed_page_action llama_kv_attention_packed_page_action_make(
+        uint64_t cached_content_version,
+        uint32_t page_generation,
+        uint32_t current_row_count,
+        uint32_t cached_row_count) noexcept;
+
+const char * llama_kv_attention_execution_mode_name(
+        llama_kv_attention_execution_mode mode) noexcept;
+const char * llama_kv_attention_execution_phase_name(
+        llama_kv_attention_execution_phase phase) noexcept;
+const char * llama_kv_attention_execution_route_name(
+        llama_kv_attention_execution_route route) noexcept;
+const char * llama_kv_attention_execution_route_override_name(
+        llama_kv_attention_execution_route_override route) noexcept;
+
+enum class llama_kv_attention_scratch_context_role : uint8_t {
+    target = 0,
+    draft,
+};
+
+const char * llama_kv_attention_scratch_context_role_name(
+        llama_kv_attention_scratch_context_role role) noexcept;
+
+enum class llama_kv_attention_execution_status : uint8_t {
+    ok = 0,
+    disabled,
+    invalid_metadata,
+    invalid_prefill_transition,
+    overflow,
+    not_configured,
+};
+
+const char * llama_kv_attention_execution_status_name(
+        llama_kv_attention_execution_status status) noexcept;
+
+// Scratch is charged from the physical work actually needed by the selected
+// submission.  logical_context_rows is intentionally absent: a sparse graph
+// must not reserve a full-context gather merely because the logical context is
+// large.
+struct llama_kv_attention_scratch_request {
+    llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
+    llama_kv_attention_execution_phase phase = llama_kv_attention_execution_phase::prefill;
+    llama_kv_attention_scratch_context_role context_role =
+        llama_kv_attention_scratch_context_role::target;
+
+    // UINT32_MAX keeps the legacy shared-scratch request. A concrete compact
+    // attention-layer ordinal makes the reservation width follow that layer's
+    // physical K/V view rather than the maximum layer in a hybrid cache.
+    uint32_t attention_layer = UINT32_MAX;
+
+    // These are the rows the selected CUDA consumer materializes, not logical
+    // positions in the cache.  K and V are separate because their tensor rows
+    // and dequant sides can differ.  Zero rows are intentional for the direct
+    // paged route, which reads the persistent Turbo4 slab without an f16 view.
+    uint64_t materialized_k_rows = 0;
+    uint64_t materialized_v_rows = 0;
+    size_t materialized_k_bytes_per_row = 0;
+    size_t materialized_v_bytes_per_row = 0;
+
+    // Shape fields are part of the reservation contract and diagnostics. They
+    // keep B/U/query tiles and tensor geometry independent from materialized
+    // rows; none of them may be inferred from the VBR mapping watermark.
+    uint32_t requested_batch_tokens = 0;
+    uint32_t effective_batch_tokens = 0;
+    uint32_t query_tile_tokens = 0;
+    uint32_t head_dim_k = 0;
+    uint32_t head_dim_v = 0;
+    uint32_t n_head_kv = 0;
+
+    uint64_t resident_rows = 0;
+    uint64_t transfer_rows = 0;
+    uint64_t router_rows = 0;
+    uint64_t packed_bytes = 0;
+    size_t bytes_per_row = 0;
+
+    uint64_t required_rows() const noexcept;
+    size_t required_bytes() const noexcept;
+
+    uint64_t materialized_rows() const noexcept {
+        return std::max(materialized_k_rows, materialized_v_rows);
+    }
+};
+
+// Return the largest prompt chunk whose pending K/V rows can fit in the
+// admitted physical page window. A zero page count disables the bound and is
+// reserved for feature-off/observe callers.
+uint32_t llama_kv_attention_prefill_chunk_size(
+        uint32_t configured_ubatch,
+        uint32_t physical_page_count,
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+        uint32_t query_tile = 0) noexcept;
+
+// Keep the model batch, writable physical window, and CUDA query tile as
+// independent quantities. The graph may process effective_batch in several
+// query tiles without shrinking the requested model batch to one CTA tile.
+struct llama_kv_attention_prefill_batch_plan {
+    uint32_t requested_batch = 0;
+    uint32_t physical_write_capacity = 0;
+    uint32_t effective_batch = 0;
+    uint32_t query_tile = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
+    uint32_t subbatch_count = 0;
+};
+
+llama_kv_attention_prefill_batch_plan llama_kv_attention_prefill_batch_plan_make(
+        uint32_t requested_batch,
+        uint32_t physical_page_count,
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+        uint32_t query_tile = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE) noexcept;
+
+// Do not fence every completed page when a fresh prefill is filling an empty
+// physical window. The caller still fences at the API-batch end and whenever
+// the physical page capacity is reached; unknown layouts remain conservative.
+bool llama_kv_attention_prefill_page_fence_due(
+        bool page_boundary,
+        bool fresh_window_coalescing,
+        uint32_t pages_admitted,
+        uint32_t physical_page_capacity) noexcept;
+
+// Cached input may join a bounded prefill wave only when its ubatch is the
+// ordinary contiguous single-sequence layout and every touched page already
+// owns a physical slot. Cold pages may require allocation or recycling while
+// earlier graphs are pending, so they keep the conservative fence path.
+inline bool llama_kv_attention_prefill_cached_wave_eligible(
+        bool contiguous_single_sequence, bool has_resident_pages,
+        bool all_pages_resident) noexcept {
+    return contiguous_single_sequence && has_resident_pages && all_pages_resident;
+}
+
+struct llama_kv_attention_execution_decision {
+    llama_kv_attention_execution_status status = llama_kv_attention_execution_status::disabled;
+    llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
+    llama_kv_attention_execution_phase phase = llama_kv_attention_execution_phase::prefill;
+    bool graph_rebuild = false;
+    uint64_t table_epoch = 0;
+    uint64_t representation_epoch = 0;
+    uint64_t shape_epoch = 0;
+    uint64_t scratch_rows = 0;
+    size_t scratch_bytes = 0;
+    std::string reason;
+
+    bool accepted() const noexcept {
+        return status == llama_kv_attention_execution_status::ok ||
+               status == llama_kv_attention_execution_status::disabled;
+    }
+};
+
+// Route counters are split by execution phase because a multi-token MTP
+// verification batch is not a prefill, even though both use more than one
+// query row.  Every member is a count of an accepted or explicitly refused
+// route decision; no admission estimate is included.
+struct llama_kv_attention_execution_route_counts {
+    uint64_t dense = 0;
+    uint64_t observe = 0;
+    uint64_t selected_reference = 0;
+    uint64_t selected_dense = 0;
+    uint64_t selected_packed = 0;
+    uint64_t selected_direct = 0;
+    uint64_t exact_reference = 0;
+    uint64_t exact_direct = 0;
+    uint64_t refusal = 0;
+
+    void record(llama_kv_attention_execution_route route) noexcept;
+};
+
+enum class llama_kv_attention_graph_rebuild_reason : uint8_t {
+    other,
+    row_capacity,
+    physical_key,
+    content_key,
+    ubatch_shape,
+    source_lifetime,
+};
+
+llama_kv_attention_graph_rebuild_reason llama_kv_attention_graph_reason(
+        bool row_capacity_changed,
+        bool physical_key_changed,
+        bool content_key_changed,
+        bool ubatch_shape_changed,
+        bool source_lifetime_changed) noexcept;
+
+// These counters deliberately cover the backend-neutral admission boundary.
+// CUDA event timings are recorded by the backend fixture, while the live
+// context can add descriptor, token, kernel, and wait timings through the
+// record_* methods below.  A graph rebuild is the capture/build boundary;
+// an accepted prepare with the same key is a replay opportunity.
+struct llama_kv_attention_execution_metrics {
+    uint64_t graph_capture_count = 0;
+    uint64_t graph_replay_count = 0;
+    uint64_t graph_rebuild_count = 0;
+    uint64_t graph_submission_count = 0;
+    uint64_t graph_completion_count = 0;
+    // These counters describe the backend-neutral graph decision boundary.
+    // They are intentionally separate from CUDA capture/update/launch events.
+    uint64_t graph_construction_us = 0;
+    // Opt-in CPU-side attribution counters. They are populated only when
+    // LLAMA_HOTPATH_PROFILE=1 and never synchronize a backend.
+    uint64_t graph_reuse_decisions = 0;
+    uint64_t graph_rebuild_decisions = 0;
+    uint64_t graph_reuse_us = 0;
+    uint64_t graph_build_us = 0;
+    uint64_t route_decision_us = 0;
+    uint64_t selected_refresh_us = 0;
+    uint64_t packed_cache_lookup_us = 0;
+    uint64_t packed_cache_allocations = 0;
+    uint64_t packed_cache_reuses = 0;
+    uint64_t packed_cache_drains = 0;
+    uint64_t rebuild_reason_row_capacity = 0;
+    uint64_t rebuild_reason_physical_key = 0;
+    uint64_t rebuild_reason_content_key = 0;
+    uint64_t rebuild_reason_ubatch_shape = 0;
+    uint64_t rebuild_reason_source_lifetime = 0;
+    uint64_t rebuild_reason_other = 0;
+    uint64_t requested_ubatch = 0;
+    uint64_t physical_write_capacity = 0;
+    uint64_t effective_ubatch = 0;
+    uint64_t query_tile_tokens = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
+    uint64_t prefill_subbatch_count = 0;
+    uint64_t target_tokens_processed = 0;
+    uint64_t table_upload_bytes = 0;
+    uint64_t pack_bytes = 0;
+    uint64_t pack_time_us = 0;
+    uint64_t pack_epochs = 0;
+    uint64_t pack_reuses = 0;
+    // Packed storage is a duplicate Turbo4 representation. Keep its actual
+    // graph allocation and incremental copy work visible beside the normal H
+    // ledger instead of presenting only a kernel-time counter.
+    uint64_t packed_storage_bytes = 0;
+    uint64_t packed_history_copy_bytes = 0;
+    uint64_t packed_current_append_rows = 0;
+    uint64_t packed_current_append_bytes = 0;
+    uint64_t packed_copy_updates = 0;
+    uint64_t packed_copy_rows = 0;
+    uint64_t packed_copy_reuses = 0;
+    uint64_t packed_inflight_consumers_high_water = 0;
+    uint64_t route_override_accepted = 0;
+    uint64_t route_override_refused = 0;
+    uint64_t automatic_reference_prevented = 0;
+    uint64_t descriptor_prepare_us = 0;
+    uint64_t kernel_us = 0;
+    uint64_t total_token_us = 0;
+    uint64_t waits = 0;
+    uint64_t wait_time_us = 0;
+    uint64_t copy_time_us = 0;
+    uint64_t queue_time_us = 0;
+    uint64_t table_epoch_changes = 0;
+    uint64_t scratch_high_water_rows = 0;
+    uint64_t scratch_high_water_bytes = 0;
+    uint64_t selected_pages = 0;
+    uint64_t selected_page_count = 0;
+    // Logical page IDs are the compact, bounded receipt for the graph that
+    // was actually submitted. Full page identities remain internal to the
+    // authenticated residency table.
+    std::vector<uint32_t> selected_page_ids;
+    llama_kv_attention_execution_route_counts prefill_routes;
+    llama_kv_attention_execution_route_counts decode_routes;
+    llama_kv_attention_execution_route_counts mtp_verify_routes;
+    uint64_t exact_plan_waves = 0;
+    uint64_t exact_plan_pages = 0;
+    uint64_t exact_resident_pages = 0;
+    uint64_t exact_cold_pages = 0;
+    uint64_t exact_pages_visited = 0;
+    uint64_t exact_h2d_useful_bytes = 0;
+    uint64_t exact_h2d_aligned_bytes = 0;
+    uint64_t exact_h2d_transfer_time_us = 0;
+    uint64_t exact_waits = 0;
+    uint64_t exact_peak_staging_pages = 0;
+    uint64_t exact_duplicate_pages = 0;
+    uint64_t exact_missing_pages = 0;
+    uint64_t exact_stale_pages = 0;
+    uint64_t exact_faults = 0;
+    uint64_t exact_overlap_us = 0;
+    std::string exact_refusal_reason;
+
+    void record_descriptor_prepare_us(uint64_t elapsed_us) noexcept {
+        descriptor_prepare_us = descriptor_prepare_us > UINT64_MAX - elapsed_us
+            ? UINT64_MAX : descriptor_prepare_us + elapsed_us;
+    }
+    void record_kernel_us(uint64_t elapsed_us) noexcept {
+        kernel_us = kernel_us > UINT64_MAX - elapsed_us ? UINT64_MAX : kernel_us + elapsed_us;
+    }
+    void record_total_token_us(uint64_t elapsed_us) noexcept {
+        total_token_us = total_token_us > UINT64_MAX - elapsed_us
+            ? UINT64_MAX : total_token_us + elapsed_us;
+    }
+    void record_wait() noexcept {
+        waits = waits == UINT64_MAX ? UINT64_MAX : waits + 1;
+    }
+    void record_wait_time_us(uint64_t elapsed_us) noexcept;
+    void record_copy_time_us(uint64_t elapsed_us) noexcept;
+    void record_queue_time_us(uint64_t elapsed_us) noexcept;
+    void record_pack(uint64_t bytes, uint64_t elapsed_us) noexcept;
+    void record_graph_construction_us(uint64_t elapsed_us) noexcept {
+        graph_construction_us = graph_construction_us > UINT64_MAX - elapsed_us
+            ? UINT64_MAX : graph_construction_us + elapsed_us;
+    }
+    void record_hotpath_time(uint64_t & counter, uint64_t elapsed_us) noexcept {
+        counter = counter > UINT64_MAX - elapsed_us ? UINT64_MAX : counter + elapsed_us;
+    }
+    void record_graph_rebuild_reason(llama_kv_attention_graph_rebuild_reason reason) noexcept;
+    void record_graph_rebuild_reason_if_profiled(
+            llama_kv_attention_graph_rebuild_reason reason,
+            const char * profile_value) noexcept;
+    void record_effective_ubatch(uint64_t value) noexcept {
+        effective_ubatch = value;
+    }
+    void record_prefill_batch(const llama_kv_attention_prefill_batch_plan & plan) noexcept {
+        requested_ubatch = plan.requested_batch;
+        physical_write_capacity = plan.physical_write_capacity;
+        effective_ubatch = plan.effective_batch;
+        query_tile_tokens = plan.query_tile;
+        prefill_subbatch_count = plan.subbatch_count;
+    }
+    void record_target_tokens(uint64_t value) noexcept {
+        target_tokens_processed = target_tokens_processed > UINT64_MAX - value
+            ? UINT64_MAX : target_tokens_processed + value;
+    }
+    void record_exact_ledger(
+            const llama_kv_attention_exact_ledger & ledger) noexcept;
+    void record_exact_refusal(const std::string & reason) noexcept;
+};
+
+// Admission is kept separate from residency publication.  A page can be
+// written by several prompt chunks, but a new page cannot be admitted until
+// the preceding page is full.  The final short page is explicitly finalized
+// before decode begins and remains part of the selected view.
+class llama_kv_attention_prefill_admission {
+public:
+    llama_kv_attention_execution_status append(
+            uint32_t logical_page, uint32_t row_count) noexcept;
+    llama_kv_attention_execution_status finish_tail() noexcept;
+    llama_kv_attention_execution_status begin_decode() noexcept;
+
+    llama_kv_attention_execution_phase phase() const noexcept { return phase_; }
+    bool decode_ready() const noexcept { return decode_ready_; }
+    uint32_t page_count() const noexcept { return uint32_t(pages_.size()); }
+    uint32_t resident_rows() const noexcept { return resident_rows_; }
+    const std::vector<uint32_t> & page_rows() const noexcept { return pages_; }
+
+private:
+    std::vector<uint32_t> pages_;
+    uint32_t resident_rows_ = 0;
+    llama_kv_attention_execution_phase phase_ = llama_kv_attention_execution_phase::prefill;
+    bool tail_finished_ = false;
+    bool decode_ready_ = false;
+};
+
+class llama_kv_attention_execution {
+public:
+    explicit llama_kv_attention_execution(
+            llama_kv_attention_execution_mode mode = llama_kv_attention_execution_mode::off) noexcept;
+
+    void set_mode(llama_kv_attention_execution_mode mode) noexcept;
+    llama_kv_attention_execution_mode mode() const noexcept { return mode_; }
+    llama_kv_attention_execution_phase phase() const noexcept { return phase_; }
+    void set_native_mtp_enabled(bool enabled) noexcept { native_mtp_enabled_ = enabled; }
+
+    // The value is normally supplied by LLAMA_KV_ATTENTION_ROUTE for a live
+    // diagnostic process. It is intentionally internal and does not change
+    // the public server API.
+    void set_route_override(const char * name) noexcept;
+    llama_kv_attention_execution_route_override route_override() const noexcept {
+        return route_override_;
+    }
+    const char * route_override_name() const noexcept {
+        return llama_kv_attention_execution_route_override_name(route_override_);
+    }
+
+    // Pure route selection used by the memory owner before prepare() records
+    // a graph lease. Keeping this decision side-effect free lets an allocator
+    // refuse an unsupported/under-reserved view before graph construction.
+    llama_kv_attention_execution_route planned_route(
+            const llama_kv_attention_operator_metadata & metadata,
+            llama_kv_attention_execution_phase phase,
+            bool direct_capable,
+            bool dense_capable = false,
+            bool packed_capable = false) const noexcept;
+
+    // direct_capable is supplied by the backend loader after it has checked
+    // the actual device.  The reference route is diagnostic-only and must be
+    // selected only by an explicit route override or exact/reference mode;
+    // automatic selective dispatch must never hide an unsupported shape by
+    // silently entering the slow reference consumer.
+    llama_kv_attention_execution_decision prepare(
+            const llama_kv_attention_operator_metadata & metadata,
+            llama_kv_attention_execution_phase phase,
+            uint64_t representation_epoch,
+            uint64_t shape_epoch,
+            bool direct_capable,
+            const llama_kv_attention_scratch_request & scratch,
+            const std::string & direct_reason = {},
+            bool dense_capable = false,
+            bool packed_capable = false);
+
+    // One lease is retained for every submitted graph, including graph reuse.
+    // Releasing in submission order lets a changed table coexist with an old
+    // in-flight graph without allowing either view to be reclaimed early.
+    void complete_one_graph() noexcept;
+    void clear() noexcept;
+
+    void set_exact_graph_plan(
+            std::shared_ptr<const llama_kv_attention_exact_graph_plan> plan) noexcept {
+        exact_graph_plan_ = std::move(plan);
+    }
+    const std::shared_ptr<const llama_kv_attention_exact_graph_plan> &
+    exact_graph_plan() const noexcept { return exact_graph_plan_; }
+
+    const llama_kv_attention_execution_metrics & metrics() const noexcept { return metrics_; }
+    uint64_t metrics_reset_epoch() const noexcept { return metrics_reset_epoch_; }
+    llama_kv_attention_execution_metrics & metrics_mutable() const noexcept { return metrics_; }
+    void reset_metrics() noexcept;
+    void record_descriptor_prepare_us(uint64_t elapsed_us) noexcept;
+    void record_kernel_us(uint64_t elapsed_us) noexcept;
+    void record_total_token_us(uint64_t elapsed_us) noexcept;
+    void record_wait() noexcept;
+    void record_wait_time_us(uint64_t elapsed_us) noexcept;
+    void record_copy_time_us(uint64_t elapsed_us) noexcept;
+    void record_queue_time_us(uint64_t elapsed_us) noexcept;
+    void record_pack(uint64_t bytes, uint64_t elapsed_us) noexcept;
+    void record_graph_construction_us(uint64_t elapsed_us) noexcept;
+    void record_effective_ubatch(uint64_t value) noexcept;
+    void record_prefill_batch(const llama_kv_attention_prefill_batch_plan & plan) noexcept;
+    void record_target_tokens(uint64_t value) noexcept;
+
+    bool has_graph() const noexcept { return have_graph_; }
+    size_t in_flight_graphs() const noexcept { return graph_fences_.size(); }
+    llama_kv_attention_execution_route route() const noexcept { return route_; }
+    uint64_t table_epoch() const noexcept { return table_epoch_; }
+    uint64_t representation_epoch() const noexcept { return representation_epoch_; }
+    uint64_t shape_epoch() const noexcept { return shape_epoch_; }
+    const llama_kv_attention_operator_metadata & metadata() const noexcept { return metadata_; }
+
+private:
+    bool same_graph(
+            const llama_kv_attention_operator_metadata & metadata,
+            llama_kv_attention_execution_phase phase,
+            uint64_t representation_epoch,
+            uint64_t shape_epoch,
+            llama_kv_attention_execution_route route) const noexcept;
+
+    llama_kv_attention_execution_mode mode_;
+    llama_kv_attention_execution_route_override route_override_ =
+        llama_kv_attention_execution_route_override::automatic;
+    bool native_mtp_enabled_ = false;
+    llama_kv_attention_execution_route route_ = llama_kv_attention_execution_route::dense;
+    llama_kv_attention_operator_metadata metadata_;
+    llama_kv_attention_execution_phase phase_ = llama_kv_attention_execution_phase::prefill;
+    uint64_t table_epoch_ = 0;
+    uint64_t representation_epoch_ = 0;
+    uint64_t shape_epoch_ = 0;
+    bool have_graph_ = false;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan_;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> graph_plan_;
+    std::vector<llama_kv_attention_view::graph_fence> graph_fences_;
+    mutable llama_kv_attention_execution_metrics metrics_;
+    uint64_t metrics_reset_epoch_ = 0;
+};

@@ -8,10 +8,14 @@
 #include <map>
 #include <memory>
 #include <functional>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
 struct llama_ubatch;
+struct llama_kv_pager_selected_history;
+enum class llama_kv_pager_selector_gate : uint8_t;
+class llama_kv_attention_telemetry;
 // Internal physical-growth evidence retained across composite memory trees.
 // The public preflight remains scalar, but composites must not sum per-device
 // availability before checking the combined children that share that device.
@@ -110,6 +114,9 @@ struct llama_memory_params {
     // Resolve a simple KV buffer type to this llama_context's main compute backend instance.
     // VBR uses the exact instance to reserve backend-context-owned flash-attention scratch.
     std::function<ggml_backend_t(ggml_backend_buffer_type_t)> compute_backend_for_buft;
+
+    // Borrowed for create_memory(); the owning context retains the plan.
+    const struct llama_kv_pager_snapshot * kv_pager_plan = nullptr;
 };
 
 // TurboQuant dynamic-VBR runtime parameters, threaded from llama_context_params through
@@ -140,6 +147,11 @@ struct llama_memory_vbr_params {
     const char * trace_label = nullptr;
 
     std::function<ggml_backend_t(ggml_backend_buffer_type_t)> compute_backend_for_buft;
+
+    // Native MTP admits workspace from its allocated attention graph. A
+    // watermark cannot distinguish encoded fused Turbo4 from materialization.
+    // Other caches retain their pregraph VBR scratch admission.
+    bool graph_scratch_admission = false;
 };
 
 // Resolve the developer environment override with the same precedence for standalone and
@@ -163,6 +175,21 @@ enum llama_memory_status {
     LLAMA_MEMORY_STATUS_FAILED_PREPARE,
     LLAMA_MEMORY_STATUS_FAILED_COMPUTE,
 };
+
+// Decode keeps its historical coarse return codes.  This internal diagnostic
+// preserves the prepare failure cause for callers that need to distinguish
+// logical exhaustion from temporary or malformed-frontier pressure.
+enum class llama_memory_failure_reason : uint8_t {
+    none = 0,
+    logical_capacity,
+    scratch_oom,
+    all_pinned,
+    pending_copy,
+    invalid_frontier,
+};
+
+const char * llama_memory_failure_reason_name(
+        llama_memory_failure_reason reason) noexcept;
 
 // helper function for combining the status of two memory contexts
 // useful for implementing hybrid memory types (e.g. iSWA)
@@ -189,11 +216,20 @@ struct llama_memory_context_i {
     // return false on failure
     virtual bool apply() = 0;
 
+    // Complete or cancel backend-owned writes reserved by apply(). The default
+    // keeps non-attention memories inert; attention contexts use this at the
+    // graph submission boundary so a failed graph cannot publish a partial page.
+    virtual void finish(bool /*graph_succeeded*/) {}
+
     // get the current ubatch
     virtual const llama_ubatch & get_ubatch() const = 0;
 
     // get the status of the memory context - used for error handling and checking if any updates would be applied
     virtual llama_memory_status get_status() const = 0;
+
+    virtual llama_memory_failure_reason get_failure_reason() const noexcept {
+        return llama_memory_failure_reason::none;
+    }
 
     // Maximum number of sequences a graph built against this context can represent
     // at the current physical allocation. Most memory types do not impose a tighter
@@ -201,6 +237,62 @@ struct llama_memory_context_i {
     virtual uint32_t get_max_graph_seqs() const {
         return std::numeric_limits<uint32_t>::max();
     }
+
+    // Build the optional selector while the graph still owns the real,
+    // post-positioned Q tensor. A null result is the explicit
+    // not-configured path; callers must not substitute a host Q readback.
+    virtual ggml_tensor * build_kv_page_select(
+            ggml_context * /* ctx */, ggml_tensor * /* q */, int /* layer */,
+            const llama_ubatch & /* ubatch */, uint32_t /* query_row */,
+            ggml_tensor ** /* probe_capture */ = nullptr) const {
+        return nullptr;
+    }
+
+    // Refresh the non-Q selector inputs on every submitted batch. These are
+    // graph-owned inputs so a reused graph can advance its generation and
+    // residency epoch without rebuilding the selector node.
+    virtual bool set_kv_page_select_inputs(
+            ggml_tensor * /* bounds */, ggml_tensor * /* metadata */,
+            ggml_tensor * /* membership */, ggml_tensor * /* query */,
+            int /* layer */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    // Refresh the position and turn controls for a graph-owned persistent
+    // device accumulator. Sum/count tensors are owned by the KV cache.
+    virtual bool set_kv_query_accumulate_inputs(
+            ggml_tensor * /* accumulator */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    virtual bool set_kv_query_probe_inputs(
+            ggml_tensor * /* probes */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    virtual bool can_reuse_kv_query_capture(
+            const ggml_tensor * /* accumulator */, const llama_ubatch & /* ubatch */,
+            llama_seq_id /* sequence_id */, bool /* final_batch */) const { return false; }
+
+    // Selector graph reuse is valid only when the logical catalogue shape and
+    // sequence identity still match the captured node.
+    virtual bool can_reuse_kv_page_select(
+            const ggml_tensor * /* bounds */, int /* layer */,
+            const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    virtual void note_kv_page_select_gate(
+            llama_kv_pager_selector_gate /* gate */, const ggml_tensor * /* q */,
+            int /* layer */, const llama_ubatch & /* ubatch */,
+            uint32_t /* query_row */) const {}
+
+    // Register the graph-produced selector output with the owning pager. The
+    // callback records ownership and generation metadata only; synchronization
+    // remains at the scheduler boundary.
+    virtual void capture_kv_routing_query(
+            ggml_tensor * /* tensor */, int /* layer */,
+            const llama_ubatch & /* ubatch */) const {}
 
     // TurboQuant: get rotation tensors for pre-rotate-queries optimization
     // Returns null for non-turbo memory types. Override in KV cache contexts.
@@ -212,6 +304,16 @@ struct llama_memory_context_i {
     // fences graph reuse on it once, for every input class. Composite memory types sum their
     // children so a flip in any child forces a rebuild. 0 for memory without VBR.
     virtual uint64_t get_vbr_epoch() const { return 0; }
+
+    // Reserve the scratch owned by the actual attention consumer after its
+    // route and view dimensions are known, but before graph allocation. The
+    // default keeps recurrent/non-attention contexts inert.
+    virtual bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & /*request*/) const { return true; }
+
+    // Valid rows in the current attention view. This is intentionally a view
+    // owner query, not a logical context length or VBR mapping watermark.
+    virtual uint32_t current_kv_attention_rows() const { return 0; }
 };
 
 using llama_memory_context_ptr = std::unique_ptr<llama_memory_context_i>;
@@ -236,6 +338,78 @@ struct llama_memory_i {
     using layer_share_cb = std::function<int32_t(int32_t il)>;
 
     virtual ~llama_memory_i() = default;
+
+    // Attach the optional compact attention target after the owning context has
+    // finished backend admission. Non-attention memories remain unchanged.
+    virtual void set_kv_pager(class llama_kv_pager * /*pager*/) {}
+
+    // Retention evidence is produced after the graph fence and consumed by
+    // the pager boundary. The pointer is non-owning and valid for the memory
+    // context lifetime; non-attention memories ignore it.
+    virtual void set_kv_attention_telemetry(
+            llama_kv_attention_telemetry * /*telemetry*/) {}
+
+    // Complete host publication for target pages after the scheduler fence.
+    // The graph may write K/V asynchronously, so this must not be performed
+    // from the graph-submission callback itself.
+    virtual void seal_kv_pager_pages() {}
+
+    // Apply the sealed live residency target after the existing attention
+    // completion bookkeeping has crossed the scheduler fence.
+    virtual void apply_kv_pager_policy() {}
+
+    // Compatibility boundary notification for pager generations. The live Q
+    // graph producer uses build_kv_page_select above; this hook must not read
+    // a tensor or perform a host/device synchronization.
+    virtual void capture_kv_routing_query(
+            ggml_tensor * /* tensor */, int /* layer */,
+            const llama_ubatch & /* ubatch */) {}
+
+    // Count tokens only at the committed target frontier.  The default keeps
+    // recurrent-only and out-of-tree memories inert.
+    virtual void note_kv_pager_accepted_tokens(uint32_t /* count */) {}
+
+    // Server-owned logical turn notifications. They are separate from decode
+    // submissions so prefill, target verification and rollback cannot mint turns.
+    virtual void begin_kv_pager_turn(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            int64_t /* query_start */, int64_t /* query_end */) {}
+    virtual bool commit_kv_pager_query(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            bool * changed, uint64_t * frozen_history_generation) {
+        if (changed != nullptr) *changed = false;
+        if (frozen_history_generation != nullptr) *frozen_history_generation = 0;
+        return true;
+    }
+    virtual bool freeze_kv_pager_history(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            uint64_t * /* frozen_history_generation */) { return true; }
+    virtual bool kv_pager_history_matches(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            uint64_t /* frozen_history_generation */) const { return true; }
+    // Model-backed parity fixtures may install a deterministic subset of
+    // authenticated resident pages before the normal query commit transition.
+    // Production callers must use live policy admission instead.
+    virtual bool set_kv_pager_history_for_test(
+            int32_t /* sequence_id */, int64_t /* query_start */,
+            const std::vector<llama_kv_pager_selected_history> & /* history */) {
+        return false;
+    }
+    virtual bool get_kv_pager_history_for_test(int32_t /* sequence_id */,
+            std::vector<llama_kv_pager_selected_history> & /* history */) const {
+        return false;
+    }
+    virtual bool get_kv_pager_router_execution_for_test(
+            uint32_t & /* stage */, uint32_t & /* resident_rerank_graphs */,
+            uint32_t & /* cold_reader_graphs */, uint32_t & /* reader_events */,
+            uint32_t & /* mass_graphs */, uint32_t & /* output_records */) const {
+        return false;
+    }
+    virtual int32_t get_kv_pager_turn_phase_for_test(int32_t /* sequence_id */) const {
+        return -1;
+    }
+    virtual void end_kv_pager_turn(
+            int32_t /* sequence_id */, uint64_t /* turn_id */) {}
 
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them
@@ -314,7 +488,10 @@ struct llama_memory_i {
             const char * /*owner*/, vbr_operation_id /*operation_id*/) {}
     // Promote deferred (submitted) extent entries at the context's existing synchronize
     // boundary. Inert for non-VBR memories; composites forward to their attention child.
-    virtual void vbr_commit_submitted() {}
+    // False means a submitted target extent failed its terminal commit. The
+    // caller must suppress dependent host/page-table publication at this
+    // boundary.
+    virtual bool vbr_commit_submitted() { return true; }
     // Resolve in-flight decode operations once the decode outcome is known.
     virtual void vbr_decode_ops_finish(bool /*ok*/) {}
     // Composite wrappers mint one operation per logical mutation and adopt

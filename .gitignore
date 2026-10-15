@@ -73,6 +73,10 @@
 !/models/ggml-vocab-*.gguf*
 !/models/templates
 
+# Wiretail raw run evidence is host-local; never push logs, profiler captures,
+# request dumps, or candidate binaries from the execution evidence tree.
+/.wiretail/execution/evidence/raw/
+
 # Zig
 
 /zig-out/

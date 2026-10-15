@@ -44,6 +44,61 @@ public:
 
     ~llama_memory_hybrid_iswa() = default;
 
+    void set_kv_pager(llama_kv_pager * pager) override {
+        mem_attn->set_kv_pager(pager);
+    }
+
+    void set_kv_attention_telemetry(
+            llama_kv_attention_telemetry * telemetry) override {
+        mem_attn->set_kv_attention_telemetry(telemetry);
+    }
+
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) override {
+        mem_attn->capture_kv_routing_query(tensor, layer, ubatch);
+    }
+
+    void seal_kv_pager_pages() override {
+        mem_attn->seal_kv_pager_pages();
+    }
+    void apply_kv_pager_policy() noexcept override {
+        mem_attn->apply_kv_pager_policy();
+    }
+    void note_kv_pager_accepted_tokens(uint32_t count) override {
+        mem_attn->note_kv_pager_accepted_tokens(count);
+    }
+    void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
+            int64_t query_start, int64_t query_end) override {
+        mem_attn->begin_kv_pager_turn(sequence_id, turn_id, query_start, query_end);
+    }
+    bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
+            uint64_t * frozen_history_generation) override {
+        return mem_attn->freeze_kv_pager_history(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
+            bool * changed, uint64_t * frozen_history_generation) override {
+        return mem_attn->commit_kv_pager_query(
+                sequence_id, turn_id, changed, frozen_history_generation);
+    }
+    bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
+            uint64_t frozen_history_generation) const override {
+        return mem_attn->kv_pager_history_matches(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    bool get_kv_pager_router_execution_for_test(uint32_t & stage,
+            uint32_t & resident_rerank_graphs, uint32_t & cold_reader_graphs,
+            uint32_t & reader_events, uint32_t & mass_graphs,
+            uint32_t & output_records) const override {
+        return mem_attn->get_kv_pager_router_execution_for_test(stage,
+                resident_rerank_graphs, cold_reader_graphs, reader_events,
+                mass_graphs, output_records);
+    }
+    void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override {
+        mem_attn->end_kv_pager_turn(sequence_id, turn_id);
+    }
+
     //
     // llama_memory_i
     //
@@ -97,8 +152,8 @@ public:
     void vbr_retier_freeze_end(const char * owner, vbr_operation_id operation_id) override {
         mem_attn->vbr_retier_freeze_end(owner, operation_id);
     }
-    void vbr_commit_submitted() override {
-        mem_attn->vbr_commit_submitted();
+    bool vbr_commit_submitted() override {
+        return mem_attn->vbr_commit_submitted();
     }
     void vbr_decode_ops_finish(bool ok) override {
         mem_attn->vbr_decode_ops_finish(ok);
@@ -178,7 +233,9 @@ public:
     using slot_info_vec_t = llama_kv_cache::slot_info_vec_t;
 
     // init failure
-    explicit llama_memory_hybrid_iswa_context(llama_memory_status status);
+    explicit llama_memory_hybrid_iswa_context(
+            llama_memory_status status,
+            llama_memory_failure_reason reason = llama_memory_failure_reason::none);
 
     // init full
     explicit llama_memory_hybrid_iswa_context(llama_memory_hybrid_iswa * mem);
@@ -202,12 +259,43 @@ public:
     bool apply() override;
 
     llama_memory_status  get_status() const override;
+    llama_memory_failure_reason get_failure_reason() const noexcept override {
+        if (failure_reason != llama_memory_failure_reason::none) {
+            return failure_reason;
+        }
+        return ctx_attn ? ctx_attn->get_failure_reason() :
+            llama_memory_failure_reason::none;
+    }
     const llama_ubatch & get_ubatch() const override;
 
     uint32_t get_max_graph_seqs() const override;
+    ggml_tensor * build_kv_page_select(
+            ggml_context * ctx, ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row,
+            ggml_tensor ** probe_capture = nullptr) const override;
+    bool set_kv_query_probe_inputs(
+            ggml_tensor * probes, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_query_capture(
+            const ggml_tensor * query_op, const llama_ubatch & ubatch,
+            llama_seq_id sequence_id, bool final_batch) const override;
+    bool set_kv_page_select_inputs(
+            ggml_tensor * bounds, ggml_tensor * metadata,
+            ggml_tensor * membership, ggml_tensor * query, int layer,
+            const llama_ubatch & ubatch) const override;
+    bool set_kv_query_accumulate_inputs(
+            ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_page_select(
+            const ggml_tensor * bounds, int layer,
+            const llama_ubatch & ubatch) const override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) const override;
 
     // tier epoch of the attention child (the recurrent child has no VBR)
     uint64_t get_vbr_epoch() const override;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request) const override;
+    uint32_t current_kv_attention_rows() const override;
 
     //
     // llama_memory_hybrid_iswa_context
@@ -226,4 +314,6 @@ private:
     const llama_memory_context_ptr ctx_attn;
 
     const llama_memory_status status;
+    llama_memory_failure_reason failure_reason =
+            llama_memory_failure_reason::none;
 };

@@ -2,6 +2,7 @@
 #include "llama-vbr-codec.h"
 
 #include "ggml.h"
+#include "ggml-vbr.h"
 #include "llama-arch.h"
 #include "llama-graph.h"
 #include "llama-impl.h"
@@ -37,6 +38,7 @@
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -146,6 +148,223 @@ static bool turbo_vbr_layer_schedule_enabled() {
     return e && e[0];
 }
 
+// Resolve the allocator-visible rows for the native MTP cache before the target
+// pager is admitted.  The MTP context is a separate cache, so looking only at
+// the target attention cache would otherwise let its full target-sized payload
+// consume the pager's hot-page budget after admission.
+static bool llama_context_native_mtp_rows(
+        const llama_model & model, bool flash_attn,
+        uint64_t & k_row_bytes, uint64_t & v_row_bytes) noexcept {
+    k_row_bytes = 0;
+    v_row_bytes = 0;
+    const uint32_t n_layer = model.hparams.n_layer();
+    const uint32_t n_layer_all = model.hparams.n_layer_all;
+    if (!model.hparams.has_mtp() || n_layer_all <= n_layer ||
+            model.layers.size() < n_layer_all) {
+        return false;
+    }
+
+    const bool v_trans = !flash_attn;
+    for (uint32_t il = n_layer; il < n_layer_all; ++il) {
+        // TENSOR_SKIP leaves the MTP layer marker null when the target was
+        // loaded without native MTP.  Do not reserve a phantom draft cache.
+        if (model.layers[il].attn_norm == nullptr || !model.hparams.has_kv(il)) {
+            return false;
+        }
+
+        const uint32_t head_k = model.hparams.n_embd_head_k(il);
+        const uint32_t head_v = model.hparams.n_embd_head_v(il);
+        // Match llama_kv_cache's TurboQuant fallback. A non-Turbo MTP cache is
+        // not admissible for this GPU-only reservation contract.
+        if (head_k > 512 || head_v > 512) {
+            return false;
+        }
+        const uint32_t n_head_kv = model.hparams.n_head_kv(il);
+        uint32_t k_width = model.hparams.n_embd_k_gqa(il);
+        const uint32_t padded_k = ((head_k + 127) / 128) * 128;
+        if (padded_k > head_k) {
+            k_width = padded_k * n_head_kv;
+        }
+        uint32_t v_width = v_trans ? model.hparams.n_embd_v_gqa_max()
+                                   : model.hparams.n_embd_v_gqa(il);
+        if (!v_trans) {
+            const uint32_t padded_v = ((head_v + 127) / 128) * 128;
+            if (padded_v > head_v) {
+                v_width = padded_v * n_head_kv;
+            }
+        }
+        const uint64_t k = ggml_row_size(GGML_TYPE_TURBO4_0, k_width);
+        const uint64_t v = ggml_row_size(GGML_TYPE_TURBO4_0, v_width);
+        if (k == 0 || v == 0 || k_row_bytes > UINT64_MAX - k ||
+                v_row_bytes > UINT64_MAX - v) {
+            return false;
+        }
+        k_row_bytes += k;
+        v_row_bytes += v;
+    }
+    return k_row_bytes != 0 && v_row_bytes != 0;
+}
+
+// Reserve the compact all-history catalogue independently from the bounded H
+// target slab. This is the R1 min/max layout: two fp16 vectors for every
+// full-attention layer/page, followed by aligned validity, generation and
+// native-position metadata. The calculation intentionally uses model geometry
+// instead of a model-family byte-per-token constant.
+static uint64_t llama_context_catalogue_reserve_bytes(
+        const llama_model & model,
+        const llama_kv_pager_geometry & geometry,
+        uint64_t alignment) noexcept {
+    if (geometry.page_tokens == 0 || geometry.context_tokens == 0 || alignment == 0) {
+        return UINT64_MAX;
+    }
+    const auto multiply = [](uint64_t a, uint64_t b, uint64_t & out) {
+        if (b != 0 && a > UINT64_MAX / b) return false;
+        out = a * b;
+        return true;
+    };
+    const auto add = [](uint64_t a, uint64_t b, uint64_t & out) {
+        if (b > UINT64_MAX - a) return false;
+        out = a + b;
+        return true;
+    };
+    const uint64_t pages = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
+    uint64_t total = 0;
+    for (const uint32_t layer_id : geometry.model_layer_ids) {
+        const uint32_t heads = model.hparams.n_head_kv(layer_id);
+        const uint32_t dim = model.hparams.n_embd_head_k(layer_id);
+        if (heads == 0 || dim == 0) return UINT64_MAX;
+        const uint64_t row = uint64_t(ggml_row_size(
+                GGML_TYPE_F16, uint64_t(heads) * dim));
+        uint64_t payload = 0;
+        uint64_t metadata = 0;
+        uint64_t layer = 0;
+        if (row == 0 || row > UINT64_MAX / 3 ||
+            pages > UINT64_MAX / (row * 3) ||
+            !multiply(pages, row * 3, payload) ||
+            pages > UINT64_MAX / (sizeof(uint8_t) + sizeof(uint32_t) +
+                                   2 * sizeof(llama_pos)) ||
+            !multiply(pages, sizeof(uint8_t) + sizeof(uint32_t) +
+                                   2 * sizeof(llama_pos), metadata) ||
+            !add(payload, metadata, layer) ||
+            !add(total, layer, total)) {
+            return UINT64_MAX;
+        }
+    }
+    if (total > UINT64_MAX - (alignment - 1)) return UINT64_MAX;
+    return (total + alignment - 1) / alignment * alignment;
+}
+
+static uint64_t llama_context_packed_dequant_page_bytes(
+        const llama_model & model,
+        const llama_kv_pager_geometry & geometry) noexcept {
+    uint64_t maximum = 0;
+    for (const uint32_t layer_id : geometry.model_layer_ids) {
+        const uint32_t heads = model.hparams.n_head_kv(layer_id);
+        const uint32_t dim_k = model.hparams.n_embd_head_k(layer_id);
+        const uint32_t dim_v = model.hparams.n_embd_head_v(layer_id);
+        if (heads == 0 || dim_k == 0 || dim_v == 0) return UINT64_MAX;
+        const uint64_t k = uint64_t(ggml_row_size(GGML_TYPE_F16,
+                uint64_t(heads) * dim_k));
+        const uint64_t v = uint64_t(ggml_row_size(GGML_TYPE_F16,
+                uint64_t(heads) * dim_v));
+        uint64_t rows = 0;
+        if (k > UINT64_MAX - v || geometry.page_tokens > UINT64_MAX / (k + v)) {
+            return UINT64_MAX;
+        }
+        rows = geometry.page_tokens * (k + v);
+        maximum = std::max(maximum, rows);
+    }
+    return maximum;
+}
+
+static void llama_context_fill_pager_memory_admission(
+        const llama_model & model,
+        const llama_kv_pager_config & config,
+        const llama_kv_pager_geometry & geometry,
+        uint64_t alignment,
+        llama_kv_pager_resources & resources) noexcept {
+    if (config.hot_pages.automatic) {
+        // Automatic H still needs a prospective workspace estimate before its
+        // target slab exists. Explicit H is a caller-requested allocation:
+        // admit its actual slab and measure lazy route buffers at runtime.
+        resources.admission.packed_workspace_page_bytes = geometry.page_bytes;
+        resources.admission.packed_workspace_owner_count = 2;
+        resources.admission.packed_dequant_page_bytes =
+                llama_context_packed_dequant_page_bytes(model, geometry);
+    } else {
+        // Disabled for explicit H: charging two H-sized packed owners and an
+        // F16 view here treats a possible replacement/fallback peak as already
+        // required storage, even when the submitted graph uses dense/direct
+        // fused Turbo4. Packed-cache buffer sizes and live overlap are observed
+        // at their allocation sites; CUDA remains the final allocation check.
+        // resources.admission.packed_workspace_page_bytes = geometry.page_bytes;
+        // resources.admission.packed_workspace_owner_count = 2;
+        // resources.admission.packed_dequant_page_bytes = ...;
+        resources.admission.packed_workspace_page_bytes = 0;
+        resources.admission.packed_workspace_owner_count = 0;
+        resources.admission.packed_dequant_page_bytes = 0;
+    }
+    resources.admission.catalogue_bytes =
+            llama_context_catalogue_reserve_bytes(model, geometry, alignment);
+    const uint64_t logical_pages = (geometry.context_tokens - 1) /
+            geometry.page_tokens + 1;
+    resources.admission.minimum_resident_pages = std::min<uint64_t>(2, logical_pages);
+    resources.admission.transfer_destination_pages = std::min<uint64_t>(1, logical_pages);
+    resources.admission.attention_page_limit = config.attention_tokens == 0
+        ? 0 : (uint64_t(config.attention_tokens) + geometry.page_tokens - 1) /
+                geometry.page_tokens;
+}
+
+// The recurrent child is constructed after the pager plan, so derive its
+// allocator-visible footprint from the same tensor geometry used by
+// llama_memory_recurrent.  This is intentionally a bound, not a context
+// shortening heuristic: n_seq_max and rollback planes are both charged.
+static uint64_t llama_context_recurrent_state_bytes(
+        const llama_model & model, const llama_cparams & cparams,
+        ggml_backend_dev_t device) noexcept {
+    uint64_t total = 0;
+    const uint64_t planes = uint64_t(cparams.n_rs_seq) + 1;
+    const uint64_t rows = std::max<uint64_t>(1, cparams.n_seq_max) * planes;
+    for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
+        if (!model.hparams.is_recr(il)) {
+            continue;
+        }
+        if (!cparams.offload_kqv || model.dev_layer(il) == nullptr ||
+            ggml_backend_dev_buffer_type(model.dev_layer(il)) == nullptr ||
+            ggml_backend_buft_get_device(ggml_backend_dev_buffer_type(
+                    model.dev_layer(il))) != device) {
+            continue;
+        }
+        const uint64_t r = uint64_t(ggml_row_size(GGML_TYPE_F32,
+                model.hparams.n_embd_r()));
+        const uint64_t s = uint64_t(ggml_row_size(GGML_TYPE_F32,
+                model.hparams.n_embd_s()));
+        const uint64_t p = model.hparams.ple_conv_state() > 0 &&
+                model.hparams.is_ple(il)
+            ? uint64_t(ggml_row_size(GGML_TYPE_F32,
+                    model.hparams.ple_conv_state())) : 0;
+        const uint64_t per_row = r > UINT64_MAX - s ? UINT64_MAX : r + s;
+        const uint64_t per_layer = per_row > UINT64_MAX - p
+            ? UINT64_MAX : per_row + p;
+        if (per_layer != 0 && rows > UINT64_MAX / per_layer) {
+            return UINT64_MAX;
+        }
+        const uint64_t bytes = per_layer * rows;
+        if (total > UINT64_MAX - bytes) {
+            return UINT64_MAX;
+        }
+        total += bytes;
+    }
+    return total;
+}
+
+static uint64_t llama_context_estimated_compute_bytes() noexcept {
+    // Scheduler graph sizes are not available until after create_memory().
+    // Reserve the measured worst startup ask used by the CUDA co-tenancy
+    // protocol; the actual graph is reconciled after graph_reserve().
+    return uint64_t(std::max<int64_t>(0, LLAMA_VRAM_LEDGER_NOMINAL_ASK));
+}
+
 // The on-disk marker identity is one (busid,pid) row, so independent controller
 // trees in one process cannot publish or service demands correctly. iSWA is one
 // tree (its composite memory reports only the base owner); shared-KV drafters are
@@ -226,6 +445,37 @@ llama_context::llama_context(
     //     may need to be backend-dependent
     LLAMA_LOG_INFO("%s: constructing llama_context\n", __func__);
 
+    pager_target_type_k_ = params.type_k;
+    pager_target_type_v_ = params.type_v;
+
+    if (params.kv_pager_config) {
+        kv_pager = *params.kv_pager_config;
+        std::string pager_error;
+        if (!kv_pager.validate(pager_error)) {
+            throw std::invalid_argument("invalid KV pager configuration: " + pager_error);
+        }
+        if (kv_pager.enabled()) {
+            LLAMA_LOG_INFO("KV pager normalized settings: %s\n", kv_pager.summary().c_str());
+        }
+    }
+
+    switch (kv_pager.mode) {
+        case llama_kv_pager_mode::off:       set_kv_attention_mode(llama_kv_attention_execution_mode::off);       break;
+        case llama_kv_pager_mode::observe:   set_kv_attention_mode(llama_kv_attention_execution_mode::observe);   break;
+        case llama_kv_pager_mode::selective:set_kv_attention_mode(llama_kv_attention_execution_mode::selective);break;
+        case llama_kv_pager_mode::exact:    set_kv_attention_mode(llama_kv_attention_execution_mode::exact);    break;
+    }
+
+    // A process-scoped diagnostic override keeps the selected page snapshot,
+    // positions, A, and numeric policy identical across route comparisons.
+    // It is deliberately not a user-facing API and unsupported values fail
+    // closed at attention admission.
+    if (const char * route_override = std::getenv("LLAMA_KV_ATTENTION_ROUTE")) {
+        kv_attention_execution.set_route_override(route_override);
+        LLAMA_LOG_INFO("KV attention route override: %s\n",
+                kv_attention_execution.route_override_name());
+    }
+
     t_start_us = model.t_start_us;
     t_load_us  = model.t_load_us;
 
@@ -280,6 +530,15 @@ llama_context::llama_context(
 
     cparams.cb_eval           = params.cb_eval;
     cparams.cb_eval_user_data = params.cb_eval_user_data;
+
+    // Keep dense-control localization opt-in and bounded.  It observes only
+    // the named first-layer tensors needed to identify the first non-finite
+    // activation; normal contexts retain the caller's callback unchanged.
+    if (std::getenv("LLAMA_DENSE_TENSOR_DIAGNOSTIC")) {
+        cparams.cb_eval = llama_context::dense_tensor_diagnostic_callback;
+        cparams.cb_eval_user_data = this;
+        LLAMA_LOG_INFO("dense tensor diagnostic callback enabled\n");
+    }
 
     cparams.ctx_other = nullptr;
 
@@ -449,6 +708,7 @@ llama_context::llama_context(
     cparams.vbr_min_bits_explicit = params.vbr_min_bits_explicit;
     cparams.vbr_pin_k = params.vbr_pin_k;
     cparams.vbr_pin_v = params.vbr_pin_v;
+    cparams.kv_attention_tokens = kv_pager.attention_tokens;
 
     // A shared-KV drafter (gemma4 assistant / weightless DFlash/Eagle3) views the target's
     // KV tensors — the target's VBR controller owns those, and the drafter's graphs follow
@@ -516,6 +776,8 @@ llama_context::llama_context(
             LLAMA_LOG_WARN("%s: n_ctx is not divisible by n_seq_max - rounding down to %u\n", __func__, cparams.n_ctx);
         }
     }
+
+    validate_kv_pager_capability(params.type_k, params.type_v);
 
     LLAMA_LOG_INFO("%s: n_seq_max             = %u\n",   __func__, cparams.n_seq_max);
     LLAMA_LOG_INFO("%s: n_ctx                 = %u\n",   __func__, cparams.n_ctx);
@@ -604,6 +866,12 @@ llama_context::llama_context(
         }
     }
 
+    // Geometry and the first admission ledger are deliberately built before
+    // create_memory(). Selective/exact caches consume this bounded plan when
+    // they create their sole physical target slab; logical cells still retain
+    // the complete requested context.
+    plan_kv_pager();
+
     // init the memory module
     if (!hparams.vocab_only) {
         llama_memory_params params_mem = {
@@ -642,6 +910,7 @@ llama_context::llama_context(
                 }
                 return nullptr;
             },
+            /*.kv_pager_plan =*/ kv_pager_plan_valid_ ? &kv_pager_plan_ : nullptr,
         };
 
         memory.reset(model.create_memory(params_mem, cparams));
@@ -819,6 +1088,25 @@ llama_context::~llama_context() {
     // scheduler and memory tree are still alive, so deferred VBR work reaches its normal fence and
     // pending asynchronous copies into the output buffers finish before those buffers are freed.
     synchronize();
+    if (embeddings_nextn_device_consumed_event != nullptr) {
+        if (embeddings_nextn_device_event_recorded) {
+            ggml_backend_event_synchronize(embeddings_nextn_device_consumed_event);
+            embeddings_nextn_device_event_recorded = false;
+        }
+        ggml_backend_event_free(embeddings_nextn_device_consumed_event);
+        embeddings_nextn_device_consumed_event = nullptr;
+    }
+
+    // kv_pager_owner is declared before the backend members, so ordinary
+    // reverse declaration-order destruction would tear down the CUDA backend
+    // before the pager's asynchronous host/transfer worker joins. Detach the
+    // memory observer and join the pager while its backend and storage are
+    // still alive.
+    if (memory && kv_pager_owner) {
+        memory->set_kv_pager(nullptr);
+    }
+    kv_pager_owner.reset();
+    pager_ranking_backend.reset();
 
     delete crosskv_proj;
 
@@ -843,6 +1131,962 @@ llama_context::~llama_context() {
     if (vram_ledger_tree_owned_) {
         g_vbr_ledger_tree_owned.store(false);
     }
+}
+
+llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
+        const llama_context * native_mtp_context,
+        uint64_t request_generation,
+        uint64_t slot_generation,
+        uint64_t config_generation) const noexcept {
+    llama_kv_pager_metrics_snapshot result;
+    result.enabled = kv_pager.enabled();
+    result.mode = kv_pager.mode;
+    result.snapshot_monotonic_us = uint64_t(std::max<int64_t>(0, ggml_time_us()));
+    result.request_generation = request_generation;
+    result.slot_generation = slot_generation;
+    result.config_generation = config_generation;
+    result.reset_epoch = kv_attention_execution.metrics_reset_epoch();
+    result.target_type_k = pager_target_type_k_;
+    result.target_type_v = pager_target_type_v_;
+    const char * fallback_backend = nullptr;
+    const char * accelerator_backend = nullptr;
+    ggml_backend_dev_t measured_device = nullptr;
+    for (const auto & backend : backend_ptrs) {
+        const auto device = ggml_backend_get_device(backend);
+        if (device == nullptr) {
+            continue;
+        }
+        const auto registration = ggml_backend_dev_backend_reg(device);
+        if (registration != nullptr) {
+            const char * name = ggml_backend_reg_name(registration);
+            if (fallback_backend == nullptr) {
+                fallback_backend = name;
+            }
+            if (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                    ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+                accelerator_backend = name;
+                measured_device = device;
+                break;
+            }
+        }
+    }
+    try {
+        if (accelerator_backend != nullptr) {
+            result.target_backend = accelerator_backend;
+        } else if (fallback_backend != nullptr) {
+            result.target_backend = fallback_backend;
+        }
+    } catch (...) {
+        // Telemetry is best-effort and noexcept: retain the explicit
+        // not_configured value if a backend name cannot be copied.
+        result.target_backend = "not_configured";
+    }
+    result.route = kv_attention_execution.route();
+    result.route_override = kv_attention_execution.route_override_name();
+    result.table_epoch = kv_attention_execution.table_epoch();
+    result.representation_epoch = kv_attention_execution.representation_epoch();
+    result.shape_epoch = kv_attention_execution.shape_epoch();
+    result.execution = kv_attention_execution.metrics();
+    if (measured_device != nullptr) {
+        size_t free = 0;
+        size_t total = 0;
+        ggml_backend_dev_memory(measured_device, &free, &total);
+        result.device_total_bytes = total;
+        result.device_free_bytes = std::min(free, total);
+        result.device_used_bytes = total - result.device_free_bytes;
+    }
+    if (kv_pager_owner != nullptr && kv_pager.enabled()) {
+        try {
+            // The diagnostic server uses one slot (sequence zero) for the
+            // promotion campaign. This bounded read-only inventory lets a
+            // caller distinguish a complete host-backed cold page from a
+            // resident page without exposing any residency control surface.
+            result.page_inventory = kv_pager_owner->exact_page_records(0);
+            result.page_summary_content_versions.reserve(result.page_inventory.size());
+            for (const auto & page : result.page_inventory) {
+                result.page_summary_content_versions.push_back(
+                    kv_pager_owner->routing_summary_content_version(page.id));
+            }
+        } catch (...) {
+            result.page_inventory.clear();
+        }
+    }
+
+    // Native MTP is not part of the target pager owner. Read its actual
+    // context allocations at scrape time so a model flag or a projected
+    // admission cannot masquerade as a realized GPU placement.
+    if (native_mtp_context != nullptr) {
+        result.mtp_type_k = native_mtp_context->pager_target_type_k_;
+        result.mtp_type_v = native_mtp_context->pager_target_type_v_;
+        result.mtp_rows = native_mtp_context->cparams.n_ctx_seq;
+
+        bool saw_context = false;
+        bool all_gpu = true;
+        uint64_t bytes = 0;
+        for (const auto & [buft, breakdown] : native_mtp_context->memory_breakdown()) {
+            if (breakdown.context == 0) {
+                continue;
+            }
+            saw_context = true;
+            if (bytes > UINT64_MAX - uint64_t(breakdown.context)) {
+                bytes = UINT64_MAX;
+            } else {
+                bytes += uint64_t(breakdown.context);
+            }
+            const ggml_backend_dev_t device = ggml_backend_buft_get_device(buft);
+            const bool gpu = !ggml_backend_buft_is_host(buft) && device != nullptr &&
+                (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                 ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU);
+            all_gpu = all_gpu && gpu;
+        }
+        result.mtp_bytes = bytes;
+        result.mtp_backend = !saw_context ? "not_measured" :
+            all_gpu && bytes != 0 &&
+                result.mtp_type_k == GGML_TYPE_TURBO4_0 &&
+                result.mtp_type_v == GGML_TYPE_TURBO4_0
+            ? "gpu" : all_gpu ? "gpu_unqualified" : "host_or_mixed";
+    }
+
+    if (kv_attention_telemetry) {
+        result.attention = kv_attention_telemetry->counters();
+        result.attention_accounting = kv_attention_telemetry->accounting();
+    }
+    if (!kv_pager_owner) {
+        return result;
+    }
+
+    const auto & snapshot = kv_pager_owner->snapshot();
+    result.context_tokens = snapshot.geometry.context_tokens;
+    result.page_tokens = snapshot.geometry.page_tokens;
+    result.logical_pages = snapshot.logical_page_count;
+    result.physical_page_capacity = snapshot.physical_page_count;
+    result.physical_pool_capacity_bytes = snapshot.physical_bytes;
+    result.resident_pages = 0;
+    result.page_bytes = snapshot.admission.target_page_bytes;
+    result.page_charge_bytes = snapshot.admission.page_charge_bytes;
+    result.target_bytes = snapshot.realized_bytes;
+    result.target_allocated_bytes = snapshot.realized_bytes;
+    result.live_allocation_peak_bytes = snapshot.realized_bytes;
+    result.usable_device_bytes = snapshot.admission.usable_device_bytes;
+    result.charged_bytes = snapshot.admission.charged_bytes;
+    result.reserved_bytes = snapshot.admission.reserved_bytes;
+    result.headroom_bytes = snapshot.admission.headroom_bytes;
+    result.weights_bytes = snapshot.admission.weights_bytes;
+    result.fixed_context_bytes = snapshot.admission.fixed_context_bytes;
+    result.recurrent_state_bytes = snapshot.admission.recurrent_state_bytes;
+    result.mtp_compute_bytes = snapshot.admission.mtp_compute_bytes;
+    result.packed_workspace_bytes = snapshot.admission.packed_workspace_bytes;
+    result.packed_dequant_bytes = snapshot.admission.packed_dequant_bytes;
+    result.catalogue_bytes = snapshot.admission.catalogue_bytes;
+    result.attention_pages = snapshot.admission.attention_pages;
+    result.attention_tokens = snapshot.admission.attention_tokens;
+    result.transfer_destination_pages = snapshot.admission.transfer_destination_pages;
+    result.graph_bytes = snapshot.admission.graph_bytes;
+    result.turbo4_scratch_bytes = snapshot.admission.turbo4_scratch_bytes;
+    result.routing_table_bytes = snapshot.admission.routing_table_bytes;
+    result.staging_bytes = snapshot.admission.staging_bytes;
+    result.external_bytes = snapshot.admission.external_bytes;
+    // Native-MTP fields above are observed from the companion context. The
+    // pager admission result is only a requested/reserved estimate and must
+    // never replace an observed allocation (or invent one when no companion
+    // context was supplied).
+    result.requested_context_tokens = snapshot.admission.requested_context_tokens;
+    result.resolved_context_tokens = snapshot.admission.resolved_context_tokens;
+    result.accepted_target_tokens = snapshot.admission.accepted_target_tokens;
+    result.admission_accepted = snapshot.admission.accepted;
+    result.admission_refusal = llama_cache_budget_admission_refusal_name(
+            snapshot.admission.refusal);
+    result.host_budget_bytes = snapshot.host_budget_bytes;
+    result.vram_budget_bytes = snapshot.vram_budget_bytes;
+    result.router_top_k = kv_pager.router_top_k;
+    result.router_refresh_tokens = kv_pager.router_refresh_tokens;
+    result.router_explore = kv_pager.router_explore;
+    result.pin_recent_tokens = kv_pager.pin_recent.automatic ? 0 : kv_pager.pin_recent.value;
+    result.prefetch_depth = kv_pager.prefetch_depth;
+    result.test_forced_logical_page = kv_pager.test_force_logical_page;
+
+    const auto residency = kv_pager_owner->residency();
+    for (const auto & page : residency.pages()) {
+        const uint64_t valid_rows = page.id.position_begin >= 0 && page.id.position_end > page.id.position_begin
+            ? uint64_t(page.id.position_end - page.id.position_begin) : 0;
+        const uint64_t valid_bytes = snapshot.geometry.page_tokens != 0 &&
+                valid_rows <= snapshot.geometry.page_tokens &&
+                (valid_rows == 0 || snapshot.geometry.page_bytes <= UINT64_MAX / valid_rows)
+            ? (snapshot.geometry.page_bytes * valid_rows) / snapshot.geometry.page_tokens : 0;
+        if (page.physical_slot != UINT32_MAX) {
+            ++result.resident_pages;
+            result.target_valid_rows = result.target_valid_rows > UINT64_MAX - valid_rows
+                ? UINT64_MAX : result.target_valid_rows + valid_rows;
+            result.target_valid_bytes = result.target_valid_bytes > UINT64_MAX - valid_bytes
+                ? UINT64_MAX : result.target_valid_bytes + valid_bytes;
+        }
+        if (page.host_valid) {
+            ++result.host_pages;
+            result.host_valid_rows = result.host_valid_rows > UINT64_MAX - valid_rows
+                ? UINT64_MAX : result.host_valid_rows + valid_rows;
+            result.host_valid_bytes = result.host_valid_bytes > UINT64_MAX - valid_bytes
+                ? UINT64_MAX : result.host_valid_bytes + valid_bytes;
+        }
+    }
+    if (const auto * host = kv_pager_owner->host_catalog()) {
+        const auto host_snapshot = host->snapshot();
+        result.host_pageable_bytes = host_snapshot.pageable_bytes;
+        result.host_metadata_bytes = host_snapshot.metadata_bytes;
+        result.host_pinned_bytes = host_snapshot.pinned_bytes;
+        // The catalog's pageable charge is the authoritative host allocation;
+        // valid bytes above describe only committed rows in that allocation.
+    }
+    result.target_resident_bytes = kv_pager_owner->resident_bytes();
+    result.transfers = kv_pager_owner->transfer_counters();
+    result.h2d_transfers = kv_pager_owner->h2d_counters();
+    result.d2h_transfers = kv_pager_owner->d2h_counters();
+    result.promotion_pages = kv_pager_owner->promotion_pages();
+    result.eviction_pages = kv_pager_owner->eviction_pages();
+    result.query_refresh_count = kv_pager_owner->query_refresh_count();
+    result.seal_calls = kv_pager_owner->seal_calls();
+    result.diagnostic_seal_us = kv_pager_owner->diagnostic_seal_us();
+    result.diagnostic_seal_boundary_us = kv_pager_owner->diagnostic_seal_boundary_us();
+    result.diagnostic_policy_us = kv_pager_owner->diagnostic_policy_us();
+    result.diagnostic_host_enqueue_us = kv_pager_owner->diagnostic_host_enqueue_us();
+    result.diagnostic_host_completion_us = kv_pager_owner->diagnostic_host_completion_us();
+    result.diagnostic_queue_wait_us = kv_pager_owner->diagnostic_queue_wait_us();
+    result.diagnostic_queue_waits = kv_pager_owner->diagnostic_queue_waits();
+    result.seal_pages_scanned = kv_pager_owner->seal_pages_scanned();
+    result.seal_pages_changed = kv_pager_owner->seal_pages_changed();
+    result.summary_build_calls = kv_pager_owner->summary_build_calls();
+    result.summary_build_bytes = kv_pager_owner->summary_build_bytes();
+    result.summary_read_calls = kv_pager_owner->summary_read_calls();
+    result.summary_read_bytes = kv_pager_owner->summary_read_bytes();
+    result.natural_proof = kv_pager_owner->natural_proof();
+    result.rejection_histogram = kv_pager_owner->rejection_histogram();
+    result.selector_trace = kv_pager_owner->selector_trace();
+    result.selector_trace_history = kv_pager_owner->selector_trace_history();
+    result.selector_trace_history_count = kv_pager_owner->selector_trace_history_count();
+    result.selector_trace_history_next = kv_pager_owner->selector_trace_history_next();
+    result.host_seal_d2h_calls = kv_pager_owner->host_seal_d2h_calls();
+    result.host_seal_d2h_bytes = kv_pager_owner->host_seal_d2h_bytes();
+    result.host_seal_d2h_async_completions = kv_pager_owner->host_seal_d2h_async_completions();
+    result.host_seal_queued = kv_pager_owner->host_seal_queued();
+    result.host_inflight_pages = kv_pager_owner->host_inflight_pages();
+    result.inventory_copy_count = kv_pager_owner->inventory_copy_count();
+    result.store_copy_count = kv_pager_owner->store_copy_count();
+    if (result.test_forced_logical_page != UINT32_MAX) {
+        (void) kv_pager_owner->test_page_checksums(result.test_forced_logical_page,
+                result.test_forced_host_checksum, result.test_forced_device_checksum,
+                result.test_forced_physical_slot, result.test_forced_page_generation,
+                result.test_forced_content_version);
+    }
+    return result;
+}
+
+void llama_context::begin_kv_pager_proof_request() noexcept {
+    if (kv_pager_owner != nullptr) {
+        kv_pager_owner->begin_natural_proof_request();
+    }
+}
+
+void llama_context::validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const {
+    if (!kv_pager.enabled()) {
+        return;
+    }
+
+    uint32_t attention_layers = 0;
+    uint32_t heads = 0;
+    uint32_t key_length = 0;
+    uint32_t value_length = 0;
+    bool geometry = true;
+    for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
+        if (!model.hparams.has_kv(il)) {
+            continue;
+        }
+        ++attention_layers;
+        const uint32_t layer_heads = model.hparams.n_head_kv(il);
+        const uint32_t layer_key = model.hparams.n_embd_head_k(il);
+        const uint32_t layer_value = model.hparams.n_embd_head_v(il);
+        if (heads == 0) {
+            heads = layer_heads;
+            key_length = layer_key;
+            value_length = layer_value;
+        } else if (heads != layer_heads || key_length != layer_key || value_length != layer_value) {
+            geometry = false;
+        }
+    }
+
+    const bool backend = model.devices.size() == 1 && !model.devices[0].is_meta &&
+        model.devices[0].dev != nullptr &&
+        (ggml_backend_dev_type(model.devices[0].dev) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+         ggml_backend_dev_type(model.devices[0].dev) == GGML_BACKEND_DEVICE_TYPE_IGPU);
+    const auto capability = llama_kv_pager_evaluate_capability(
+        kv_pager,
+        backend,
+        model.arch == LLM_ARCH_QWEN35 || model.arch == LLM_ARCH_QWEN35MOE,
+        cparams.causal_attn,
+        type_k == GGML_TYPE_TURBO4_0 && type_v == GGML_TYPE_TURBO4_0,
+        geometry && attention_layers != 0 && heads != 0 && key_length != 0 && value_length != 0,
+        kv_pager.page_size == 256,
+        backend,
+        cparams.n_seq_max == 1,
+        true,
+        true,
+        cparams.vbr_dynamic || cparams.vbr_vram_budget_bytes != 0 || cparams.vbr_min_bits != 0.0);
+    if (!capability.supported) {
+        throw std::runtime_error("KV pager capability refused: " + capability.diagnostic);
+    }
+}
+
+void llama_context::plan_kv_pager() {
+    kv_pager_plan_ = {};
+    kv_pager_plan_valid_ = false;
+    if (cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP) {
+        return;
+    }
+    if (kv_pager.mode != llama_kv_pager_mode::selective &&
+        kv_pager.mode != llama_kv_pager_mode::exact) {
+        return;
+    }
+
+    ggml_backend_t backend = find_gpu_backend();
+    if (backend == nullptr) {
+        throw std::runtime_error("KV pager preallocation refused: GPU backend");
+    }
+    const ggml_backend_dev_t dev = ggml_backend_get_device(backend);
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    ggml_backend_dev_memory(dev, &free_bytes, &total_bytes);
+    const auto buft = ggml_backend_get_default_buffer_type(backend);
+    const uint64_t alignment = std::max<size_t>(1,
+            ggml_backend_buft_get_alignment(buft));
+
+    llama_kv_pager_geometry geometry;
+    if (!llama_kv_pager_geometry_from_model(model, pager_target_type_k_,
+            pager_target_type_v_, !cparams.flash_attn, kv_pager.page_size,
+            cparams.n_ctx_seq, geometry)) {
+        throw std::runtime_error("KV pager preallocation refused: model geometry");
+    }
+
+    uint64_t model_bytes = 0;
+    for (const auto & [model_buft, bytes] : model.memory_breakdown()) {
+        if (!ggml_backend_buft_is_host(model_buft) &&
+            ggml_backend_buft_get_device(model_buft) == dev) {
+            model_bytes = bytes > UINT64_MAX - model_bytes
+                ? UINT64_MAX : model_bytes + uint64_t(bytes);
+        }
+    }
+    const uint64_t total = uint64_t(total_bytes);
+    const uint64_t occupied = std::min<uint64_t>(total,
+            total - std::min<uint64_t>(total, uint64_t(free_bytes)));
+    const uint64_t unaccounted = occupied > model_bytes
+        ? occupied - model_bytes : 0;
+
+    llama_kv_pager_resources resources;
+    resources.admission.capacity_bytes = total;
+    // External occupancy is a named ledger row. Keep the physical device as
+    // the ceiling so it is not subtracted once here and charged a second time
+    // by llama_cache_budget_admit().
+    resources.admission.backend_safe_limit_bytes = total;
+    resources.admission.external_bytes = unaccounted;
+    resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic
+        ? 0 : kv_pager.vram_budget.bytes;
+    resources.admission.weights_bytes = model_bytes;
+    resources.admission.fixed_bytes = 0;
+    resources.admission.recurrent_state_bytes =
+            llama_context_recurrent_state_bytes(model, cparams, dev);
+    // For explicit H, do not reject a caller's geometry on an unmeasured
+    // co-tenancy nominal ask. graph_reserve() allocates the real scheduler
+    // buffers; init_kv_pager() reconciles their measured bytes afterwards.
+    resources.admission.graph_bytes = kv_pager.hot_pages.automatic
+        ? llama_context_estimated_compute_bytes() : 0;
+    resources.admission.mtp_compute_bytes = 0;
+    resources.admission.turbo4_scratch_bytes = alignment;
+    resources.admission.staging_bytes = alignment;
+    resources.admission.allocator_guard_bytes = alignment;
+    resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic
+        ? llama_vram_headroom_bytes() : kv_pager.safety_headroom.bytes;
+    resources.admission.requested_context_tokens = cparams.n_ctx_seq;
+    resources.admission.resolved_context_tokens = cparams.n_ctx_seq;
+    resources.admission.mtp_is_turbo4 = true;
+
+    bool mtp_loaded = model.hparams.has_mtp() &&
+        model.layers.size() >= model.hparams.n_layer_all;
+    if (mtp_loaded) {
+        for (uint32_t il = model.hparams.n_layer();
+                il < model.hparams.n_layer_all; ++il) {
+            if (model.layers[il].attn_norm == nullptr) {
+                mtp_loaded = false;
+                break;
+            }
+        }
+    }
+    resources.admission.mtp_present = mtp_loaded;
+    resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
+    // MTP has a separate context/scheduler. Its actual compute allocation is
+    // unknown until the server constructs it; a second nominal ask is not a
+    // measurement. Preserve the auto-sizing estimate, but allow explicit H
+    // to proceed to that real allocation and expose its bytes in telemetry.
+    resources.admission.mtp_compute_bytes = mtp_loaded && kv_pager.hot_pages.automatic
+        ? llama_context_estimated_compute_bytes() : 0;
+    if (mtp_loaded) {
+        resources.admission.mtp_is_turbo4 =
+            pager_target_type_k_ == GGML_TYPE_TURBO4_0 &&
+            pager_target_type_v_ == GGML_TYPE_TURBO4_0 &&
+            llama_context_native_mtp_rows(model, cparams.flash_attn,
+                resources.admission.mtp_k_row_bytes,
+                resources.admission.mtp_v_row_bytes);
+    }
+
+    resources.host_budget_known = true;
+    if (kv_pager.host_budget.automatic) {
+        size_t host_free = 0;
+        size_t host_total = 0;
+        const ggml_backend_dev_t host_dev = ggml_backend_dev_by_type(
+                GGML_BACKEND_DEVICE_TYPE_CPU);
+        if (host_dev == nullptr) {
+            resources.host_budget_known = false;
+        } else {
+            ggml_backend_dev_memory(host_dev, &host_free, &host_total);
+        }
+        resources.host_budget_bytes = uint64_t(host_free);
+    } else {
+        resources.host_budget_bytes = kv_pager.host_budget.bytes;
+    }
+    resources.allocator_granularity = alignment;
+    resources.duplicate_representation_authority = false;
+
+    resources.routing_summary.vector_dim = geometry.key_length;
+    resources.routing_summary.representative_count = 4;
+    resources.routing_summary.form = llama_kv_routing_summary_form::minmax_ranges;
+    resources.routing_summary.subblock_tokens = 64;
+    if (geometry.unit_descriptors.size() > UINT32_MAX) {
+        throw std::runtime_error("KV pager geometry has too many live K/V units");
+    }
+    resources.host_capture_limits.max_units =
+            uint32_t(geometry.unit_descriptors.size());
+    const uint64_t logical_pages = (geometry.context_tokens - 1) /
+        geometry.page_tokens + 1;
+    resources.admission.routing_bytes =
+        llama_kv_routing_summary_device_layout::make(
+            logical_pages, geometry.attention_layers, geometry.kv_heads,
+            geometry.key_length, geometry.page_tokens,
+            resources.routing_summary.subblock_tokens, sizeof(uint16_t)).bytes;
+    llama_context_fill_pager_memory_admission(
+            model, kv_pager, geometry, alignment, resources);
+
+    llama_kv_pager_status status;
+    if (!llama_kv_pager_plan(kv_pager, geometry, resources,
+            kv_pager_plan_, status)) {
+        throw std::runtime_error(format(
+                "KV pager preallocation refused: %s",
+                llama_kv_pager_status_name(status)));
+    }
+    kv_pager_plan_valid_ = true;
+    LLAMA_LOG_INFO("%s: pager preallocation plan: logical=%u physical=%u rows=%llu bytes=%llu mtp_rows=%llu\n",
+            __func__, kv_pager_plan_.logical_page_count,
+            kv_pager_plan_.physical_page_count,
+            (unsigned long long) kv_pager_plan_.physical_rows,
+            (unsigned long long) kv_pager_plan_.physical_bytes,
+            (unsigned long long) kv_pager_plan_.mtp_rows);
+}
+
+void llama_context::init_kv_pager() {
+    // sched_reserve() also runs after sampler/graph changes during a live
+    // request. Its scratch reservation is not a new pager lifecycle: replacing
+    // the owner here loses the host catalogue, provisional turn and immutable
+    // history while memory still contains the old KV rows. Admission/binding
+    // is once per context; a different L/H configuration needs a fresh context.
+    if (!kv_pager.enabled() || kv_pager_owner != nullptr) {
+        return;
+    }
+    ggml_backend_t backend = find_gpu_backend();
+    if (!backend) {
+        throw std::runtime_error("KV pager capability refused: backend");
+    }
+    const ggml_backend_dev_t dev = ggml_backend_get_device(backend);
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    ggml_backend_dev_memory(dev, &free_bytes, &total_bytes);
+    GGML_UNUSED(free_bytes);
+
+    // The device total is the admission ceiling.  Charge the allocations that
+    // are already resident separately, rather than feeding post-allocation
+    // free bytes into a second, opaque budget.  This keeps the MTP reservation
+    // and the target pager in one ledger and makes the startup record
+    // auditable against memory_breakdown().
+    uint64_t model_bytes = 0;
+    uint64_t context_bytes = 0;
+    uint64_t compute_bytes = 0;
+    uint64_t recurrent_bytes = 0;
+    const auto add_memory = [](uint64_t & total, size_t value) {
+        total = value > UINT64_MAX - total ? UINT64_MAX : total + uint64_t(value);
+    };
+    for (const auto & [buft, breakdown] : memory_breakdown()) {
+        if (ggml_backend_buft_is_host(buft) || ggml_backend_buft_get_device(buft) != dev) {
+            continue;
+        }
+        add_memory(model_bytes, breakdown.model);
+        add_memory(context_bytes, breakdown.context);
+        add_memory(compute_bytes, breakdown.compute);
+    }
+    const auto add_recurrent = [&](const llama_memory_recurrent * recurrent) {
+        if (recurrent == nullptr) {
+            return;
+        }
+        for (const auto & [buft, bytes] : recurrent->memory_breakdown()) {
+            if (!ggml_backend_buft_is_host(buft) &&
+                ggml_backend_buft_get_device(buft) == dev) {
+                add_memory(recurrent_bytes, bytes);
+            }
+        }
+    };
+    if (auto * hybrid_idx = dynamic_cast<llama_memory_hybrid_idx *>(memory.get())) {
+        add_recurrent(hybrid_idx->get_mem_recr());
+    } else if (auto * hybrid = dynamic_cast<llama_memory_hybrid *>(memory.get())) {
+        add_recurrent(hybrid->get_mem_recr());
+    } else if (auto * hybrid_iswa = dynamic_cast<llama_memory_hybrid_iswa *>(memory.get())) {
+        add_recurrent(hybrid_iswa->get_mem_recr());
+    } else if (auto * recurrent = dynamic_cast<llama_memory_recurrent *>(memory.get())) {
+        add_recurrent(recurrent);
+    }
+    uint64_t known_bytes = model_bytes;
+    known_bytes = context_bytes > UINT64_MAX - known_bytes
+        ? UINT64_MAX : known_bytes + context_bytes;
+    known_bytes = compute_bytes > UINT64_MAX - known_bytes
+        ? UINT64_MAX : known_bytes + compute_bytes;
+    // Retain allocator-visible occupancy that is not represented by the
+    // breakdown (driver reservations, peer allocations, and similar opaque
+    // buffers) as a safe limit.  This is equivalent to the old free-byte
+    // ceiling after charging known resident rows, while making the reason for
+    // the limit explicit in the ledger.
+    const uint64_t occupied_bytes = std::min<uint64_t>(total_bytes, total_bytes -
+        std::min<uint64_t>(total_bytes, free_bytes));
+    const uint64_t unaccounted_bytes = occupied_bytes > known_bytes
+        ? occupied_bytes - known_bytes : 0;
+    const uint64_t backend_safe_limit = total_bytes;
+
+    llama_kv_cache * attention_cache = nullptr;
+    if (auto * hybrid_idx = dynamic_cast<llama_memory_hybrid_idx *>(memory.get())) {
+        attention_cache = hybrid_idx->get_mem_attn();
+    } else if (auto * hybrid = dynamic_cast<llama_memory_hybrid *>(memory.get())) {
+        attention_cache = hybrid->get_mem_attn();
+    }
+    llama_kv_pager_geometry geometry;
+    geometry.context_tokens = cparams.n_ctx_seq;
+    if (attention_cache == nullptr ||
+        !attention_cache->pager_geometry(kv_pager.page_size, geometry)) {
+        throw std::runtime_error("KV pager geometry refused: runtime tensors");
+    }
+    geometry.context_tokens = cparams.n_ctx_seq;
+
+    size_t backend_index = 0;
+    for (; backend_index < backend_ptrs.size(); ++backend_index) {
+        if (backend_ptrs[backend_index] == backend) break;
+    }
+    const uint64_t alignment = backend_index < backend_buft.size()
+        ? std::max<size_t>(1, ggml_backend_buft_get_alignment(backend_buft[backend_index])) : 1;
+    const uint64_t allocation_granularity = std::max<uint64_t>(
+            alignment, attention_cache->allocation_granularity());
+    llama_kv_pager_resources resources;
+    resources.admission.capacity_bytes = total_bytes;
+    resources.admission.backend_safe_limit_bytes = backend_safe_limit;
+    resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic ? 0 : kv_pager.vram_budget.bytes;
+    resources.admission.weights_bytes = model_bytes;
+    resources.admission.fixed_bytes = context_bytes;
+    resources.admission.recurrent_state_bytes = recurrent_bytes;
+    resources.admission.graph_bytes = compute_bytes;
+    resources.admission.mtp_compute_bytes = kv_pager_plan_valid_
+        ? kv_pager_plan_.admission.mtp_compute_bytes : 0;
+    resources.admission.external_bytes = unaccounted_bytes;
+    resources.admission.provenance = llama_cache_budget_admission_provenance::mixed;
+    resources.admission.reconciliation = llama_cache_budget_reconciliation_status::matched;
+    // The scheduler buffer is already in graph_bytes.  Keep only the
+    // allocator-alignment probe in the separate scratch column so it is not
+    // charged twice.
+    resources.admission.turbo4_scratch_bytes = allocation_granularity;
+    // The pager's allocator may need one aligned transient staging unit while
+    // publishing a new page.  Keep it explicit even though it is small; the
+    // host capture ring is accounted in the host budget, not as VRAM.
+    resources.admission.staging_bytes = allocation_granularity;
+    resources.admission.allocator_guard_bytes = allocation_granularity;
+    resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic
+        ? llama_vram_headroom_bytes() : kv_pager.safety_headroom.bytes;
+    bool mtp_loaded = model.hparams.has_mtp() &&
+        model.layers.size() >= model.hparams.n_layer_all;
+    if (mtp_loaded) {
+        for (uint32_t il = model.hparams.n_layer(); il < model.hparams.n_layer_all; ++il) {
+            if (model.layers[il].attn_norm == nullptr) {
+                mtp_loaded = false;
+                break;
+            }
+        }
+    }
+    resources.admission.mtp_present = mtp_loaded;
+    resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
+    resources.admission.requested_context_tokens = cparams.n_ctx_seq;
+    resources.admission.resolved_context_tokens = cparams.n_ctx_seq;
+    resources.admission.mtp_is_turbo4 = true;
+    if (mtp_loaded) {
+        resources.admission.mtp_is_turbo4 =
+            pager_target_type_k_ == GGML_TYPE_TURBO4_0 &&
+            pager_target_type_v_ == GGML_TYPE_TURBO4_0 &&
+            llama_context_native_mtp_rows(
+                model, cparams.flash_attn,
+                resources.admission.mtp_k_row_bytes,
+                resources.admission.mtp_v_row_bytes);
+    }
+    resources.host_budget_known = true;
+    if (kv_pager.host_budget.automatic) {
+        size_t host_free = 0;
+        size_t host_total = 0;
+        const ggml_backend_dev_t host_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+        if (host_dev == nullptr) {
+            resources.host_budget_known = false;
+        } else {
+            ggml_backend_dev_memory(host_dev, &host_free, &host_total);
+        }
+        resources.host_budget_bytes = host_free;
+    } else {
+        resources.host_budget_bytes = kv_pager.host_budget.bytes;
+    }
+    resources.allocator_granularity = allocation_granularity;
+    resources.duplicate_representation_authority = false;
+    resources.physical_page_cap = kv_pager_plan_valid_
+        ? kv_pager_plan_.physical_page_count : 0;
+
+    // The cache constructed the target slab from the pre-allocation plan. It
+    // is already included in context_bytes, so remove it from the fixed column
+    // before the pager reconciles the same bytes into page capacity.
+    if (attention_cache->pager_storage_tensor() != nullptr) {
+        resources.external_storage_tensor = attention_cache->pager_storage_tensor();
+        resources.external_storage_buffer = attention_cache->pager_storage_buffer();
+        const uint64_t slab_bytes = uint64_t(ggml_nbytes(
+                resources.external_storage_tensor));
+        resources.admission.fixed_bytes = slab_bytes > resources.admission.fixed_bytes
+            ? 0 : resources.admission.fixed_bytes - slab_bytes;
+    } else if (kv_pager.mode == llama_kv_pager_mode::selective ||
+               kv_pager.mode == llama_kv_pager_mode::exact) {
+        throw std::runtime_error("KV pager storage authority is missing from target cache");
+    }
+    resources.admission.fixed_bytes = recurrent_bytes > resources.admission.fixed_bytes
+        ? 0 : resources.admission.fixed_bytes - recurrent_bytes;
+    // Automatic sizing retains its prospective bounds. Explicit H uses the
+    // actual target scheduler/recurrent allocations and current external
+    // occupancy above, rather than retaining an earlier transient/nominal
+    // maximum as though it were a live buffer.
+    if (kv_pager_plan_valid_ && kv_pager.hot_pages.automatic) {
+        resources.admission.graph_bytes = std::max(
+                resources.admission.graph_bytes,
+                kv_pager_plan_.admission.graph_bytes);
+        resources.admission.recurrent_state_bytes = std::max(
+                resources.admission.recurrent_state_bytes,
+                kv_pager_plan_.admission.recurrent_state_bytes);
+        resources.admission.external_bytes = std::max(
+                resources.admission.external_bytes,
+                kv_pager_plan_.admission.external_bytes);
+        resources.admission.mtp_compute_bytes = std::max(
+                resources.admission.mtp_compute_bytes,
+                kv_pager_plan_.admission.mtp_compute_bytes);
+    }
+    // The pager has one transfer owner per device. Do not put D2H/H2D work
+    // onto the scheduler's compute backend: graph capture/replay must not
+    // inherit a worker event or allocator stream from the target graph.
+    if (!pager_transfer_backend ||
+            ggml_backend_get_device(pager_transfer_backend.get()) != dev) {
+        pager_transfer_backend.reset(ggml_backend_dev_init(dev, nullptr));
+    }
+    const bool dedicated_transfer_backend = pager_transfer_backend != nullptr &&
+        pager_transfer_backend.get() != backend &&
+        ggml_backend_get_device(pager_transfer_backend.get()) == dev;
+    resources.host_capture_enabled = dedicated_transfer_backend;
+    resources.host_backend = dedicated_transfer_backend
+        ? pager_transfer_backend.get() : backend;
+    resources.host_source_namespace = uint64_t(
+            reinterpret_cast<uintptr_t>(&model));
+    resources.host_topology_identity = uint64_t(
+            reinterpret_cast<uintptr_t>(dev));
+    if (resources.host_source_namespace == 0) resources.host_source_namespace = 1;
+    if (resources.host_topology_identity == 0) resources.host_topology_identity = 1;
+    resources.host_child_id = 0;
+    resources.host_stream_index = 0;
+    resources.host_lanes.push_back({ dev, resources.host_backend, false });
+    if (!dedicated_transfer_backend) {
+        LLAMA_LOG_WARN("%s: KV pager transfer backend unavailable; canonical host capture disabled\n",
+                __func__);
+    }
+    if (kv_pager.router == llama_kv_router_mode::probe_rerank) {
+        if (!pager_ranking_backend ||
+                ggml_backend_get_device(pager_ranking_backend.get()) != dev) {
+            pager_ranking_backend.reset(ggml_backend_dev_init(dev, nullptr));
+        }
+        if (!pager_ranking_backend || pager_ranking_backend.get() == resources.host_backend) {
+            throw std::runtime_error("probe-rerank KV pager requires a dedicated ranking backend");
+        }
+        resources.ranking_backend = pager_ranking_backend.get();
+        resources.ranking_host_buft = ggml_backend_dev_host_buffer_type(dev);
+        if (resources.ranking_host_buft == nullptr ||
+                !ggml_backend_buft_is_host(resources.ranking_host_buft)) {
+            pager_ranking_backend.reset();
+            throw std::runtime_error("probe-rerank KV pager requires pinned host buffer support");
+        }
+    }
+    const uint64_t host_cap = resources.host_budget_bytes;
+    resources.host_budget.host.pageable_cap = host_cap;
+    resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    resources.host_budget.host.total_cap = host_cap;
+    resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+    const uint64_t minimum_ring = 2ull * 64*1024;
+    resources.host_chunk_bytes = 64*1024;
+    resources.host_ring_bytes = std::min<uint64_t>(
+            VBR_PINNED_RING_MAX_BYTES,
+            std::max<uint64_t>(minimum_ring,
+                std::min<uint64_t>(64ull*1024*1024,
+                    std::max<uint64_t>(minimum_ring, geometry.page_bytes))));
+    if (host_cap != 0 && resources.host_ring_bytes > host_cap) {
+        resources.host_ring_bytes = host_cap - (host_cap % resources.host_chunk_bytes);
+    }
+    if (resources.host_ring_bytes < minimum_ring) {
+        resources.host_capture_enabled = false;
+    }
+    resources.host_budget.host.pinned_cap = resources.host_ring_bytes;
+    resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
+
+    // Use one runtime full-attention K head for the bounded baseline. The
+    // vector dimension follows admitted geometry and is not context-sized.
+    resources.routing_summary.vector_dim = geometry.key_length;
+    resources.routing_summary.representative_count = 4;
+    resources.routing_summary.form = llama_kv_routing_summary_form::minmax_ranges;
+    resources.routing_summary.subblock_tokens = 64;
+    resources.routing_summary.layer_index = 0;
+    resources.routing_summary.head_index = 0;
+    if (geometry.unit_descriptors.size() > UINT32_MAX) {
+        throw std::runtime_error("KV pager geometry has too many live K/V units");
+    }
+    resources.host_capture_limits.max_units =
+            uint32_t(geometry.unit_descriptors.size());
+    const uint64_t logical_pages = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
+    resources.admission.routing_bytes =
+        llama_kv_routing_summary_device_layout::make(
+            logical_pages, geometry.attention_layers, geometry.kv_heads,
+            geometry.key_length, geometry.page_tokens,
+            resources.routing_summary.subblock_tokens, sizeof(uint16_t)).bytes;
+    llama_context_fill_pager_memory_admission(
+            model, kv_pager, geometry, allocation_granularity, resources);
+
+    llama_kv_pager_backend pager_backend;
+    pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        if (backend_index >= backend_buft.size()) return false;
+        ggml_backend_buffer_t buffer = ggml_backend_buft_alloc_buffer(backend_buft[backend_index], bytes);
+        if (!buffer) return false;
+        allocation.handle = buffer;
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = ggml_backend_buffer_get_size(buffer);
+        return true;
+    };
+    pager_backend.release = [](llama_kv_pager_allocation & allocation) {
+        ggml_backend_buffer_free(static_cast<ggml_backend_buffer_t>(allocation.handle));
+        allocation = {};
+    };
+    // Emit the typed admission decision before create() can fail.  This is
+    // especially important for an impossible native-MTP request: callers get
+    // a machine-readable refusal in startup evidence instead of a retry loop
+    // ending at the allocator's less-specific error.
+    {
+        auto probe = resources.admission;
+        probe.page_tokens = geometry.page_tokens;
+        probe.logical_page_count = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
+        probe.target_page_bytes = geometry.page_bytes;
+        probe.user_page_cap = kv_pager.hot_pages.automatic ? 0 : kv_pager.hot_pages.value;
+        probe.allocation_granularity = resources.allocator_granularity;
+        const auto decision = llama_cache_budget_admit(probe);
+        if (!decision.accepted) {
+            LLAMA_LOG_ERROR(
+                    "KV pager admission refused: {requested_context_tokens=%" PRIu64
+                    " resolved_context_tokens=%" PRIu64 " accepted_target_tokens=%" PRIu64
+                    " refusal=%s charged_bytes=%" PRIu64 " usable_device_bytes=%" PRIu64 "}\n",
+                    decision.requested_context_tokens, decision.resolved_context_tokens,
+                    decision.accepted_target_tokens,
+                    llama_cache_budget_admission_refusal_name(decision.refusal),
+                    decision.charged_bytes, decision.usable_device_bytes);
+        }
+    }
+    llama_kv_pager_status status = llama_kv_pager_status::invalid_geometry;
+    kv_pager_owner = llama_kv_pager::create(kv_pager, geometry, resources, std::move(pager_backend), status);
+    if (!kv_pager_owner) {
+        throw std::runtime_error("KV pager initialization failed: " + std::string(llama_kv_pager_status_name(status)));
+    }
+    memory->set_kv_pager(kv_pager_owner.get());
+    const auto & snapshot = kv_pager_owner->snapshot();
+    if (kv_pager.telemetry &&
+        (kv_pager.mode == llama_kv_pager_mode::observe ||
+         kv_pager.mode == llama_kv_pager_mode::selective ||
+         kv_pager.mode == llama_kv_pager_mode::exact)) {
+        llama_kv_attention_telemetry_config telemetry_config;
+        telemetry_config.mode = kv_pager.mode == llama_kv_pager_mode::selective
+            ? llama_kv_attention_telemetry_mode::selective
+            : llama_kv_attention_telemetry_mode::observe;
+        telemetry_config.logical_page_count = snapshot.logical_page_count;
+        telemetry_config.sample_interval_tokens = kv_pager.telemetry_interval_tokens;
+        telemetry_config.layer_index = kv_pager.telemetry_layer;
+        telemetry_config.head_begin = kv_pager.telemetry_head_begin;
+        telemetry_config.head_count = kv_pager.telemetry_head_count;
+        kv_attention_telemetry = std::make_unique<llama_kv_attention_telemetry>(telemetry_config);
+    }
+    memory->set_kv_attention_telemetry(kv_attention_telemetry.get());
+    const auto & admission = snapshot.admission;
+    LLAMA_LOG_INFO(
+            "KV pager startup: {%s context_tokens=%" PRIu64
+            " logical_pages=%u admitted_pages=%u physical_rows=%" PRIu64
+            " target_page_bytes=%" PRIu64 " page_charge_bytes=%" PRIu64
+            " target_bytes=%" PRIu64 " mtp_rows=%" PRIu64 " mtp_bytes=%" PRIu64
+            " requested_context_tokens=%" PRIu64 " resolved_context_tokens=%" PRIu64
+            " accepted_target_tokens=%" PRIu64 " admission_accepted=%d"
+            " ledger_usable_bytes=%" PRIu64 " ledger_charged_bytes=%" PRIu64
+            " ledger_reserved_bytes=%" PRIu64 " ledger_headroom_bytes=%" PRIu64
+            " ledger_weights_bytes=%" PRIu64 " ledger_fixed_context_bytes=%" PRIu64
+            " ledger_recurrent_state_bytes=%" PRIu64 " ledger_mtp_compute_bytes=%" PRIu64
+            " ledger_graph_bytes=%" PRIu64 " ledger_external_bytes=%" PRIu64
+            " ledger_packed_workspace_bytes=%" PRIu64
+            " ledger_packed_dequant_bytes=%" PRIu64
+            " ledger_catalogue_bytes=%" PRIu64
+            " ledger_attention_pages=%" PRIu64
+            " device=%s route=%s refusal=%s}\n",
+            kv_pager.summary().c_str(), geometry.context_tokens,
+            snapshot.logical_page_count, snapshot.physical_page_count,
+            snapshot.physical_rows, admission.target_page_bytes,
+            admission.page_charge_bytes, snapshot.realized_bytes,
+            resources.admission.mtp_tokens, admission.mtp_bytes,
+            admission.requested_context_tokens, admission.resolved_context_tokens,
+            admission.accepted_target_tokens, admission.accepted ? 1 : 0,
+            admission.usable_device_bytes, admission.charged_bytes,
+            admission.reserved_bytes, admission.headroom_bytes,
+            admission.weights_bytes, admission.fixed_context_bytes,
+            admission.recurrent_state_bytes, admission.mtp_compute_bytes,
+            admission.graph_bytes, admission.external_bytes,
+            admission.packed_workspace_bytes, admission.packed_dequant_bytes,
+            admission.catalogue_bytes, admission.attention_pages,
+            ggml_backend_dev_name(dev),
+            kv_pager.mode == llama_kv_pager_mode::observe ? "observe" :
+            kv_pager.mode == llama_kv_pager_mode::exact ? "exact" : "selective",
+            llama_cache_budget_admission_refusal_name(admission.refusal));
+}
+
+static uint64_t prefill_page_number(llama_pos position, uint32_t page_tokens) noexcept {
+    if (position < 0 || page_tokens == 0) {
+        return UINT64_MAX;
+    }
+    return uint64_t(position) / page_tokens;
+}
+
+static bool prefill_single_sequence_contiguous(const llama_ubatch & current) noexcept {
+    if (current.n_tokens == 0 || current.pos == nullptr || current.n_pos != 1 ||
+            current.n_seqs_unq != 1 || current.n_seq_tokens != current.n_tokens) {
+        return false;
+    }
+    for (uint32_t token = 1; token < current.n_tokens; ++token) {
+        if (current.pos[token - 1] == std::numeric_limits<llama_pos>::max() ||
+                current.pos[token] != current.pos[token - 1] + 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool prefill_page_wave_boundary(
+        const llama_ubatch & current,
+        uint32_t page_tokens) noexcept {
+    // The ordinary Qwen prompt path is one sequence with one position per
+    // token. Be conservative for other layouts so page publication cannot be
+    // delayed across an unknown boundary.
+    if (current.n_tokens == 0 || current.pos == nullptr || current.n_pos == 0 ||
+        current.n_seqs_unq != 1 || current.n_seq_tokens != current.n_tokens) {
+        return true;
+    }
+
+    uint64_t previous_page = prefill_page_number(current.pos[0], page_tokens);
+    if (previous_page == UINT64_MAX) {
+        return true;
+    }
+    llama_pos previous_position = current.pos[0];
+    for (uint32_t token = 1; token < current.n_tokens; ++token) {
+        const llama_pos position = current.pos0(token);
+        const uint64_t page = prefill_page_number(position, page_tokens);
+        if (page == UINT64_MAX || page != previous_page ||
+            position != previous_position + 1) {
+            return true;
+        }
+        previous_page = page;
+        previous_position = position;
+    }
+
+    if (previous_position == std::numeric_limits<llama_pos>::max()) {
+        return true;
+    }
+    // A normal prompt tile is contiguous. Fence at the end of a page before
+    // advancing the memory context, so the next ubatch cannot observe an
+    // incompletely sealed page. Unknown layouts were rejected above.
+    return prefill_page_number(previous_position + 1, page_tokens) != previous_page;
+}
+
+static bool prefill_pages_are_resident(
+        const llama_ubatch & current,
+        const llama_kv_pager & pager,
+        uint32_t page_tokens) {
+    if (current.n_tokens == 0 || current.pos == nullptr || current.n_pos != 1 ||
+            current.n_seqs_unq != 1 || current.n_seq_tokens != current.n_tokens ||
+            current.seq_id_unq == nullptr || current.seq_id_unq[0] < 0 ||
+            page_tokens == 0) {
+        return false;
+    }
+    if (!prefill_single_sequence_contiguous(current)) {
+        return false;
+    }
+
+    const auto resident = pager.residency(current.seq_id_unq[0]);
+    for (uint32_t token = 0; token < current.n_tokens; ++token) {
+        const uint64_t logical_page = prefill_page_number(current.pos[token], page_tokens);
+        if (logical_page == UINT64_MAX) {
+            return false;
+        }
+        const bool found = std::any_of(resident.pages().begin(), resident.pages().end(),
+                [&](const llama_kv_page_record & page) {
+            return page.id.logical_page == logical_page &&
+                page.physical_slot != UINT32_MAX &&
+                current.pos[token] >= page.id.position_begin &&
+                current.pos[token] < page.id.position_end;
+        });
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool llama_context_hotpath_profile_enabled() noexcept {
+    return llama_kv_attention_hotpath_profile_enabled(
+            std::getenv("LLAMA_HOTPATH_PROFILE"));
+}
+
+uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
+    if (requested == 0 || kv_pager.mode == llama_kv_pager_mode::off ||
+        kv_pager.mode == llama_kv_pager_mode::observe || !kv_pager_owner) {
+        return requested;
+    }
+
+    // A graph can reserve one pager row for every token in its ubatch before
+    // any of those writes complete.  Keep the in-flight write frontier within
+    // the admitted physical window so a page boundary never pins more pages
+    // than H and forces an avoidable all-pinned refusal.
+    const auto & snapshot = kv_pager_owner->snapshot();
+    if (snapshot.physical_page_count == 0) {
+        return requested;
+    }
+    // The direct Turbo4 dispatcher subdivides a qualified B into fixed query
+    // tiles in grid.z. Keep the model's ubatch independent from that CUDA
+    // scheduling unit; only the physical write window bounds admission.
+    return llama_kv_attention_prefill_batch_plan_make(
+            requested, snapshot.physical_page_count,
+            snapshot.geometry.page_tokens).effective_batch;
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -1308,6 +2552,8 @@ void llama_context::sched_reserve() {
         }
     }
 
+    init_kv_pager();
+
     {
         const bool diff = n_nodes_pp != n_nodes_tg || n_splits_pp != n_splits_tg ||
                           n_inputs_pp != n_inputs_tg || n_input_tensors_pp != n_input_tensors_tg;
@@ -1335,16 +2581,146 @@ void llama_context::sched_reserve() {
 }
 
 void llama_context::synchronize() {
+    const bool pager_trace = std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr;
     if (!sched) {
+        if (pager_trace) {
+            std::fprintf(stderr, "kv-pager-progress stage=graph-sync-skip-direct context=%p memory=%p pager=%p reason=no-scheduler\n",
+                    static_cast<void *>(this), static_cast<void *>(memory.get()),
+                    static_cast<void *>(kv_pager_owner.get()));
+        }
+        if (pager_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-skip context=%p reason=no-scheduler memory=%p pager=%p\n",
+                    static_cast<void *>(this), static_cast<void *>(memory.get()),
+                    static_cast<void *>(kv_pager_owner.get()));
+        }
         return;
     }
 
+    const bool kv_attention_wait = kv_attention_execution.in_flight_graphs() != 0;
+    const int64_t wait_start_us = ggml_time_us();
+    if (kv_attention_wait) {
+        kv_attention_execution.record_wait();
+    }
+    const bool pager_progress = pager_trace;
+    if (pager_progress) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-begin context=%p memory=%p pager=%p graphs=%zu route=%u\n",
+                static_cast<void *>(this), static_cast<void *>(memory.get()),
+                static_cast<void *>(kv_pager_owner.get()),
+                kv_attention_execution.in_flight_graphs(),
+                uint32_t(kv_attention_execution.route()));
+    }
     ggml_backend_sched_synchronize(sched.get());
+    const int64_t backend_wait_us = std::max<int64_t>(
+            0, ggml_time_us() - wait_start_us);
+    if (pager_progress) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-complete graphs=%zu elapsed_us=%" PRId64 "\n",
+                kv_attention_execution.in_flight_graphs(),
+                std::max<int64_t>(0, ggml_time_us() - wait_start_us));
+    }
+    if (kv_attention_wait) {
+        kv_attention_execution.record_wait_time_us(uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - wait_start_us)));
+    }
 
-    // The scheduler fence above is the per-family success boundary for the
-    // deferred append/reuse extents — promote submitted -> committed here. No new fences.
-    if (memory) {
-        memory->vbr_commit_submitted();
+    // Resolve deferred target extents at the same scheduler fence before any
+    // host/page-table publication. A failed terminal commit is an explicit
+    // failed boundary: dependent cold state must not be published.
+    const bool target_frontier_committed = !memory || memory->vbr_commit_submitted();
+    if (pager_trace) {
+        std::fprintf(stderr, "kv-pager-progress stage=graph-sync-frontier-direct context=%p memory=%p pager=%p committed=%d graphs=%zu\n",
+                static_cast<void *>(this), static_cast<void *>(memory.get()),
+                static_cast<void *>(kv_pager_owner.get()),
+                target_frontier_committed ? 1 : 0,
+                kv_attention_execution.in_flight_graphs());
+    }
+    if (pager_progress) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-frontier context=%p memory=%p committed=%d\n",
+                static_cast<void *>(this), static_cast<void *>(memory.get()),
+                target_frontier_committed ? 1 : 0);
+    }
+
+    // K/V graph writes are asynchronous on GPU backends. Host publication
+    // therefore belongs after the scheduler fence and target commit.
+    if (memory && target_frontier_committed) {
+        if (pager_trace) std::fprintf(stderr, "kv-pager-progress stage=host-seal-begin-direct\n");
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=host-seal-begin\n");
+        }
+        memory->seal_kv_pager_pages();
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=host-seal-complete\n");
+        }
+    }
+
+    // The scheduler fence is the completion boundary for all selected views,
+    // including an older table that coexisted with a rebuilt graph.
+    while (kv_attention_execution.in_flight_graphs() != 0) {
+        kv_attention_execution.complete_one_graph();
+    }
+    // A graph's selected-page list is overwritten by each later graph. Keep
+    // the per-submission list captured at prepare time so the completion
+    // boundary can prove use of a page promoted by an earlier policy fence.
+    if (kv_pager_owner != nullptr) {
+        for (const auto & graph : kv_attention_proof_graphs_) {
+            if (graph.mtp_verify) {
+                kv_pager_owner->record_natural_proof_draft_use(
+                        graph.selected_page_ids, graph.table_epoch, 0);
+            } else {
+                kv_pager_owner->record_natural_proof_target_use(
+                        graph.selected_page_ids, graph.table_epoch, 0);
+            }
+        }
+    }
+    kv_attention_proof_graphs_.clear();
+    const auto completed_route = kv_attention_execution.route();
+    const bool selected_graph = completed_route == llama_kv_attention_execution_route::selected_dense ||
+        completed_route == llama_kv_attention_execution_route::selected_packed ||
+        completed_route == llama_kv_attention_execution_route::selected_direct ||
+        completed_route == llama_kv_attention_execution_route::exact_direct;
+    if (kv_attention_wait && selected_graph && kv_pager_owner) {
+        // The execution metrics carry the immutable logical IDs from the
+        // graph metadata. Stamp target use only after the scheduler fence;
+        // pre-fence selection is intentionally not proof of consumption.
+        if (kv_attention_mtp_verification_) {
+            kv_pager_owner->record_natural_proof_draft_use(
+                    kv_attention_execution.metrics().selected_page_ids,
+                    kv_attention_execution.table_epoch(), 0);
+        } else {
+            kv_pager_owner->record_natural_proof_target_use(
+                    kv_attention_execution.metrics().selected_page_ids,
+                    kv_attention_execution.table_epoch(), 0);
+        }
+    }
+    // The scheduler fence is also the completion boundary for packed owners.
+    // Keep retired owners alive until this point; a graph rebuild may have
+    // replaced its page selection while the previous graph still reads it.
+    kv_attention_packed_cache.complete_all_graphs();
+    kv_attention_packed_cache.release_completed();
+
+    // Page-mass is an optional output of the direct CUDA attention node. Read
+    // it only after the scheduler fence, then publish against the immutable
+    // snapshot captured when that graph was built.
+    publish_kv_attention_telemetry();
+
+    // Keep live table publication after both the scheduler fence and the
+    // completed attention-retention publication. Retrieval remains a separate
+    // input: a page selected by the routing index is not thereby observed
+    // attention mass.
+    if (memory && target_frontier_committed) {
+        if (pager_trace) std::fprintf(stderr, "kv-pager-progress stage=policy-begin-direct\n");
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-begin\n");
+        }
+        memory->apply_kv_pager_policy();
+        if (pager_trace) std::fprintf(stderr, "kv-pager-progress stage=policy-complete-direct\n");
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-complete\n");
+        }
+    }
+
+    if (kv_attention_wait && t_compute_start_us != 0) {
+        kv_attention_execution.record_total_token_us(uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - t_compute_start_us)));
     }
 
     // FIXME: if multiple single tokens are evaluated without a synchronization,
@@ -1370,6 +2746,19 @@ void llama_context::synchronize() {
         has_evaluated_once = true;
     }
 
+    if (llama_context_hotpath_profile_enabled()) {
+        const int64_t total_fence_us = std::max<int64_t>(
+                0, ggml_time_us() - wait_start_us);
+        LLAMA_LOG_INFO("hotpath stage=context_fence phase=%s queued_tokens=%u "
+                "prefill_pages_admitted=%u in_flight=%d backend_wait_us=%" PRId64
+                " retained_state_us=%" PRId64 " total_us=%" PRId64 "\n",
+                llama_kv_attention_execution_phase_name(kv_attention_execution.phase()),
+                n_queued_tokens, kv_pager_prefill_fence_pages_,
+                kv_attention_wait ? 1 : 0, backend_wait_us,
+                std::max<int64_t>(0, total_fence_us - backend_wait_us),
+                total_fence_us);
+    }
+
     n_queued_tokens = 0;
     t_compute_start_us = 0;
 }
@@ -1380,6 +2769,988 @@ const llama_model & llama_context::get_model() const {
 
 const llama_cparams & llama_context::get_cparams() const {
     return cparams;
+}
+
+void llama_context::set_kv_attention_mode(llama_kv_attention_execution_mode mode) noexcept {
+    kv_attention_execution.set_mode(mode);
+}
+
+llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
+        const llama_kv_attention_operator_metadata & metadata,
+        llama_kv_attention_execution_phase phase,
+        uint64_t representation_epoch,
+        uint64_t shape_epoch,
+        bool direct_capable,
+        const llama_kv_attention_scratch_request & scratch,
+        const std::string & direct_reason,
+        bool dense_capable,
+        bool packed_capable) {
+    const int64_t started = ggml_time_us();
+    auto result = kv_attention_execution.prepare(metadata, phase, representation_epoch,
+            shape_epoch, direct_capable, scratch, direct_reason,
+            dense_capable, packed_capable);
+    const bool selected_route = result.route == llama_kv_attention_execution_route::selected_reference ||
+        result.route == llama_kv_attention_execution_route::selected_dense ||
+        result.route == llama_kv_attention_execution_route::selected_packed ||
+        result.route == llama_kv_attention_execution_route::selected_direct ||
+        result.route == llama_kv_attention_execution_route::exact_direct;
+    if (selected_route && kv_pager_owner != nullptr) {
+        kv_attention_proof_graph graph;
+        graph.table_epoch = metadata.table_epoch();
+        graph.mtp_verify = phase == llama_kv_attention_execution_phase::mtp_verify;
+        graph.selected_page_ids.reserve(metadata.page_table().size());
+        for (const auto & page : metadata.page_table()) {
+            graph.selected_page_ids.push_back(page.logical_page);
+        }
+        kv_attention_proof_graphs_.push_back(std::move(graph));
+    }
+    kv_attention_execution.record_graph_construction_us(uint64_t(std::max<int64_t>(
+            0, ggml_time_us() - started)));
+    return result;
+}
+
+std::string llama_context::mtp_attention_visibility_snapshot_json() const {
+    std::ostringstream out;
+    out << "{\"phase\":\""
+        << llama_kv_attention_execution_phase_name(kv_attention_execution.phase())
+        << "\",\"route\":\""
+        << llama_kv_attention_execution_route_name(kv_attention_execution.route())
+        << "\",\"graph\":"
+        << llama_kv_attention_visibility_snapshot_json(kv_attention_execution.metadata());
+    if (kv_pager_owner != nullptr) {
+        const auto turn = kv_pager_owner->turn_state(0);
+        out << ",\"pager_turn_state\":{\"phase\":"
+            << static_cast<uint32_t>(turn.phase)
+            << ",\"turn_id\":" << turn.turn_id
+            << ",\"frozen_history_generation\":" << turn.frozen_history_generation
+            << ",\"selected_history\":[";
+        for (size_t i = 0; i < turn.selected_history.size(); ++i) {
+            if (i != 0) out << ',';
+            const auto & selected = turn.selected_history[i];
+            out << "{\"logical_page\":" << selected.identity.logical_page
+                << ",\"page_generation\":" << selected.identity.page_generation
+                << ",\"content_version\":" << selected.content_version << '}';
+        }
+        out << "]}";
+    }
+    out << '}';
+    return out.str();
+}
+
+void llama_context::complete_kv_attention_graph() noexcept {
+    kv_attention_execution.complete_one_graph();
+}
+
+llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
+        const llama_ubatch & ubatch,
+        llama_memory_context_i * mctx,
+        llm_graph_type gtype) {
+    const auto phase = kv_attention_mtp_verification_
+        ? llama_kv_attention_execution_phase::mtp_verify
+        : ubatch.n_seq_tokens == 1
+            ? llama_kv_attention_execution_phase::decode
+            : llama_kv_attention_execution_phase::prefill;
+    const uint64_t representation_epoch = mctx ? mctx->get_vbr_epoch() : 0;
+
+    uint64_t shape_epoch = 1469598103934665603ull;
+    const auto mix_shape = [&](uint64_t value) {
+        shape_epoch ^= value;
+        shape_epoch *= 1099511628211ull;
+    };
+    mix_shape(ubatch.n_tokens);
+    mix_shape(ubatch.n_seq_tokens);
+    mix_shape(ubatch.n_seqs_unq);
+    mix_shape(cparams.flash_attn ? 1 : 0);
+    if (shape_epoch == 0) shape_epoch = 1;
+
+    const llama_kv_attention_scratch_request empty_scratch;
+    auto refuse_before_graph = [&](llama_kv_attention_execution_status status,
+                                   const std::string & reason) {
+        kv_attention_execution.clear();
+        llama_kv_attention_execution_decision result;
+        result.status = status;
+        result.route = llama_kv_attention_execution_route::refusal;
+        result.phase = phase;
+        result.representation_epoch = representation_epoch;
+        result.shape_epoch = shape_epoch;
+        result.reason = reason;
+        kv_attention_execution.metrics_mutable().record_exact_refusal(reason);
+        LLAMA_LOG_ERROR("%s: attention admission refused before graph construction: %s\n",
+                __func__, result.reason.c_str());
+        return result;
+    };
+    const auto fill_scratch_contract = [&](llama_kv_attention_scratch_request & scratch,
+                                           llama_kv_attention_execution_route route,
+                                           uint32_t rows) {
+        scratch.route = route;
+        scratch.phase = phase;
+        scratch.context_role = cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP ||
+                model.arch == LLM_ARCH_DFLASH
+            ? llama_kv_attention_scratch_context_role::draft
+            : llama_kv_attention_scratch_context_role::target;
+        scratch.requested_batch_tokens = ubatch.n_tokens;
+        scratch.effective_batch_tokens = ubatch.n_tokens;
+        scratch.query_tile_tokens = std::min(ubatch.n_tokens,
+                LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE);
+        scratch.head_dim_k = model.hparams.n_embd_head_k();
+        scratch.head_dim_v = model.hparams.n_embd_head_v();
+        scratch.n_head_kv = model.hparams.n_head_kv();
+
+        scratch.materialized_k_rows = 0;
+        scratch.materialized_v_rows = 0;
+        scratch.materialized_k_bytes_per_row = 0;
+        scratch.materialized_v_bytes_per_row = 0;
+
+        const bool materializes_f16 =
+            route == llama_kv_attention_execution_route::dense ||
+            route == llama_kv_attention_execution_route::observe ||
+            route == llama_kv_attention_execution_route::selected_reference;
+        if (materializes_f16) {
+            scratch.materialized_k_rows = rows;
+            scratch.materialized_v_rows = rows;
+            scratch.materialized_k_bytes_per_row =
+                size_t(scratch.head_dim_k) * size_t(scratch.n_head_kv) * sizeof(uint16_t);
+            scratch.materialized_v_bytes_per_row =
+                size_t(scratch.head_dim_v) * size_t(scratch.n_head_kv) * sizeof(uint16_t);
+        }
+        // The legacy aggregate row estimate is not an allocator input anymore. Keep it zero so
+        // direct paged attention reports only its separate graph-owned split state, and all f16
+        // routes report the K/V view-width contract above.
+        scratch.bytes_per_row = 0;
+        scratch.resident_rows = scratch.materialized_rows();
+    };
+    const auto reserve_scratch = [&](llama_kv_attention_scratch_request & scratch,
+                                     llama_kv_attention_execution_route route,
+                                     uint32_t rows) {
+        fill_scratch_contract(scratch, route, rows);
+        if (cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP) {
+            // A dense *graph* does not imply F16 CUDA materialization. Native
+            // Turbo4 MTP can use encoded fused attention. Admit its scratch
+            // after the real graph is allocated, using exact op metadata and
+            // the backend's dispatch predicate, still before graph_compute.
+            return true;
+        }
+        const bool reserved = mctx == nullptr ||
+            mctx->reserve_kv_attention_scratch(scratch);
+        if (!reserved) {
+            last_memory_failure_reason_ = llama_memory_failure_reason::scratch_oom;
+        }
+        return reserved;
+    };
+    if (kv_pager.mode == llama_kv_pager_mode::exact) {
+        kv_attention_execution.set_exact_graph_plan(nullptr);
+        kv_attention_execution.metrics_mutable().record_exact_ledger({});
+        auto refuse_exact = [&](llama_kv_attention_execution_status status,
+                                const std::string & reason) {
+            kv_attention_execution.clear();
+            kv_attention_execution.metrics_mutable().record_exact_refusal(reason);
+            llama_kv_attention_execution_decision result;
+            result.status = status;
+            result.route = llama_kv_attention_execution_route::refusal;
+            result.phase = phase;
+            result.representation_epoch = representation_epoch;
+            result.shape_epoch = shape_epoch;
+            result.reason = reason;
+            LLAMA_LOG_ERROR("%s: exact attention refused: %s\n",
+                    __func__, result.reason.c_str());
+            return result;
+        };
+
+        // Exact attention is a page-wave route, not a dense graph hint. Build
+        // and publish the complete immutable coverage ledger here; the graph
+        // builder binds its bounded staging slab and per-layer (m,l,o) nodes
+        // from this plan, while an unavailable backend still fails closed
+        // instead of silently executing dense attention.
+        if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
+            (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
+            !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
+            ubatch.pos == nullptr || ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr) {
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact page-wave graph requires one Qwen sequence");
+        }
+
+        const llama_seq_id sequence_id = ubatch.seq_id[0][0];
+        if (sequence_id < 0 || ubatch.n_seq_id[0] != 1) {
+            return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                    "exact page-wave graph has invalid sequence metadata");
+        }
+        for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+            if (ubatch.n_seq_id[token] != 1 || ubatch.seq_id[token] == nullptr ||
+                ubatch.seq_id[token][0] != sequence_id) {
+                return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                        "exact page-wave graph requires one sequence per query block");
+            }
+        }
+
+        const llama_kv_cache_context * attention =
+            dynamic_cast<const llama_kv_cache_context *>(mctx);
+        if (attention == nullptr) {
+            const auto * hybrid = dynamic_cast<const llama_memory_hybrid_context *>(mctx);
+            attention = hybrid ? hybrid->get_attn() : nullptr;
+        }
+        if (attention == nullptr || !attention->selected_attention_supported() ||
+            attention->get_kv_pager() == nullptr) {
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact attention cache cannot expose canonical page records");
+        }
+
+        const auto & pager = *attention->get_kv_pager();
+        const auto pager_geometry = pager.snapshot();
+        const auto resident_snapshot = pager.residency(sequence_id);
+        const auto records = pager.exact_page_records(sequence_id);
+        if (records.empty() || resident_snapshot.epoch() == 0 ||
+            records.size() > 1024 ||
+            pager_geometry.physical_page_count == 0 ||
+            pager_geometry.geometry.page_tokens == 0 ||
+            pager_geometry.geometry.page_bytes == 0) {
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact attention has no complete resident/host page inventory");
+        }
+
+        std::vector<llama_kv_attention_exact_page> pages;
+        try {
+            pages.reserve(records.size());
+            uint32_t logical_page_count = 0;
+            for (const auto & record : records) {
+                if (record.id.sequence_id != sequence_id ||
+                    record.id.logical_page == UINT32_MAX ||
+                    record.id.position_begin < 0 || record.id.position_end < 0 ||
+                    record.id.position_end <= record.id.position_begin) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            "exact attention encountered an invalid page identity");
+                }
+                const uint64_t valid_tokens = uint64_t(record.id.position_end) -
+                    uint64_t(record.id.position_begin);
+                if (valid_tokens == 0 || valid_tokens > pager_geometry.geometry.page_tokens) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            "exact attention encountered an invalid page tail");
+                }
+                const bool resident = record.physical_slot != UINT32_MAX;
+                if (!resident && !record.host_valid) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            "exact attention encountered a cold page without host backing");
+                }
+                pages.push_back({ record.id, record.physical_slot,
+                        uint32_t(valid_tokens), resident, record.host_valid });
+                logical_page_count = std::max(logical_page_count,
+                        record.id.logical_page + 1);
+            }
+
+            // The available physical page window is the only live device
+            // budget exposed by the pager.  Keep cold waves bounded by it;
+            // the eventual CUDA binding may choose a smaller budget but can
+            // never need a full logical-context allocation.
+            const uint32_t cold_pages = uint32_t(std::count_if(
+                    pages.begin(), pages.end(), [](const auto & page) { return !page.resident; }));
+            const uint32_t wave_page_budget = std::max(1u, std::min(
+                    cold_pages == 0 ? 1u : cold_pages,
+                    pager_geometry.physical_page_count));
+            llama_kv_attention_exact_config config;
+            config.logical_page_count = logical_page_count;
+            config.pages_per_wave = wave_page_budget;
+            config.staging_slots = 1;
+            config.page_bytes = pager_geometry.geometry.page_bytes;
+            config.schedule = llama_kv_attention_exact_schedule::serial;
+
+            llama_kv_attention_exact_status exact_status;
+            auto plan = llama_kv_attention_exact_wave_plan::build(
+                    pages, resident_snapshot, config, exact_status);
+            kv_attention_execution.metrics_mutable().record_exact_ledger(plan.ledger());
+            if (!plan.valid()) {
+                return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                        std::string("exact page-wave coverage rejected: ") +
+                        llama_kv_attention_exact_status_name(exact_status));
+            }
+            LLAMA_LOG_DEBUG("%s: exact page-wave plan pages=%u waves=%llu resident=%llu cold=%llu h2d=%llu peak_staging=%llu\n",
+                    __func__, plan.logical_page_count(),
+                    (unsigned long long) plan.ledger().waves,
+                    (unsigned long long) plan.ledger().resident_pages,
+                    (unsigned long long) plan.ledger().cold_pages,
+                    (unsigned long long) plan.ledger().h2d_useful_bytes,
+                    (unsigned long long) plan.ledger().peak_staging_pages);
+
+            // The direct Turbo4 node is the production exact binding for the
+            // resident decode case: its page table covers the complete logical
+            // inventory, its native mask is causal-position based, and its
+            // page-mass reduction is published only after the scheduler fence.
+            if (plan.ledger().cold_pages == 0 &&
+                (phase == llama_kv_attention_execution_phase::decode ||
+                 phase == llama_kv_attention_execution_phase::mtp_verify) &&
+                ubatch.n_tokens >= 1 &&
+                ubatch.n_seq_tokens == ubatch.n_tokens) {
+                std::vector<uint32_t> all_pages;
+                all_pages.reserve(records.size());
+                for (const auto & record : records) {
+                    all_pages.push_back(record.id.logical_page);
+                }
+                llama_kv_attention_view_status view_status;
+                const auto view = llama_kv_attention_view::build(
+                        resident_snapshot, all_pages, sequence_id, view_status);
+                if (!view.valid()) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            std::string("exact resident view rejected: ") +
+                            llama_kv_attention_view_status_name(view_status));
+                }
+
+                llama_kv_attention_operator_params op_params;
+                op_params.mode = llama_kv_attention_operator_mode::selective;
+                op_params.type_k = attention->type_k();
+                op_params.type_v = attention->type_v();
+                const bool turbo_kv = ggml_is_turbo_kv_type(attention->type_k()) ||
+                    ggml_is_turbo_kv_type(attention->type_v());
+                op_params.domain_k = turbo_kv
+                    ? llama_kv_attention_representation_domain::turbo_rotated
+                    : llama_kv_attention_representation_domain::original;
+                op_params.domain_v = op_params.domain_k;
+                op_params.page_tokens = kv_pager.page_size;
+                op_params.head_dim_k = model.hparams.n_embd_head_k();
+                op_params.head_dim_v = model.hparams.n_embd_head_v();
+                op_params.n_head_q = model.hparams.n_head();
+                op_params.n_head_kv = model.hparams.n_head_kv();
+                op_params.n_query_tokens = ubatch.n_tokens;
+                op_params.n_batch = 1;
+                op_params.causal = cparams.causal_attn;
+                op_params.query_positions.reserve(ubatch.n_tokens);
+                for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+                    op_params.query_positions.push_back(ubatch.pos0(token));
+                }
+
+                llama_kv_attention_operator_status op_status;
+                const auto metadata = llama_kv_attention_operator_metadata::build(
+                        view, op_params, op_status);
+                if (!metadata.valid()) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            std::string("exact resident metadata rejected: ") +
+                            llama_kv_attention_operator_status_name(op_status));
+                }
+                std::vector<int32_t> rows;
+                if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
+                    return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                            "exact resident page positions are not present in the cache view");
+                }
+                llama_kv_attention_scratch_request scratch;
+                scratch.resident_rows = metadata.get_n_kv();
+                scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
+                        size_t(model.hparams.n_embd_head_v())) *
+                        size_t(model.hparams.n_head_kv()) * sizeof(float);
+                const auto layer_device = model.dev_layer(0);
+                const auto layer_reg = layer_device
+                    ? ggml_backend_dev_backend_reg(layer_device) : nullptr;
+                const bool cuda_backend = layer_reg != nullptr &&
+                    std::strcmp(ggml_backend_reg_name(layer_reg), "CUDA") == 0;
+                const bool scheduler_cuda = layer_device != nullptr &&
+                    backend_for_device(layer_device) != nullptr;
+                const bool direct_capable = cuda_backend && scheduler_cuda &&
+                    metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
+                    metadata.type_v() == GGML_TYPE_TURBO4_0 &&
+                    metadata.head_dim_k() == 256 && metadata.head_dim_v() == 256 &&
+                    metadata.n_query_tokens() >= 1 &&
+                    metadata.n_batch() == 1 &&
+                    metadata.n_head_kv() != 0 &&
+                    metadata.n_head_q() % metadata.n_head_kv() == 0 &&
+                    pager.residency_storage_tensor() != nullptr &&
+                    pager.residency_bytes_per_slot() != 0 &&
+                    model.hparams.f_max_alibi_bias == 0.0f &&
+                    !model.hparams.attn_soft_cap &&
+                    pager.snapshot().geometry.layer_k_offsets.size() ==
+                        pager.snapshot().geometry.attention_layers &&
+                    pager.snapshot().geometry.layer_v_offsets.size() ==
+                        pager.snapshot().geometry.attention_layers;
+                const auto planned = kv_attention_execution.planned_route(metadata, phase,
+                        direct_capable);
+                if (planned == llama_kv_attention_execution_route::exact_direct) {
+                    if (!reserve_scratch(scratch, planned, 0)) {
+                        return refuse_before_graph(
+                                llama_kv_attention_execution_status::not_configured,
+                                "exact direct attention scratch reservation failed");
+                    }
+                    return prepare_kv_attention(metadata, phase, representation_epoch,
+                            shape_epoch, direct_capable, scratch);
+                }
+                const auto result = prepare_kv_attention(metadata, phase,
+                        representation_epoch, shape_epoch, direct_capable, scratch);
+                if (result.status == llama_kv_attention_execution_status::ok &&
+                    result.route == llama_kv_attention_execution_route::exact_direct) {
+                    return result;
+                }
+                return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                        "exact resident Turbo4 direct backend is unavailable");
+            }
+
+            // Cold and prompt exact attention use a bounded sequence of graph
+            // nodes inside each layer.  The first node consumes Q and the
+            // selected page wave, intermediate nodes carry the device-owned
+            // (m,l,o) state, and the last node normalizes before the existing
+            // inverse transform/output projection.  Keep the coverage plan in
+            // the execution owner so it outlives graph construction and any
+            // in-flight scheduler submission.
+            auto coverage = std::make_shared<llama_kv_attention_exact_wave_plan>(
+                    std::move(plan));
+            auto graph_plan = std::make_shared<llama_kv_attention_exact_graph_plan>();
+            graph_plan->coverage = std::move(coverage);
+            graph_plan->sequence_id = sequence_id;
+            graph_plan->page_tokens = pager_geometry.geometry.page_tokens;
+            graph_plan->page_bytes = pager_geometry.geometry.page_bytes;
+            kv_attention_execution.set_exact_graph_plan(std::move(graph_plan));
+
+            llama_kv_attention_scratch_request scratch;
+            scratch.transfer_rows = kv_attention_execution.metrics().exact_peak_staging_pages *
+                uint64_t(pager_geometry.geometry.page_tokens);
+            scratch.bytes_per_row = pager_geometry.geometry.page_bytes > 0 &&
+                pager_geometry.geometry.page_tokens > 0
+                ? size_t(pager_geometry.geometry.page_bytes /
+                    pager_geometry.geometry.page_tokens) : 0;
+            auto result = prepare_kv_attention({}, phase, representation_epoch,
+                    shape_epoch, false, scratch);
+            if (result.status == llama_kv_attention_execution_status::ok) {
+                result.reason = "exact GPU page-wave graph";
+                return result;
+            }
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact GPU page-wave graph admission failed");
+        } catch (...) {
+            return refuse_exact(llama_kv_attention_execution_status::overflow,
+                    "exact attention page-wave metadata allocation failed");
+        }
+
+        return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                "exact CUDA page-wave callbacks are not configured");
+    }
+    if (kv_pager.mode != llama_kv_pager_mode::selective) {
+        const auto route = kv_attention_execution.planned_route({}, phase, false);
+        auto scratch = empty_scratch;
+        if (!reserve_scratch(scratch, route,
+                mctx != nullptr ? mctx->current_kv_attention_rows() : 0)) {
+            return refuse_before_graph(
+                    llama_kv_attention_execution_status::not_configured,
+                    "dense attention scratch reservation failed");
+        }
+        return prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
+                false, scratch);
+    }
+
+    auto refuse = [&](const char * reason) {
+        kv_attention_execution.clear();
+        auto result = prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
+                false, empty_scratch);
+        result.reason = reason;
+        LLAMA_LOG_ERROR("%s: selected attention refused: %s\n", __func__, reason);
+        return result;
+    };
+
+    // Live attention is intentionally limited to one Qwen sequence. Selective
+    // prefill, decode, and MTP retain the selected-page snapshot and physical
+    // residency contract. The packed Turbo4 bridge remains available through
+    // its explicit process-scoped diagnostic override.
+    if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
+        (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
+        !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
+        ubatch.n_tokens != ubatch.n_seq_tokens || ubatch.n_pos == 0 ||
+        ubatch.pos == nullptr || ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
+        ubatch.n_seq_id[0] != 1) {
+        return refuse("unsupported Qwen selected-attention shape");
+    }
+
+    const llama_kv_cache_context * attention =
+        dynamic_cast<const llama_kv_cache_context *>(mctx);
+    if (attention == nullptr) {
+        const auto * hybrid = dynamic_cast<const llama_memory_hybrid_context *>(mctx);
+        attention = hybrid ? hybrid->get_attn() : nullptr;
+    }
+    if (attention == nullptr || !attention->selected_attention_supported()) {
+        return refuse("attention cache cannot expose bounded selected rows");
+    }
+
+    const llama_seq_id sequence_id = ubatch.seq_id[0][0];
+    if (sequence_id < 0 || attention->get_kv_pager() == nullptr) {
+        return refuse("selected attention has no live pager sequence");
+    }
+
+    const auto & pager = *attention->get_kv_pager();
+    const auto pager_snapshot = pager.residency(sequence_id);
+    const auto & pager_geometry = pager.snapshot();
+    const uint32_t hot_capacity = pager_geometry.physical_page_count;
+    if (pager_snapshot.epoch() == 0 || pager_snapshot.pages().empty() ||
+        pager_snapshot.pages().size() > hot_capacity) {
+        return refuse("selected logical pages exceed admitted hot capacity");
+    }
+
+    auto & selected_pages = kv_attention_selected_pages_scratch_;
+    auto & query_positions = kv_attention_query_positions_scratch_;
+    try {
+        selected_pages.clear();
+        query_positions.clear();
+        query_positions.reserve(ubatch.n_tokens);
+        for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+            query_positions.push_back(ubatch.pos0(token));
+        }
+        auto & query_pages = kv_attention_query_pages_scratch_;
+        if (!llama_kv_attention_query_page_ids(query_positions,
+                pager_geometry.geometry.page_tokens, query_pages)) {
+            return refuse("selected attention query positions have invalid page geometry");
+        }
+        const uint32_t page_tokens = pager_geometry.geometry.page_tokens;
+        const uint64_t attention_tokens = cparams.kv_attention_tokens != 0
+            ? cparams.kv_attention_tokens
+            : uint64_t(hot_capacity) * page_tokens;
+        const auto turn = pager.turn_state(sequence_id);
+        // Query replay is a prompt-shaped forward pass, but it must consume
+        // the final committed history just like generation/MTP verification.
+        // It cannot silently replace a missing frozen page with an advisory
+        // fallback merely because this ubatch is classified as prefill.
+        const bool committed_generation_view = turn.phase == llama_kv_pager_turn_phase::query_replay ||
+            (phase != llama_kv_attention_execution_phase::prefill &&
+             turn.phase == llama_kv_pager_turn_phase::generating);
+        std::vector<llama_kv_page_id> routed_pages;
+        if (!committed_generation_view) {
+            // Per-layer nominees guide provisional prompt attention only.
+            // Replay/decode/verification already have an authenticated common
+            // R set. Reconstructing and intersecting all layer lists for each
+            // generated token cannot change that set and only adds host work.
+            std::vector<std::vector<llama_kv_page_id>> routed_layer_pages;
+            if (!attention->selected_attention_page_layers(routed_layer_pages)) {
+                return refuse("selected attention layer union allocation failed");
+            }
+            for (const auto & layer : routed_layer_pages) {
+                for (const auto & page : layer) {
+                    if (std::find(routed_pages.begin(), routed_pages.end(), page) ==
+                            routed_pages.end()) {
+                        routed_pages.push_back(page);
+                    }
+                }
+            }
+        }
+        if (phase != llama_kv_attention_execution_phase::prefill) {
+            kv_attention_prefill_active_ = false;
+        } else if (!kv_attention_prefill_active_) {
+            kv_attention_request_page_ = UINT32_MAX;
+            kv_attention_request_following_page_ = UINT32_MAX;
+            if (ubatch.pos[0] >= 0 && page_tokens != 0) {
+                const uint64_t query_position = uint64_t(ubatch.pos[0]);
+                const uint32_t query_page = uint32_t(query_position / page_tokens);
+                kv_attention_request_page_ = query_page;
+                if (query_position % page_tokens != 0 &&
+                        query_page < UINT32_MAX - 1) {
+                    kv_attention_request_following_page_ = query_page + 1;
+                }
+            }
+            kv_attention_prefill_active_ = true;
+        }
+        const uint32_t request_page = kv_attention_request_page_;
+        const uint32_t request_following_page = kv_attention_request_following_page_;
+        const uint64_t requested_pages = page_tokens == 0 ? 0 :
+            (attention_tokens + page_tokens - 1) / page_tokens;
+        const uint32_t bounded_pages = uint32_t(std::max<uint64_t>(1,
+            std::min<uint64_t>(hot_capacity, requested_pages)));
+        selected_pages.reserve(bounded_pages);
+        const auto resident_state = [](const auto & page) {
+            return page.physical_slot != UINT32_MAX &&
+                (page.state == llama_kv_page_state::filling_gpu ||
+                 page.state == llama_kv_page_state::sealing_host ||
+                 page.state == llama_kv_page_state::gpu_host_clean ||
+                 page.state == llama_kv_page_state::gpu_dirty);
+        };
+        const auto append_page = [&](const llama_kv_page_id & id) {
+            auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+                [&](const auto & value) { return value.id == id; });
+            if (page == pager_snapshot.pages().end()) {
+                // The mandatory write-frontier page may extend between the
+                // policy boundary and graph construction, changing its
+                // authenticated extent while retaining its logical page.
+                // Rebind only a current/query write-frontier extent. Every
+                // other identity field must still match, including sequence,
+                // page and representation generations. An old advisory ID
+                // must not authenticate a replacement allocation at the same
+                // logical position; cold routed pages require an exact ID.
+                page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+                    [&](const auto & value) {
+                        auto frontier_id = value.id;
+                        frontier_id.position_end = id.position_end;
+                        return frontier_id == id &&
+                            llama_kv_page_id_is_tail(id) &&
+                            value.id.position_end >= id.position_end &&
+                            (pager.is_current_page(value.id) ||
+                             std::find(query_pages.begin(), query_pages.end(),
+                                     value.id.logical_page) != query_pages.end()) &&
+                            (value.state == llama_kv_page_state::filling_gpu ||
+                             value.state == llama_kv_page_state::gpu_dirty);
+                    });
+            }
+            if (page == pager_snapshot.pages().end() || page->id.sequence_id != sequence_id ||
+                !resident_state(*page)) return false;
+            if (std::find(selected_pages.begin(), selected_pages.end(), page->id.logical_page) !=
+                    selected_pages.end()) return true;
+            if (selected_pages.size() >= bounded_pages) return false;
+            selected_pages.push_back(page->id.logical_page);
+            return true;
+        };
+        const auto append_fallback = [&](const llama_kv_page_id & id) {
+            if (selected_pages.size() >= bounded_pages) return;
+            (void) append_page(id);
+        };
+        // Reserve every page touched by this ubatch. The request page is fixed
+        // at prefill start and cannot cover a later ubatch crossing a different
+        // page boundary; omitting either query page leaves current-row indices
+        // outside the packed owner.
+        for (const uint32_t logical_page : query_pages) {
+            const auto page = std::find_if(pager_snapshot.pages().begin(),
+                    pager_snapshot.pages().end(), [&](const auto & value) {
+                return value.id.logical_page == logical_page;
+            });
+            if (page == pager_snapshot.pages().end()) {
+                return refuse("selected attention query page is absent from pager snapshot");
+            }
+            append_fallback(page->id);
+        }
+        for (const uint32_t logical_page : query_pages) {
+            if (std::find(selected_pages.begin(), selected_pages.end(), logical_page) ==
+                    selected_pages.end()) {
+                return refuse("selected attention window cannot cover current query pages");
+            }
+        }
+        // A write batch can create the next frontier after the last policy
+        // boundary. Reserve its page before consuming advisory routed slots;
+        // otherwise the packed owner may lack the current query row exactly
+        // at the first H crossing.
+        for (const auto & page : pager_snapshot.pages()) {
+            if (pager.is_current_page(page.id)) {
+                if (committed_generation_view) {
+                    if (!append_page(page.id)) {
+                        return refuse("mutable generation tail does not fit admitted attention view");
+                    }
+                } else {
+                    append_fallback(page.id);
+                }
+            }
+        }
+        // The first logical page is the durable prompt/sink prefix. Reserve
+        // it before advisory routed pages so a later turn cannot lose facts
+        // from the beginning of the conversation merely because the router
+        // prefers the newest bounded window.
+        if (!committed_generation_view) {
+            for (const auto & page : pager_snapshot.pages()) {
+                if (page.id.logical_page == 0) append_fallback(page.id);
+            }
+        }
+        // A cached continuation can begin in the middle of the logical
+        // inventory. Preserve the page containing the first query row before
+        // consuming advisory routed slots; otherwise the first uncached page
+        // of a new prompt can be omitted even while the frontier and recent
+        // route remain resident. The query position is scheduler-owned, so
+        // this does not accept a client-selected page identity.
+        const auto append_request_boundary = [&]() {
+            for (const auto & page : pager_snapshot.pages()) {
+                if (page.id.logical_page == request_page ||
+                        page.id.logical_page == request_following_page) {
+                    append_fallback(page.id);
+                }
+            }
+        };
+        if (!committed_generation_view) append_request_boundary();
+        if (committed_generation_view) {
+            // Publication freezes a full-bundle common history set. Consume
+            // it directly in every target layer, keeping exact identity and
+            // content-version checks below. Nomination provenance is not a
+            // second admission rule. This is the same set formerly returned
+            // by llama_kv_attention_committed_pages, without rebuilding the
+            // per-layer union or rescanning R once per union member.
+            for (const auto & selected : turn.selected_history) {
+                const auto page = std::find_if(pager_snapshot.pages().begin(),
+                        pager_snapshot.pages().end(), [&](const auto & value) {
+                    return value.id == selected.identity &&
+                        value.content_version == selected.content_version;
+                });
+                if (page == pager_snapshot.pages().end()) {
+                    return refuse("committed frozen history identity is absent from pager snapshot");
+                }
+                if (!resident_state(*page)) {
+                    return refuse("committed frozen history page is not resident in admitted attention view");
+                }
+                if (!append_page(selected.identity)) {
+                    return refuse("committed frozen history exceeds admitted attention view capacity");
+                }
+            }
+            // R (selected_history) freezes retrieved *prior-turn* history,
+            // not the whole attention view. Q (this turn's prompt) and the
+            // generated suffix remain ordinary resident KV. Restricting the
+            // graph to R plus this ubatch's write pages discarded almost all
+            // of Q on the first verification call; R can legitimately be
+            // empty on a fresh request. The full-context MTP draft then saw
+            // a different prompt from the target verifying its proposals.
+            //
+            // Keep resident Q/output pages in the remaining admitted window,
+            // including the page straddling query_start and sealed output
+            // pages behind the mutable tail. Do not add them to frozen R:
+            // replay must still be able to rewrite Q, and generation's FIFO
+            // must still be able to evict clean output pages. Read only this
+            // immutable H-bounded snapshot; do not scan host history, promote
+            // pages, rerank R, or change pins here. Native causal masking
+            // handles individual rows within a boundary page.
+            const llama_pos last_query_position =
+                *std::max_element(query_positions.begin(), query_positions.end());
+            for (auto page = pager_snapshot.pages().rbegin();
+                    page != pager_snapshot.pages().rend(); ++page) {
+                if (page->id.sequence_id == sequence_id &&
+                        page->id.position_end > turn.query_start &&
+                        page->id.position_begin <= last_query_position &&
+                        resident_state(*page)) {
+                    append_fallback(page->id);
+                }
+            }
+        } else if (!routed_pages.empty()) {
+            bool routed_valid = true;
+            for (const auto & id : routed_pages) {
+                if (!append_page(id)) {
+                    routed_valid = false;
+                    // Keep looking: valid routed history after this stale
+                    // entry still has priority over optional fallback pages.
+                }
+            }
+            if (!routed_valid) {
+                // A subsequent write may have replaced a routed cold page
+                // before this graph acquired its snapshot. Keep the mandatory
+                // query/frontier pages and every routed entry already validated
+                // against that same snapshot. Only fill their remaining bounded
+                // capacity with resident fallback; do not reload evicted route
+                // entries or perform promotion in graph construction.
+                std::vector<uint32_t> optional_pages = selected_pages;
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (pager.is_current_page(page.id)) optional_pages.push_back(page.id.logical_page);
+                }
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (page.pin_count != 0) optional_pages.push_back(page.id.logical_page);
+                }
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (page.id.logical_page == 0) optional_pages.push_back(page.id.logical_page);
+                }
+                if (request_page != UINT32_MAX) optional_pages.push_back(request_page);
+                if (request_following_page != UINT32_MAX) {
+                    optional_pages.push_back(request_following_page);
+                }
+                for (auto page = pager_snapshot.pages().rbegin();
+                        page != pager_snapshot.pages().rend(); ++page) {
+                    optional_pages.push_back(page->id.logical_page);
+                }
+                std::vector<uint32_t> resident_logical_pages;
+                resident_logical_pages.reserve(pager_snapshot.pages().size());
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (resident_state(page)) {
+                        resident_logical_pages.push_back(page.id.logical_page);
+                    }
+                }
+                std::vector<uint32_t> resident_optional_pages;
+                if (!llama_kv_attention_resident_page_ids(optional_pages,
+                        resident_logical_pages, resident_optional_pages)) {
+                    return refuse("resident routing refresh allocation failed");
+                }
+                std::vector<uint32_t> refreshed_pages;
+                if (!llama_kv_attention_refresh_page_ids(query_pages, resident_optional_pages,
+                        bounded_pages, refreshed_pages)) {
+                    return refuse("stale routing refresh cannot cover mandatory query pages");
+                }
+                for (const uint32_t logical_page : refreshed_pages) {
+                    const auto page = std::find_if(pager_snapshot.pages().begin(),
+                            pager_snapshot.pages().end(), [&](const auto & value) {
+                        return value.id.logical_page == logical_page;
+                    });
+                    if (page == pager_snapshot.pages().end() || !append_page(page->id)) {
+                        return refuse("stale routing refresh page is no longer resident");
+                    }
+                }
+            }
+        } else {
+            // No route is an explicit bounded fallback, not permission to
+            // materialize the complete H-sized resident inventory.
+            for (const auto & page : pager_snapshot.pages()) {
+                if (pager.is_current_page(page.id)) append_fallback(page.id);
+            }
+            for (const auto & page : pager_snapshot.pages()) {
+                if (page.id.logical_page == 0) append_fallback(page.id);
+            }
+            append_request_boundary();
+            for (auto page = pager_snapshot.pages().rbegin();
+                    page != pager_snapshot.pages().rend(); ++page) {
+                append_fallback(page->id);
+            }
+        }
+        if (selected_pages.empty()) {
+            return refuse("bounded selected attention found no resident page");
+        }
+    } catch (...) {
+        return refuse("selected page metadata allocation failed");
+    }
+
+    llama_kv_attention_view_status view_status;
+    const auto view = llama_kv_attention_view::build(
+            pager_snapshot, selected_pages, sequence_id, view_status);
+    if (!view.valid()) {
+        return refuse(llama_kv_attention_view_status_name(view_status));
+    }
+
+    llama_kv_attention_operator_params op_params;
+    op_params.mode = llama_kv_attention_operator_mode::selective;
+    op_params.type_k = attention->type_k();
+    op_params.type_v = attention->type_v();
+    const bool turbo_kv = ggml_is_turbo_kv_type(attention->type_k()) ||
+        ggml_is_turbo_kv_type(attention->type_v());
+    op_params.domain_k = turbo_kv
+        ? llama_kv_attention_representation_domain::turbo_rotated
+        : llama_kv_attention_representation_domain::original;
+    op_params.domain_v = op_params.domain_k;
+    op_params.page_tokens = kv_pager.page_size;
+    op_params.head_dim_k = model.hparams.n_embd_head_k();
+    op_params.head_dim_v = model.hparams.n_embd_head_v();
+    op_params.n_head_q = model.hparams.n_head();
+    op_params.n_head_kv = model.hparams.n_head_kv();
+    op_params.n_query_tokens = ubatch.n_tokens;
+    op_params.n_batch = 1;
+    op_params.causal = cparams.causal_attn;
+    // Transfer the retained allocation into the short-lived parameter object
+    // without allocating a second query-position buffer. build() copies the
+    // immutable payload into the submitted metadata; swap it back immediately
+    // so the next hot submission reuses the same capacity.
+    op_params.query_positions.swap(query_positions);
+
+    llama_kv_attention_operator_status op_status;
+    const auto metadata = llama_kv_attention_operator_metadata::build(
+            view, op_params, op_status);
+    query_positions.swap(op_params.query_positions);
+    if (!metadata.valid()) {
+        return refuse(llama_kv_attention_operator_status_name(op_status));
+    }
+
+    llama_kv_attention_scratch_request scratch;
+    scratch.resident_rows = metadata.get_n_kv();
+    scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
+            size_t(model.hparams.n_embd_head_v())) * size_t(model.hparams.n_head_kv()) *
+            sizeof(float);
+    const auto layer_device = model.dev_layer(0);
+    const auto layer_reg = layer_device
+        ? ggml_backend_dev_backend_reg(layer_device) : nullptr;
+    const bool cuda_backend = layer_reg != nullptr &&
+        std::strcmp(ggml_backend_reg_name(layer_reg), "CUDA") == 0;
+    const bool scheduler_cuda = layer_device != nullptr &&
+        backend_for_device(layer_device) != nullptr;
+    const bool turbo_fa_shape = metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
+        metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
+        metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
+        metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
+        metadata.n_head_kv() != 0 &&
+        metadata.n_head_q() % metadata.n_head_kv() == 0;
+    const bool direct_shape = turbo_fa_shape;
+    std::string direct_reason;
+    if (!cuda_backend) {
+        direct_reason = "selected direct requires a CUDA layer backend";
+    } else if (!scheduler_cuda) {
+        direct_reason = "selected direct CUDA layer is not registered with the scheduler";
+    } else if (phase != llama_kv_attention_execution_phase::prefill &&
+               phase != llama_kv_attention_execution_phase::decode &&
+               phase != llama_kv_attention_execution_phase::mtp_verify) {
+        direct_reason = "selected direct does not support this execution phase";
+    } else if (!turbo_fa_shape) {
+        direct_reason = "selected direct rejects the Turbo4 Qwen geometry";
+    } else if (pager.residency_storage_tensor() == nullptr ||
+               pager.residency_bytes_per_slot() == 0) {
+        direct_reason = "selected direct has no persistent residency storage";
+    } else if (model.hparams.f_max_alibi_bias != 0.0f || model.hparams.attn_soft_cap) {
+        direct_reason = "selected direct rejects ALiBi or attention soft cap";
+    } else if (pager.snapshot().geometry.layer_k_offsets.size() !=
+                   pager.snapshot().geometry.attention_layers ||
+               pager.snapshot().geometry.layer_v_offsets.size() !=
+                   pager.snapshot().geometry.attention_layers) {
+        direct_reason = "selected direct has incomplete layer slab geometry";
+    }
+    const bool fa_backend_capable = cuda_backend && scheduler_cuda &&
+        metadata.causal() && metadata.n_query_tokens() >= 1 &&
+        metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
+        metadata.n_head_kv() != 0 &&
+        metadata.n_head_q() % metadata.n_head_kv() == 0 &&
+        metadata.head_dim_k() != 0 && metadata.head_dim_v() != 0;
+    const bool turbo_fa_capable = fa_backend_capable && turbo_fa_shape &&
+        pager.residency_storage_tensor() != nullptr &&
+        pager.residency_bytes_per_slot() != 0 &&
+        model.hparams.f_max_alibi_bias == 0.0f && !model.hparams.attn_soft_cap &&
+        pager.snapshot().geometry.layer_k_offsets.size() ==
+            pager.snapshot().geometry.attention_layers &&
+        pager.snapshot().geometry.layer_v_offsets.size() ==
+            pager.snapshot().geometry.attention_layers;
+    const bool direct_capable = turbo_fa_capable && direct_shape;
+    const auto dense_view = llama_kv_attention_dense_view_check(metadata, hot_capacity);
+    if (kv_attention_dense_debug_layout_key_ != metadata.graph_layout_key()) {
+        kv_attention_dense_debug_layout_key_ = metadata.graph_layout_key();
+        std::string sample;
+        const size_t sample_count = std::min<size_t>(4, metadata.page_table().size());
+        for (size_t i = 0; i < sample_count; ++i) {
+            const auto & page = metadata.page_table()[i];
+            if (!sample.empty()) {
+                sample += ",";
+            }
+            sample += std::to_string(page.logical_page) + "/" +
+                std::to_string(page.source_physical_slot);
+        }
+        LLAMA_LOG_DEBUG("%s: dense FA eligibility first shape=%llu eligible=%d "
+                "reason=%s pages=%zu sample(logical/slot)=[%s]\n", __func__,
+                (unsigned long long) metadata.graph_layout_key(), dense_view.eligible ? 1 : 0,
+                dense_view.reason, metadata.page_table().size(), sample.c_str());
+    }
+    const bool dense_capable = fa_backend_capable && dense_view.eligible;
+    // The packed owner is a bounded device-resident Turbo4 representation. It
+    // is eligible for automatic selection only when the same CUDA/FA storage
+    // contract used by its graph is available; explicit overrides still fail
+    // closed through the planner when this contract is absent.
+    const bool packed_capable = fa_backend_capable && turbo_fa_shape &&
+        pager.snapshot().geometry.attention_layers != 0 &&
+        pager.residency_storage_tensor() != nullptr &&
+        pager.residency_bytes_per_slot() != 0;
+    if (packed_capable) {
+        const uint64_t k_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
+                int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));
+        const uint64_t v_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
+                int64_t(metadata.head_dim_v()) * metadata.n_head_kv()));
+        const auto & packed_pages = metadata.page_table();
+        if (packed_pages.empty()) {
+            scratch.packed_bytes = UINT64_MAX;
+            return refuse("selected packed attention has no selected pages");
+        }
+        const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
+                metadata, pager.snapshot().geometry.page_tokens);
+        if (packed_row_capacity == 0 || k_row > UINT64_MAX - v_row ||
+                packed_row_capacity > UINT64_MAX / (k_row + v_row)) {
+            scratch.packed_bytes = UINT64_MAX;
+        } else {
+            // Packed rows are graph-managed staging. Transformer layers
+            // consume them in order, so graph allocation reuses this maximum
+            // live K/V extent across layers instead of retaining one owner
+            // per layer.
+                scratch.packed_bytes = packed_row_capacity * (k_row + v_row);
+            }
+    }
+    const auto planned = kv_attention_execution.planned_route(metadata, phase,
+            direct_capable, dense_capable, packed_capable);
+    if (!reserve_scratch(scratch, planned, metadata.get_n_kv())) {
+        return refuse_before_graph(
+                llama_kv_attention_execution_status::not_configured,
+                "selected attention scratch reservation failed");
+    }
+    LLAMA_LOG_DEBUG("%s: bounded attention pages=%zu rows=%u hot_pages=%u logical_pages=%u "
+            "route=%s materialized_rows=%llu scratch_bytes=%zu\n", __func__,
+            view.pages().size(), metadata.get_n_kv(), hot_capacity,
+            pager_geometry.logical_page_count,
+            llama_kv_attention_execution_route_name(planned),
+            (unsigned long long) scratch.materialized_rows(), scratch.required_bytes());
+    // Only the explicit reference oracle needs the ordinary-cache row-ID
+    // gather. Automatic refusal must happen before any reference graph data is
+    // materialized.
+    const bool reference_requested = kv_attention_execution.route_override() ==
+        llama_kv_attention_execution_route_override::reference;
+    if (reference_requested) {
+        auto & rows = kv_attention_rows_scratch_;
+        if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
+            return refuse("selected page positions are not present in the cache view");
+        }
+    }
+    return prepare_kv_attention(metadata, phase, representation_epoch, shape_epoch,
+            direct_capable, scratch, direct_reason, dense_capable, packed_capable);
 }
 
 ggml_backend_sched_t llama_context::get_sched() const {
@@ -1434,33 +3805,31 @@ bool llama_context::memory_update(bool optimize) {
         return false;
     }
 
-    {
-        const auto mctx = memory->init_update(this, optimize);
-        switch (mctx->get_status()) {
-            case LLAMA_MEMORY_STATUS_SUCCESS:
-                {
-                    // noop
-                } break;
-            case LLAMA_MEMORY_STATUS_NO_UPDATE:
-                {
-                    // no updates need to be performed
-                    return false;
-                }
-            case LLAMA_MEMORY_STATUS_FAILED_PREPARE:
-            case LLAMA_MEMORY_STATUS_FAILED_COMPUTE:
-                {
-                    LLAMA_LOG_ERROR("%s: failed to prepare memory update\n", __func__);
-                    return false;
-                }
-        }
+    // Probe before fencing. The common decode path has no shift/copy/recovery
+    // work, and a NO_UPDATE result cannot reset either the scheduler or the
+    // previous graph. Fencing that path was pure control churn.
+    const auto mctx = memory->init_update(this, optimize);
+    if (mctx->get_status() == LLAMA_MEMORY_STATUS_NO_UPDATE) {
+        return false;
+    }
+    if (mctx->get_status() == LLAMA_MEMORY_STATUS_FAILED_PREPARE ||
+            mctx->get_status() == LLAMA_MEMORY_STATUS_FAILED_COMPUTE) {
+        // Preserve the failure-boundary behavior for a failed preparation.
+        synchronize();
+        LLAMA_LOG_ERROR("%s: failed to prepare memory update\n", __func__);
+        return false;
+    }
 
-        // reset the previous graph results to make sure that they won't be reused
-        // TODO: make mctx->apply() report if a graph reserve is needed, then reset graph results only if the memory module reset the scheduler
-        invalidate_graph_results();
+    // A successful update may reset the scheduler and previous graph. Those
+    // objects own the direct-attention page-table views and K/V write graph,
+    // so the fence remains the ownership boundary for real updates.
+    synchronize();
+    // reset the previous graph results to make sure that they won't be reused
+    // TODO: make mctx->apply() report if a graph reserve is needed, then reset graph results only if the memory module reset the scheduler
+    invalidate_graph_results();
 
-        if (!mctx->apply()) {
-            LLAMA_LOG_ERROR("%s: failed to apply memory update\n", __func__);
-        }
+    if (!mctx->apply()) {
+        LLAMA_LOG_ERROR("%s: failed to apply memory update\n", __func__);
     }
 
     // if the memory module did any computation, we have to reserve a new worst-case graph
@@ -1704,7 +4073,56 @@ float * llama_context::get_embeddings_seq(llama_seq_id seq_id) {
 float * llama_context::get_embeddings_nextn() {
     output_reorder();
 
+    for (int32_t row = 0; row < embeddings_nextn_output_rows; ++row) {
+        if (!materialize_embeddings_nextn_host_row(row)) {
+            return nullptr;
+        }
+    }
+
     return embd_nextn.data;
+}
+
+bool llama_context::materialize_embeddings_nextn_host_row(int32_t row) {
+    if (row < 0 || row >= (int32_t) embeddings_nextn_host_valid.size() ||
+            embd_nextn.data == nullptr) {
+        return false;
+    }
+    if (embeddings_nextn_host_valid[row]) {
+        return true;
+    }
+    if (embeddings_nextn_device_tensor == nullptr ||
+            (size_t) row >= embeddings_nextn_host_source_rows.size()) {
+        return false;
+    }
+    const int32_t source_row = embeddings_nextn_host_source_rows[row];
+    if (source_row < 0 || source_row >= embeddings_nextn_device_valid_rows) {
+        return false;
+    }
+    const uint32_t n_embd = model.hparams.n_embd_out();
+    const size_t row_bytes = (size_t) n_embd * sizeof(float);
+    ggml_backend_tensor_get_async(embeddings_nextn_device_backend,
+            embeddings_nextn_device_tensor,
+            embd_nextn.data + (size_t) row * n_embd,
+            (size_t) source_row * embeddings_nextn_device_tensor->nb[1], row_bytes);
+    ggml_backend_sched_synchronize(sched.get());
+    embeddings_nextn_host_valid[row] = 1;
+    embeddings_nextn_d2h_bytes += row_bytes;
+    LLAMA_LOG_INFO("mtp_hidden_transfer: direction=d2h bytes=%zu total_bytes=%" PRIu64 " fallback_reason=cpu_consumer_requested_row\n",
+            row_bytes, embeddings_nextn_d2h_bytes);
+    return true;
+}
+
+void llama_context::get_embeddings_nextn_transfer_bytes(uint64_t * d2h, uint64_t * h2d) const {
+    if (d2h != nullptr) {
+        *d2h = embeddings_nextn_d2h_bytes;
+    }
+    if (h2d != nullptr) {
+        *h2d = embeddings_nextn_h2d_bytes;
+    }
+}
+
+uint64_t llama_context::get_embeddings_nextn_device_generation() const {
+    return embeddings_nextn_device_generation;
 }
 
 float * llama_context::get_embeddings_nextn_ith(int32_t i) {
@@ -1722,10 +4140,16 @@ float * llama_context::get_embeddings_nextn_ith(int32_t i) {
             if (i < 0 || (size_t)(i + 1) * n_embd > embd_nextn.size) {
                 throw std::runtime_error(format("out of range [0, %zu)", embd_nextn.size / n_embd));
             }
+            if (!materialize_embeddings_nextn_host_row(i)) {
+                throw std::runtime_error("device nextn row is not available for host materialization");
+            }
             return embd_nextn.data + (size_t) i * n_embd;
         }
 
         const int64_t j = output_resolve_row(i);
+        if (!materialize_embeddings_nextn_host_row((int32_t) j)) {
+            throw std::runtime_error("masked nextn row is not available for host materialization");
+        }
         return embd_nextn.data + j*n_embd;
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("%s: invalid nextn embeddings id %d, reason: %s\n", __func__, i, err.what());
@@ -1735,6 +4159,94 @@ float * llama_context::get_embeddings_nextn_ith(int32_t i) {
         return nullptr;
 #endif
     }
+}
+
+bool llama_context::set_embeddings_nextn_device(
+        llama_context * source, int32_t source_offset, int32_t destination_offset,
+        int32_t n_rows, const llama_pos * expected_positions,
+        const llama_seq_id * expected_sequences) {
+    if (source == nullptr || source_offset < 0 || destination_offset < 0 || n_rows <= 0 ||
+            source->embeddings_nextn_device_tensor == nullptr ||
+            source->embeddings_nextn_device_consumed_event == nullptr ||
+            source_offset + n_rows > source->embeddings_nextn_device_valid_rows ||
+            destination_offset + n_rows > cparams.n_batch) {
+        if (source != nullptr) {
+            const char * reason = source->embeddings_nextn_device_tensor == nullptr
+                ? "owner_missing" : source->embeddings_nextn_device_consumed_event == nullptr
+                ? "completion_event_missing" : source_offset + n_rows >
+                    source->embeddings_nextn_device_valid_rows
+                ? "valid_interval_too_short" : "invalid_request_bounds";
+            LLAMA_LOG_WARN("%s: h_nextn device request refused: reason=%s valid_rows=%d source_offset=%d rows=%d generation=%" PRIu64 "\n",
+                    __func__, reason, source->embeddings_nextn_device_valid_rows,
+                    source_offset, n_rows, source->embeddings_nextn_device_generation);
+        }
+        return false;
+    }
+    if (expected_positions == nullptr || expected_sequences == nullptr) {
+        return false;
+    }
+    const llama_seq_id seq_id = source->embeddings_nextn_device_sequences[source_offset];
+    if (seq_id < 0 || expected_sequences[0] != seq_id) {
+        return false;
+    }
+    for (int32_t i = 1; i < n_rows; ++i) {
+        if (source->embeddings_nextn_device_sequences[source_offset + i] != seq_id ||
+                expected_sequences[i] != seq_id) {
+            LLAMA_LOG_WARN("%s: h_nextn device request refused: reason=sequence_mismatch row=%d expected_seq=%d actual_seq=%d\n",
+                    __func__, i, (int) expected_sequences[i],
+                    (int) source->embeddings_nextn_device_sequences[source_offset + i]);
+            return false;
+        }
+    }
+    GGML_UNUSED(expected_positions);
+
+    ggml_tensor * source_tensor = source->embeddings_nextn_device_tensor;
+    if (source_tensor == nullptr || source_tensor->type != GGML_TYPE_F32 ||
+            source_tensor->buffer == nullptr) {
+        return false;
+    }
+
+    const ggml_backend_t source_backend = source->embeddings_nextn_device_backend;
+    if (source_backend == nullptr ||
+            ggml_backend_buffer_is_host(source_tensor->buffer) ||
+            ggml_backend_get_device(source_backend) == nullptr) {
+        LLAMA_LOG_WARN("%s: h_nextn device request refused: reason=source_backend_unavailable\n",
+                __func__);
+        return false;
+    }
+
+    embeddings_nextn_device_request.source = source;
+    embeddings_nextn_device_request.source_offset = source_offset;
+    embeddings_nextn_device_request.destination_offset = destination_offset;
+    embeddings_nextn_device_request.n_rows = n_rows;
+    embeddings_nextn_device_request.source_generation = source->embeddings_nextn_device_generation;
+    LLAMA_LOG_INFO("MTP h_nextn device owner bound: rows=%d source_offset=%d destination_offset=%d valid_rows=%d capacity=%d generation=%" PRIu64 " d2h_bytes=%" PRIu64 " h2d_bytes=%" PRIu64 " fallback_reason=none\n",
+            n_rows, source_offset, destination_offset,
+            source->embeddings_nextn_device_valid_rows,
+            source->embeddings_nextn_device_capacity,
+            source->embeddings_nextn_device_generation,
+            source->embeddings_nextn_d2h_bytes,
+            source->embeddings_nextn_h2d_bytes);
+    return true;
+}
+
+bool llama_context::mark_embeddings_nextn_device_consumed(llama_context * consumer) {
+    if (consumer == nullptr || embeddings_nextn_device_consumed_event == nullptr ||
+            embeddings_nextn_device_tensor == nullptr || consumer->sched == nullptr ||
+            embeddings_nextn_device_backend == nullptr) {
+        return false;
+    }
+    const ggml_backend_dev_t owner_device =
+            ggml_backend_get_device(embeddings_nextn_device_backend);
+    for (int i = 0; i < ggml_backend_sched_get_n_backends(consumer->sched.get()); ++i) {
+        ggml_backend_t backend = ggml_backend_sched_get_backend(consumer->sched.get(), i);
+        if (backend != nullptr && ggml_backend_get_device(backend) == owner_device) {
+            ggml_backend_event_record(embeddings_nextn_device_consumed_event, backend);
+            embeddings_nextn_device_event_recorded = true;
+            return true;
+        }
+    }
+    return false;
 }
 
 // Readers return data from the active DFlash slot; multi-slot callers must
@@ -1831,6 +4343,106 @@ static void dflash_read_tensor_to(struct ggml_tensor * t, float * dst, size_t n_
 static void dflash_read_tensor(struct ggml_tensor * t, std::vector<float> & dst, size_t n_floats) {
     dst.resize(n_floats);
     dflash_read_tensor_to(t, dst.data(), n_floats);
+}
+
+bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, bool ask, void * user_data) {
+    GGML_UNUSED(user_data);
+
+    if (!t) {
+        return false;
+    }
+
+    // The model graph names these tensors after the graph builder has assigned
+    // their layer suffix.  Restricting to layer zero keeps this diagnostic
+    // finite even when the server is asked for a short generation.
+    static const char * const names[] = {
+        "attn_norm-0", "Qcur-0", "Kcur-0", "Vcur-0", "kqv_out-0",
+        "Ksource-0", "Vsource-0", "attn_inp_kq_mask-0", "attn_inp_kq_mask-3",
+        "attn_pregate-0", "attn_output-0", "ffn_up-0", "ffn_gate-0",
+        "ffn_swiglu-0", "ffn_down-0", "ffn_out-0", "l_out-0",
+        "Qcur-3", "Kcur-3", "Vcur-3", "kqv_out-3", "attn_pregate-3",
+        "Ksource-3", "Vsource-3",
+        "attn_norm-3", "attn_output-3", "attn_residual-3", "attn_post_norm-3",
+        "ffn_up-3", "ffn_gate-3", "ffn_swiglu-3", "ffn_down-3", "ffn_out-3",
+    };
+    bool selected = false;
+    for (const char * name : names) {
+        if (std::strcmp(t->name, name) == 0) {
+            selected = true;
+            break;
+        }
+    }
+    if (!selected) {
+        return false;
+    }
+
+    if (ask) {
+        // Asking for the node makes the scheduler expose its completed value
+        // to the callback.  This is intentionally enabled only for the
+        // diagnostic environment variable above.
+        return true;
+    }
+
+    const int64_t n = ggml_nelements(t);
+    const auto print_shape = [t]() {
+        std::fprintf(stderr, " shape=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "]"
+                " nb=[%zu,%zu,%zu,%zu]",
+                t->ne[0], t->ne[1], t->ne[2], t->ne[3],
+                t->nb[0], t->nb[1], t->nb[2], t->nb[3]);
+    };
+    if (n <= 0 || !t->buffer) {
+        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " unavailable",
+                t->name, ggml_type_name(t->type), n);
+        print_shape();
+        std::fputc('\n', stderr);
+        return true;
+    }
+    if ((t->type != GGML_TYPE_F32 && t->type != GGML_TYPE_F16) ||
+            !ggml_is_contiguous(t) || n > 4 * 1024 * 1024) {
+        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
+                " finite=-1 nan=-1 inf=-1", t->name, ggml_type_name(t->type), n);
+        print_shape();
+        std::fputc('\n', stderr);
+        return true;
+    }
+
+    std::vector<float> values((size_t) n);
+    if (t->type == GGML_TYPE_F32) {
+        ggml_backend_tensor_get(t, values.data(), 0, values.size() * sizeof(float));
+    } else {
+        std::vector<ggml_fp16_t> values_f16((size_t) n);
+        ggml_backend_tensor_get(t, values_f16.data(), 0, values_f16.size() * sizeof(ggml_fp16_t));
+        for (size_t i = 0; i < values.size(); ++i) {
+            values[i] = ggml_fp16_to_fp32(values_f16[i]);
+        }
+    }
+
+    uint64_t finite = 0;
+    uint64_t nan = 0;
+    uint64_t pos_inf = 0;
+    uint64_t neg_inf = 0;
+    float min_value = std::numeric_limits<float>::infinity();
+    float max_value = -std::numeric_limits<float>::infinity();
+    for (float value : values) {
+        if (std::isnan(value)) {
+            ++nan;
+        } else if (std::isinf(value)) {
+            value > 0 ? ++pos_inf : ++neg_inf;
+        } else {
+            ++finite;
+            min_value = std::min(min_value, value);
+            max_value = std::max(max_value, value);
+        }
+    }
+
+    std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
+            " finite=%" PRIu64 " nan=%" PRIu64 " pos_inf=%" PRIu64
+            " neg_inf=%" PRIu64 " min=%g max=%g",
+            t->name, ggml_type_name(t->type), n, finite, nan, pos_inf, neg_inf,
+            finite ? min_value : 0.0f, finite ? max_value : 0.0f);
+    print_shape();
+    std::fputc('\n', stderr);
+    return true;
 }
 
 // DFlash eval callback: captures hidden state tensors + tape data during graph execution
@@ -3451,12 +6063,16 @@ bool llama_context::dflash_rollback(llama_seq_id seq_id, llama_seq_id seq_backup
     if (tree_bufs.n_tokens > 0) {
         // Tree mode: branch tokens may have polluted KV at accepted positions.
         // Remove ALL entries from n_past_before onwards and restore from backup.
-        mem_attn->seq_rm_transient(seq_id, n_past_before, -1);
-        mem_attn->try_seq_cp_transient(seq_backup, seq_id, n_past_before, -1);
+        if (!mem_attn->seq_rm_transient(seq_id, n_past_before, -1) ||
+                !mem_attn->try_seq_cp_transient(seq_backup, seq_id, n_past_before, -1)) {
+            return false;
+        }
     } else {
         // Flat mode: no duplicate entries at same position, safe to keep accepted KV
         int kv_keep_pos = n_past_before + n_accepted;
-        mem_attn->seq_rm_transient(seq_id, kv_keep_pos, -1);
+        if (!mem_attn->seq_rm_transient(seq_id, kv_keep_pos, -1)) {
+            return false;
+        }
     }
 
     // Recurrent state: restore from backup, then tape replay. Keep the backup
@@ -3475,7 +6091,9 @@ bool llama_context::dflash_rollback(llama_seq_id seq_id, llama_seq_id seq_backup
         return false;
     }
 
-    mem_attn->seq_rm_transient(seq_backup, -1, -1);
+    if (!mem_attn->seq_rm_transient(seq_backup, -1, -1)) {
+        return false;
+    }
     mem_recr->seq_rm(seq_backup, -1, -1);
     return true;
 }
@@ -4096,13 +6714,18 @@ void llama_context::set_embeddings(bool value) {
 void llama_context::set_embeddings_nextn(bool value, bool masked) {
     LLAMA_LOG_DEBUG("%s: value = %d, masked = %d\n", __func__, value, masked);
 
-    if (cparams.embeddings_nextn != value || cparams.embeddings_nextn_masked != masked) {
-        // these flags change the graph shape
-        sched_need_reserve = true;
+    if (cparams.embeddings_nextn == value &&
+            cparams.embeddings_nextn_masked == masked) {
+        return;
     }
 
     cparams.embeddings_nextn        = value;
     cparams.embeddings_nextn_masked = masked;
+
+    // NextN changes the graph outputs and their row layout. Native MTP enables
+    // this after the context's initial reserve, so leave an explicit retry
+    // owner for the next decode instead of reusing a graph without h_nextn.
+    sched_need_reserve = true;
 }
 
 void llama_context::set_embeddings_layer_inp(uint32_t lid, bool enable) {
@@ -4436,11 +7059,118 @@ bool llama_context::set_adapter_cvec(
     return res;
 }
 
+static bool reserve_mtp_attention_graph_scratch(ggml_backend_sched_t sched, ggml_cgraph * graph) {
+    struct owner_request {
+        ggml_backend_t backend;
+        const ggml_vbr_backend_iface * iface;
+        size_t k_bytes;
+        size_t v_bytes;
+    };
+    std::vector<owner_request> requests;
+    for (int i = 0; i < ggml_graph_n_nodes(graph); ++i) {
+        ggml_tensor * node = ggml_graph_node(graph, i);
+        if (node->op != GGML_OP_FLASH_ATTN_EXT) {
+            continue;
+        }
+        ggml_backend_t backend = ggml_backend_sched_get_tensor_backend(sched, node);
+        if (backend == nullptr) {
+            return false;
+        }
+        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend));
+        const auto get_iface = reinterpret_cast<ggml_backend_vbr_iface_fn_t>(
+                ggml_backend_reg_get_proc_address(reg, GGML_VBR_BACKEND_IFACE_PROC));
+        if (get_iface == nullptr) {
+            // Backends without the VBR interface do not own CUDA's persistent
+            // Turbo4 materialization buffers (e.g. ordinary CPU/F16 MTP).
+            continue;
+        }
+        const auto fused = reinterpret_cast<ggml_vbr_fused_turbo4_attn_v1_fn>(
+                ggml_backend_reg_get_proc_address(reg, GGML_VBR_FUSED_TURBO4_ATTN_V1_PROC));
+        if (fused != nullptr && fused(backend, node)) {
+            LLAMA_LOG_DEBUG("%s: role=draft route=fused-Turbo4 requested_k=0 requested_v=0\n", __func__);
+            continue;
+        }
+        const ggml_tensor * k = node->src[1];
+        const ggml_tensor * v = node->src[2];
+        if (k == nullptr || v == nullptr) {
+            return false;
+        }
+        const int64_t nk = ggml_nelements(k);
+        const int64_t nv = ggml_nelements(v);
+        if (nk < 0 || nv < 0 || uint64_t(nk) > SIZE_MAX / sizeof(uint16_t) ||
+            uint64_t(nv) > SIZE_MAX / sizeof(uint16_t)) {
+            return false;
+        }
+        // Unknown/disabled fused capability retains fallback materialization
+        // for the exact submitted view, never full-L backing. An already-F16
+        // side does not need a second F16 copy. Q8/BF16 stay conservatively
+        // covered for CUDA's device/head-width-dependent decode conversions.
+        bool need_k = false;
+        bool need_v = false;
+        ggml_vbr_kv_dequant_sides(k->type, v->type, &need_k, &need_v);
+        need_k = need_k || k->type == GGML_TYPE_Q8_0 || k->type == GGML_TYPE_BF16;
+        need_v = need_v || v->type == GGML_TYPE_Q8_0 || v->type == GGML_TYPE_BF16;
+        const size_t kb = need_k ? size_t(nk) * sizeof(uint16_t) : 0;
+        const size_t vb = need_v ? size_t(nv) * sizeof(uint16_t) : 0;
+        if (kb == 0 && vb == 0) {
+            continue;
+        }
+        auto owner = std::find_if(requests.begin(), requests.end(),
+                [backend](const owner_request & r) { return r.backend == backend; });
+        if (owner == requests.end()) {
+            requests.push_back({backend, get_iface(), kb, vb});
+        } else {
+            owner->k_bytes = std::max(owner->k_bytes, kb);
+            owner->v_bytes = std::max(owner->v_bytes, vb);
+        }
+    }
+    for (const auto & request : requests) {
+        LLAMA_LOG_DEBUG("%s: role=draft route=materialize requested_k=%zu requested_v=%zu\n",
+                __func__, request.k_bytes, request.v_bytes);
+        if (!request.iface->kv_dequant_scratch_reserve(
+                request.backend, request.k_bytes, request.v_bytes)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
+    const bool hotpath_profile = llama_context_hotpath_profile_enabled();
+    const int64_t ubatch_start_us = hotpath_profile ? ggml_time_us() : 0;
+    int64_t apply_us = 0;
+    int64_t attention_prepare_us = 0;
+    int64_t graph_build_elapsed_us = 0;
+    int64_t set_inputs_us = 0;
+    int64_t backend_submit_us = 0;
+    int64_t retained_state_us = 0;
+    const int64_t apply_start_us = hotpath_profile ? ggml_time_us() : 0;
     if (mctx && !mctx->apply()) {
+        last_memory_failure_reason_ = mctx->get_failure_reason();
+        mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to apply memory context\n", __func__);
         ret = GGML_STATUS_FAILED;
         return nullptr;
+    }
+    if (hotpath_profile) {
+        apply_us = ggml_time_us() - apply_start_us;
+    }
+
+    const int64_t attention_prepare_start_us = hotpath_profile ? ggml_time_us() : 0;
+    if (memory) {
+        memory->capture_kv_routing_query(nullptr, -1, ubatch);
+    }
+
+    const auto attention_decision = prepare_kv_attention_graph(ubatch, mctx, gtype);
+    if (!attention_decision.accepted()) {
+        if (mctx) mctx->finish(false);
+        LLAMA_LOG_ERROR("%s: selected attention refused: %s\n",
+                __func__, attention_decision.reason.c_str());
+        ret = GGML_STATUS_FAILED;
+        return nullptr;
+    }
+    if (hotpath_profile) {
+        attention_prepare_us = ggml_time_us() - attention_prepare_start_us;
     }
 
     const int slot = graph_slot(ubatch);
@@ -4453,7 +7183,24 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     // in order to correctly reuse a graph, it's full topology has to be uniquely determined by these parameters
     const auto gparams = graph_params(res, ubatch, mctx, gtype);
 
-    if (!graph_reuse_disable && slot_alloc && res->can_reuse(gparams)) {
+    const auto graph_decision_start = hotpath_profile
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
+    const bool graph_reuse = !graph_reuse_disable && slot_alloc && gf_res_prev_active == res &&
+        res->can_reuse(gparams);
+    if (hotpath_profile) {
+        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - graph_decision_start).count();
+        kv_attention_execution.metrics_mutable().record_hotpath_time(
+                kv_attention_execution.metrics_mutable().graph_reuse_us,
+                uint64_t(std::max<int64_t>(0, elapsed)));
+        auto & count = graph_reuse
+            ? kv_attention_execution.metrics_mutable().graph_reuse_decisions
+            : kv_attention_execution.metrics_mutable().graph_rebuild_decisions;
+        count = count == UINT64_MAX ? UINT64_MAX : count + 1;
+    }
+
+    if (graph_reuse) {
         //LLAMA_LOG_DEBUG("%s: reusing previous graph\n", __func__);
 
         // with pipeline parallelism, the previous graph_compute_async may still be running
@@ -4465,26 +7212,52 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
         n_reused++;
     } else {
+        const auto graph_build_start = hotpath_profile
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
+        try {
+        gf_res_prev_active = nullptr;
         gf_res_prev_alloc[slot] = false;
         res->reset();
 
-        ggml_backend_sched_reset(sched.get());
-        ggml_backend_sched_set_eval_callback(sched.get(), cparams.cb_eval, cparams.cb_eval_user_data);
+            ggml_backend_sched_reset(sched.get());
+            ggml_backend_sched_set_eval_callback(sched.get(), cparams.cb_eval, cparams.cb_eval_user_data);
 
-        gf = model.build_graph(gparams);
+            gf = model.build_graph(gparams);
 
-        if (!gf) {
-            LLAMA_LOG_ERROR("%s: failed to initialize graph\n", __func__);
-            ret = GGML_STATUS_FAILED;
-            return nullptr;
+            if (!gf) {
+                if (mctx) mctx->finish(false);
+                LLAMA_LOG_ERROR("%s: failed to initialize graph\n", __func__);
+                ret = GGML_STATUS_FAILED;
+                return nullptr;
+            }
+
+            if (!ggml_backend_sched_alloc_graph(sched.get(), gf)) {
+                if (mctx) mctx->finish(false);
+                LLAMA_LOG_ERROR("%s: failed to allocate graph\n", __func__);
+                ret = GGML_STATUS_ALLOC_FAILED;
+                return nullptr;
+            }
+        } catch (...) {
+            // Graph construction can refuse a packed owner after apply()
+            // opened the pager write batch. Keep the batch lifecycle explicit
+            // at this boundary even when a graph-input guard is bypassed by
+            // another construction failure.
+            if (mctx) {
+                mctx->finish(false);
+            }
+            throw;
         }
 
-        if (!ggml_backend_sched_alloc_graph(sched.get(), gf)) {
-            LLAMA_LOG_ERROR("%s: failed to allocate graph\n", __func__);
-            ret = GGML_STATUS_ALLOC_FAILED;
-            return nullptr;
+        gf_res_prev_active = res;
+        if (hotpath_profile) {
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - graph_build_start).count();
+            graph_build_elapsed_us = std::max<int64_t>(0, elapsed);
+            kv_attention_execution.metrics_mutable().record_hotpath_time(
+                    kv_attention_execution.metrics_mutable().graph_build_us,
+                    uint64_t(graph_build_elapsed_us));
         }
-
         gf_res_prev_alloc[slot] = true;
     }
 
@@ -4494,7 +7267,13 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     // per chunk (ggml-backend.cpp compute_splits), so install a null callback for
     // fully-covered decodes and restore it otherwise. Set on both reuse and rebuild
     // paths — the sched retains the previous value across calls.
-    if (cparams.cb_eval == dflash_eval_callback && dflash_capture) {
+    if (std::getenv("LLAMA_DENSE_TENSOR_DIAGNOSTIC")) {
+        // A caller may install a later capture callback (for example while
+        // preparing a speculative context).  The explicit diagnostic mode
+        // must win for this bounded localization run.
+        ggml_backend_sched_set_eval_callback(sched.get(),
+                llama_context::dense_tensor_diagnostic_callback, this);
+    } else if (cparams.cb_eval == dflash_eval_callback && dflash_capture) {
         const bool cb_dormant = dflash_capture->eval_callback_dormant();
         ggml_backend_sched_set_eval_callback(sched.get(),
                 cb_dormant ? nullptr : cparams.cb_eval,
@@ -4502,16 +7281,177 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     }
 
     // set the input data for the input tensors
-    {
+    const int64_t set_inputs_start_us = hotpath_profile ? ggml_time_us() : 0;
+    try {
         // FIXME this call causes a crash if any model inputs were not used in the graph and were therefore not allocated
-        res->set_inputs(&ubatch);
+        int32_t mtp_host_hidden_row = -2;
+        if (embeddings_nextn_device_request.source != nullptr) {
+            const auto & request = embeddings_nextn_device_request;
+            const int32_t batch_begin = embeddings_nextn_device_decode_token_offset;
+            const int32_t batch_end = batch_begin + (int32_t) ubatch.n_tokens;
+            const int32_t request_end = request.destination_offset + request.n_rows;
+            const int32_t copy_begin = std::max(batch_begin, request.destination_offset);
+            const int32_t copy_end = std::min(batch_end, request_end);
+            ggml_tensor * source_tensor = request.source->embeddings_nextn_device_tensor;
+            ggml_backend_t source_backend = request.source->embeddings_nextn_device_backend;
+            ggml_tensor * destination_tensor = ggml_graph_get_tensor(
+                    res->get_gf(), "mtp_h_input");
+            ggml_backend_t destination_backend = destination_tensor != nullptr
+                ? ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor)
+                : nullptr;
+            const bool covers_batch = copy_begin == batch_begin + (batch_begin == 0 ? 1 : 0) &&
+                copy_end == batch_end;
+            const bool can_handoff = covers_batch && source_tensor != nullptr &&
+                source_backend != nullptr && destination_tensor != nullptr &&
+                destination_backend != nullptr &&
+                request.source_generation == request.source->embeddings_nextn_device_generation &&
+                source_tensor->type == GGML_TYPE_F32 && destination_tensor->type == GGML_TYPE_F32 &&
+                source_tensor->buffer != nullptr && destination_tensor->buffer != nullptr &&
+                source_tensor->ne[0] == destination_tensor->ne[0] &&
+                ggml_backend_get_device(source_backend) == ggml_backend_get_device(destination_backend) &&
+                !ggml_backend_buffer_is_host(source_tensor->buffer) &&
+                !ggml_backend_buffer_is_host(destination_tensor->buffer);
+            if (can_handoff) {
+                mtp_host_hidden_row = batch_begin == 0 ? 0 : -1;
+            }
+        }
+        res->set_inputs(&ubatch, mtp_host_hidden_row);
+        if (mtp_host_hidden_row != -1 && ubatch.embd != nullptr) {
+            ggml_tensor * mtp_input = ggml_graph_get_tensor(res->get_gf(), "mtp_h_input");
+            ggml_backend_t mtp_backend = mtp_input != nullptr
+                ? ggml_backend_sched_get_tensor_backend(sched.get(), mtp_input)
+                : nullptr;
+            if (mtp_input != nullptr && mtp_backend != nullptr &&
+                    mtp_input->buffer != nullptr &&
+                    !ggml_backend_buffer_is_host(mtp_input->buffer)) {
+                const uint64_t n_embd = (uint64_t) mtp_input->ne[0];
+                const uint64_t n_upload_rows = mtp_host_hidden_row == -2
+                    ? ubatch.n_tokens : 1;
+                embeddings_nextn_h2d_bytes += n_embd * n_upload_rows * sizeof(float);
+                LLAMA_LOG_INFO("mtp_hidden_transfer: direction=h2d bytes=%" PRIu64 " total_bytes=%" PRIu64 " fallback_reason=%s\n",
+                        n_embd * n_upload_rows * sizeof(float), embeddings_nextn_h2d_bytes,
+                        mtp_host_hidden_row == -2 ? "host_hidden_fallback" : "committed_carry_row");
+            }
+        }
+
+        if (embeddings_nextn_device_request.source != nullptr) {
+            const auto request = embeddings_nextn_device_request;
+            const int32_t batch_begin = embeddings_nextn_device_decode_token_offset;
+            const int32_t batch_end = batch_begin + (int32_t) ubatch.n_tokens;
+            const int32_t request_end = request.destination_offset + request.n_rows;
+            const int32_t copy_begin = std::max(batch_begin, request.destination_offset);
+            const int32_t copy_end = std::min(batch_end, request_end);
+            if (copy_begin < copy_end) {
+                ggml_tensor * source_tensor = request.source->embeddings_nextn_device_tensor;
+                ggml_backend_t source_backend = request.source->embeddings_nextn_device_backend;
+                ggml_tensor * destination_tensor = ggml_graph_get_tensor(
+                        res->get_gf(), "mtp_h_input");
+                const int32_t n_copy = copy_end - copy_begin;
+                const int32_t source_offset = request.source_offset +
+                    copy_begin - request.destination_offset;
+                const int32_t destination_offset = copy_begin - batch_begin;
+                ggml_backend_t destination_backend = destination_tensor != nullptr
+                    ? ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor)
+                    : nullptr;
+                const bool compatible = source_tensor != nullptr && source_backend != nullptr &&
+                    request.source_generation == request.source->embeddings_nextn_device_generation &&
+                    destination_tensor != nullptr && destination_backend != nullptr &&
+                    source_tensor->type == GGML_TYPE_F32 && destination_tensor->type == GGML_TYPE_F32 &&
+                    source_tensor->buffer != nullptr && destination_tensor->buffer != nullptr &&
+                    source_tensor->ne[0] == destination_tensor->ne[0] &&
+                    source_offset + n_copy <= source_tensor->ne[1] &&
+                    destination_offset + n_copy <= destination_tensor->ne[1] &&
+                    ggml_backend_get_device(source_backend) == ggml_backend_get_device(destination_backend) &&
+                    !ggml_backend_buffer_is_host(source_tensor->buffer) &&
+                    !ggml_backend_buffer_is_host(destination_tensor->buffer);
+                if (compatible) {
+                    ggml_init_params view_params = { 4 * ggml_tensor_overhead(), nullptr, true };
+                    ggml_context * view_ctx = ggml_init(view_params);
+                    ggml_tensor * source_view = ggml_view_2d(
+                            view_ctx, source_tensor,
+                            source_tensor->ne[0], n_copy,
+                            source_tensor->nb[1], (size_t) source_offset * source_tensor->nb[1]);
+                    ggml_tensor * destination_view = ggml_view_2d(
+                            view_ctx, destination_tensor,
+                            destination_tensor->ne[0], n_copy,
+                            destination_tensor->nb[1], (size_t) destination_offset * destination_tensor->nb[1]);
+                    ggml_backend_tensor_copy_async(source_backend,
+                            destination_backend, source_view, destination_view);
+                    ggml_free(view_ctx);
+                } else {
+                    LLAMA_LOG_WARN("%s: device h_nextn handoff fallback: reason=backend_or_tensor_incompatible request_generation=%" PRIu64 " source_generation=%" PRIu64 " source_offset=%d destination_offset=%d rows=%d source_tensor=%p destination_tensor=%p source_backend=%s destination_backend=%s\n",
+                            __func__, request.source_generation,
+                            request.source->embeddings_nextn_device_generation,
+                            source_offset, destination_offset, n_copy,
+                            (void *) source_tensor, (void *) destination_tensor,
+                            source_backend != nullptr ? ggml_backend_name(source_backend) : "none",
+                            destination_backend != nullptr ? ggml_backend_name(destination_backend) : "none");
+                    embeddings_nextn_device_request = {};
+                }
+                if (copy_end == request_end) {
+                    embeddings_nextn_device_request = {};
+                }
+            }
+        }
+    } catch (...) {
+        // set_inputs can reject a selected packed allocation or graph lease
+        // after the graph input has opened a pager write batch. Keep that
+        // refusal recoverable and clear the batch before the exception reaches
+        // the request loop.
+        if (mctx) {
+            mctx->finish(false);
+        }
+        throw;
+    }
+    if (hotpath_profile) {
+        set_inputs_us = ggml_time_us() - set_inputs_start_us;
     }
 
+    if (cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP && !graph_reuse &&
+        !reserve_mtp_attention_graph_scratch(sched.get(), res->get_gf())) {
+        if (mctx) mctx->finish(false);
+        // A failed admission must not become a reusable graph: the next
+        // attempt has to retry reservation, not enter compute without it.
+        gf_res_prev_active = nullptr;
+        last_memory_failure_reason_ = llama_memory_failure_reason::scratch_oom;
+        LLAMA_LOG_ERROR("%s: native MTP graph scratch admission failed\n", __func__);
+        ret = GGML_STATUS_ALLOC_FAILED;
+        return nullptr;
+    }
+    const int64_t backend_submit_start_us = hotpath_profile ? ggml_time_us() : 0;
     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
+    if (hotpath_profile) {
+        backend_submit_us = ggml_time_us() - backend_submit_start_us;
+    }
     if (status != GGML_STATUS_SUCCESS) {
+        if (mctx) mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to compute graph, compute status: %d\n", __func__, status);
         ret = status;
         return nullptr;
+    }
+
+    const int64_t retained_state_start_us = hotpath_profile ? ggml_time_us() : 0;
+    if (mctx) mctx->finish(true);
+    if (hotpath_profile) {
+        retained_state_us = ggml_time_us() - retained_state_start_us;
+        const llama_pos first_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
+            ? ubatch.pos[0] : -1;
+        const llama_pos last_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
+            ? ubatch.pos0(ubatch.n_tokens - 1) : -1;
+        LLAMA_LOG_INFO("hotpath stage=context_ubatch phase=%s route=%s query_tokens=%u "
+                "tokens=%u first_pos=%" PRId64
+                " last_pos=%" PRId64 " graph_reuse=%d apply_us=%" PRId64
+                " attention_prepare_us=%" PRId64 " graph_build_us=%" PRId64
+                " set_inputs_us=%" PRId64 " backend_submit_us=%" PRId64
+                " retained_state_us=%" PRId64 " total_us=%" PRId64 "\n",
+                llama_kv_attention_execution_phase_name(attention_decision.phase),
+                llama_kv_attention_execution_route_name(attention_decision.route),
+                ubatch.n_tokens, ubatch.n_tokens,
+                int64_t(first_position), int64_t(last_position),
+                graph_reuse ? 1 : 0,
+                apply_us, attention_prepare_us, graph_build_elapsed_us,
+                set_inputs_us, backend_submit_us, retained_state_us,
+                ggml_time_us() - ubatch_start_us);
     }
 
     ret = GGML_STATUS_SUCCESS;
@@ -4813,10 +7753,12 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
     logits_argmax_k = 1;
     clear_dflash_proposal();
 
-     if (!memory) {
+    if (!memory) {
         LLAMA_LOG_DEBUG("%s: cannot decode batches with this context (calling encode() instead)\n", __func__);
         return encode(batch_inp, extended);
     }
+
+    last_memory_failure_reason_ = llama_memory_failure_reason::none;
 
     if (batch_inp.n_tokens == 0) {
         LLAMA_LOG_ERROR("%s: n_tokens == 0\n", __func__);
@@ -4920,9 +7862,39 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
     memory_update(false);
 
     llama_memory_context_ptr mctx;
+    const bool bounded_pager_prefill = n_tokens_all > 1 &&
+            (kv_pager.mode == llama_kv_pager_mode::selective ||
+             kv_pager.mode == llama_kv_pager_mode::exact);
+    const uint32_t memory_ubatch = bounded_pager_prefill
+        ? prefill_ubatch_size(cparams.n_ubatch) : cparams.n_ubatch;
+    const auto prefill_plan = llama_kv_attention_prefill_batch_plan_make(
+            cparams.n_ubatch,
+            bounded_pager_prefill && kv_pager_owner
+                ? kv_pager_owner->snapshot().physical_page_count : 0,
+            bounded_pager_prefill && kv_pager_owner
+                ? kv_pager_owner->snapshot().geometry.page_tokens
+                : VBR_GENERATION_PAGE_CELLS);
+    kv_attention_execution.record_prefill_batch(prefill_plan);
+    if (bounded_pager_prefill && prefill_plan.effective_batch < prefill_plan.requested_batch) {
+        const uint32_t physical_pages = kv_pager_owner != nullptr
+            ? kv_pager_owner->snapshot().physical_page_count : 0;
+        LLAMA_LOG_INFO("%s: prefill batch bounded: requested=%u physical_pages=%u "
+                "page_tokens=%u physical_write_capacity=%u effective=%u "
+                "formula=min(requested, physical_pages*page_tokens); query_tile=%u\n",
+                __func__, prefill_plan.requested_batch, physical_pages,
+                bounded_pager_prefill && kv_pager_owner
+                    ? kv_pager_owner->snapshot().geometry.page_tokens
+                    : VBR_GENERATION_PAGE_CELLS,
+                prefill_plan.physical_write_capacity, prefill_plan.effective_batch,
+                prefill_plan.query_tile);
+    }
+    if (bounded_pager_prefill && memory_ubatch != cparams.n_ubatch) {
+        LLAMA_LOG_INFO("%s: bounded pager prefill ubatch=%u (configured=%u)\n",
+                __func__, memory_ubatch, cparams.n_ubatch);
+    }
 
     while (true) {
-        mctx = memory->init_batch(*balloc, cparams.n_ubatch, output_all);
+        mctx = memory->init_batch(*balloc, memory_ubatch, output_all);
         if (!mctx) {
             return -2;
         }
@@ -4939,6 +7911,12 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
                 }
             case LLAMA_MEMORY_STATUS_FAILED_PREPARE:
                 {
+                    last_memory_failure_reason_ = mctx->get_failure_reason();
+                    if (last_memory_failure_reason_ ==
+                            llama_memory_failure_reason::none) {
+                        last_memory_failure_reason_ =
+                            llama_memory_failure_reason::logical_capacity;
+                    }
                     if (!did_optimize) {
                         did_optimize = true;
 
@@ -4978,6 +7956,33 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
     int64_t n_outputs_prev = 0;
     int64_t n_tokens_prev  = 0;
 
+    // The device stage is one owner for this logical decode. Its capacity is
+    // bounded by n_batch plus the caller-owned carry row.
+    embeddings_nextn_device_valid_rows = 0;
+    if (embeddings_nextn_device_request.source != nullptr &&
+            embeddings_nextn_device_request.source_generation !=
+                embeddings_nextn_device_request.source->embeddings_nextn_device_generation) {
+        embeddings_nextn_device_request = {};
+    }
+    embeddings_nextn_d2h_bytes = 0;
+    embeddings_nextn_h2d_bytes = 0;
+    if (embeddings_nextn_device_event_recorded) {
+        ggml_backend_event_synchronize(embeddings_nextn_device_consumed_event);
+        embeddings_nextn_device_event_recorded = false;
+    }
+    embeddings_nextn_device_positions.clear();
+    embeddings_nextn_device_sequences.clear();
+    embeddings_nextn_output_rows = cparams.embeddings_nextn_masked
+        ? (int32_t) n_outputs_all : (int32_t) n_tokens_all;
+    embeddings_nextn_host_valid.assign(n_tokens_all, 0);
+    embeddings_nextn_host_source_rows.resize(n_tokens_all);
+    for (uint32_t row = 0; row < n_tokens_all; ++row) {
+        embeddings_nextn_host_source_rows[row] = (int32_t) row;
+    }
+    if (++embeddings_nextn_device_generation == 0) {
+        ++embeddings_nextn_device_generation;
+    }
+
     // device-staged draft capture is valid only when the whole batch lands in one
     // ubatch (stage rows then mirror batch rows); reset per decode
     dflash_stage_valid_n = 0;
@@ -4990,8 +7995,46 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
     // otherwise leave only the last ubatch's hiddens in layer_hiddens).
     dflash_reset_hidden_capture();
 
-    do {
+    kv_pager_prefill_fence_coalescing_ = false;
+    kv_pager_prefill_fence_cached_ = false;
+    kv_pager_prefill_fence_pages_ = 0;
+
+    while (true) {
         const auto & ubatch = mctx->get_ubatch();
+
+        // Fresh windows and cached contiguous spans already resident in GPU
+        // slots can share the admitted multi-page submission wave. A cached
+        // span with any cold/missing page remains on the conservative fences:
+        // it may need a slot before a later ubatch can be admitted.
+        if (bounded_pager_prefill && kv_pager_owner != nullptr &&
+                !kv_pager_prefill_fence_coalescing_ &&
+                prefill_single_sequence_contiguous(ubatch) &&
+                ubatch.seq_id_unq != nullptr && ubatch.seq_id_unq[0] >= 0) {
+            const auto resident = kv_pager_owner->residency(ubatch.seq_id_unq[0]);
+            const bool fresh_window = ubatch.pos[0] == 0 &&
+                kv_pager_owner->exact_page_records(ubatch.seq_id_unq[0]).empty();
+            const bool cached_window = !resident.pages().empty() &&
+                prefill_pages_are_resident(ubatch, *kv_pager_owner,
+                    kv_pager_owner->snapshot().geometry.page_tokens);
+            const bool cached_wave_eligible =
+                llama_kv_attention_prefill_cached_wave_eligible(
+                    prefill_single_sequence_contiguous(ubatch),
+                    !resident.pages().empty(), cached_window);
+            if (fresh_window || cached_wave_eligible) {
+                kv_pager_prefill_fence_coalescing_ = true;
+                kv_pager_prefill_fence_cached_ = cached_window;
+                kv_pager_prefill_fence_sequence_ = ubatch.seq_id_unq[0];
+                kv_pager_prefill_fence_last_position_ = -1;
+                kv_pager_prefill_fence_last_page_ = UINT64_MAX;
+                kv_pager_prefill_fence_pages_ = 0;
+            }
+        }
+        if (kv_pager_prefill_fence_coalescing_ &&
+                kv_pager_prefill_fence_cached_ && kv_pager_owner != nullptr &&
+                !prefill_pages_are_resident(ubatch, *kv_pager_owner,
+                    kv_pager_owner->snapshot().geometry.page_tokens)) {
+            kv_pager_prefill_fence_coalescing_ = false;
+        }
 
         // DFlash: hand the eval callback this ubatch so it can route hidden-state
         // captures per-token (multi-seq) or whole-tensor (single-seq) to the
@@ -5116,6 +8159,7 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
 
         ggml_status status;
 
+        embeddings_nextn_device_decode_token_offset = (int32_t) n_tokens_prev;
         const auto * res = process_ubatch(ubatch, ctx_type_to_graph_type(cparams.ctx_type), mctx.get(), status);
 
         if (!res) {
@@ -5148,6 +8192,44 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
                 case GGML_STATUS_SUCCESS:      GGML_ABORT("should not happen");
             }
         }
+
+        if (kv_pager_prefill_fence_coalescing_) {
+            const bool valid_prefill = kv_attention_execution.phase() ==
+                    llama_kv_attention_execution_phase::prefill &&
+                ubatch.n_seqs_unq == 1 && ubatch.n_seq_tokens == ubatch.n_tokens &&
+                ubatch.n_pos == 1 && ubatch.pos != nullptr &&
+                ubatch.seq_id_unq != nullptr &&
+                ubatch.seq_id_unq[0] == kv_pager_prefill_fence_sequence_ &&
+                ubatch.n_tokens != 0 &&
+                kv_pager_prefill_fence_last_position_ != std::numeric_limits<llama_pos>::max() &&
+                ubatch.pos[0] == kv_pager_prefill_fence_last_position_ + 1;
+            if (!valid_prefill) {
+                kv_pager_prefill_fence_coalescing_ = false;
+            } else {
+                const uint32_t page_tokens = kv_pager_owner->snapshot().geometry.page_tokens;
+                if (page_tokens == 0) {
+                    kv_pager_prefill_fence_coalescing_ = false;
+                } else {
+                    for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+                        const llama_pos position = ubatch.pos[token];
+                        if (position < 0) {
+                            kv_pager_prefill_fence_coalescing_ = false;
+                            break;
+                        }
+                        const uint64_t page = uint64_t(position) / page_tokens;
+                        if (page != kv_pager_prefill_fence_last_page_) {
+                            kv_pager_prefill_fence_last_page_ = page;
+                            if (kv_pager_prefill_fence_pages_ != UINT32_MAX) {
+                                ++kv_pager_prefill_fence_pages_;
+                            }
+                        }
+                    }
+                    kv_pager_prefill_fence_last_position_ = ubatch.pos[ubatch.n_tokens - 1];
+                }
+            }
+        }
+
+        kv_attention_execution.record_target_tokens(ubatch.n_tokens);
 
         // plot the computation graph in dot format (for debugging purposes)
         //if (n_past%100 == 0) {
@@ -5295,16 +8377,110 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
             const bool masked    = cparams.embeddings_nextn_masked;
             const int64_t n_rows = masked ? n_outputs       : (int64_t) ubatch.n_tokens;
             const int64_t offset = masked ? n_outputs_prev  : n_tokens_prev;
+            bool device_stage_captured = false;
 
-            if (embd_nextn.data && t_h_nextn && n_rows > 0 && cparams.pooling_type == LLAMA_POOLING_TYPE_NONE) {
+            // Keep every unmasked target h_nextn row in a context-owned device
+            // tensor. The graph result is only valid until its arena slot is
+            // reused by a later microbatch.
+            if (t_h_nextn && !cparams.embeddings_nextn_masked &&
+                    cparams.pooling_type == LLAMA_POOLING_TYPE_NONE &&
+                    t_h_nextn->type == GGML_TYPE_F32 &&
+                    t_h_nextn->ne[1] >= ubatch.n_tokens &&
+                    n_tokens_prev + ubatch.n_tokens <= cparams.n_batch) {
+                ggml_backend_t backend_h = ggml_backend_sched_get_tensor_backend(sched.get(), t_h_nextn);
+                const int32_t capacity = cparams.n_batch + 1;
+                if (backend_h != nullptr &&
+                        (embeddings_nextn_device_tensor == nullptr ||
+                         ggml_backend_get_device(embeddings_nextn_device_backend) ==
+                            ggml_backend_get_device(backend_h)) &&
+                        (embeddings_nextn_device_tensor == nullptr ||
+                         embeddings_nextn_device_capacity >= capacity)) {
+                    if (embeddings_nextn_device_tensor == nullptr) {
+                        ggml_init_params stage_params = {
+                            3 * ggml_tensor_overhead(), nullptr, true,
+                        };
+                        ggml_context * stage_ctx = ggml_init(stage_params);
+                        ggml_tensor * stage = ggml_new_tensor_2d(
+                                stage_ctx, GGML_TYPE_F32, t_h_nextn->ne[0], capacity);
+                        ggml_format_name(stage, "embeddings_nextn_device_batch");
+                        ggml_backend_buffer_t stage_buf = ggml_backend_alloc_ctx_tensors_from_buft(
+                                stage_ctx, ggml_backend_get_default_buffer_type(backend_h));
+                        ggml_backend_event_t consumed_event = ggml_backend_event_new(
+                                ggml_backend_get_device(backend_h));
+                        if (stage_buf != nullptr && consumed_event != nullptr) {
+                            embeddings_nextn_device_ctx.reset(stage_ctx);
+                            embeddings_nextn_device_buf.reset(stage_buf);
+                            embeddings_nextn_device_tensor = stage;
+                            embeddings_nextn_device_backend = backend_h;
+                            embeddings_nextn_device_consumed_event = consumed_event;
+                            embeddings_nextn_device_capacity = capacity;
+                            LLAMA_LOG_INFO("%s: allocated device h_nextn batch owner: rows=%d width=%" PRId64 " bytes=%zu backend=%s\n",
+                                    __func__, capacity, stage->ne[0],
+                                    ggml_backend_buffer_get_size(stage_buf),
+                                    ggml_backend_name(backend_h));
+                        } else {
+                            if (consumed_event != nullptr) {
+                                ggml_backend_event_free(consumed_event);
+                            }
+                            if (stage_buf != nullptr) {
+                                ggml_backend_buffer_free(stage_buf);
+                            }
+                            ggml_free(stage_ctx);
+                        }
+                    }
+                    if (embeddings_nextn_device_tensor != nullptr &&
+                            ggml_backend_get_device(embeddings_nextn_device_backend) ==
+                                ggml_backend_get_device(backend_h)) {
+                        ggml_init_params view_params = {
+                            4 * ggml_tensor_overhead(), nullptr, true,
+                        };
+                        ggml_context * view_ctx = ggml_init(view_params);
+                        const size_t offset_bytes = (size_t) n_tokens_prev * t_h_nextn->nb[1];
+                        ggml_tensor * source_view = ggml_view_2d(
+                                view_ctx, t_h_nextn, t_h_nextn->ne[0], ubatch.n_tokens,
+                                t_h_nextn->nb[1], 0);
+                        ggml_tensor * stage_view = ggml_view_2d(
+                                view_ctx, embeddings_nextn_device_tensor,
+                                embeddings_nextn_device_tensor->ne[0], ubatch.n_tokens,
+                                embeddings_nextn_device_tensor->nb[1], offset_bytes);
+                        ggml_backend_tensor_copy_async(backend_h,
+                                embeddings_nextn_device_backend, source_view, stage_view);
+                        ggml_free(view_ctx);
+                        device_stage_captured = true;
+
+                        embeddings_nextn_device_valid_rows =
+                                (int32_t) n_tokens_prev + (int32_t) ubatch.n_tokens;
+                        embeddings_nextn_device_positions.resize(embeddings_nextn_device_valid_rows);
+                        embeddings_nextn_device_sequences.resize(
+                                embeddings_nextn_device_valid_rows);
+                        for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+                            const int32_t row = (int32_t) n_tokens_prev + i;
+                            embeddings_nextn_device_positions[row] =
+                                    ubatch.pos0(i);
+                            embeddings_nextn_device_sequences[row] =
+                                    ubatch.n_seq_id[i] == 1 ? ubatch.seq_id[i][0] : -1;
+                        }
+                    }
+                }
+            }
+
+            if (embd_nextn.data && t_h_nextn && n_rows > 0 &&
+                    cparams.pooling_type == LLAMA_POOLING_TYPE_NONE &&
+                    !device_stage_captured) {
                 ggml_backend_t backend_h = ggml_backend_sched_get_tensor_backend(sched.get(), t_h_nextn);
                 GGML_ASSERT(backend_h != nullptr);
-
-                const uint32_t n_embd  = hparams.n_embd_out();
-                float * embd_nextn_out = embd_nextn.data + offset*n_embd;
-
-                GGML_ASSERT((offset + n_rows)*n_embd <= (int64_t) embd_nextn.size);
-                ggml_backend_tensor_get_async(backend_h, t_h_nextn, embd_nextn_out, 0, n_rows*n_embd*sizeof(float));
+                const uint32_t n_embd = hparams.n_embd_out();
+                float * embd_nextn_out = embd_nextn.data + offset * n_embd;
+                GGML_ASSERT((offset + n_rows) * n_embd <= (int64_t) embd_nextn.size);
+                ggml_backend_tensor_get_async(backend_h, t_h_nextn, embd_nextn_out, 0,
+                        n_rows * n_embd * sizeof(float));
+                for (int64_t row = 0; row < n_rows; ++row) {
+                    const int64_t host_row = offset + row;
+                    if (host_row >= 0 && host_row < (int64_t) embeddings_nextn_host_valid.size()) {
+                        embeddings_nextn_host_valid[host_row] = 1;
+                        embeddings_nextn_d2h_bytes += (uint64_t) n_embd * sizeof(float);
+                    }
+                }
                 extract_all_idxs = extract_all_idxs || !masked;
             }
         }
@@ -5331,7 +8507,35 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
 
         n_outputs_prev += n_outputs;
         n_tokens_prev  += ubatch.n_tokens;
-    } while (mctx->next());
+
+        // Fresh writes can occupy several distinct physical pages before a
+        // publication fence. Preserve the conservative page fence for existing
+        // or unknown layouts, and fence a fresh sequence as soon as its
+        // admitted physical window is full.
+        const bool page_wave_boundary = bounded_pager_prefill &&
+            prefill_page_wave_boundary(ubatch, kv_pager.page_size);
+        const bool has_next = mctx->next();
+        const uint32_t physical_page_capacity = kv_pager_owner != nullptr
+            ? kv_pager_owner->snapshot().physical_page_count : 0;
+        const bool page_capacity_fence = page_wave_boundary &&
+            llama_kv_attention_prefill_page_fence_due(
+                    true, kv_pager_prefill_fence_coalescing_,
+                    kv_pager_prefill_fence_pages_, physical_page_capacity);
+        const bool final_batch_fence = bounded_pager_prefill && !has_next;
+        if (llama_context_hotpath_profile_enabled() && page_wave_boundary) {
+            LLAMA_LOG_INFO("hotpath stage=prefill_page_fence action=%s pages_admitted=%u "
+                    "physical_page_capacity=%u has_next=%d\n",
+                    page_capacity_fence || final_batch_fence ? "synchronize" : "defer",
+                    kv_pager_prefill_fence_pages_, physical_page_capacity,
+                    has_next ? 1 : 0);
+        }
+        if (page_capacity_fence || final_batch_fence) {
+            synchronize();
+        }
+        if (!has_next) {
+            break;
+        }
+    }
 
     // set to total number of outputs in the batch, for use in llama_get_logits_ith
     n_outputs = n_outputs_all;
@@ -5403,6 +8607,22 @@ int llama_context::decode(const llama_batch & batch_inp, const llama_batch_ext *
     // C1: the decode transaction succeeds exactly here; its destructor delivers
     // finish(true) -> extents submitted, owners awaiting the synchronize fence.
     decode_txn.succeed();
+
+    // This is an ordinary committed target decode. Native speculative
+    // verification and its re-evaluation are explicitly accounted for by the
+    // rollback/commit owner in the server, so they leave this disabled.
+    if (!kv_attention_mtp_verification_) {
+        note_kv_pager_accepted_tokens(n_tokens_all);
+    }
+
+    if (cparams.embeddings_nextn && embeddings_nextn_output_rows > 0) {
+        const char * fallback_reason = embeddings_nextn_device_valid_rows >=
+                (int32_t) n_tokens_all ? "none" : "device_stage_unavailable_or_incompatible";
+        LLAMA_LOG_INFO("mtp_hidden_transfer: rows=%d d2h_bytes=%" PRIu64
+                " h2d_bytes=%" PRIu64 " fallback_reason=%s\n",
+                embeddings_nextn_output_rows, embeddings_nextn_d2h_bytes,
+                embeddings_nextn_h2d_bytes, fallback_reason);
+    }
 
     return 0;
 }
@@ -5639,6 +8859,11 @@ void llama_context::output_reorder() {
                 std::swap(embd_nextn.data[i0*n_embd_out + k], embd_nextn.data[i1*n_embd_out + k]);
             }
         }
+        if (i0 < embeddings_nextn_host_valid.size() &&
+                i1 < embeddings_nextn_host_valid.size()) {
+            std::swap(embeddings_nextn_host_valid[i0], embeddings_nextn_host_valid[i1]);
+            std::swap(embeddings_nextn_host_source_rows[i0], embeddings_nextn_host_source_rows[i1]);
+        }
 
         if (!logits_argmax_buf.empty()) {
             GGML_ASSERT(logits_argmax_k > 0);
@@ -5777,6 +9002,24 @@ uint32_t llama_context::graph_max_nodes(uint32_t n_tokens) const {
     res += n_sampling_nodes;
     if (n_sampling_outputs_max > 1) {
         res += (n_sampling_outputs_max - 1) * n_sampling_nodes_max;
+    }
+    if (kv_pager.mode == llama_kv_pager_mode::selective && kv_pager_plan_valid_) {
+        // The upstream model-only budget does not count packed selected
+        // page-copy views, including non-executed copy-plan tensors. The
+        // preallocated physical pool is known before initial sched_reserve;
+        // using it also covers later sparse/fragmented maps without growing
+        // the arena with occupied or logical context. Draft-only contexts
+        // have no target pager plan and keep their original capacity.
+        uint32_t attention_layers = 0;
+        for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
+            if (model.hparams.has_kv(il)) ++attention_layers;
+        }
+        uint32_t capacity = res;
+        if (!llama_kv_attention_graph_capacity(res,
+                kv_pager_plan_.physical_page_count, attention_layers, capacity)) {
+            throw std::overflow_error("selected attention graph metadata capacity overflows");
+        }
+        res = capacity;
     }
 
     if (cparams.training) {
@@ -6051,7 +9294,172 @@ llm_graph_params llama_context::graph_params(
         /*.n_outputs   =*/ n_outputs,
         /*.cb          =*/ graph_get_cb(),
         /*.res         =*/ res,
+        /*.kv_attention_table_epoch =*/ kv_attention_execution.table_epoch(),
+        /*.kv_attention_content_key =*/ kv_attention_execution.metadata().graph_content_key(),
+        /*.kv_attention_layout_key =*/ kv_attention_execution.metadata().graph_layout_key(),
+        /*.kv_attention_representation_epoch =*/ kv_attention_execution.representation_epoch(),
+        /*.kv_attention_shape_epoch =*/ kv_attention_execution.shape_epoch(),
+        /*.kv_attention_route =*/ kv_attention_execution.route(),
+        /*.kv_attention_metadata =*/ kv_attention_execution.metadata(),
+        /*.kv_attention_exact_plan =*/ kv_attention_execution.exact_graph_plan(),
+        /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
+        /*.kv_attention_telemetry =*/ kv_attention_telemetry.get(),
+        /*.kv_attention_packed_cache =*/ &kv_attention_packed_cache,
     };
+}
+
+void llama_context::publish_kv_attention_telemetry() noexcept {
+    if (!kv_attention_telemetry || gf_res_prev_active == nullptr) {
+        return;
+    }
+    for (const auto & input_ptr : gf_res_prev_active->inputs) {
+        auto * input = dynamic_cast<llm_graph_input_attn_kv *>(input_ptr.get());
+        // Hybrid Qwen graphs own the attention input below the recurrent
+        // sibling container. Publication must inspect the same child that
+        // set_input() updated; otherwise a completed page-mass tensor is
+        // silently lost at the graph-result boundary.
+        if (input == nullptr) {
+            auto * hybrid = dynamic_cast<llm_graph_input_mem_hybrid *>(input_ptr.get());
+            input = hybrid != nullptr ? hybrid->get_attn() : nullptr;
+        }
+        if (input == nullptr || input->direct_telemetry_published) {
+            continue;
+        }
+        // Exact-wave graphs and packed selective graphs do not produce the
+        // diagnostic page-mass sidecar. Packed attention's production graph
+        // is intentionally only the mature packed FA consumer; direct mode
+        // remains the explicit diagnostic route.
+        if (input->exact_wave_attention ||
+            input->packed_attention || !input->direct_attention) {
+            input->direct_telemetry_published = true;
+            continue;
+        }
+        input->direct_telemetry_published = true;
+        if (input->direct_page_mass == nullptr && input->direct_split_kv_scratch == nullptr) {
+            // The production consumer intentionally has no page-mass observer.
+            // Do not scan metadata or manufacture per-token "missing output"
+            // drops for an explicitly disabled diagnostic path.
+            continue;
+        }
+        if (input->direct_telemetry_skipped) {
+            kv_attention_telemetry->record_skipped_sample();
+            continue;
+        }
+        if (input->direct_telemetry_drop_reason !=
+                llama_kv_attention_telemetry_drop_reason::none) {
+            kv_attention_telemetry->record_drop(input->direct_telemetry_drop_reason,
+                    input->direct_telemetry_snapshot.epoch(), input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()));
+            continue;
+        }
+        if (input->direct_page_mass == nullptr) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_output,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()));
+            continue;
+        }
+        if (input->direct_page_mass->buffer == nullptr) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_output,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()));
+            continue;
+        }
+        if (input->direct_telemetry_pages.empty()) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_metadata,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index);
+            continue;
+        }
+        const uint32_t total_heads = uint32_t(input->direct_page_mass->ne[1]);
+        const uint32_t query_count = uint32_t(input->direct_page_mass->ne[2]);
+        const uint32_t head_begin = kv_attention_telemetry->head_begin();
+        if (head_begin >= total_heads || input->direct_page_mass->ne[0] == 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
+            continue;
+        }
+        const uint32_t available_heads = total_heads - head_begin;
+        const uint32_t requested_heads = kv_attention_telemetry->head_count();
+        const uint32_t head_count = requested_heads == 0
+            ? available_heads : std::min(requested_heads, available_heads);
+        if (head_count == 0 || input->direct_page_mass->nb[1] == 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
+            continue;
+        }
+        const size_t bytes = ggml_nbytes(input->direct_page_mass);
+        if (bytes == 0 || bytes % sizeof(float) != 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
+            continue;
+        }
+        std::vector<float> host;
+        try {
+            host.resize(bytes / sizeof(float));
+        } catch (...) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_output,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
+            continue;
+        }
+        const int64_t copy_begin = ggml_time_us();
+        ggml_backend_tensor_get(input->direct_page_mass, host.data(), 0, bytes);
+        const uint64_t d2h_time_us = uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - copy_begin));
+
+        const size_t head_stride = input->direct_page_mass->nb[1];
+        const size_t layer_stride = head_stride * size_t(total_heads);
+        if (head_stride < sizeof(float) * size_t(input->direct_page_mass->ne[0]) ||
+            layer_stride < head_stride * size_t(head_count)) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
+            continue;
+        }
+        llama_kv_attention_telemetry_sample sample;
+        sample.table_epoch = input->direct_telemetry_snapshot.epoch();
+        sample.token_index = input->direct_telemetry_token_index;
+        sample.layer_count = 1;
+        sample.head_count = head_count;
+        sample.token_count = query_count;
+        sample.head_stride_bytes = head_stride;
+        sample.layer_stride_bytes = layer_stride;
+        sample.token_stride_bytes = input->direct_page_mass->nb[2];
+        sample.page_mass = reinterpret_cast<const float *>(
+                reinterpret_cast<const char *>(host.data()) + head_begin * head_stride);
+        sample.pages = input->direct_telemetry_pages.data();
+        sample.page_count = input->direct_telemetry_pages.size();
+        sample.d2h_bytes = bytes;
+        sample.d2h_time_us = d2h_time_us;
+        kv_attention_execution.record_copy_time_us(d2h_time_us);
+        const auto status = kv_attention_telemetry->publish_completed(
+                input->direct_telemetry_snapshot, sample);
+        kv_attention_telemetry->record_observe_overhead(uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - copy_begin)));
+        if (status != llama_kv_attention_telemetry_status::ok &&
+            status != llama_kv_attention_telemetry_status::sampling_skipped) {
+            LLAMA_LOG_DEBUG("%s: page-mass publication dropped: %s\n", __func__,
+                    llama_kv_attention_telemetry_status_name(status));
+        }
+    }
 }
 
 ggml_status llama_context::graph_compute(
@@ -6060,21 +9468,26 @@ ggml_status llama_context::graph_compute(
     int n_threads        = batched ? cparams.n_threads_batch : cparams.n_threads;
     ggml_threadpool_t tp = batched ? threadpool_batch        : threadpool;
 
-    if (backend_cpu != nullptr) {
-        auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend_cpu));
-        auto * set_threadpool_fn = (decltype(ggml_backend_cpu_set_threadpool) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_set_threadpool");
-        if (set_threadpool_fn) {
-            set_threadpool_fn(backend_cpu, tp);
+    if (graph_thread_config.needs_update(n_threads, tp)) {
+        if (backend_cpu != nullptr) {
+            auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend_cpu));
+            auto * set_threadpool_fn = (decltype(ggml_backend_cpu_set_threadpool) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_set_threadpool");
+            if (set_threadpool_fn) {
+                set_threadpool_fn(backend_cpu, tp);
+            }
         }
+
+        // Backend thread settings persist until the thread count or pool changes.
+        for (const auto & set_n_threads_fn : set_n_threads_fns) {
+            set_n_threads_fn.second(set_n_threads_fn.first, n_threads);
+        }
+        graph_thread_config.record(n_threads, tp);
     }
 
-    // set the number of threads for all the backends
-    for (const auto & set_n_threads_fn : set_n_threads_fns) {
-        set_n_threads_fn.second(set_n_threads_fn.first, n_threads);
-    }
-
-
+    const int64_t queue_start_us = ggml_time_us();
     auto status = ggml_backend_sched_graph_compute_async(sched.get(), gf);
+    kv_attention_execution.record_queue_time_us(uint64_t(std::max<int64_t>(
+            0, ggml_time_us() - queue_start_us)));
     if (status != GGML_STATUS_SUCCESS) {
         LLAMA_LOG_ERROR("%s: ggml_backend_sched_graph_compute_async failed with error %d\n", __func__, status);
     }
@@ -6084,13 +9497,21 @@ ggml_status llama_context::graph_compute(
     return status;
 }
 
+void llm_graph_name_tensor(ggml_tensor * cur, const char * name, int il) {
+    if (cur == nullptr) {
+        return;
+    }
+
+    if (il >= 0) {
+        ggml_format_name(cur, "%s-%d", name, il);
+    } else {
+        ggml_set_name(cur, name);
+    }
+}
+
 llm_graph_cb llama_context::graph_get_cb() const {
     return [&](const llama_ubatch & ubatch, ggml_tensor * cur, const char * name, int il) {
-        if (il >= 0) {
-            ggml_format_name(cur, "%s-%d", name, il);
-        } else {
-            ggml_set_name(cur, name);
-        }
+        llm_graph_name_tensor(cur, name, il);
 
         // - norm may be automatically assigned to the backend of the previous layer, increasing data transfer between backends
         // - force the last op of the layer on the specified backend to avoid running it on the backend of the next layer due to scheduling
@@ -7697,6 +11118,7 @@ llama_context_params llama_context_default_params() {
         /*.moe_cache_expert_parallel   =*/ 0,
         /*.moe_cache_cpu_overlap       =*/ -2,
         /*.moe_cache_profile_path      =*/ nullptr,
+        /*.kv_pager_config             =*/ nullptr,
         /*.abort_callback              =*/ nullptr,
         /*.abort_callback_data         =*/ nullptr,
         /*.embeddings                  =*/ false,
@@ -8107,6 +11529,37 @@ float * llama_get_embeddings_nextn_ith(llama_context * ctx, int32_t i) {
     ctx->synchronize();
 
     return ctx->get_embeddings_nextn_ith(i);
+}
+
+bool llama_set_embeddings_nextn_device(
+        llama_context * ctx, llama_context * source,
+        int32_t source_offset, int32_t destination_offset, int32_t n_rows,
+        const llama_pos * expected_positions, const llama_seq_id * expected_sequences) {
+    return ctx != nullptr && ctx->set_embeddings_nextn_device(
+            source, source_offset, destination_offset, n_rows,
+            expected_positions, expected_sequences);
+}
+
+bool llama_mark_embeddings_nextn_device_consumed(
+        llama_context * source, llama_context * consumer) {
+    return source != nullptr && source->mark_embeddings_nextn_device_consumed(consumer);
+}
+
+void llama_get_embeddings_nextn_transfer_bytes(
+        llama_context * ctx, uint64_t * d2h, uint64_t * h2d) {
+    if (ctx != nullptr) {
+        ctx->get_embeddings_nextn_transfer_bytes(d2h, h2d);
+    }
+}
+
+uint64_t llama_get_embeddings_nextn_device_generation(llama_context * ctx) {
+    return ctx != nullptr ? ctx->get_embeddings_nextn_device_generation() : 0;
+}
+
+void llama_set_kv_attention_mtp_verification(llama_context * ctx, bool enabled) {
+    if (ctx != nullptr) {
+        ctx->set_kv_attention_mtp_verification(enabled);
+    }
 }
 
 float * llama_get_embeddings_layer_inp(llama_context * ctx, uint32_t lid) {

@@ -489,7 +489,7 @@ llama_model_qwen4exp::graph_mtp::graph_mtp(const llama_model & model, const llm_
     ggml_tensor * tokens = chain ? cparams.mtp_chain_tok : nullptr;
     ggml_tensor * h      = chain ? ggml_reshape_2d(ctx0, cparams.mtp_chain_h, hparams.n_embd_out(), 1) : nullptr;
     if (!chain) {
-        auto inp = std::make_unique<llm_graph_input_embd_h>(hparams.n_embd_out());
+        auto inp = std::make_unique<llm_graph_input_embd_h>(hparams.n_embd_out(), sched);
 
         inp->tokens = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_tokens);
         ggml_set_input(inp->tokens);
@@ -499,6 +499,7 @@ llama_model_qwen4exp::graph_mtp::graph_mtp(const llama_model & model, const llm_
 
         inp->h = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, hparams.n_embd_out(), n_tokens);
         ggml_set_input(inp->h);
+        inp->set_hidden_backend(inp->h);
         ggml_set_name(inp->h, "mtp_h_input");
 
         tokens = inp->tokens;

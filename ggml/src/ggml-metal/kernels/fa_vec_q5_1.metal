@@ -89,4 +89,3 @@ template [[host_name("kernel_flash_attn_ext_vec_q5_1_dk576_dv512_q4_ne4")]] kern
 
 #undef FA_TYPES
 #undef FA_TYPES_F32
-

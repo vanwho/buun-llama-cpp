@@ -31,6 +31,12 @@ void ggml_cuda_op_fill(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
         case GGML_TYPE_F16:
             fill_kernel<<<num_blocks, CUDA_FILL_BLOCK_SIZE, 0, stream>>>((half *)dst_d, k, ggml_cuda_cast<half>(value));
             break;
+        case GGML_TYPE_TURBO4_0:
+            GGML_ASSERT(value == 0.0f);
+            // Stream-ordered and CUDA-graph capturable; zero the compressed
+            // bytes, not an expanded F16 history or a host staging buffer.
+            CUDA_CHECK(cudaMemsetAsync(dst_d, 0, ggml_nbytes(dst), stream));
+            break;
         default:
             GGML_ABORT("unsupported type");
     }

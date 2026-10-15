@@ -1558,4 +1558,3 @@ void ggml_vk_check_results_1(ggml_backend_vk_context * ctx, ggml_cgraph * cgraph
     VK_LOG_DEBUG("END ggml_vk_check_results_1(" << tensor->name << ")");
 }
 #endif
-

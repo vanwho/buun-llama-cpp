@@ -10,6 +10,7 @@
 #include "server-chat.h"
 #include "chat.h"
 #include "common.h"
+#include "ggml-kv-query-probes.h"
 #include "json-schema-to-grammar.h"
 #include "llama.h"
 #include "sampling.h"
@@ -424,6 +425,9 @@ json server_task_result_cmpl_final::to_json_non_oaicompat() {
     if (!cache_receipt.is_null()) {
         res["cache_receipt"] = cache_receipt;
     }
+    if (!mtp_request_counters.is_null()) {
+        res["mtp_request_counters"] = mtp_request_counters;
+    }
     return response_fields.empty() ? res : json_get_nested_values(response_fields, res);
 }
 
@@ -472,6 +476,9 @@ json server_task_result_cmpl_final::to_json_oaicompat() {
     if (stats.is_set()) {
         res["timings"] = stats.to_json();
     }
+    if (!mtp_request_counters.is_null()) {
+        res["mtp_request_counters"] = mtp_request_counters;
+    }
 
     return res;
 }
@@ -519,6 +526,9 @@ json server_task_result_cmpl_final::to_json_oaicompat_chat() {
     }
     if (stats.is_set()) {
         res["timings"] = stats.to_json();
+    }
+    if (!mtp_request_counters.is_null()) {
+        res["mtp_request_counters"] = mtp_request_counters;
     }
 
     return res;
@@ -1677,6 +1687,37 @@ std::string server_task_result_metrics::to_metrics() {
 
     add_items("counter", counters);
     add_items("gauge",   gauges);
+
+    if (!metrics.pager_metrics.is_null()) {
+        const auto mode = metrics.pager_metrics.at("mode").get<std::string>();
+        prometheus << "# HELP llamacpp:kv_pager_mode Experimental KV pager mode\n"
+                   << "# TYPE llamacpp:kv_pager_mode gauge\n"
+                   << "llamacpp:kv_pager_mode{mode=\"" << mode << "\"} 1\n";
+        for (const char * key : {"route", "mtp_backend", "target_backend",
+                                 "target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v"}) {
+            if (!metrics.pager_metrics.contains(key) || !metrics.pager_metrics.at(key).is_string()) {
+                continue;
+            }
+            const auto value = metrics.pager_metrics.at(key).get<std::string>();
+            prometheus << "# HELP llamacpp:kv_pager_" << key << " Experimental KV pager " << key << "\n"
+                       << "# TYPE llamacpp:kv_pager_" << key << " gauge\n"
+                       << "llamacpp:kv_pager_" << key << "{" << (std::string(key) == "route" ? "route" :
+                           std::string(key) == "mtp_backend" ? "backend" :
+                           std::string(key) == "target_backend" ? "target_backend" : "type")
+                       << "=\"" << value << "\"} 1\n";
+        }
+        for (const auto & item : metrics.pager_metrics.items()) {
+            if (item.key() == "status" || !item.value().is_number() ||
+                item.key() == "mode") {
+                continue;
+            }
+            prometheus << "# HELP llamacpp:kv_pager_" << item.key()
+                       << " Experimental KV pager " << item.key() << "\n"
+                       << "# TYPE llamacpp:kv_pager_" << item.key() << " gauge\n"
+                       << "llamacpp:kv_pager_" << item.key() << " "
+                       << item.value().get<double>() << "\n";
+        }
+    }
 
     // labeled counter: one time series per draft position
     if (!metrics.n_accepted_per_pos.empty()) {
@@ -8880,6 +8921,26 @@ bool server_prompt_checkpoint_frontier_is_current(
     std::string media_identity;
     return prompt.tokens.media_content_identity(frontier.token_count, media_identity) &&
            media_identity == frontier.media_content_identity;
+}
+
+size_t server_prompt_query_capture_reuse_prefix(
+        size_t cached_prefix, int64_t query_begin, int64_t query_end,
+        size_t prompt_tokens, bool query_capture_required) noexcept {
+    if (!query_capture_required || query_begin < 0 || query_end <= query_begin ||
+            uint64_t(query_end) > prompt_tokens) {
+        return cached_prefix;
+    }
+    for (int probe = 0; probe < 4; ++probe) {
+        const int64_t position = ggml_kv_query_probe_target(
+            query_begin, query_end, probe, GGML_KV_QUERY_PROBES_SPREAD);
+        if (position >= 0 && uint64_t(position) < cached_prefix) {
+            // Restore at the user boundary, rather than partway through the
+            // query: a changed selection may need the existing whole-query
+            // checkpoint/replay transaction as well as all four Q probes.
+            return size_t(query_begin);
+        }
+    }
+    return cached_prefix;
 }
 
 llama_pos server_prompt_checkpoint_reuse_threshold(llama_pos pos_next, int32_t n_swa, bool has_new_tokens) {

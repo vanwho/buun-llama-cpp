@@ -1147,6 +1147,36 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_calculate_split_st
             case GGML_OP_TOP_K: {
                 split_state = handle_per_row(src_ss);
             } break;
+            case GGML_OP_KV_PAGE_SELECT: {
+                // The catalogue is a single snapshot. Splitting it would
+                // permit different devices to rank against different
+                // generations, so this node is deliberately mirrored.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
+            case GGML_OP_KV_PAGE_RANK: {
+                // All catalogue and probe pages must share one generation snapshot.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
+            case GGML_OP_KV_PAGE_RERANK: {
+                // Descriptor, identity, and running LSE state are one snapshot.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
+            case GGML_OP_KV_PAGE_MASS: {
+                // Candidate state and generation sidebands form one normalization pool.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
+            case GGML_OP_KV_QUERY_ACCUMULATE: {
+                // The running accumulator is shared mutable state. Keep its
+                // input shards together on one backend and preserve ordering.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
+            case GGML_OP_KV_QUERY_PROBES: {
+                // Probe capture mutates persistent generation/validity state.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
+            case GGML_OP_KV_PAGE_SUMMARY: {
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
             case GGML_OP_LEAKY_RELU: {
                 split_state = handle_generic(src_ss, /*scalar_only =*/ false);
             } break;

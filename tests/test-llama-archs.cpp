@@ -18,9 +18,11 @@
 #include "../src/llama-memory-hybrid-idx.h"
 #include "../src/llama-memory-recurrent.h"
 #include "../src/llama-memory-tree.h"
+#include "../src/llama-kv-cache.h"
 #include "../src/llama-model.h"
 #include "../src/llama-model-loader.h"
 #include "../src/llama-model-saver.h"
+#include "../src/llama-graph.h"
 #include "../src/llama-io.h"
 #include "../src/llama-vbr-artifact-adopt.h"
 #include "../src/llama-vbr-artifact-capture.h"
@@ -1054,6 +1056,37 @@ static void test_qwen4_ple_recurrent_resize(const size_t seed) {
 static std::vector<float> get_logits(
         llama_model * model, llama_context * lctx, const std::vector<llama_token> & tokens, bool encode = false);
 
+static void test_graph_callback_optional_tensor_name() {
+    // Some hybrid-attention shapes intentionally omit an unused KQ mask.
+    llm_graph_name_tensor(nullptr, "attn_inp_kq_mask", 3);
+
+    ggml_tensor tensor = {};
+    llm_graph_name_tensor(&tensor, "attn_inp_kq_mask", 3);
+    GGML_ASSERT(strcmp(tensor.name, "attn_inp_kq_mask-3") == 0);
+}
+
+static void test_kv_pager_routing_output_graph_identity() {
+    int old_graph_tensor = 0;
+    int current_graph_tensor = 0;
+    GGML_ASSERT(!llama_kv_pager_routing_output_matches(
+            &old_graph_tensor, 7, &current_graph_tensor, 7));
+    GGML_ASSERT(!llama_kv_pager_routing_output_matches(
+            &current_graph_tensor, 6, &current_graph_tensor, 7));
+    GGML_ASSERT(llama_kv_pager_routing_output_matches(
+            &current_graph_tensor, 7, &current_graph_tensor, 7));
+
+    // A submitted readback may outlive its graph tensor. Its raw pointer is
+    // an identity only and must not be dereferenced while the event is pending.
+    const auto stale_tensor = reinterpret_cast<const void *>(uintptr_t(1));
+    GGML_ASSERT(!llama_kv_pager_routing_output_is_current(
+            stale_tensor, true, 4, 4, 0, 0));
+    // An old, unsubmitted graph result is stale even if its pointer is non-null.
+    GGML_ASSERT(!llama_kv_pager_routing_output_is_current(
+            stale_tensor, false, 3, 4, 0, 0));
+    GGML_ASSERT(llama_kv_pager_routing_output_is_current(
+            &current_graph_tensor, false, 4, 4, 0, 0));
+}
+
 static void test_dflash_selector_family_contract() {
     using family = llm_dflash_selector_family;
 
@@ -1535,7 +1568,11 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
     // pin to Q8_0. This is a safe backend fallback, not an architecture refusal;
     // the fixed QSA child remains F16 in both asymmetric cases.
     const auto expect_cpu_turbo_fallback = [&](ggml_type type_k, ggml_type type_v) {
-        auto memory = make_indexed_memory(type_k, type_v, [](llama_cparams &) {});
+        auto memory = make_indexed_memory(type_k, type_v, [](llama_cparams & cparams) {
+            cparams.vbr_dynamic = true;
+            cparams.vbr_pin_k = true;
+            cparams.vbr_pin_v = true;
+        });
         auto * indexed_memory = dynamic_cast<llama_memory_hybrid_idx *>(memory.get());
         GGML_ASSERT(indexed_memory != nullptr);
         GGML_ASSERT(indexed_memory->get_mem_attn()->type_k() ==
@@ -1588,8 +1625,8 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
     GGML_ASSERT(llama_memory_can_shift(indexed));
 
     // All attention-only/transient/copy APIs must treat the QSA indexer as auxiliary attention
-    // state. Fill both recurrent slots so the first copy deterministically fails after the base
-    // attention mutation; the indexed wrapper must invalidate the destination in all children.
+    // state. Fill both recurrent slots so the copy preflight deterministically fails without
+    // mutating the destination in any child.
     {
         llama_context_params mutation_params = llama_context_default_params();
         mutation_params.n_ctx = 128;
@@ -1660,13 +1697,19 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
 
         GGML_ASSERT(!mutation_memory->try_seq_cp(0, 1, 0, -1));
         assert_mirrored(1);
-        GGML_ASSERT(mutation_attn->seq_pos_max(1) == -1);
-        GGML_ASSERT(mutation_idx ->seq_pos_max(1) == -1);
-        GGML_ASSERT(mutation_recr->seq_pos_max(1) == -1);
+        GGML_ASSERT(mutation_attn->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_idx ->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_recr->seq_pos_max(1) == 3);
 
-        decode_seq(1, 2);
         GGML_ASSERT(!mutation_memory->try_seq_cp_transient(0, 1, 0, -1));
         assert_mirrored(1);
+        GGML_ASSERT(mutation_attn->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_idx ->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_recr->seq_pos_max(1) == 3);
+
+        // A successful copy requires an available recurrent destination. Remove the old
+        // destination explicitly; failed preflight must not create that space implicitly.
+        GGML_ASSERT(mutation_memory->seq_rm(1, -1, -1));
         GGML_ASSERT(mutation_attn->seq_pos_max(1) == -1);
         GGML_ASSERT(mutation_idx ->seq_pos_max(1) == -1);
         GGML_ASSERT(mutation_recr->seq_pos_max(1) == -1);
@@ -3389,15 +3432,14 @@ static file_ptr make_qwen4_mtp_sidecar(
         throw std::runtime_error("failed to create synthetic Qwen4 target context");
     }
     GGML_ASSERT(llama_n_rs_seq(target.get()) == 3);
-    llama_set_embeddings_nextn(target.get(), true, false);
 
-    ggml_cgraph * target_gf = llama_graph_reserve(target.get(), 3, 1, 1);
-    GGML_ASSERT(target_gf != nullptr);
-    ggml_tensor * target_h_graph = ggml_graph_get_tensor(target_gf, "h_nextn");
-    GGML_ASSERT(target_h_graph != nullptr);
-    GGML_ASSERT(target_h_graph->ne[0] == source->hparams.n_embd);
-    GGML_ASSERT(target_h_graph->ne[1] == source->hparams.dsv4_hc_mult);
-    GGML_ASSERT(target_h_graph->ne[2] == 3);
+    // Reserve once with NextN disabled, then enable it after the scheduler has
+    // been initialized. Native MTP follows this lifecycle; the setter must
+    // invalidate the old graph so the first decode publishes h_nextn.
+    ggml_cgraph * target_initial = llama_graph_reserve(target.get(), 3, 1, 1);
+    GGML_ASSERT(target_initial != nullptr);
+    GGML_ASSERT(ggml_graph_get_tensor(target_initial, "h_nextn") == nullptr);
+    llama_set_embeddings_nextn(target.get(), true, false);
 
     llama_token tokens[3] = { 5, 6, 7 };
     llama_batch target_batch = llama_batch_get_one(tokens, 3);
@@ -3769,30 +3811,30 @@ static void test_qwen4_mtp_sidecar_contract(const size_t seed) {
             llama_get_memory(recovery_draft.get()), 0) == 1);
 
         common_speculative_sequence_transition(
-            recovery_spec.get(), 0,
-            common_speculative_sequence_event::target_restored_without_draft);
+                recovery_spec.get(), 0,
+                common_speculative_sequence_event::target_restored_without_draft);
         std::vector<uint8_t> recovered_carry;
         GGML_ASSERT(!common_speculative_get_state(
-            recovery_spec.get(), 0, recovered_carry));
+                recovery_spec.get(), 0, recovered_carry));
 
         decode_target(7, 2);
         GGML_ASSERT(llama_memory_seq_pos_max(
-            llama_get_memory(recovery_draft.get()), 0) < 0);
+                llama_get_memory(recovery_draft.get()), 0) < 0);
         GGML_ASSERT(common_speculative_get_state(
-            recovery_spec.get(), 0, recovered_carry));
+                recovery_spec.get(), 0, recovered_carry));
         const float * verified_h = llama_get_embeddings_nextn_ith(
-            recovery_target.get(), 0);
+                recovery_target.get(), 0);
         constexpr size_t carry_header_size = 3*sizeof(uint32_t);
         GGML_ASSERT(verified_h != nullptr);
         GGML_ASSERT(recovered_carry.size() == carry_header_size +
-            target_h.size()*sizeof(float));
+                target_h.size()*sizeof(float));
         GGML_ASSERT(std::memcmp(
-            recovered_carry.data() + carry_header_size, verified_h,
-            target_h.size()*sizeof(float)) == 0);
+                recovered_carry.data() + carry_header_size, verified_h,
+                target_h.size()*sizeof(float)) == 0);
 
         decode_target(8, 3);
         GGML_ASSERT(llama_memory_seq_pos_max(
-            llama_get_memory(recovery_draft.get()), 0) == 3);
+                llama_get_memory(recovery_draft.get()), 0) == 3);
     }
 
     llama_context_ptr ctx(llama_init_from_model(model.get(), ctx_params));
@@ -4771,6 +4813,8 @@ int main(int argc, char ** argv) {
     LOG_INF("%s: using seed %zu, stdev %f\n", __func__, seed, stdev);
 
     try {
+        test_graph_callback_optional_tensor_name();
+        test_kv_pager_routing_output_graph_identity();
         test_dflash_selector_family_contract();
         test_dflash_loader_exact_identity();
         if (!out.empty()) {

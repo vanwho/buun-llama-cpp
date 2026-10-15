@@ -134,8 +134,6 @@ bool common_speculative_mtp_carry_state_load(
     constexpr uint32_t version     = 1;
     constexpr size_t   header_size = 3*sizeof(uint32_t);
 
-    lifecycle.target_process_skipped();
-
     uint32_t stored_magic = 0;
     uint32_t stored_version = 0;
     uint32_t width = 0;
@@ -151,10 +149,107 @@ bool common_speculative_mtp_carry_state_load(
         return false;
     }
 
+    // Validate the complete payload before touching either the carry bytes or
+    // its readiness bit. A rejected checkpoint is a no-mutation result; the
+    // caller may then clear the whole composite image explicitly.
     std::memcpy(pending_h.data(), data.data() + header_size,
                 (size_t) width*sizeof(float));
     lifecycle.target_process_refreshed();
     return true;
+}
+
+common_speculative_rollback_frontier
+common_speculative_rollback_frontier_resolve(
+        int64_t committed_tokens,
+        size_t proposed_draft_tokens,
+        size_t accepted_draft_tokens) noexcept {
+    common_speculative_rollback_frontier result;
+    result.committed_tokens = committed_tokens;
+    result.proposed_draft_tokens = uint64_t(proposed_draft_tokens);
+    result.accepted_draft_tokens = uint64_t(accepted_draft_tokens);
+    if (accepted_draft_tokens > proposed_draft_tokens ||
+            committed_tokens < 0 ||
+            uint64_t(committed_tokens) > uint64_t(INT64_MAX) - 1u ||
+            uint64_t(accepted_draft_tokens) > uint64_t(INT64_MAX) -
+                1u - uint64_t(committed_tokens) ||
+            uint64_t(proposed_draft_tokens) > uint64_t(INT64_MAX) -
+                1u - uint64_t(committed_tokens)) {
+        result.rejected_draft_tokens = UINT64_MAX;
+        result.accepted_token_count = -1;
+        result.rejected_suffix_begin = -1;
+        result.rejected_suffix_end = -1;
+        return result;
+    }
+
+    result.rejected_draft_tokens =
+        uint64_t(proposed_draft_tokens - accepted_draft_tokens);
+    result.accepted_token_count = committed_tokens + 1 +
+        int64_t(accepted_draft_tokens);
+    result.rejected_suffix_begin = result.accepted_token_count;
+    result.rejected_suffix_end = committed_tokens + 1 +
+        int64_t(proposed_draft_tokens);
+    return result;
+}
+
+int32_t common_speculative_mtp_carry_row(
+        int32_t verify_rows,
+        uint16_t accepted_draft_tokens) noexcept {
+    if (verify_rows <= 0) {
+        return -1;
+    }
+    return std::min<int32_t>(int32_t(accepted_draft_tokens), verify_rows - 1);
+}
+
+llama_pos common_speculative_mtp_draft_position(
+        llama_pos sampled_position,
+        size_t    draft_index,
+        bool      shared_position) noexcept {
+    if (sampled_position < 0 || draft_index > size_t(INT32_MAX)) {
+        return -1;
+    }
+    if (shared_position) {
+        return sampled_position;
+    }
+    const int64_t position = int64_t(sampled_position) + 1 +
+        int64_t(draft_index);
+    return position > INT32_MAX ? -1 : llama_pos(position);
+}
+
+bool common_speculative_mtp_rollback_guard::should_apply(
+        llama_pos frontier) noexcept {
+    if (frontier < 0) {
+        return false;
+    }
+    if (applied && last_frontier == frontier) {
+        return false;
+    }
+    last_frontier = frontier;
+    applied = true;
+    return true;
+}
+
+void common_speculative_mtp_rollback_guard::reset() noexcept {
+    last_frontier = -1;
+    applied = false;
+}
+
+bool common_speculative_mtp_history_epoch::bind(
+        uint64_t turn_id, uint64_t frozen_history_generation) noexcept {
+    if (turn_id == 0 || frozen_history_generation == 0) return false;
+    turn = turn_id;
+    history = frozen_history_generation;
+    return true;
+}
+
+bool common_speculative_mtp_history_epoch::matches(
+        uint64_t turn_id, uint64_t frozen_history_generation) const noexcept {
+    return turn != 0 && history != 0 && turn == turn_id &&
+        history == frozen_history_generation;
+}
+
+void common_speculative_mtp_history_epoch::clear() noexcept {
+    turn = 0;
+    history = 0;
 }
 
 common_speculative_checkpoint_policy common_speculative_checkpoint_policy_resolve(
@@ -343,6 +438,8 @@ struct common_speculative_impl {
 
     virtual void configure_sampling(llama_seq_id, const common_params_sampling &) {}
     virtual const common_speculative_proposal * get_proposal(llama_seq_id) const { return nullptr; }
+    virtual bool get_mtp_reject_trace(
+            llama_seq_id, size_t, common_speculative_mtp_reject_trace &) const { return false; }
 
     // (optional) serialize/restore per-seq internal state (e.g. eagle3's deferred boundary).
     virtual bool get_state(llama_seq_id /*seq_id*/, std::vector<uint8_t> & /*data*/) const { return false; }
@@ -2478,6 +2575,19 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     std::vector<proposal_policy> proposal_sampling;
     std::vector<std::mt19937> proposal_rngs;
     std::vector<common_speculative_proposal> proposals;
+    std::vector<std::vector<common_speculative_mtp_reject_trace>> reject_trace;
+    std::vector<uint64_t> pending_h_generation;
+    bool reject_trace_enabled = false;
+
+    bool get_mtp_reject_trace(llama_seq_id seq_id, size_t index,
+            common_speculative_mtp_reject_trace & trace) const override {
+        if (!reject_trace_enabled || seq_id < 0 || seq_id >= (llama_seq_id) reject_trace.size() ||
+                index >= reject_trace[seq_id].size()) {
+            return false;
+        }
+        trace = reject_trace[seq_id][index];
+        return true;
+    }
 
     void configure_sampling(llama_seq_id seq_id, const common_params_sampling & sampling) override {
         if (seq_id < 0 || seq_id >= (llama_seq_id) n_seq) {
@@ -2561,6 +2671,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     }
 
     llama_batch batch;
+    int32_t batch_capacity = 0;
 
     std::vector<common_sampler_ptr> smpls;
 
@@ -2592,6 +2703,15 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     // Row 0 corresponds to the sampled token, row N to the Nth accepted draft token.
     std::vector<std::vector<float>> verify_h;
     std::vector<int32_t> verify_h_rows;
+    // The target rows are also the source of truth for repairing the MTP KV
+    // image after a partial acceptance.  Keep the exact token/position span
+    // and the hidden row that preceded it; replaying that prefix makes the
+    // draft image depend only on the committed target frontier.
+    std::vector<std::vector<float>> verify_input_h;
+    std::vector<llama_tokens> verify_tokens;
+    std::vector<std::vector<llama_pos>> verify_positions;
+    std::vector<llama_pos> verify_starts;
+    std::vector<common_speculative_mtp_rollback_guard> rollback_guards;
 
     std::vector<int>                i_last;
     std::vector<std::vector<float>> chain_h;
@@ -2601,6 +2721,33 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     bool adaptive_recursive_depth = false;
     std::vector<common_speculative_mtp_adaptive> adaptive;
     std::vector<int32_t> adaptive_last_draft_size;
+
+    bool ensure_batch_capacity(int32_t required) {
+        if (required <= batch_capacity) {
+            return true;
+        }
+
+        auto * ctx_dft = this->params.ctx_dft;
+        const int32_t context_batch = std::max(1, (int32_t) llama_n_batch(ctx_dft));
+        if (required <= 0 || required > context_batch) {
+            return false;
+        }
+
+        // Keep the resident allocation at the ubatch/Q shape. A larger target
+        // callback is still accepted, but grows only to the actual callback
+        // size instead of reserving the target logical context up front.
+        llama_batch_free(batch);
+        batch = llama_batch_init(required, n_embd, 1);
+        batch.token = (llama_token *) malloc(sizeof(llama_token) * required);
+        const bool valid = batch.token != nullptr && batch.embd != nullptr &&
+               batch.pos != nullptr && batch.seq_id != nullptr && batch.logits != nullptr;
+        batch_capacity = valid ? required : 0;
+        if (!valid) {
+            llama_batch_free(batch);
+            batch = {};
+        }
+        return valid;
+    }
 
     // Greedy single-sequence drafting chains its decodes on the device: each draft
     // graph feeds the next through ctx_dft's stages and the tokens are read once.
@@ -2660,15 +2807,25 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                 ctx_dft ? "yes" : "no",
                 common_speculative_get_devices_str(this->params.devices).c_str());
 
-        const int32_t n_b = (int32_t) llama_n_batch(ctx_dft);
-        batch = llama_batch_init(/*n_tokens=*/ n_b, /*embd=*/ n_embd, /*n_seq_max=*/ 1);
+        const int32_t context_batch = std::max(1, (int32_t) llama_n_batch(ctx_dft));
+        const int32_t draft_shape = params.n_max >= 0 &&
+            params.n_max < std::numeric_limits<int32_t>::max()
+            ? params.n_max + 1 : 1;
+        const int32_t initial_batch = std::min(context_batch,
+                std::max(draft_shape, (int32_t) n_seq));
+        batch = llama_batch_init(initial_batch, /*embd=*/ n_embd, /*n_seq_max=*/ 1);
         // llama_batch_init allocates only one of token/embd; MTP needs both.
-        // TODO: fix, how to call without malloc
-        batch.token = (llama_token *) malloc(sizeof(llama_token) * n_b);
+        batch.token = (llama_token *) malloc(sizeof(llama_token) * initial_batch);
+        batch_capacity = initial_batch;
 
         proposal_sampling.resize(n_seq);
         proposal_rngs.resize(n_seq);
         proposals.resize(n_seq);
+        reject_trace.resize(n_seq);
+        pending_h_generation.assign(n_seq, 0);
+        const char * reject_trace_env = getenv("LLAMA_MTP_FIRST_REJECT_TRACE");
+        reject_trace_enabled = reject_trace_env != nullptr &&
+            reject_trace_env[0] != '\0' && std::strcmp(reject_trace_env, "0") != 0;
         smpls.resize(n_seq);
         backend_chains.assign(n_seq, nullptr);
         for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
@@ -2716,6 +2873,11 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
 
         verify_h.assign(n_seq, {});
         verify_h_rows.assign(n_seq, 0);
+        verify_input_h.assign(n_seq, std::vector<float>(n_embd, 0.0f));
+        verify_tokens.resize(n_seq);
+        verify_positions.resize(n_seq);
+        verify_starts.assign(n_seq, -1);
+        rollback_guards.resize(n_seq);
     }
 
     ~common_speculative_impl_draft_mtp() override {
@@ -2731,10 +2893,6 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
         backend_chains.clear();
 
-        if (batch.token != nullptr) {
-            free(batch.token);
-            batch.token = nullptr;
-        }
         llama_batch_free(batch);
     }
 
@@ -2770,6 +2928,10 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
 
         const int32_t n_tokens = batch_in.n_tokens;
+        if (!ensure_batch_capacity(n_tokens)) {
+            SPC_ERR("MTP target batch exceeds the draft context batch capacity: %d\n", n_tokens);
+            return false;
+        }
 
         // remember the frist and last batch index for each sequence
         std::fill(i_batch_beg.begin(), i_batch_beg.end(), -1);
@@ -2792,6 +2954,9 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         auto * ctx_dft = this->params.ctx_dft;
 
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
+        bool device_hidden_handoff_used = false;
+        const char * hidden_handoff_fallback_reason = is_mem_shared
+            ? "shared_memory" : "not_attempted";
 
         // pending_h is an activation, not part of either serialized sequence
         // image. A restored/rewound nonzero frontier therefore cannot replay
@@ -2812,15 +2977,57 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                                 mem_dft, seq_id, -1, -1)) {
                             return false;
                         }
-                        const float * h_tgt = llama_get_embeddings_nextn_ith(
-                            ctx_tgt, i_batch_end[seq_id]);
-                        if (!h_tgt) {
-                            return false;
+                        const int32_t n_rows = i_batch_end[seq_id] -
+                            i_batch_beg[seq_id] + 1;
+                        const bool keep_verification_rows = n_rows <= params.n_max + 1;
+                        verify_h_rows[seq_id] = keep_verification_rows ? n_rows : 0;
+                        verify_starts[seq_id] = keep_verification_rows
+                            ? batch_in.pos[i_batch_beg[seq_id]] : -1;
+                        if (keep_verification_rows) {
+                            verify_tokens[seq_id].resize(n_rows);
+                            verify_positions[seq_id].resize(n_rows);
+                            verify_h[seq_id].resize((size_t) n_rows * n_embd);
+                        } else {
+                            verify_tokens[seq_id].clear();
+                            verify_positions[seq_id].clear();
                         }
+                        // This is a new target-only recovery transaction.  Its
+                        // predecessor row is the carry selected by the previous
+                        // acceptance, not the predecessor saved by the prior
+                        // verification.  Keep it with the transaction so a
+                        // later partial rejection can replay from the current
+                        // committed frontier rather than a stale hidden row.
                         std::memcpy(
-                            pending_h[seq_id].data(), h_tgt, row_bytes);
+                            verify_input_h[seq_id].data(),
+                            pending_h[seq_id].data(), row_bytes);
+                        if (keep_verification_rows) {
+                            for (int32_t i = 0; i < n_rows; ++i) {
+                                verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
+                                verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
+                                const float * h = llama_get_embeddings_nextn_ith(
+                                    ctx_tgt, i_batch_beg[seq_id] + i);
+                                if (!h) {
+                                    return false;
+                                }
+                                std::memcpy(
+                                    verify_h[seq_id].data() + (size_t) i * n_embd,
+                                    h, row_bytes);
+                            }
+                            std::memcpy(pending_h[seq_id].data(),
+                                    verify_h[seq_id].data() + (size_t) (n_rows - 1) * n_embd,
+                                    row_bytes);
+                        } else {
+                            const float * last_h = llama_get_embeddings_nextn_ith(
+                                    ctx_tgt, i_batch_end[seq_id]);
+                            if (!last_h) {
+                                return false;
+                            }
+                            std::memcpy(pending_h[seq_id].data(), last_h, row_bytes);
+                        }
                         pending_h_lifecycle[seq_id].target_process_refreshed();
-                        verify_h_rows[seq_id] = 0;
+                        if (++pending_h_generation[seq_id] == 0) {
+                            ++pending_h_generation[seq_id];
+                        }
                     }
                 }
                 return true;
@@ -2833,7 +3040,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
             if (i_batch_beg[seq_id] >= 0) {
                 llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id,
-                    batch_in.pos[i_batch_beg[seq_id]], -1);
+                        batch_in.pos[i_batch_beg[seq_id]], -1);
             }
         }
 
@@ -2850,9 +3057,67 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             // i.e. we cannot have seq_id like this: [0, 0, 0, 1, 1, 0, 1, 1]
             //                                                       ^--- this is a problem
             // TODO:this is generally true, but would be nice to assert it
-            {
-                const float * h_tgt = llama_get_embeddings_nextn(ctx_tgt);
-                std::memcpy(batch.embd + (size_t) 1 * n_embd, h_tgt, row_bytes * (n_tokens-1));
+            // Keep the pending boundary row host-owned. A device handoff is
+            // valid only for one contiguous sequence; for multi-sequence
+            // batches, shifting one global row would pair a sequence with the
+            // preceding sequence's hidden state.
+            llama_seq_id contiguous_seq = -1;
+            int32_t active_sequences = 0;
+            for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
+                if (i_batch_beg[seq_id] >= 0) {
+                    contiguous_seq = seq_id;
+                    active_sequences++;
+                }
+            }
+            const bool one_contiguous_sequence = active_sequences == 1 &&
+                i_batch_beg[contiguous_seq] == 0 &&
+                i_batch_end[contiguous_seq] == n_tokens - 1;
+            std::vector<llama_pos> handoff_positions;
+            std::vector<llama_seq_id> handoff_sequences;
+            if (one_contiguous_sequence && n_tokens > 1) {
+                handoff_positions.reserve(n_tokens - 1);
+                handoff_sequences.reserve(n_tokens - 1);
+                for (int32_t row = 0; row < n_tokens - 1; ++row) {
+                    handoff_positions.push_back(batch_in.pos[row]);
+                    handoff_sequences.push_back(batch_in.seq_id[row][0]);
+                }
+            }
+            const bool device_handoff = one_contiguous_sequence && n_tokens > 1 &&
+                llama_set_embeddings_nextn_device(ctx_dft, ctx_tgt, 0, 1, n_tokens - 1,
+                        handoff_positions.data(), handoff_sequences.data());
+            device_hidden_handoff_used = device_handoff;
+            hidden_handoff_fallback_reason = device_handoff ? "none" :
+                one_contiguous_sequence ? "device_stage_invalid_or_incompatible" :
+                "multi_sequence_or_noncontiguous";
+            if (device_handoff) {
+                SPC_INF("MTP device hidden handoff bound: rows=%d target_rows=%d\n",
+                        n_tokens - 1, n_tokens);
+            } else {
+                if (one_contiguous_sequence && n_tokens > 1) {
+                    SPC_WRN("MTP device hidden handoff unavailable: reason=%s; using materialized host rows\n",
+                            "device_stage_invalid_or_incompatible");
+                }
+                std::vector<int32_t> previous_row(n_tokens, -1);
+                std::vector<int32_t> last_row(n_seq, -1);
+                for (int32_t k = 0; k < n_tokens; ++k) {
+                    const llama_seq_id seq_id = batch_in.seq_id[k][0];
+                    if (seq_id >= 0 && seq_id < (llama_seq_id) n_seq) {
+                        previous_row[k] = last_row[seq_id];
+                        last_row[seq_id] = k;
+                    }
+                }
+                for (int32_t k = 0; k < n_tokens; ++k) {
+                    if (previous_row[k] < 0) {
+                        continue;
+                    }
+                    const float * h_tgt = llama_get_embeddings_nextn_ith(
+                        ctx_tgt, previous_row[k]);
+                    if (!h_tgt) {
+                        return false;
+                    }
+                    std::memcpy(batch.embd + (size_t) k * n_embd,
+                            h_tgt, row_bytes);
+                }
             }
 
             // fill the pending embeddings from a previous run
@@ -2871,6 +3136,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                     std::fill(pending_h[seq_id].begin(), pending_h[seq_id].end(), 0.0f);
                 }
                 GGML_ASSERT(mode != common_speculative_mtp_carry_lifecycle::process_mode::target_only);
+                std::memcpy(verify_input_h[seq_id].data(), pending_h[seq_id].data(), row_bytes);
                 set_h(i_batch_beg[seq_id], pending_h[seq_id].data());
             }
 
@@ -2884,7 +3150,8 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         if (i_batch_beg[seq_id] < 0) {
                             continue;
                         }
-                        llama_memory_seq_rm(mem_dft, seq_id, batch_in.pos[i_batch_beg[seq_id]], -1);
+                        llama_memory_seq_rm(
+                                mem_dft, seq_id, batch_in.pos[i_batch_beg[seq_id]], -1);
                     }
                     llama_set_nextn_layer_offset(ctx_dft, head);
                 }
@@ -2901,6 +3168,11 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             if (chain_heads) {
                 llama_set_nextn_layer_offset(ctx_dft, 0); // restore default for non-draft decodes
             }
+            if (device_handoff &&
+                    !llama_mark_embeddings_nextn_device_consumed(ctx_tgt, ctx_dft)) {
+                SPC_WRN("%s\n", "MTP device hidden handoff completion event unavailable; synchronizing draft context");
+                llama_synchronize(ctx_dft);
+            }
             if (!ok) {
                 return false;
             }
@@ -2912,20 +3184,113 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             }
 
             const int32_t n_rows = i_batch_end[seq_id] - i_batch_beg[seq_id] + 1;
-            verify_h_rows[seq_id] = n_rows;
-            verify_h[seq_id].resize((size_t) n_rows * n_embd);
-
-            for (int32_t i = 0; i < n_rows; ++i) {
-                const float * h = llama_get_embeddings_nextn_ith(ctx_tgt, i_batch_beg[seq_id] + i);
-                std::memcpy(verify_h[seq_id].data() + (size_t) i * n_embd, h, row_bytes);
+            const bool keep_verification_rows = n_rows <= params.n_max + 1;
+            verify_h_rows[seq_id] = keep_verification_rows ? n_rows : 0;
+            verify_starts[seq_id] = keep_verification_rows
+                ? batch_in.pos[i_batch_beg[seq_id]] : -1;
+            if (keep_verification_rows) {
+                verify_tokens[seq_id].resize(n_rows);
+                verify_positions[seq_id].resize(n_rows);
+                verify_h[seq_id].resize((size_t) n_rows * n_embd);
+            } else {
+                verify_tokens[seq_id].clear();
+                verify_positions[seq_id].clear();
             }
 
-            std::memcpy(pending_h[seq_id].data(),
-                    verify_h[seq_id].data() + (size_t) (n_rows - 1) * n_embd, row_bytes);
+            if (keep_verification_rows) {
+                for (int32_t i = 0; i < n_rows; ++i) {
+                    verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
+                    verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
+                    const float * h = llama_get_embeddings_nextn_ith(ctx_tgt,
+                            i_batch_beg[seq_id] + i);
+                    if (!h) {
+                        return false;
+                    }
+                    std::memcpy(verify_h[seq_id].data() + (size_t) i * n_embd, h, row_bytes);
+                }
+                std::memcpy(pending_h[seq_id].data(),
+                        verify_h[seq_id].data() + (size_t) (n_rows - 1) * n_embd, row_bytes);
+            } else {
+                const float * last_h = llama_get_embeddings_nextn_ith(
+                        ctx_tgt, i_batch_end[seq_id]);
+                if (!last_h) {
+                    return false;
+                }
+                std::memcpy(pending_h[seq_id].data(), last_h, row_bytes);
+            }
             pending_h_lifecycle[seq_id].target_process_refreshed();
+            if (++pending_h_generation[seq_id] == 0) {
+                ++pending_h_generation[seq_id];
+            }
         }
 
+        uint64_t hidden_d2h_bytes = 0;
+        uint64_t hidden_h2d_bytes = 0;
+        uint64_t draft_d2h_bytes = 0;
+        uint64_t draft_h2d_bytes = 0;
+        llama_get_embeddings_nextn_transfer_bytes(ctx_tgt,
+                &hidden_d2h_bytes, &hidden_h2d_bytes);
+        llama_get_embeddings_nextn_transfer_bytes(ctx_dft,
+                &draft_d2h_bytes, &draft_h2d_bytes);
+        SPC_INF("mtp_hidden_transfer: target_d2h_bytes=%" PRIu64
+                " target_h2d_bytes=%" PRIu64 " draft_d2h_bytes=%" PRIu64
+                " draft_h2d_bytes=%" PRIu64 " device_handoff=%s fallback_reason=%s\n",
+                hidden_d2h_bytes, hidden_h2d_bytes, draft_d2h_bytes,
+                draft_h2d_bytes, device_hidden_handoff_used ? "yes" : "no",
+                hidden_handoff_fallback_reason);
+
         return true;
+    }
+
+    bool replay_accepted_prefix(llama_seq_id seq_id, uint16_t n_accepted, llama_pos n_past) {
+        if (seq_id < 0 || seq_id >= (llama_seq_id) n_seq ||
+                verify_h_rows[seq_id] <= 0 || verify_starts[seq_id] < 0 ||
+                n_accepted >= (uint16_t) verify_h_rows[seq_id] ||
+                verify_tokens[seq_id].size() != (size_t) verify_h_rows[seq_id] ||
+                verify_positions[seq_id].size() != (size_t) verify_h_rows[seq_id] ||
+                verify_h[seq_id].size() != (size_t) verify_h_rows[seq_id] * n_embd ||
+                verify_input_h[seq_id].size() != (size_t) n_embd ||
+                int64_t(verify_positions[seq_id][n_accepted]) + 1 != int64_t(n_past)) {
+            return false;
+        }
+
+        auto * ctx_dft = this->params.ctx_dft;
+        auto * mem_dft = llama_get_memory(ctx_dft);
+        const int32_t n_rows = int32_t(n_accepted) + 1;
+        if (!ctx_dft || !mem_dft || !llama_memory_seq_rm(
+                mem_dft, seq_id, verify_starts[seq_id], -1) ||
+                !ensure_batch_capacity(n_rows)) {
+            return false;
+        }
+
+        const size_t row_bytes = (size_t) n_embd * sizeof(float);
+        common_batch_clear(batch);
+        for (int32_t i = 0; i < n_rows; ++i) {
+            common_batch_add(batch, verify_tokens[seq_id][i],
+                    verify_positions[seq_id][i], { seq_id }, false);
+            const float * src = i == 0
+                ? verify_input_h[seq_id].data()
+                : verify_h[seq_id].data() + (size_t) (i - 1) * n_embd;
+            std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd,
+                    src, row_bytes);
+        }
+
+        bool ok = true;
+        for (int head = 0; head < n_mtp_layers; ++head) {
+            if (chain_heads) {
+                llama_memory_seq_rm(mem_dft, seq_id, verify_starts[seq_id], -1);
+                llama_set_nextn_layer_offset(ctx_dft, head);
+            }
+            if (llama_decode(ctx_dft, batch) != 0) {
+                ok = false;
+                break;
+            }
+        }
+        if (chain_heads) {
+            llama_set_nextn_layer_offset(ctx_dft, 0);
+        }
+        common_batch_clear(batch);
+        return ok;
     }
 
     int32_t draft_cap(llama_seq_id seq_id, const common_speculative_draft_params & dp) const {
@@ -3000,6 +3365,14 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         int n_drafting = 0;
         std::vector<bool> drafting(n_seq);
 
+        const int64_t draft_capacity = int64_t(n_seq) *
+            (int64_t(std::max(0, params.n_max)) + 1);
+        if (draft_capacity > 0 && !ensure_batch_capacity(int32_t(std::min<int64_t>(
+                draft_capacity, std::numeric_limits<int32_t>::max())))) {
+            SPC_ERR("%s", "MTP draft batch exceeds the draft context batch capacity\n");
+            return;
+        }
+
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
 
         for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
@@ -3010,6 +3383,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             }
 
             proposals[seq_id].clear();
+            reject_trace[seq_id].clear();
             const float * carry = pending_h_lifecycle[seq_id].draft_carry(
                     pending_h[seq_id].data());
             if (carry == nullptr) {
@@ -3027,6 +3401,8 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
 
             common_batch_add(batch, dp.id_last, dp.pos0, { seq_id }, true);
             std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd, carry, row_bytes);
+
+            rollback_guards[seq_id].reset();
 
             i_last[seq_id] = batch.n_tokens - 1;
 
@@ -3048,7 +3424,8 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                 auto * mem_dft = llama_get_memory(ctx_dft);
                 for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
                     if (drafting[seq_id]) {
-                        llama_memory_seq_rm(mem_dft, seq_id, dparams[seq_id].pos0, -1);
+                        llama_memory_seq_rm(
+                                mem_dft, seq_id, dparams[seq_id].pos0, -1);
                     }
                 }
                 llama_set_nextn_layer_offset(ctx_dft, i);
@@ -3105,10 +3482,26 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                     continue;
                 }
 
-                common_sampler_accept(smpl, id, true);
-
                 auto & dp = dparams.at(seq_id);
                 auto & result = *dp.result;
+
+                if (reject_trace_enabled && reject_trace[seq_id].size() <
+                        (size_t) std::max(0, params.n_max)) {
+                    common_speculative_mtp_reject_trace row;
+                    row.position = common_speculative_mtp_draft_position(
+                            dp.pos0, result.size(), is_mem_shared);
+                    row.proposal = id;
+                    row.carry_generation = pending_h_generation[seq_id];
+                    const size_t n_candidates = std::min<size_t>(8, cur_p->size);
+                    for (size_t candidate = 0; candidate < n_candidates; ++candidate) {
+                        row.candidate_ids.push_back(cur_p->data[candidate].id);
+                        row.candidate_logits.push_back(cur_p->data[candidate].logit);
+                        row.candidate_probs.push_back(cur_p->data[candidate].p);
+                    }
+                    reject_trace[seq_id].push_back(std::move(row));
+                }
+
+                common_sampler_accept(smpl, id, true);
 
                 result.push_back(id);
 
@@ -3136,7 +3529,15 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                     common_batch_add(batch, id, dp.pos0, { seq_id }, true);
                     std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd, h_row, row_bytes);
                 } else {
-                    common_batch_add(batch, id, dp.pos0 + i + 1, { seq_id }, true);
+                    const llama_pos draft_position =
+                        common_speculative_mtp_draft_position(
+                            dp.pos0, result.size() - 1, false);
+                    if (draft_position < 0) {
+                        drafting[seq_id] = false;
+                        n_drafting--;
+                        continue;
+                    }
+                    common_batch_add(batch, id, draft_position, { seq_id }, true);
                     std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd, h_row, row_bytes);
                 }
 
@@ -3204,9 +3605,12 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             return;
         }
 
-        const int32_t i_h = std::min<int32_t>(n_accepted, n_rows - 1);
+        const int32_t i_h = common_speculative_mtp_carry_row(n_rows, n_accepted);
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
         std::memcpy(pending_h[seq_id].data(), verify_h[seq_id].data() + (size_t) i_h * n_embd, row_bytes);
+        if (++pending_h_generation[seq_id] == 0) {
+            ++pending_h_generation[seq_id];
+        }
     }
 
     bool get_state(llama_seq_id seq_id, std::vector<uint8_t> & data) const override {
@@ -3235,8 +3639,12 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
 
         pending_h_lifecycle[seq_id].sequence_transition(event);
+        rollback_guards[seq_id].reset();
         proposals[seq_id].clear();
         verify_h_rows[seq_id] = 0;
+        verify_tokens[seq_id].clear();
+        verify_positions[seq_id].clear();
+        verify_starts[seq_id] = -1;
         i_last[seq_id] = -1;
         adaptive_last_draft_size[seq_id] = 0;
         adaptive[seq_id].begin();
@@ -5589,6 +5997,9 @@ common_params common_base_params_to_speculative(const common_params & params) {
         }
     }
 
+    result.no_kv_offload = !common_speculative_draft_kv_offload(
+        params_spec.kv_device, params.no_kv_offload);
+
     result.cache_type_k  = params_spec.cache_type_k;
     result.cache_type_v  = params_spec.cache_type_v;
     // Drafter caches are small and ephemeral — never arm dynamic VBR for them. The
@@ -5620,16 +6031,132 @@ common_params common_base_params_to_speculative(const common_params & params) {
     return result;
 }
 
+const char * common_speculative_mtp_context_status_name(
+        common_speculative_mtp_context_params::status status) noexcept {
+    switch (status) {
+        case common_speculative_mtp_context_params::status::ok:
+            return "ok";
+        case common_speculative_mtp_context_params::status::conflicting_explicit_context:
+            return "conflicting_explicit_context";
+    }
+
+    return "unknown";
+}
+
 common_speculative_mtp_context_params common_speculative_mtp_context_params_resolve(
         uint32_t target_n_ctx,
         int32_t explicit_draft_n_ctx,
         uint32_t requested_n_seq_max,
-        bool requested_kv_unified) {
-    if (explicit_draft_n_ctx > 0) {
-        return { (uint32_t) explicit_draft_n_ctx, requested_n_seq_max, requested_kv_unified };
+        bool requested_kv_unified,
+        bool native_mtp) {
+    common_speculative_mtp_context_params result {
+        common_speculative_mtp_context_params::status::ok,
+        target_n_ctx,
+        requested_n_seq_max,
+        requested_kv_unified,
+    };
+
+    if (native_mtp && target_n_ctx > 0 && explicit_draft_n_ctx > 0 &&
+            uint32_t(explicit_draft_n_ctx) != target_n_ctx) {
+        result.validation = common_speculative_mtp_context_params::status::conflicting_explicit_context;
+        return result;
     }
 
-    return { target_n_ctx, requested_n_seq_max, true };
+    if (explicit_draft_n_ctx > 0) {
+        result.n_ctx = (uint32_t) explicit_draft_n_ctx;
+        if (native_mtp) {
+            // Native MTP's n_ctx is its per-sequence row count. Keep one unified
+            // pool even when the target uses per-sequence KV streams so rows do
+            // not get divided by the MTP stream count.
+            result.kv_unified = true;
+        }
+        return result;
+    }
+
+    result.kv_unified = true;
+    return result;
+}
+
+void common_speculative_mtp_context_params_apply(
+        llama_context_params & cparams,
+        const common_speculative_mtp_context_params & geometry,
+        llama_context * target) {
+    cparams.n_ctx      = geometry.n_ctx;
+    cparams.n_seq_max  = geometry.n_seq_max;
+    cparams.kv_unified = geometry.kv_unified;
+    cparams.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
+    cparams.ctx_other  = target;
+    cparams.n_rs_seq   = 0;
+
+    // The target attention pager/VBR controller owns only the target cache. MTP is a separate,
+    // full-length GPU reservation and must remain static and ineligible for target eviction.
+    cparams.vbr_dynamic               = false;
+    cparams.vbr_min_bits              = 0.0;
+    cparams.vbr_min_bits_explicit     = false;
+    cparams.vbr_vram_budget_bytes     = 0;
+    cparams.vbr_growth_headroom_bytes = 0;
+    cparams.vbr_budget_explicit       = false;
+    cparams.vbr_pin_k                 = false;
+    cparams.vbr_pin_v                 = false;
+}
+
+bool common_speculative_mtp_cache_types_valid(
+        ggml_type type_k, ggml_type type_v) noexcept {
+    return type_k == GGML_TYPE_TURBO4_0 && type_v == GGML_TYPE_TURBO4_0;
+}
+
+bool common_speculative_mtp_log_residency(
+        const llama_context * context,
+        ggml_type type_k,
+        ggml_type type_v,
+        const char * budget_category) {
+    const char * category = budget_category != nullptr ? budget_category : "mtp_gpu_reserved";
+    const uint32_t rows = context != nullptr ? llama_n_ctx_seq(context) : 0;
+    size_t total_bytes = 0;
+    bool all_gpu = context != nullptr && rows > 0;
+
+    if (!common_speculative_mtp_cache_types_valid(type_k, type_v)) {
+        LOG_ERR("%s: rejecting MTP KV type_k=%s type_v=%s; native MTP requires Turbo4/Turbo4\n",
+                __func__, ggml_type_name(type_k), ggml_type_name(type_v));
+        all_gpu = false;
+    }
+
+    if (context != nullptr) {
+        const llama_memory_breakdown breakdown = llama_get_memory_breakdown(context);
+        for (const auto & [buft, memory] : breakdown) {
+            if (memory.context == 0) {
+                continue;
+            }
+
+            total_bytes += memory.context;
+            const ggml_backend_dev_t device = ggml_backend_buft_get_device(buft);
+            const bool gpu = !ggml_backend_buft_is_host(buft) && device != nullptr &&
+                (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                 ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU);
+            all_gpu = all_gpu && gpu;
+
+            LOG_INF("%s: MTP KV type_k=%s type_v=%s rows=%" PRIu32 " bytes=%zu "
+                    "bytes_per_token=%zu backend=%s budget_category=%s\n",
+                    __func__, ggml_type_name(type_k), ggml_type_name(type_v), rows,
+                    memory.context, rows != 0 && memory.context % rows == 0
+                        ? memory.context / rows : 0,
+                    device != nullptr ? ggml_backend_dev_name(device) : "host",
+                    category);
+        }
+    }
+
+    if (total_bytes == 0 || !all_gpu) {
+        LOG_ERR("%s: MTP KV reservation is unsafe: type_k=%s type_v=%s rows=%" PRIu32
+                " bytes=%zu backend=gpu-required budget_category=%s\n",
+                __func__, ggml_type_name(type_k), ggml_type_name(type_v), rows,
+                total_bytes, category);
+        return false;
+    }
+
+    LOG_INF("%s: MTP KV reservation committed: rows=%" PRIu32 " bytes=%zu "
+            "backend=gpu budget_category=%s\n",
+            __func__, rows, total_bytes, category);
+    return true;
 }
 
 bool common_speculative_mtp_context_available(const common_params_speculative & params) {
@@ -5672,6 +6199,10 @@ common_speculative_init_result::common_speculative_init_result(
     auto mparams = common_model_params_to_llama(params);
     auto cparams = common_context_params_to_llama(params);
 
+    LOG_INF("%s: draft K/V device=%s, offload_kqv=%s\n", __func__,
+            common_speculative_draft_kv_device_name(params.speculative.draft.kv_device),
+            cparams.offload_kqv ? "true" : "false");
+
     // Non-MTP drafters retain the established full target-context geometry.
     cparams.n_ctx = llama_n_ctx(ctx_tgt);
 
@@ -5680,15 +6211,36 @@ common_speculative_init_result::common_speculative_init_result(
     cparams.n_rs_seq  = 0;
     cparams.ctx_other = ctx_tgt;
 
+    if (!has_draft && !common_speculative_draft_kv_device_is_available(
+            params.speculative.draft.kv_device, model_tgt)) {
+        LOG_ERR("%s: draft K/V GPU placement requested, but no usable GPU device is selected\n", __func__);
+        return;
+    }
+
     auto cparams_mtp = cparams;
+    const uint32_t target_n_ctx_seq = llama_n_ctx_seq(ctx_tgt);
     const auto mtp_context = common_speculative_mtp_context_params_resolve(
-        llama_n_ctx(ctx_tgt), params.speculative.draft.n_ctx,
+        (spec_mtp && !external_mtp_sidecar)
+            ? target_n_ctx_seq : llama_n_ctx(ctx_tgt),
+        params.speculative.draft.n_ctx,
         cparams_mtp.n_seq_max,
-        cparams_mtp.kv_unified);
-    cparams_mtp.n_ctx      = mtp_context.n_ctx;
-    cparams_mtp.n_seq_max  = mtp_context.n_seq_max;
-    cparams_mtp.kv_unified = mtp_context.kv_unified;
-    cparams_mtp.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
+        cparams_mtp.kv_unified,
+        /* native_mtp = */ spec_mtp && !external_mtp_sidecar);
+    if (!mtp_context.valid()) {
+        LOG_ERR("%s: native MTP context rejected: target_rows=%" PRIu32
+                " explicit_draft_rows=%" PRId32 " status=%s\n",
+                __func__, target_n_ctx_seq, params.speculative.draft.n_ctx,
+                common_speculative_mtp_context_status_name(mtp_context.validation));
+        return;
+    }
+    common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, ctx_tgt);
+
+    if (spec_mtp && !common_speculative_mtp_cache_types_valid(
+            cparams_mtp.type_k, cparams_mtp.type_v)) {
+        LOG_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",
+                __func__, ggml_type_name(cparams_mtp.type_k), ggml_type_name(cparams_mtp.type_v));
+        return;
+    }
 
     std::string model_path;
     if (has_draft) {
@@ -5716,6 +6268,12 @@ common_speculative_init_result::common_speculative_init_result(
 
         pimpl->model.reset(model_dft);
 
+        if (!common_speculative_draft_kv_device_is_available(
+                params.speculative.draft.kv_device, model_dft)) {
+            LOG_ERR("%s: draft K/V GPU placement requested, but the draft model has no usable GPU device\n", __func__);
+            return;
+        }
+
         llama_context * ctx_dft = llama_init_from_model(
                 model_dft, external_mtp_sidecar ? cparams_mtp : cparams);
         if (ctx_dft == nullptr) {
@@ -5725,9 +6283,21 @@ common_speculative_init_result::common_speculative_init_result(
 
         pimpl->context.reset(ctx_dft);
 
+        if (external_mtp_sidecar && !common_speculative_mtp_log_residency(
+                pimpl->context.get(), cparams_mtp.type_k, cparams_mtp.type_v)) {
+            pimpl->context.reset();
+            return;
+        }
+
         if (combined_external_and_mtp) {
             LOG_INF("%s: creating native MTP context against the target model '%s'\n",
                     __func__, params.model.path.c_str());
+
+            if (!common_speculative_draft_kv_device_is_available(
+                    params.speculative.draft.kv_device, model_tgt)) {
+                LOG_ERR("%s: native MTP draft K/V GPU placement requested, but no usable GPU device is selected\n", __func__);
+                return;
+            }
 
             llama_context * ctx_mtp = llama_init_from_model(model_tgt, cparams_mtp);
             if (ctx_mtp == nullptr) {
@@ -5738,12 +6308,24 @@ common_speculative_init_result::common_speculative_init_result(
                         params.speculative.types.end());
             } else {
                 pimpl->context_mtp.reset(ctx_mtp);
+                if (!common_speculative_mtp_log_residency(
+                        pimpl->context_mtp.get(), cparams_mtp.type_k, cparams_mtp.type_v)) {
+                    pimpl->context_mtp.reset();
+                    pimpl->context.reset();
+                    return;
+                }
             }
         }
     } else if (spec_mtp) {
         model_path = params.model.path;
 
         LOG_INF("%s: creating MTP draft context against the target model '%s'\n", __func__, model_path.c_str());
+
+        if (!common_speculative_draft_kv_device_is_available(
+                params.speculative.draft.kv_device, model_tgt)) {
+            LOG_ERR("%s: draft K/V GPU placement requested, but no usable GPU device is selected\n", __func__);
+            return;
+        }
 
         llama_context * ctx_dft = llama_init_from_model(model_tgt, cparams_mtp);
         if (ctx_dft == nullptr) {
@@ -5752,6 +6334,11 @@ common_speculative_init_result::common_speculative_init_result(
         }
 
         pimpl->context.reset(ctx_dft);
+        if (!common_speculative_mtp_log_residency(
+                pimpl->context.get(), cparams_mtp.type_k, cparams_mtp.type_v)) {
+            pimpl->context.reset();
+            return;
+        }
     }
 }
 
@@ -6177,6 +6764,10 @@ void common_speculative_draft(common_speculative * spec) {
 }
 
 void common_speculative_accept(common_speculative * spec, llama_seq_id seq_id, uint16_t n_accepted) {
+    if (spec == nullptr || seq_id < 0 ||
+            seq_id >= (llama_seq_id) spec->impl_last.size()) {
+        return;
+    }
     common_speculative_impl * impl = spec->impl_last[seq_id];
 
     if (impl == nullptr) {
@@ -6749,6 +7340,16 @@ const common_speculative_proposal * common_speculative_get_proposal(
     return impl->get_proposal(seq_id);
 }
 
+bool common_speculative_get_mtp_reject_trace(
+        const common_speculative * spec, llama_seq_id seq_id,
+        size_t rejected_index, common_speculative_mtp_reject_trace & trace) {
+    if (spec == nullptr || seq_id < 0 || seq_id >= (llama_seq_id) spec->impl_last.size()) {
+        return false;
+    }
+    const auto * impl = spec->impl_last[seq_id];
+    return impl != nullptr && impl->get_mtp_reject_trace(seq_id, rejected_index, trace);
+}
+
 void common_speculative_accept(common_speculative * spec, uint16_t n_accepted) {
     if (spec == nullptr) {
         return;
@@ -6796,18 +7397,57 @@ void common_speculative_update_logits(
     common_speculative_update_logits(spec, 0, ctx, batch_tokens, n_accepted);
 }
 
-void common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted) {
-    if (spec == nullptr) {
-        return;
+bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted) {
+    if (spec == nullptr || seq_id < 0) {
+        return true;
     }
     for (auto & impl : spec->impls) {
         if (impl->type == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
             auto * mtp = static_cast<common_speculative_impl_draft_mtp *>(impl.get());
+            if (seq_id >= (llama_seq_id) mtp->rollback_guards.size()) {
+                return false;
+            }
             auto * ctx_dft = mtp->params.ctx_dft;
-            llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1);
-            mtp->refresh_carry(seq_id, n_accepted);
+            if (ctx_dft == nullptr) {
+                return false;
+            }
+            if (!mtp->rollback_guards[seq_id].should_apply(n_past)) {
+                continue;
+            }
+            const int32_t verify_rows = mtp->verify_h_rows[seq_id];
+            const bool rejected_suffix = verify_rows > 0 &&
+                uint64_t(n_accepted) < uint64_t(verify_rows - 1);
+            if (rejected_suffix) {
+                // Rebuild only the accepted target rows from the saved
+                // pre-verification boundary.  A suffix trim leaves the MTP
+                // KV structurally valid, but its accepted rows were produced
+                // before the target rollback/replay and are not a sufficient
+                // state-parity proof for the next draft.
+                if (!mtp->replay_accepted_prefix(seq_id, n_accepted, n_past)) {
+                    mtp->rollback_guards[seq_id].reset();
+                    return false;
+                }
+                // This is a PAIRED rollback: target and draft now retain the
+                // same sampled+accepted prefix. accept() has already chosen
+                // that frontier's verified target hidden row as pending_h.
+                // Keep its validity and the applied-frontier guard. Sending
+                // target_restored_without_draft here would invalidate this
+                // repaired carry, and process()'s target_only recovery would
+                // erase the full draft KV history on the next token. Actual
+                // unpaired checkpoint restores still use that invalidating
+                // event; never re-arm an invalid carry just from draft replay.
+            } else if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
+                mtp->rollback_guards[seq_id].reset();
+                return false;
+            }
+            // The server has already delivered this acceptance to every
+            // implementation before rolling back target/draft memory. Do not
+            // call MTP::accept again: its hidden-row selection is a one-shot
+            // boundary update and a second call can consume stale verify_h.
+            mtp->proposals[seq_id].clear();
         }
     }
+    return true;
 }
 
 void common_speculative_flush_prefill(common_speculative * spec) {

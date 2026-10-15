@@ -224,6 +224,7 @@
 #define GGML_MAX_SRC            10
 #define GGML_MAX_N_THREADS      512
 #define GGML_MAX_OP_PARAMS      64
+#define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_MARKER 0x50343450
 
 #ifndef GGML_MAX_NAME
 #   define GGML_MAX_NAME        64
@@ -496,6 +497,25 @@ extern "C" {
         GGML_TYPE_COUNT   = 92,
     };
 
+    // Compact query-ranking record shared by backend kernels and host decoders.
+    // GGML_TYPE_I64 tensors of shape [2,count] carry these records via memcpy;
+    // negative logical_page means unused. Producers must emit finite
+    // probabilities for live records. Page identity remains owned by llama.
+    struct ggml_kv_page_probability_record {
+        int32_t logical_page;
+        uint32_t validity_flags;
+        float peak_probability;
+        float mean_probability;
+    };
+
+#ifdef __cplusplus
+    static_assert(sizeof(ggml_kv_page_probability_record) == 16,
+            "ggml_kv_page_probability_record must remain 16 bytes");
+#else
+    _Static_assert(sizeof(struct ggml_kv_page_probability_record) == 16,
+            "ggml_kv_page_probability_record must remain 16 bytes");
+#endif
+
     // EXL3 helpers: the type encodes the bit width and the codebook.
     // GGML_TYPE_EXL3_* = mul1 (codebook 2), EXL3M_* = mcg (1), EXL3T_* = 3inst (0)
     static inline bool ggml_type_is_exl3(enum ggml_type type) {
@@ -752,6 +772,32 @@ extern "C" {
         GGML_OP_OPT_STEP_SGD,
 
         GGML_OP_GLU,
+
+        // Select logical KV pages from a generation-checked min/max catalogue.
+        // Sources are q, [D,2,n_kv_heads,n_pages] F16 bounds, page metadata,
+        // resident membership, and the query/snapshot metadata respectively.
+        GGML_OP_KV_PAGE_SELECT,
+
+        // Independent multi-probe ranker. Output is [2,count] I64 carrying
+        // ggml_kv_page_rank_record byte records; legacy IDs are unchanged.
+        GGML_OP_KV_PAGE_RANK,
+
+        // Exact key-only log-mass over checked Turbo4 page descriptors.
+        GGML_OP_KV_PAGE_RERANK,
+
+        // Normalize final exact-key state over the complete candidate pool.
+        GGML_OP_KV_PAGE_MASS,
+
+        // Accumulate transformed query rows within the turn's user span,
+        // updating persistent sum/count sidebands.
+        GGML_OP_KV_QUERY_ACCUMULATE,
+
+        // Retain transformed query rows at four absolute positions in the
+        // current user span, updating persistent probe/validity sidebands.
+        GGML_OP_KV_QUERY_PROBES,
+
+        // Incrementally update a min/max catalogue from packed Turbo4 K.
+        GGML_OP_KV_PAGE_SUMMARY,
 
         GGML_OP_COUNT,
     };
@@ -1917,6 +1963,16 @@ extern "C" {
             struct ggml_tensor  * b,  // source
             struct ggml_tensor  * c); // row indices
 
+    // Copy encoded rows from a row-indexed source into indexed destination rows.
+    // Source and destination types and encoded row sizes must match. This is a
+    // byte-storage operation; it never decodes or quantizes rows.
+    GGML_API struct ggml_tensor * ggml_set_rows_from_rows(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * dst,
+            struct ggml_tensor  * src,
+            struct ggml_tensor  * dst_indices,
+            struct ggml_tensor  * src_indices);
+
     GGML_API struct ggml_tensor * ggml_diag(
         struct ggml_context     * ctx,
         struct ggml_tensor      * a);
@@ -2589,7 +2645,9 @@ extern "C" {
             struct ggml_tensor  * a,
             enum ggml_tri_type    type);
 
-    // Fill tensor a with constant c
+    // Fill a contiguous tensor with constant c (F32/F16).
+    // CPU/CUDA also support Turbo4 c=0 via zero encoded blocks; nonzero
+    // Turbo4 fill is unsupported. This does not dequantize the tensor.
     GGML_API struct ggml_tensor * ggml_fill(
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
@@ -2643,6 +2701,143 @@ extern "C" {
 
     GGML_API bool ggml_top_k_is_stable(const struct ggml_tensor * tensor);
 
+    // Select pages by the conservative upper-bound score induced by q and a
+    // stored-space min/max catalogue.  The output is [k_resident+k_cold] I32:
+    // resident pages occupy the first range, cold pages the second range, and
+    // unavailable slots are -1. The fifth op parameter enables a bounded
+    // failure code in the first empty cold slot for diagnostics: -2 means
+    // eligible pages had no rankable score, -3 means no cold page was eligible.
+    // scorer_mode: 0 = min/max upper bound, 1 = mean-Q dot mean-K,
+    // 2 = maximum mean-K response across independent real query probes.
+    // Modes 0/1 retain their legacy query_row=-1 averaging semantics.
+    GGML_API struct ggml_tensor * ggml_kv_page_select(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * bounds,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * resident_membership,
+            struct ggml_tensor  * query_metadata,
+            int                   k_resident,
+            int                   k_cold,
+            int                   page_size,
+            int                   query_row,
+            int                   diagnostic_mode,
+            int                   scorer_mode);
+
+    // Accumulate transformed query rows in [query_start, query_end), resetting
+    // persistent state on turn change. A 2D sum preserves the legacy mean.
+    // A [D,heads,4] sum additionally retains three real Q rows from the final
+    // 32-token query tail (first, middle, last). The result has the same shape:
+    // mean, tail-first, tail-middle, final. Score those probes independently;
+    // averaging them would reintroduce cancellation in the RoPE domain.
+    // Accumulate transformed query rows whose absolute positions are in
+    // [query_start, query_end), resetting persistent sum/count on turn change.
+    // Coarse ranking and exact key reranking share a compact 16-byte record
+    // that remains separate from the legacy page-selection output.
+    struct ggml_kv_page_rank_record {
+        int32_t logical_page;
+        uint32_t validity_flags;
+        float peak_probability;
+        float mean_probability;
+    };
+#ifdef __cplusplus
+    static_assert(sizeof(ggml_kv_page_rank_record) == 16,
+            "KV rank record must be 16 bytes");
+#else
+    _Static_assert(sizeof(struct ggml_kv_page_rank_record) == 16,
+            "KV rank record must be 16 bytes");
+#endif
+
+    // Rank compact logical pages from stored-space bounds and independent
+    // query probes. The probe tensor is [D,Qheads,probe_capacity].
+    GGML_API struct ggml_tensor * ggml_kv_page_rank(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * bounds,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * resident_membership,
+            struct ggml_tensor  * query_metadata,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * probe_validity,
+            int                   k_resident,
+            int                   k_cold,
+            int                   page_size,
+            int                   query_row,
+            uint32_t              probe_mask,
+            float                 attention_scale);
+
+    // Score valid probes against encoded Turbo4 keys using caller-owned
+    // running max/sum state and authenticated page identity sidebands.
+    GGML_API struct ggml_tensor * ggml_kv_page_rerank(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * resident_keys,
+            struct ggml_tensor  * staged_cold_keys,
+            struct ggml_tensor  * descriptors,
+            struct ggml_tensor  * identity,
+            struct ggml_tensor  * validity,
+            struct ggml_tensor  * state,
+            float                 attention_scale,
+            float                 logit_softcap);
+
+    GGML_API struct ggml_tensor * ggml_kv_page_mass(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * state,
+            struct ggml_tensor  * descriptors,
+            struct ggml_tensor  * identity,
+            struct ggml_tensor  * validity);
+
+    GGML_API struct ggml_tensor * ggml_kv_query_accumulate(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * positions,
+            struct ggml_tensor  * sum,
+            struct ggml_tensor  * count,
+            struct ggml_tensor  * control);
+
+    // Capture Q rows at query_end - {1, 2, 4, 8}. The production owner already
+    // knows their row indices from the CPU batch, so indexed capture avoids a
+    // mutable device position sideband and its CUDA graph allocation lifetime.
+    struct ggml_kv_query_probe_params {
+        int64_t generation;
+        int64_t query_start;
+        int64_t query_end;
+        int32_t rows[4]; // -1 means this batch contains no row for that probe
+        int32_t indexed;
+    };
+
+    // Dynamic positions retained for standalone/reference users.
+    GGML_API struct ggml_tensor * ggml_kv_query_probes(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * positions,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * validity,
+            int64_t               generation,
+            int64_t               query_start,
+            int64_t               query_end);
+
+    GGML_API struct ggml_tensor * ggml_kv_query_probes_indexed(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * probes,
+            struct ggml_tensor  * validity,
+            int64_t               generation,
+            int64_t               query_start,
+            int64_t               query_end,
+            const int32_t         rows[4]);
+
+    // Metadata fields are [position, valid length, sequence generation,
+    // page generation, physical slot, stream, ready, update]. A page is
+    // decoded only when ready/update are non-zero; otherwise the existing
+    // catalogue is copied through unchanged.
+    GGML_API struct ggml_tensor * ggml_kv_page_summary(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * k,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * catalogue,
+            int                   page_size);
+
     GGML_API struct ggml_tensor * ggml_arange(
             struct ggml_context * ctx,
             float                 start,
@@ -2669,6 +2864,124 @@ extern "C" {
             float                 scale,
             float                 max_bias,
             float                 logit_softcap);
+
+    // Direct paged Turbo4 decode. K and V are I8 byte views over the opaque
+    // physical storage slab; the remaining tensors are graph inputs
+    // containing immutable page and native-position metadata. `pages_host`
+    // is retained by the graph owner for capture-safe host validation by CUDA.
+    struct ggml_flash_attn_ext_paged_turbo4_page {
+        uint32_t logical_page;
+        uint32_t source_physical_slot;
+        uint32_t compact_row_begin;
+        uint32_t row_count;
+        int64_t  native_position_begin;
+    };
+
+    // O(1) compact-row ownership for the selected page layout. The map is
+    // graph-owned and has stable row capacity; an invalid page index marks a
+    // padded row that must never address K/V.
+    struct ggml_flash_attn_ext_paged_turbo4_row_lookup {
+        uint32_t page_index;
+        uint32_t page_row;
+    };
+
+    // Mutable state for a reusable paged-attention input.  This header is
+    // stored at the beginning of the graph-owned `pages` device input; the
+    // fixed-capacity page descriptors follow it.  Counts and generations are
+    // therefore changed by an input update instead of becoming captured
+    // scalar launch arguments.
+    struct ggml_flash_attn_ext_paged_turbo4_device_control {
+        uint32_t active_page_count;
+        uint32_t active_row_count;
+        uint32_t active_tail_length;
+        uint32_t page_capacity;
+        uint32_t row_capacity;
+        uint32_t reserved;
+        uint64_t selection_generation;
+    };
+
+#define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_DEVICE_CONTROL_BYTES \
+    sizeof(struct ggml_flash_attn_ext_paged_turbo4_device_control)
+
+    // Lifetime-owned graph metadata for the paged CUDA node. The page table
+    // remains host-validated; host_upload is optional and is used only by an
+    // exact cold-wave node to fill its private staging slab.
+    struct ggml_flash_attn_ext_paged_turbo4_extra {
+        uint64_t    magic;
+        const void * pages_host;
+        const void * host_upload;
+        size_t      host_upload_bytes;
+        // These host-side values are only for fail-closed validation and
+        // diagnostics.  The CUDA kernel reads the corresponding mutable
+        // values from the device control header above.
+        const uint32_t * active_page_count_host;
+        const uint32_t * active_row_count_host;
+        uint32_t        page_capacity;
+        uint32_t        row_capacity;
+        bool             explicit_native_metadata;
+    };
+
+#define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_EXTRA_MAGIC UINT64_C(0x5034345041474545)
+
+    struct ggml_flash_attn_ext_paged_turbo4_params {
+        uint32_t head_dim_k;
+        uint32_t head_dim_v;
+        uint32_t n_head_kv;
+        float    scale;
+        bool     causal;
+        // Optional F32 [logical_page_count, query_heads, query_tokens] device
+        // output. The CUDA kernel writes page-level softmax mass without
+        // exposing an attention matrix to the host.
+        struct ggml_tensor * page_mass;
+        // Optional previous unnormalized state.  When present, the CUDA
+        // backend merges this wave into the state with online-softmax
+        // rescaling before either writing a state result or normalizing.
+        struct ggml_tensor * partial_state;
+        // A partial-state result has shape [2 + head_dim_v, query_heads,
+        // query_tokens, 1] and is consumed by the next wave node.  The final
+        // node leaves this false and returns the ordinary attention output.
+        bool partial_state_output;
+        bool partial_state_accumulate;
+        // Optional immutable host payload for one exact cold wave.  The
+        // graph owner retains this memory until the node has completed.
+        const void * host_upload;
+        size_t host_upload_bytes;
+        // Optional flat F32 device scratch for split-KV attention.  It is
+        // owned by the graph input and contains bounded partition state plus
+        // page-state scratch; the CUDA backend derives its sub-layout from
+        // the active query/head shape and these two capacities.
+        struct ggml_tensor * split_kv_scratch;
+        uint32_t split_kv_partition_capacity;
+        uint32_t split_kv_page_count;
+        // Fixed-capacity graph-input geometry. The active values live in the
+        // device control header and are read at replay, not captured here.
+        uint32_t page_capacity;
+        uint32_t row_capacity;
+        uint32_t physical_page_count;
+        const uint32_t * active_page_count_host;
+        const uint32_t * active_row_count_host;
+        const uint32_t * active_page_count_device;
+        const uint32_t * active_row_count_device;
+        const uint32_t * active_tail_length_device;
+        const uint64_t * selection_generation_device;
+        bool explicit_native_metadata;
+    };
+
+    GGML_API struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * k,
+            struct ggml_tensor  * v,
+            struct ggml_tensor  * storage,
+            struct ggml_tensor  * pages,
+            struct ggml_tensor  * native_positions,
+            struct ggml_tensor  * native_mask,
+            struct ggml_tensor  * query_positions,
+            const struct ggml_flash_attn_ext_paged_turbo4_params * params,
+            const void * pages_host);
+
+    GGML_API bool ggml_flash_attn_ext_is_paged_turbo4(
+            const struct ggml_tensor * a);
 
     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
             struct ggml_tensor * a,

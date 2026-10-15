@@ -439,6 +439,8 @@ extern "C" {
         int32_t moe_cache_expert_parallel;          // -1 = provider policy, 0 = disabled, N = device fanout
         int32_t moe_cache_cpu_overlap;              // -2 = inherit provider, -1 = auto, 0..8 = CPU rows per operation
         const char * moe_cache_profile_path;        // optional versioned expert heatmap
+        // Normalized experimental KV pager configuration, copied during construction.
+        const struct llama_kv_pager_config * kv_pager_config;
 
         // Abort callback
         // if it returns true, execution of llama_decode() will be aborted

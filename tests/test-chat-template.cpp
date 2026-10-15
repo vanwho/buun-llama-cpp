@@ -352,6 +352,93 @@ static common_chat_msg simple_msg(const std::string & role, const std::string & 
 int main_automated_tests(void) {
     // jinja::enable_debug(true);
 
+    {
+        const std::string tmpl =
+            "{% for m in messages %}"
+            "{% if m['role'] == 'user' %}{{'<|user|>' + m['content']}}"
+            "{% elif m['role'] == 'assistant' %}{{'<|assistant|>' + m['content']}}"
+            "{% elif m['role'] == 'tool' %}{{'<|tool|>' + m['content']}}"
+            "{% endif %}{% endfor %}{% if add_generation_prompt %}{{'<|assistant|>'}}{% endif %}";
+        auto tmpls = common_chat_templates_init(nullptr, tmpl);
+        common_chat_templates_inputs inputs;
+        inputs.messages = {
+            simple_msg("user", "repeated"),
+            simple_msg("assistant", "repeated"),
+            simple_msg("tool", "result"),
+            simple_msg("user", "line one\nline two"),
+        };
+        inputs.add_generation_prompt = true;
+        inputs.chat_template_kwargs["enable_thinking"] = "false";
+        const auto rendered = common_chat_templates_apply(tmpls.get(), inputs);
+        assert(rendered.rendered_user_message_count == 2);
+        assert(rendered.prompt ==
+            "<|user|>repeated<|assistant|>repeated<|tool|>result"
+            "<|user|>line one\nline two<|assistant|>");
+    }
+
+    {
+        common_chat_msg_delimiters delimiters;
+        common_chat_msg_delimiter system;
+        system.role = COMMON_CHAT_ROLE_SYSTEM;
+        system.tokens = { 4 };
+        delimiters.delimiters.push_back(system);
+        common_chat_msg_delimiter user;
+        user.role = COMMON_CHAT_ROLE_USER;
+        user.tokens = { 1 };
+        delimiters.delimiters.push_back(user);
+        common_chat_msg_delimiter assistant;
+        assistant.role = COMMON_CHAT_ROLE_ASSISTANT;
+        assistant.tokens = { 2 };
+        delimiters.delimiters.push_back(assistant);
+        common_chat_msg_delimiter tool;
+        tool.role = COMMON_CHAT_ROLE_TOOL;
+        tool.tokens = { 3 };
+        delimiters.delimiters.push_back(tool);
+
+        // Repeated user text in assistant/tool content cannot choose the span;
+        // the final actual user delimiter and following assistant trailer do.
+        const llama_tokens tokens = { 4, 99, 1, 50, 2, 50, 3, 60, 1, 70, 71, 2 };
+        const auto spans = delimiters.split(tokens);
+        size_t begin = 0;
+        size_t end = 0;
+        assert(spans.final_user_span(2, tokens.size(), begin, end));
+        assert(begin == 8 && end == 11);
+
+        // An empty final user message still has its delimiter token span.
+        const llama_tokens empty_user_tokens = { 1, 2 };
+        const auto empty_user_spans = delimiters.split(empty_user_tokens);
+        assert(empty_user_spans.final_user_span(1, empty_user_tokens.size(), begin, end));
+        assert(begin == 0 && end == 1);
+
+        // A delimiter represented by multiple tokens is matched in the full
+        // stream even when the cached-prefix seam falls inside that delimiter.
+        common_chat_msg_delimiters seam_delimiters;
+        common_chat_msg_delimiter seam_user;
+        seam_user.role = COMMON_CHAT_ROLE_USER;
+        seam_user.tokens = { 8, 9 };
+        seam_delimiters.delimiters.push_back(seam_user);
+        common_chat_msg_delimiter seam_assistant;
+        seam_assistant.role = COMMON_CHAT_ROLE_ASSISTANT;
+        seam_assistant.tokens = { 2 };
+        seam_delimiters.delimiters.push_back(seam_assistant);
+        const llama_tokens seam_tokens = { 4, 8, 9, 30, 31, 2 };
+        const size_t cached_prefix_tokens = 2;
+        const auto seam_spans = seam_delimiters.split(seam_tokens);
+        assert(seam_spans.final_user_span(1, seam_tokens.size(), begin, end));
+        assert(begin == 1 && begin < cached_prefix_tokens && end == 5);
+
+        // Delimiter-like user content creates an extra role candidate and is
+        // rejected rather than shifting the selected span.
+        const llama_tokens ambiguous_tokens = { 1, 40, 1, 41, 2 };
+        const auto ambiguous_spans = delimiters.split(ambiguous_tokens);
+        assert(!ambiguous_spans.final_user_span(1, ambiguous_tokens.size(), begin, end));
+
+        common_chat_msg_spans invalid_spans;
+        invalid_spans.add(COMMON_CHAT_ROLE_USER, 4, 3);
+        assert(!invalid_spans.final_user_span(1, 5, begin, end));
+        std::cout << "templated_final_user_span=pass\n";
+    }
+
     std::vector<llama_chat_message> conversation {
         {"system", "You are a helpful assistant"},
         {"user", "Hello"},
