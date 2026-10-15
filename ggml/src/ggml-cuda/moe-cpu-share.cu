@@ -41,8 +41,12 @@ ggml_moe_cpu_share_args ggml_moe_cpu_share_merge(const ggml_tensor *) {
 #include <vector>
 
 #if defined(__x86_64__) || defined(_M_X64)
-#include <immintrin.h>
+#if defined(_MSC_VER)
+#include <intrin.h>
 #define SHARE_PAUSE() _mm_pause()
+#else
+#define SHARE_PAUSE() __asm__ __volatile__("pause" ::: "memory")
+#endif
 #else
 #define SHARE_PAUSE() std::this_thread::yield()
 #endif
