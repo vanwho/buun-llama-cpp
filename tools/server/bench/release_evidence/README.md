@@ -178,5 +178,41 @@ executable and captures native token-to-page mapping, before/after page
 identity/residency, request H2D, and any matching singleton proof witness. It
 does not force a page or expand into a promotion matrix.
 
+### Append-only long-history follow-up
+
+For a bounded long-context conversation check, `run_long_append_history.py`
+reconstructs one completed base request and its actual assistant response from
+private artifacts, issues a 40-token recovery warmup (a duplicate of canonical
+prompt 0), then appends the three canonical prompts as new user turns while
+retaining every actual assistant response. Before each request it uses the
+server's native template/tokenizer and requires the full transcript plus the
+requested output budget and 64-token reserve to fit. It rejects streams without
+`[DONE]`, final prompt/completion usage, or with an SSE error. These are four
+single observations, not a repeated timing matrix or medians; report recovery
+warmup separately from the three append-only turns. Keep the base request,
+response, and output directory private.
+
+```sh
+python3 tools/server/bench/release_evidence/run_long_append_history.py \
+  --alias release-model --api-key-file /path/to/api.key \
+  --base-request /path/to/private/last-completed-request.json \
+  --base-response-sse /path/to/private/last-completed-response.sse \
+  --output /path/to/private/append-history --context-tokens 262144
+```
+
+After the run, use the allowlist exporter to combine the fill curve, partial
+replacement-history records, and append-only observations into sanitized
+`long-context.json` and `long-context.csv` files. `--interrupted-tokens` is the
+server-reported token count of the intentionally stopped synthetic request;
+omit that row only when no request was stopped mid-stream.
+
+```sh
+python3 tools/server/bench/release_evidence/export_long_diagnostics.py \
+  --long-records /path/to/private/long-run/records.jsonl \
+  --append-records /path/to/private/append-history/records.jsonl \
+  --interrupted-tokens 152740 \
+  --output-dir /path/to/public-results
+```
+
 Rebuild the server with the release build's configured options and the
 parallelism used for this release: `cmake --build build --parallel 16`.
