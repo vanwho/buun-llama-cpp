@@ -695,6 +695,175 @@ static void test_query_commit_authoritative_admission() {
     assert(before_stale == 2);
 }
 
+static llama_kv_live_policy_boundary dirty_victim_query_boundary(
+        const llama_kv_residency_snapshot & snapshot, uint32_t hot_capacity) {
+    llama_kv_live_policy_boundary boundary;
+    boundary.snapshot = snapshot;
+    boundary.hot_capacity = hot_capacity;
+    boundary.logical_page_count = 6;
+    boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
+    boundary.retrieval.table_epoch = snapshot.epoch();
+    boundary.retrieval.query_generation = 3;
+    boundary.retrieval.model_identity = live_page_id(0).model_identity;
+    boundary.retrieval.session_generation = live_page_id(0).session_generation;
+    boundary.retrieval.sequence_generation = live_page_id(0).sequence_generation;
+    boundary.retrieval.sequence_id = 0;
+    boundary.retrieval.representation_epoch = live_page_id(0).representation_epoch;
+    boundary.retrieval.position = 1;
+    boundary.retrieval.selected.push_back({
+        live_page_id(1), llama_kv_routing_retrieval_reason::summary,
+        9.0f, true, false, 1,
+    });
+    boundary.previous_target = { live_page_id(0), live_page_id(2) };
+    boundary.transaction.staging_capacity = 32;
+    boundary.transaction.max_h2d_pages = 1;
+    boundary.transaction.transfers.push_back(live_promotion_for(1, 2));
+    boundary.query_commit.enabled = true;
+    boundary.query_commit.turn_id = 2;
+    boundary.query_commit.retrieval_epoch = 1;
+    boundary.query_commit.query_generation = 3;
+    boundary.query_commit.table_epoch = snapshot.epoch();
+    boundary.query_commit.query_position = 1;
+    boundary.query_commit.query_start = 1;
+    boundary.query_commit.query_end = 2;
+    boundary.query_commit.model_identity = live_page_id(0).model_identity;
+    boundary.query_commit.session_generation = live_page_id(0).session_generation;
+    boundary.query_commit.sequence_generation = live_page_id(0).sequence_generation;
+    boundary.query_commit.representation_epoch = live_page_id(0).representation_epoch;
+    boundary.query_commit.sequence_id = 0;
+    boundary.query_commit.retrieval_budget = 2;
+    boundary.query_commit.generation_budget = 1;
+    boundary.query_commit.selected = {{ live_page_id(1), 7, { 0 } }};
+
+    llama_kv_live_policy_page current;
+    current.record = live_resident(0, 0);
+    current.record.content_version = 4;
+    current.current = true;
+    boundary.pages.push_back(current);
+
+    llama_kv_live_policy_page cold;
+    cold.record.id = live_page_id(1);
+    cold.record.state = llama_kv_page_state::host_clean;
+    cold.record.host_valid = true;
+    cold.record.content_version = 7;
+    boundary.pages.push_back(cold);
+
+    llama_kv_live_policy_page dirty;
+    dirty.record = live_resident(2, 1);
+    dirty.record.state = llama_kv_page_state::gpu_dirty;
+    dirty.record.host_valid = false;
+    dirty.record.dirty = true;
+    dirty.record.content_version = 8;
+    boundary.pages.push_back(dirty);
+    return boundary;
+}
+
+static void test_query_target_preserves_non_droppable_residents() {
+    llama_kv_residency_table table(3);
+    auto initial = table.begin();
+    auto current = live_resident(0, 0);
+    current.content_version = 4;
+    auto dirty = live_resident(2, 1);
+    dirty.state = llama_kv_page_state::gpu_dirty;
+    dirty.host_valid = false;
+    dirty.dirty = true;
+    dirty.content_version = 8;
+    auto clean = live_resident(4, 2);
+    clean.content_version = 10;
+    assert(table.replace(initial, current) == llama_kv_residency_status::ok);
+    assert(table.replace(initial, dirty) == llama_kv_residency_status::ok);
+    assert(table.replace(initial, clean) == llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+
+    auto boundary = dirty_victim_query_boundary(table.snapshot(), 3);
+    boundary.pages.push_back({});
+    auto & clean_page = boundary.pages.back();
+    clean_page.record = clean;
+    boundary.query_commit.rollback_generation = clean.id.page_generation;
+
+    std::vector<llama_kv_page_record> prepared;
+    const char * failure_reason = nullptr;
+    assert(llama_kv_live_policy_prepare_query_target(boundary, prepared, &failure_reason));
+    assert(failure_reason == nullptr && prepared.size() == 3);
+    assert(prepared[0].id == current.id && prepared[0].physical_slot == 0);
+    assert(prepared[1].id == dirty.id && prepared[1].physical_slot == 1 &&
+           prepared[1].dirty && !prepared[1].host_valid);
+    assert(prepared[2].id == live_page_id(1) && prepared[2].physical_slot == 2);
+    assert(std::none_of(prepared.begin(), prepared.end(), [&](const auto & page) {
+        return page.id == clean.id;
+    }));
+
+    live_transfer_fake fake;
+    auto backend = live_pool_backend(fake);
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+        { 3, 64, 4, 4, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = live_transfer_fake::host_read;
+    transport.recheck = live_transfer_fake::recheck;
+    const auto committed = llama_kv_live_policy_apply(
+        table, *pool, boundary, backend, transport, live_transaction_hooks());
+    assert(committed.status == llama_kv_live_policy_status::committed && committed.published);
+    assert(committed.target_pages.size() == 3 && committed.transaction.dropped_pages == 1 &&
+           committed.transaction.loaded_pages == 1);
+    const auto after = table.snapshot();
+    assert(std::any_of(after.pages().begin(), after.pages().end(), [&](const auto & page) {
+        return page.id == dirty.id && page.physical_slot == 1 && page.dirty && !page.host_valid;
+    }));
+
+    llama_kv_residency_table full_table(2);
+    auto full_initial = full_table.begin();
+    assert(full_table.replace(full_initial, current) == llama_kv_residency_status::ok);
+    assert(full_table.replace(full_initial, dirty) == llama_kv_residency_status::ok);
+    assert(full_table.publish(full_initial) == llama_kv_residency_status::ok);
+    auto full_boundary = dirty_victim_query_boundary(full_table.snapshot(), 2);
+    full_boundary.query_commit.enabled = true;
+    full_boundary.query_commit.turn_id = 2;
+    full_boundary.query_commit.retrieval_epoch = 1;
+    full_boundary.query_commit.query_generation = 3;
+    full_boundary.query_commit.table_epoch = full_table.snapshot().epoch();
+    full_boundary.query_commit.query_position = 1;
+    full_boundary.query_commit.query_start = 1;
+    full_boundary.query_commit.query_end = 2;
+    full_boundary.query_commit.rollback_generation = dirty.id.page_generation;
+    full_boundary.query_commit.model_identity = current.id.model_identity;
+    full_boundary.query_commit.session_generation = current.id.session_generation;
+    full_boundary.query_commit.sequence_generation = current.id.sequence_generation;
+    full_boundary.query_commit.representation_epoch = current.id.representation_epoch;
+    full_boundary.query_commit.sequence_id = 0;
+    full_boundary.query_commit.retrieval_budget = 1;
+    full_boundary.query_commit.generation_budget = 1;
+    full_boundary.query_commit.selected = {{ live_page_id(1), 7, { 0 } }};
+    full_boundary.transaction.transfers.clear();
+    full_boundary.transaction.transfers.push_back(live_promotion_for(1, 1));
+
+    live_transfer_fake full_fake;
+    auto full_backend = live_pool_backend(full_fake);
+    llama_kv_residency_pool_status full_pool_status;
+    auto full_pool = llama_kv_residency_pool::create(
+        { 2, 64, 4, 4, 1024 }, full_backend, full_pool_status);
+    assert(full_pool && full_pool_status == llama_kv_residency_pool_status::ok);
+    vbr_h2d_status full_ring_status;
+    auto full_ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, full_ring_status);
+    assert(full_ring && full_ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport full_transport;
+    full_transport.upload_ring = full_ring.get();
+    full_transport.context = &full_fake;
+    full_transport.host_read = live_transfer_fake::host_read;
+    full_transport.recheck = live_transfer_fake::recheck;
+    const auto refused = llama_kv_live_policy_apply(
+        full_table, *full_pool, full_boundary, full_backend, full_transport);
+    assert(refused.status == llama_kv_live_policy_status::query_capacity_refused);
+    assert(!refused.publication_attempted && !refused.published &&
+           full_table.snapshot().epoch() == 1 && full_fake.copied.empty());
+}
+
 static llama_kv_policy_page page(uint64_t id, bool resident = true) {
     llama_kv_policy_page p; p.id = id; p.resident = resident; p.age = id; p.recency = id; return p;
 }
@@ -1072,6 +1241,7 @@ int main(int argc, char ** argv) {
         test_live_policy_publication();
         test_live_policy_cancellation_boundaries();
         test_query_commit_authoritative_admission();
+        test_query_target_preserves_non_droppable_residents();
         test_live_policy_multi_promotion();
         std::cout << "query_commit_authoritative_admission=pass\n";
         return 0;
@@ -1081,6 +1251,7 @@ int main(int argc, char ** argv) {
     test_live_policy_cancellation_boundaries();
     test_live_policy_multi_promotion();
     test_query_commit_authoritative_admission();
+    test_query_target_preserves_non_droppable_residents();
     if (!test_live_lifecycle()) return 1;
 
     llama_kv_policy_trace trace;
