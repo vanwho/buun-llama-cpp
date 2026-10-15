@@ -305,10 +305,8 @@ bool llama_kv_live_policy_prepare_query_target(
                 uint64_t(page.record.id.position_begin) < uint64_t(commit.query_end) &&
                 uint64_t(std::max<llama_pos>(0, page.record.id.position_end)) >
                     uint64_t(commit.query_start);
-            const bool non_droppable_resident = page.record.physical_slot != UINT32_MAX &&
-                !llama_kv_residency_page_can_drop_without_transfer(page.record);
             const bool generation = !query_page && (page.current || write || page.inflight_pin ||
-                page.speculative_pin || page.record.pin_count != 0 || non_droppable_resident);
+                page.speculative_pin || page.record.pin_count != 0);
             const bool pinned = query_page || generation || page.anchor || page.application_pin;
             if (!pinned) continue;
             const auto existing = std::find(mandatory_ids.begin(), mandatory_ids.end(),
@@ -366,7 +364,34 @@ bool llama_kv_live_policy_prepare_query_target(
                 ordered_ids.push_back(page->record.id);
             }
         }
+
+        // Physical owners which cannot be dropped without a transfer stay in
+        // the resident mapping even when the current query did not select
+        // them. They are not retrieval/generation winners and must not be
+        // charged to either attention budget; the hot-capacity check below
+        // accounts for their actual slots.
+        std::vector<llama_kv_page_record> retained_unselected;
+        for (const auto & old : boundary.snapshot.pages()) {
+            const bool already_ordered = std::find(ordered_ids.begin(), ordered_ids.end(),
+                    old.id) != ordered_ids.end();
+            if (!already_ordered &&
+                    !llama_kv_residency_page_can_drop_without_transfer(old)) {
+                retained_unselected.push_back(old);
+            }
+        }
+        if (ordered.size() + retained_unselected.size() > boundary.hot_capacity) {
+            return reject("non_droppable_residents_exceed_hot_capacity");
+        }
+
         std::vector<bool> used(boundary.snapshot.slot_capacity(), false);
+        std::vector<const llama_kv_page_record *> slot_owner(used.size(), nullptr);
+        for (const auto & old : boundary.snapshot.pages()) {
+            if (old.physical_slot >= slot_owner.size() ||
+                    slot_owner[old.physical_slot] != nullptr) {
+                return reject("resident_slot_conflict");
+            }
+            slot_owner[old.physical_slot] = &old;
+        }
         for (const auto * page : ordered) {
             if (page->record.physical_slot == UINT32_MAX) continue;
             const uint32_t slot = page->record.physical_slot;
@@ -382,7 +407,17 @@ bool llama_kv_live_policy_prepare_query_target(
             }
             used[slot] = true;
         }
-        target.reserve(ordered.size());
+        for (const auto & page : retained_unselected) {
+            if (page.physical_slot >= used.size() || used[page.physical_slot]) {
+                return reject("resident_slot_conflict");
+            }
+            const auto owner = slot_owner[page.physical_slot];
+            if (owner == nullptr || owner->id != page.id) {
+                return reject("resident_snapshot_mismatch");
+            }
+            used[page.physical_slot] = true;
+        }
+        target.reserve(ordered.size() + retained_unselected.size());
         for (const auto * page : ordered) {
             auto record = page->record;
             if (record.physical_slot != UINT32_MAX) {
@@ -399,17 +434,15 @@ bool llama_kv_live_policy_prepare_query_target(
             } else {
                 if (!record.host_valid) return reject("missing_host_backing");
                 uint32_t slot = UINT32_MAX;
-                for (uint32_t i = 0; i < used.size(); ++i) if (!used[i]) { slot = i; break; }
-                if (slot == UINT32_MAX) {
-                    for (const auto & old : boundary.snapshot.pages()) {
-                        const bool retained = std::any_of(ordered.begin(), ordered.end(),
-                                [&](const auto * keep) { return keep->record.id == old.id; });
-                        if (!retained && old.physical_slot < used.size() &&
-                                !used[old.physical_slot] &&
-                                llama_kv_residency_page_can_drop_without_transfer(old)) {
-                            slot = old.physical_slot;
-                            break;
-                        }
+                for (uint32_t i = 0; i < used.size(); ++i) {
+                    if (used[i]) continue;
+                    const auto owner = slot_owner[i];
+                    if (owner == nullptr ||
+                            (llama_kv_residency_page_can_drop_without_transfer(*owner) &&
+                             std::find(ordered_ids.begin(), ordered_ids.end(), owner->id) ==
+                                ordered_ids.end())) {
+                        slot = i;
+                        break;
                     }
                 }
                 if (slot == UINT32_MAX || slot >= used.size()) {
@@ -423,6 +456,7 @@ bool llama_kv_live_policy_prepare_query_target(
             }
             target.push_back(record);
         }
+        target.insert(target.end(), retained_unselected.begin(), retained_unselected.end());
         return true;
     } catch (...) {
         target.clear();

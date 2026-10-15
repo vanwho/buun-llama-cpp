@@ -779,6 +779,13 @@ static void test_query_target_preserves_non_droppable_residents() {
     boundary.pages.push_back({});
     auto & clean_page = boundary.pages.back();
     clean_page.record = clean;
+    // Deliberately stale catalogue projection: physical snapshot ownership is
+    // dirty and must remain authoritative for mapping admission.
+    auto & projected_dirty = boundary.pages[2].record;
+    projected_dirty.state = llama_kv_page_state::gpu_host_clean;
+    projected_dirty.host_valid = true;
+    projected_dirty.dirty = false;
+    boundary.query_commit.generation_budget = 0;
     boundary.query_commit.rollback_generation = clean.id.page_generation;
 
     std::vector<llama_kv_page_record> prepared;
@@ -786,9 +793,9 @@ static void test_query_target_preserves_non_droppable_residents() {
     assert(llama_kv_live_policy_prepare_query_target(boundary, prepared, &failure_reason));
     assert(failure_reason == nullptr && prepared.size() == 3);
     assert(prepared[0].id == current.id && prepared[0].physical_slot == 0);
-    assert(prepared[1].id == dirty.id && prepared[1].physical_slot == 1 &&
-           prepared[1].dirty && !prepared[1].host_valid);
-    assert(prepared[2].id == live_page_id(1) && prepared[2].physical_slot == 2);
+    assert(prepared[1].id == live_page_id(1) && prepared[1].physical_slot == 2);
+    assert(prepared[2].id == dirty.id && prepared[2].physical_slot == 1 &&
+           prepared[2].dirty && !prepared[2].host_valid);
     assert(std::none_of(prepared.begin(), prepared.end(), [&](const auto & page) {
         return page.id == clean.id;
     }));
