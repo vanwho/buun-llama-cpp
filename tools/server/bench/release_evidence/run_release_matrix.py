@@ -30,7 +30,8 @@ SMALL_FIXTURE = HERE / "fixtures" / "small-prefix-sources.json"
 TEXT_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx",
                  ".cu", ".cuh", ".metal", ".py", ".sh", ".bash", ".cmake",
                  ".md", ".txt", ".yml", ".yaml"}
-EXCLUDED_PARTS = {".git", ".local-artifacts", "build", "output", "out", "vendor",
+EXCLUDED_PARTS = {"build", "output", "out", "results", "artifacts", "runtime",
+                  "runtime-artifacts", "bench-results", "vendor",
                   "external", "deps", "third_party", "third-party", "generated",
                   "dependency", "dependencies", "models", "node_modules"}
 PROMPTS = (
@@ -128,7 +129,8 @@ def long_sources(repo: pathlib.Path, byte_cap: int = 4_000_000) -> tuple[list[di
     selected, content, total = [], [], 0
     for relative in paths:
         parts = pathlib.PurePosixPath(relative).parts
-        if any(part in EXCLUDED_PARTS or part.startswith("build") for part in parts):
+        if any(part.startswith(".") or part in EXCLUDED_PARTS or
+               part.startswith("build") for part in parts):
             continue
         path = pathlib.PurePosixPath(relative)
         if path.suffix not in TEXT_SUFFIXES and not (len(parts) == 1 and path.name in {
@@ -305,9 +307,9 @@ def prepare_prefix(args: argparse.Namespace, plan_value: dict[str, Any], output:
     source_files, source_content = (checked_small_sources(repo) if small else long_sources(repo))
     prefix, occupied, ranges = prefix_for_tokens(args.endpoint, key, args.model_alias,
                                                   source_content, args.occupied_tokens)
-    if occupied > args.occupied_tokens or args.occupied_tokens - occupied > 512:
-        raise RuntimeError(f"tokenizer prefix fit is outside tolerance: C={occupied}, "
-                           f"target={args.occupied_tokens}")
+    if occupied != args.occupied_tokens:
+        raise RuntimeError(f"native tokenizer cannot fit exact occupied C: C={occupied}, "
+                           f"required={args.occupied_tokens}; revise/version fixture before run")
     budget = native_budget_check(args.endpoint, key, args.model_alias, prefix,
                                  args.context_tokens)
     document = {"schema_version": 1, "protocol_id": "release-aco-2026-10",
@@ -515,8 +517,8 @@ def run(args: argparse.Namespace, plan_value: dict[str, Any], output: pathlib.Pa
     if not isinstance(prefix, str) or sha256_bytes(prefix.encode("utf-8")) != selection.get("prefix_sha256"):
         raise ValueError("frozen prefix text/hash is invalid")
     occupied = selection.get("occupied_tokens")
-    if not isinstance(occupied, int) or occupied > args.occupied_tokens or args.occupied_tokens - occupied > 512:
-        raise ValueError("frozen prefix occupancy is outside tolerance")
+    if not isinstance(occupied, int) or occupied != args.occupied_tokens:
+        raise ValueError("frozen prefix occupancy differs from exact requested C")
     actual_occupied, _ = tokenize_messages(args.endpoint, key, args.model_alias,
                                             [{"role": "system", "content": prefix}])
     if actual_occupied != occupied:
