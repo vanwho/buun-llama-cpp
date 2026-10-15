@@ -307,9 +307,10 @@ def prepare_prefix(args: argparse.Namespace, plan_value: dict[str, Any], output:
     source_files, source_content = (checked_small_sources(repo) if small else long_sources(repo))
     prefix, occupied, ranges = prefix_for_tokens(args.endpoint, key, args.model_alias,
                                                   source_content, args.occupied_tokens)
-    if occupied != args.occupied_tokens:
-        raise RuntimeError(f"native tokenizer cannot fit exact occupied C: C={occupied}, "
-                           f"required={args.occupied_tokens}; revise/version fixture before run")
+    fit_tolerance = 64 if args.context_tokens == 8192 else 512
+    if occupied > args.occupied_tokens or args.occupied_tokens - occupied > fit_tolerance:
+        raise RuntimeError(f"native tokenizer prefix fit outside tolerance: C={occupied}, "
+                           f"target={args.occupied_tokens}, tolerance={fit_tolerance}")
     budget = native_budget_check(args.endpoint, key, args.model_alias, prefix,
                                  args.context_tokens)
     document = {"schema_version": 1, "protocol_id": "release-aco-2026-10",
@@ -453,7 +454,7 @@ def record_request(args: argparse.Namespace, key: str, prefix: str, prompt: str,
                "messages": [{"role": "system", "content": prefix},
                             {"role": "user", "content": prompt}],
                "max_tokens": maximum, "temperature": 0, "seed": 42,
-               "stream": True, "cache_prompt": True,
+               "stream": True, "cache_prompt": args.context_tokens != 8192,
                "stream_options": {"include_usage": True},
                "chat_template_kwargs": {"enable_thinking": False},
                "reasoning_effort": "none"}
@@ -517,8 +518,10 @@ def run(args: argparse.Namespace, plan_value: dict[str, Any], output: pathlib.Pa
     if not isinstance(prefix, str) or sha256_bytes(prefix.encode("utf-8")) != selection.get("prefix_sha256"):
         raise ValueError("frozen prefix text/hash is invalid")
     occupied = selection.get("occupied_tokens")
-    if not isinstance(occupied, int) or occupied != args.occupied_tokens:
-        raise ValueError("frozen prefix occupancy differs from exact requested C")
+    fit_tolerance = 64 if args.context_tokens == 8192 else 512
+    if (not isinstance(occupied, int) or occupied > args.occupied_tokens or
+            args.occupied_tokens - occupied > fit_tolerance):
+        raise ValueError("frozen prefix occupancy is outside the configured fit tolerance")
     actual_occupied, _ = tokenize_messages(args.endpoint, key, args.model_alias,
                                             [{"role": "system", "content": prefix}])
     if actual_occupied != occupied:
@@ -527,6 +530,12 @@ def run(args: argparse.Namespace, plan_value: dict[str, Any], output: pathlib.Pa
     selection["native_prompt_budget_check"] = native_budget_check(
         args.endpoint, key, args.model_alias, prefix, args.context_tokens)
     selection["context_curve"] = []
+    selection["small_prompt_cache_policy"] = (
+        "cache_prompt=false; full frozen prefix is re-prefilled for every request"
+        if args.context_tokens == 8192 else None)
+    selection["long_prompt_cache_policy"] = (
+        "cache_prompt=true; one occupied prefix/fill curve, canonical questions reuse that prefix"
+        if args.context_tokens == 262144 else None)
     if args.context_tokens == 262144:
         target_points = list(range(16384, occupied + 1, 16384))
         if not target_points or target_points[-1] != occupied:

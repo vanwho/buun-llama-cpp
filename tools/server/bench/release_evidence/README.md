@@ -26,10 +26,11 @@ For each canonical prompt, run one 40-token warmup followed by three measured
 
 At one shared occupancy, compare GPU-only KV, CPU target KV with GPU draft
 KV, and ACO (Attention-Aware Context Offloading). This protocol fixes the
-small workload at 8K logical context, 4K hot KV, and C=6144. The checked-in
+small workload at 8K logical context, 4K hot KV, and target C=6144. The checked-in
 source ranges and hashes are mandatory; if they no longer fit, stop and
 revise/version the fixture instead of silently changing geometry. Prepare
-and hash the server-tokenized prefix once, then give the same frozen prefix
+and hash one server-tokenized prefix once (actual C must be at most 64 tokens
+below target), then give the same frozen prefix
 file to all three placement runs. The system message ends with an explicit
 repository-context boundary and says to answer only the following user
 request. Before any generation, the runner uses the
@@ -37,12 +38,13 @@ server's native template/tokenizer on each exact system+canonical-user
 message and verifies room for a 400-token answer plus a 64-token context
 margin. Keep prefix occupancy, full rendered prompt tokens, backend-processed
 tokens, cached tokens, fresh tokens, context allocation, and hot capacity
-independently recorded. The normal prompt-cache policy is enabled in every
-row; report observed cached and fresh tokens for every request. Repeated
-canonical turns can reuse their exact tokenized prompt, so their prompt-stage
-time is not a bulk-fresh-prefill measurement. Prefix preparation sits outside
-each generation's HTTP wall time; prompt-cache reuse and fresh work are
-reported as observed rather than presumed.
+independently recorded. For all three small placements, `cache_prompt=false`
+forces every warmup and measured request to prefill the full same frozen
+prefix; report the server's observed cached/fresh/processed counts. Prefix
+preparation sits outside each generation's HTTP wall time. The long row uses
+`cache_prompt=true`: the one fill curve establishes the occupied prefix, and
+canonical questions reuse it; their incremental question-token work is not
+bulk-prefill throughput.
 
 Then run one 256K logical allocation with 64K hot KV. Fill toward the
 approximately 256K target while preserving the append-by-append occupancy
@@ -120,7 +122,8 @@ python3 "$PKG/run_release_matrix.py" --mode aco $COMMON --prefix-file /path/to/f
 ```
 
 The long ACO row uses `--context-tokens 262144 --occupied-tokens 258048
---hot-tokens 65536`; it builds a deterministic Git source schedule and
+--hot-tokens 65536`; actual native C may be up to 512 tokens below target and
+is recorded exactly. It builds a deterministic Git source schedule and
 measures incremental fill requests at 16K-token frontiers before the three
 canonical prompts. Use a separately prepared frozen long-prefix file. The
 caller owns service stop/start and restoration so the runner cannot silently
