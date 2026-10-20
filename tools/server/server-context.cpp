@@ -2196,12 +2196,13 @@ struct server_query_checkpoint {
             if (failure_reason != nullptr) *failure_reason = "checkpoint_identity_or_carry";
             return false;
         }
-        if (!llama_memory_can_seq_rm_partial(llama_get_memory(target)) ||
-                (draft != nullptr &&
-                 !llama_memory_can_seq_rm_partial(llama_get_memory(draft)))) {
-            if (failure_reason != nullptr) *failure_reason = "partial_remove_unsupported";
-            return false;
-        }
+        // General partial sequence removal also rolls back recurrent state.
+        // A hybrid model without speculative decoding has no recurrent
+        // rollback planes and correctly reports that operation unsupported.
+        // Replay instead restores the serialized recurrent checkpoint below
+        // and removes only the provisional attention suffix. Do not require
+        // speculative rollback storage for this independent replay path;
+        // check the actual attention-only removal result before proceeding.
         const llama_pos target_live_frontier = llama_memory_seq_pos_max(
             llama_get_memory(target), seq_id);
         const llama_pos draft_live_frontier = draft != nullptr
