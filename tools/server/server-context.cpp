@@ -24595,9 +24595,11 @@ private:
         // and the shared block-diffusion drafters (DRAFT_DFLASH, and
         // DRAFT_DSPARK — its anchor-first block layout only shapes the drafter
         // decode; the target verify batch is built by the shared code above as
-        // [sampled, draft...], so the coverage proof is unchanged). All of them
-        // verify through the shared spec_i_batch accept loop below. MTP verifies
-        // through the same loop and reads target hidden states, never logits.
+        // [sampled, draft...], so the coverage proof is unchanged). These
+        // implementations use the shared spec_i_batch accept loop below.
+        // MTP is deliberately excluded: its target verification consumes the
+        // normal target logits path, so enabling this DFlash-specific argmax
+        // output can suppress logits that MTP's verifier needs.
         //
         // A recycle impl alongside (types is a list) reads raw target logits in
         // its update_logits(); keep those configurations on host sampling.
@@ -24607,8 +24609,7 @@ private:
         const bool spec_type_target_argmax =
             spec_type == COMMON_SPECULATIVE_TYPE_DFLASH ||
             spec_type == COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH ||
-            spec_type == COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK ||
-            spec_type == COMMON_SPECULATIVE_TYPE_DRAFT_MTP;
+            spec_type == COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK;
         // Tensor split shards result_output across the vocabulary axis. Its Meta
         // backend cannot reduce GGML_OP_ARGMAX across that axis, so keep the ordinary
         // host-logits verifier there; this tail is only an optional transfer shortcut.
@@ -25652,7 +25653,7 @@ private:
                     sampled.reserve(slot.spec_i_batch.size());
                     for (size_t i = 0; i < slot.spec_i_batch.size(); ++i) {
                         const int32_t * cand = ctx_tgt->get_logits_argmax_ith(
-                            slot.spec_i_batch[i]);
+                            verify_rows[i]);
                         const llama_token id = cand == nullptr ? LLAMA_TOKEN_NULL :
                             common_sampler_raw_argmax_pick(slot.smpl.get(), cand, dflash_target_argmax_k);
                         if (id == LLAMA_TOKEN_NULL) {
