@@ -1,9 +1,10 @@
 # Consolidated performance results: upstream master and ACO
 
 Compiled 2026-10-23 from benchmark artifacts in this repository and /srv/ai/paged-kv/results.
-This is a results consolidation plus a bounded missing-cell audit. It includes the
+This is a results consolidation and missing-cell completion. It includes the
 standardized 105-series three-prompt matrix, fresh-chunk context-ingest curves, the
-upstream-master GPU and CPU-Q4/MTP controls, and the October 20 ACO replay campaign.
+upstream-master GPU and CPU-Q4/MTP controls, the October 20 ACO replay campaign, and
+clean October 23 runs for the previously missing configuration cells.
 Raw request streams remain in their original result roots; source paths and binary
 identities below make the numbers auditable.
 
@@ -38,13 +39,13 @@ remain the decode-speed benchmark (and provide the normal-length MTP acceptance 
 
 | Requested comparison | Available evidence | Result / limit |
 |---|---|---|
-| Upstream master, all-GPU Turbo4 KV, MTP off | Fresh-chunk curve, Oct 21 | Completed through C=86,016: new-content prefill 1,734.25 to 962.42 tok/s; next rung failed near C=96,228 with an F16 dequant scratch reservation failure. No 128K result. |
+| Upstream master, all-GPU Turbo4 KV, MTP off | Canonical 48-request matrix plus clean fresh-chunk rerun, Oct 23 | Empty-context decode matrix completed at L=77,824. Clean L=131,072 curve reached C=98,304 (1,725.57 tok/s at 32K; 907.44 at 96K); C=126,976 failed because the F16 dequant scratch reservation could not be made. |
 | Upstream master, all-GPU Turbo4 KV + GPU MTP | 106-01 GPU-only matrix | Complete 48-request rows at empty L=77,824 and filled L/C=8,192/6,144; 16,384/14,336; 32,768/30,000; 65,536/61,440. Full decode/MTP tables and ancillary, non-benchmark prompt-processing fields are in `evidence/MASTER106_GPU.md`. |
 | Upstream master, CPU Q4_0 target KV, no MTP | Fresh-chunk curve, Oct 21 | Completed through C=262,000: new-content prefill 1,166.74 to 331.66 tok/s. |
 | Upstream master, CPU Q4_0 target KV + GPU MTP | Historical canonical campaign, Oct 16 | Completed at L=8K, 16K, 32K, 64K, and 128K; 256K failed at startup. At L=128K, canonical decode medians were 10.06 / 8.16 / 9.26 tok/s and MTP acceptance 93.38% / 67.24% / 81.25% for prompts 1/2/3. |
 | ACO-branch build, all-GPU Turbo4 + MTP | 105-series GPU-only controls | Canonical three-prompt results at L=8K, 32K, 64K, and 77,824; complete tables are in Appendix A. These use an ACO-built binary with pager off, not upstream master. |
-| ACO-branch build, all-GPU Turbo4, MTP off | Exact 77,824-token baseline attempted Oct 23 on two ACO candidates | No requests completed. Both candidates failed during KV-cache startup: the allocator reported 2,508.1 MiB needed with 1,085.9 MiB free. This remains an unmeasured cell; the selective ACO MTP-off curve is not a substitute. |
-| ACO-branch CPU offload | 105-series CPU-F16-KV + GPU-MTP controls; Oct 16 CPU-Q4_0+GPU-MTP campaign; Oct 21 CPU-Q4_0/no-MTP fresh-chunk curve | Canonical F16+MTP results are in Appendix A; Q4_0+MTP canonical campaign completes through 128K (256K startup failed); Q4_0/no-MTP fresh-chunk curve completes to 256K. |
+| ACO-branch build, all-GPU Turbo4, MTP off | Canonical 48-request matrix plus clean fresh-chunk curve, Oct 23 | Canonical matrix completed at empty L=77,824. Fresh ingest completed through C=77,824 with L=81,920; no MTP. Earlier failed starts occurred while the managed Qwen service occupied VRAM and are excluded. |
+| ACO-branch CPU offload | 105-series CPU-F16-KV + GPU-MTP controls; Oct 16 CPU-Q4_0+GPU-MTP campaign; Oct 21 curves; Oct 23 canonical Q4_0/no-MTP matrix and MTP-on curves | Canonical F16+MTP and Q4_0+MTP results are in Appendix A; Q4_0/no-MTP canonical decode now also has a clean 48-request row at L=77,824. Q4_0+MTP fresh-chunk curves reach C=126,976. |
 | ACO enabled: Turbo4 GPU hot KV + CPU-hosted cold history | 105-series canonical matrix; Oct 21 fresh-chunk curves with MTP on and off | Canonical prompt medians are in Appendix A. The fresh-chunk ACO+MTP-on and ACO+MTP-off runs both reached C=262,000. Requested hot capacity was 131,072 tokens, but startup admitted only 249 pages / 63,744 tokens with MTP on, and 466 pages / 119,296 tokens with MTP off. |
 
 ### Most useful fresh-ingest endpoints
@@ -168,7 +169,7 @@ Source summary:
 
 *Three-token acknowledgment decode only.
 
-### Upstream master, all-GPU Turbo4 target KV, MTP off (partial)
+### Upstream master, all-GPU Turbo4 target KV, MTP off (October 21 initial run)
 
 L=131,072, all-GPU Turbo4 KV, MTP off.
 Source summary:
@@ -184,6 +185,12 @@ Source summary:
 | 98,304 | — | — | — | — | — | scratch allocation failure near C=96,228 |
 
 *Three-token acknowledgment decode only.
+
+The clean October 23 repeat, with no other CUDA inference process active, passed C=98,304
+at 907.44 tok/s and then failed at the planned C=126,976 turn because the required
+F16-dequant scratch reservation could not fit. The newer raw evidence and diagnosis are
+listed in the October 23 section below; use it to supersede only the old run's failure
+boundary, not its already-completed points.
 
 ### Upstream master, all-GPU Turbo4 target KV + native GPU MTP (106-01)
 
@@ -207,18 +214,19 @@ Binary SHA-256: `527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0
 master source commit `d2407c33f9595d1badccfd9a82a33c4c5ceda490`. This is a master build,
 not an ACO-branch result.
 
-### ACO all-GPU Turbo4, MTP-off baseline admission attempt (Oct 23)
+### ACO all-GPU Turbo4, MTP-off clean baseline (Oct 23)
 
-The requested counterpart to the ACO all-GPU MTP-on baseline was attempted at
-L=77,824, empty context, B/U=1024/256, GPU Turbo4 target K/V, pager off, MTP off.
-No benchmark request was sent. The Oct 15 ACO release binary
-(`c9041ca96611ed4c9aa06be7b9a23443aa11d4b3bb30983d7dd2558c582659ec`) and the
-current `build-cuda` candidate (`cd8f33f898d7662ba130ae56a07a965e2cf89151069e32040adaae85dd5c5529`)
-both failed at context initialization. The server log reported a 2,508.1 MiB allocation
-need with 1,085.9 MiB free and failed KV-cache allocation. Raw commands and logs are under
-`/srv/ai/paged-kv/results/forward/missing-matrix/aco-gpu-off-20261023/attempt-01/` and
-`attempt-02/`. This is a capacity/setup failure, not a measured speed result; do not
-replace it with smaller-context or changed-batch numbers in the 77,824 cell.
+The earlier candidate startup failures above were caused by the managed Qwen service
+already consuming most of the card; they are retained as setup diagnostics and are not
+counted as capacity evidence. After stopping GPU workloads and confirming no CUDA compute
+PID (only 31–49 MiB GPU-wide idle use, including the desktop compositor), the current ACO
+build loaded at L=77,824 for the canonical matrix and at L=81,920 for the fresh-chunk
+curve. Both used B/U=1024/256, GPU Turbo4 target K/V, pager off and MTP off. There were
+48/48 HTTP 200 responses in the canonical run. The curve used distinct repository chunks
+and reached C=77,824. Server commands and identities are in:
+
+- Canonical matrix: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-gpu-off-20261023/attempt-05-l77824-clean-gpu/`
+- Fresh-chunk curve: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-gpu-off-20261023/attempt-06-l81920-clean-gpu/`
 
 ### ACO build, CPU Q4_0 target KV, MTP off
 
@@ -316,6 +324,96 @@ behavior.
 These follow-up fields are reproduced for audit, not to claim that cached rows were newly
 ingested. Do not use them as a clean incremental-input speed curve.
 
+## October 23 clean missing-cell completion
+
+All remaining requested configuration families now have canonical decode/MTP evidence
+and fresh-chunk ingest evidence, subject to the explicit high-context capacity limits
+below. For every new launch, the managed Qwen server and other GPU inference workloads
+were stopped; a runtime systemd mask prevented its `Restart=always` policy from reclaiming
+VRAM. Each test used a newly started transient server and was stopped before the next
+configuration. The CPU-only LFM server on 8092 was left untouched. Before each start,
+`nvidia-smi` showed no CUDA compute PID and only 31–49 MiB GPU-wide idle memory (the
+desktop compositor accounted for 4 MiB when present). After each run, the transient
+server was stopped and GPU use returned to about 33 MiB.
+
+### Newly completed canonical decode rows: MTP disabled
+
+Each run used the original three prompts, 1×40-token warmup plus 3×400-token measured
+outputs per prompt and reasoning mode, SSE, T=0, seed 42, and empty context in a fresh
+L=77,824 server. The four tested configurations completed 48/48 HTTP 200 responses each.
+MTP was intentionally disabled, so no acceptance percentage applies. These are decode
+medians only; the prompt timing fields in their raw records are not prefill measurements.
+
+Each table cell is the median decode tok/s for prompt 1 / prompt 2 / prompt 3.
+
+| Reasoning | ACO GPU Turbo4 | Master GPU Turbo4 | ACO CPU Q4_0 KV | Master CPU Q4_0 KV |
+|---|---:|---:|---:|---:|
+| off | 50.57 / 50.85 / 50.53 | 50.46 / 50.79 / 50.69 | 21.98 / 22.16 / 22.02 | 22.41 / 22.44 / 22.29 |
+| low | 50.54 / 50.55 / 50.54 | 50.45 / 50.48 / 50.46 | 21.93 / 22.47 / 22.41 | 22.25 / 22.48 / 22.29 |
+| medium | 50.52 / 50.54 / 50.56 | 50.43 / 50.44 / 50.43 | 22.25 / 21.99 / 22.00 | 22.18 / 22.27 / 22.42 |
+| xhigh | 50.56 / 50.95 / 50.55 | 50.43 / 50.89 / 50.42 | 22.18 / 22.18 / 22.20 | 22.26 / 22.72 / 22.62 |
+
+Raw records and exact server commands:
+
+- ACO GPU no-MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-gpu-off-20261023/attempt-05-l77824-clean-gpu/canonical-three-prompt/`
+- Master GPU no-MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/master-gpu-off-20261023/attempt-01-l77824-empty-clean/canonical-three-prompt/`
+- ACO CPU-Q4 no-MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-cpu-q4-off-20261023/attempt-01-l77824-empty-clean/canonical-three-prompt/`
+- Master CPU-Q4 no-MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/master-cpu-q4-off-20261023/attempt-01-l77824-empty-clean/canonical-three-prompt/`
+
+### Fresh-chunk prefill curves completed October 23
+
+These use the sole accepted ingest method: a fresh server for each configuration and one
+disjoint repository-source user message per turn. Rates are net-new prompt tokens divided
+by that turn's prompt-processing time. Do not compare the short acknowledgment decode/MTP
+samples as canonical results. `MTP 2/2` is only the two-token acknowledgment's diagnostic
+acceptance, not a quality/acceptance benchmark.
+
+| Configuration (allocation L) | Occupied C | New input tokens | Fresh-content prefill tok/s | Status |
+|---|---:|---:|---:|---|
+| ACO GPU Turbo4, MTP off (81,920) | 32,768 | 32,704 | 1,325.47 | pass |
+| ACO GPU Turbo4, MTP off (81,920) | 65,536 | 32,766 | 747.20 | pass |
+| ACO GPU Turbo4, MTP off (81,920) | 71,680 | 6,142 | 541.27 | pass |
+| ACO GPU Turbo4, MTP off (81,920) | 77,824 | 6,142 | 503.93 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 32,768 | 32,704 | 1,725.57 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 65,536 | 32,766 | 1,237.58 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 71,680 | 6,142 | 1,041.30 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 77,824 | 6,142 | 1,000.13 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 86,016 | 8,190 | 961.88 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 98,304 | 12,286 | 907.44 | pass |
+| Master GPU Turbo4, MTP off (131,072) | 126,976 | 61,437 planned | — | recoverable failure: scratch allocation exhausted; no rate |
+| Master GPU Turbo4, native MTP (65,536) | 32,768 | 32,704 | 1,616.30 | pass; short MTP 2/2 |
+| Master GPU Turbo4, native MTP (65,536) | 61,440 | 28,668 | 1,177.68 | pass; short MTP 2/2 |
+| ACO GPU Turbo4, native MTP (65,536) | 32,768 | 32,704 | 1,259.52 | pass; short MTP 2/2 |
+| ACO GPU Turbo4, native MTP (65,536) | 61,440 | 28,668 | 733.48 | pass; short MTP 2/2 |
+| Master CPU Q4_0 target KV + GPU MTP (131,072) | 32,768 | 32,704 | 861.30 | pass; short MTP 2/2 |
+| Master CPU Q4_0 target KV + GPU MTP (131,072) | 65,536 | 32,765 | 666.13 | pass; short MTP 2/2 |
+| Master CPU Q4_0 target KV + GPU MTP (131,072) | 126,976 | 61,437 | 509.81 | pass; short MTP 2/2 |
+| ACO CPU Q4_0 target KV + GPU MTP (131,072) | 32,768 | 32,704 | 857.84 | pass; short MTP 2/2 |
+| ACO CPU Q4_0 target KV + GPU MTP (131,072) | 65,536 | 32,765 | 651.33 | pass; short MTP 2/2 |
+| ACO CPU Q4_0 target KV + GPU MTP (131,072) | 126,976 | 61,437 | 488.66 | pass; short MTP 2/2 |
+
+The master GPU MTP-off row at C=126,976 returned HTTP 500 `Context size has been exceeded`,
+but journal evidence shows the underlying cause precisely: after GPU KV allocation left
+about 503 MiB free at startup, `vbr_scratch_reserve` could not reserve its two 244.5 MiB
+F16-dequant scratch regions. The server then retried down to batch size 1 and reported the
+generic context error. This is a real scratch-capacity failure under the fixed B/U and
+context settings, not a lack of source tokens and not another GPU service stealing VRAM.
+
+Raw fresh-chunk records:
+
+- ACO GPU no-MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-gpu-off-20261023/attempt-06-l81920-clean-gpu/incremental-repo-fill/`
+- Master GPU no-MTP clean extension: `/srv/ai/paged-kv/results/forward/missing-matrix/master-gpu-off-20261023/attempt-02-l131072-clean-gpu/incremental-repo-fill/`
+- Master GPU MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/master-gpu-mtp-on-20261023/attempt-01-l65536-clean-gpu/incremental-repo-fill/`
+- ACO GPU MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-gpu-mtp-on-20261023/attempt-01-l65536-clean-gpu/incremental-repo-fill/`
+- Master CPU-Q4 MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/master-cpu-q4-mtp-on-20261023/attempt-01-l131072-clean-gpu/incremental-repo-fill/`
+- ACO CPU-Q4 MTP: `/srv/ai/paged-kv/results/forward/missing-matrix/aco-cpu-q4-mtp-on-20261023/attempt-01-l131072-clean-gpu/incremental-repo-fill/`
+
+All newly measured server command lines, binary/model hashes, health probes, and run data
+are saved beside each raw directory. Master GPU rows used the recorded `master106`
+(`527c34de…`) or `master106-draftkv` (`5e6055fe…`) builds; ACO rows used the current
+`build-cuda` candidate (`cd8f33f8…`). The shared model SHA-256 is
+`40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`.
+
 ## Standardized matrix and functional findings
 
 Appendix A reproduces the complete 105-22 standardized three-prompt decode/MTP matrix for
@@ -342,8 +440,9 @@ promotions. It is a functional result, not a speed benchmark.
   affect a headline comparison remain explicit above. 105-20 had 3 execution-incomplete
   rows among 48 scheduled rows due host-global OOM; they are excluded from its median.
 - The upstream-master all-GPU MTP-on comparison is measured in 106-01 and summarized
-  above; it is not a coverage gap. ACO all-GPU MTP-off remains unmeasured because both
-  exact-configuration startup attempts failed before sending any benchmark request.
+  above; it is not a coverage gap. ACO all-GPU MTP-off and all four CPU/GPU MTP-off
+  canonical decode rows were completed in clean October 23 runs; see the dedicated
+  section above for their commands and raw evidence.
 
 ## Appendix A — full 105-series decode/MTP report
 
