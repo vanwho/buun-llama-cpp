@@ -11,10 +11,13 @@ identities below make the numbers auditable.
 
 These datasets use different protocols and must not be blended:
 
-1. Canonical three-prompt speed matrix (105 series): one warmup and three measured
+1. Canonical three-prompt decode benchmark (105 series): one warmup and three measured
    repetitions per prompt, 400-token output budget, four reasoning modes, and response-local
-   MTP acceptance. The full per-configuration median tables are reproduced in Appendix A.
-2. Fresh-chunk ingest curves (October 21): every turn adds one disjoint, previously unused
+   MTP acceptance. Use this series for decode-speed and MTP-acceptance comparisons. The full
+   per-configuration median tables are reproduced in Appendix A; their prompt-processing
+   timing fields are retained as ancillary run data, not as the context-ingest/prefill metric.
+2. Fresh-chunk ingest curves (October 21): this is the sole accepted method here for measuring
+   prefill speed and context loading. Every turn adds one disjoint, previously unused
    repository-source chunk; prior conversation remains in history and earlier source text is
    not resent as the new user turn. Tables below show measured new tokens divided by that
    request's prompt-processing time. Decode values come from a three-token acknowledgment
@@ -25,12 +28,18 @@ These datasets use different protocols and must not be blended:
    fresh repository ingestion. Two other October 21 cumulative-prompt runs are explicitly
    excluded by the project method note because they resent prior source content.
 
+Measurement rule: the disjoint fresh-chunk protocol is the only prefill-speed/context-loading
+measurement accepted in this report. All other fields labeled “prefill,” “source fill,” or
+“prompt processing” are retained only as incidental diagnostics from their original runs;
+they are not prefill benchmarks and must not be compared as such. The original three prompts
+remain the decode-speed benchmark (and provide the normal-length MTP acceptance measurements).
+
 ## Executive coverage and headline findings
 
 | Requested comparison | Available evidence | Result / limit |
 |---|---|---|
 | Upstream master, all-GPU Turbo4 KV, MTP off | Fresh-chunk curve, Oct 21 | Completed through C=86,016: new-content prefill 1,734.25 to 962.42 tok/s; next rung failed near C=96,228 with an F16 dequant scratch reservation failure. No 128K result. |
-| Upstream master, all-GPU Turbo4 KV + GPU MTP | 106-01 GPU-only matrix | Complete 48-request rows at empty L=77,824 and filled L/C=8,192/6,144; 16,384/14,336; 32,768/30,000; 65,536/61,440. Full decode, MTP, and prefill tables are in `evidence/MASTER106_GPU.md`. |
+| Upstream master, all-GPU Turbo4 KV + GPU MTP | 106-01 GPU-only matrix | Complete 48-request rows at empty L=77,824 and filled L/C=8,192/6,144; 16,384/14,336; 32,768/30,000; 65,536/61,440. Full decode/MTP tables and ancillary, non-benchmark prompt-processing fields are in `evidence/MASTER106_GPU.md`. |
 | Upstream master, CPU Q4_0 target KV, no MTP | Fresh-chunk curve, Oct 21 | Completed through C=262,000: new-content prefill 1,166.74 to 331.66 tok/s. |
 | Upstream master, CPU Q4_0 target KV + GPU MTP | Historical canonical campaign, Oct 16 | Completed at L=8K, 16K, 32K, 64K, and 128K; 256K failed at startup. At L=128K, canonical decode medians were 10.06 / 8.16 / 9.26 tok/s and MTP acceptance 93.38% / 67.24% / 81.25% for prompts 1/2/3. |
 | ACO-branch build, all-GPU Turbo4 + MTP | 105-series GPU-only controls | Canonical three-prompt results at L=8K, 32K, 64K, and 77,824; complete tables are in Appendix A. These use an ACO-built binary with pager off, not upstream master. |
@@ -49,14 +58,15 @@ These datasets use different protocols and must not be blended:
 | ACO build, CPU Q4_0 KV | off | 262,000 | 327.95 tok/s | 3.25 tok/s (3-token diagnostic) |
 
 The short-output decode samples above are not apples-to-apples decode benchmarks. Use the
-canonical three-prompt tables for decode comparisons. The fresh-ingest prefill column is
+canonical three-prompt tables for decode comparisons. Only the fresh-chunk series is used
+to measure prefill/context-ingest speed. Its fresh-ingest prefill column is
 recomputed as newly_evaluated_tokens_reported divided by prompt_ms; this measures new
 repository-content growth per request time. It is lower than the stored server-reported
 prompt tok/s on some ACO selective rows because the server timing prompt_n does not match
 the harness's net-new-token count on those rows. Both values are retained in the detailed
 tables below rather than presenting the larger rate as new-content speed.
 
-## Fresh-chunk method and build identity (October 21)
+## Sole accepted context-ingest/prefill method and build identity (October 21)
 
 Each conversational turn adds one fresh, disjoint repository-source chunk. The input file
 and manifest records the source path/hash and span; earlier source text is not put in the
@@ -182,9 +192,10 @@ missing. It completed the full 48-request canonical schedule (12 warmups, 36 mea
 at each row. Configuration: GPU Turbo4 target K/V and GPU Turbo4 draft K/V, native MTP
 n-max=2, B/U=1024/256, temperature 0, seed 42. The 77,824 row is empty-context; the
 other rows use the stated occupied contexts. `MASTER106_GPU.md` contains the complete
-per-prompt/per-reasoning decode, MTP-acceptance, and fresh-prefill median tables.
+per-prompt/per-reasoning decode and MTP-acceptance tables, plus prompt-processing fields
+that are ancillary and not accepted as prefill measurements.
 
-| L / C | Cases | Decode median range tok/s | MTP median range | Fill prefill median tok/s |
+| L / C | Cases | Decode median range tok/s | MTP median range | Ancillary fill timing tok/s (not a prefill benchmark) |
 |---:|---:|---:|---:|---:|
 | 77,824 / empty | 48/48 | 80.5–107.3 | 56.4–93.1% | — |
 | 8,192 / 6,144 | 48/48 | 74.2–105.9 | 50.8–94.9% | 1,510.57 |
@@ -307,10 +318,12 @@ ingested. Do not use them as a clean incremental-input speed curve.
 
 ## Standardized matrix and functional findings
 
-Appendix A reproduces the complete 105-22 standardized matrix, including all per-prompt
-decode, MTP acceptance, and prefill median tables for 15 configurations (105-06 to 105-20),
-across four reasoning modes. The matrix used three measured runs per prompt and one warmup.
-Its MTP values are proper-length response metrics, unlike the fresh-chunk three-token probes.
+Appendix A reproduces the complete 105-22 standardized three-prompt decode/MTP matrix for
+15 configurations (105-06 to 105-20), across four reasoning modes. The matrix used three
+measured runs per prompt and one warmup. Use its decode medians for decode comparisons and
+its proper-length response MTP values for MTP acceptance. Any prompt-processing rates shown
+in that matrix are incidental to those decode requests and must not be used as prefill-speed
+or context-loading results; those come only from the fresh-chunk curves above.
 
 The 105-21 retrieval check returned 2/2 semantic-correct answers and 2/2 verified physical
 promotions. It is a functional result, not a speed benchmark.
@@ -332,9 +345,9 @@ promotions. It is a functional result, not a speed benchmark.
   above; it is not a coverage gap. ACO all-GPU MTP-off remains unmeasured because both
   exact-configuration startup attempts failed before sending any benchmark request.
 
-## Appendix A — full 105-series report
+## Appendix A — full 105-series decode/MTP report
 
-# MATRIX105 final — context, speed, recall, and prefill curve
+# MATRIX105 final — decode/MTP matrix, context, and recall
 
 **Status:** complete measurement aggregation. No rows were rerun.
 
@@ -350,7 +363,7 @@ promotions. It is a functional result, not a speed benchmark.
 - The cold-file recall check returned 2 semantic-correct answers and 2 verified physical promotions; no recall query was incorrect or had unknown promotion telemetry.
 - MTP cells without three valid measured percentages: 3; these are marked incomplete/not observed rather than zero.
 
-## Per-configuration median tables
+## Per-configuration decode and MTP median tables
 
 Medians use the three measured repetitions only; warmups are excluded. `incomplete` means fewer than three completed measured values, and `not observed` is not zero. Setup and execution incompleteness remain separate from performance.
 
