@@ -496,6 +496,44 @@ def _append_request(final, endpoint: str, key: str, payload: Mapping[str, Any],
     return response
 
 
+def prefill_measurements(fresh_tokens: int, timings: Mapping[str, Any],
+                         elapsed_seconds: float) -> dict[str, Any]:
+    """Keep server work rate distinct from net-new tokens per time.
+
+    With ACO/MTP, the backend's processed-token counter can include internal
+    verification work and need not equal the user-visible occupancy delta.
+    The fresh-input bound is enforced on that delta; backend counts remain
+    useful measurements and must not be mistaken for request size.
+    """
+    backend_tokens = timings.get("prompt_n")
+    backend_rate = timings.get("prompt_per_second")
+    prompt_ms = timings.get("prompt_ms")
+    prompt_seconds = (float(prompt_ms) / 1000.0
+                      if isinstance(prompt_ms, (int, float)) and prompt_ms > 0
+                      else None)
+    return {
+        "backend_prefill_tokens": backend_tokens,
+        "backend_prefill_tok_s": backend_rate,
+        "fresh_prefill_tokens": fresh_tokens,
+        "fresh_prefill_tok_s": (fresh_tokens / prompt_seconds
+                                 if prompt_seconds else None),
+        "wall_prefill_tok_s": (fresh_tokens / elapsed_seconds
+                               if elapsed_seconds > 0 else None),
+    }
+
+
+def validate_fill_bounds(fresh_tokens: int, prompt_tokens: int,
+                         completion_tokens: int, reserve_limit: int) -> None:
+    """Validate new input and context occupancy, not backend internal work."""
+    if (fresh_tokens < 0 or fresh_tokens > MAX_FRESH_FILL_TOKENS or
+            prompt_tokens + completion_tokens > reserve_limit):
+        raise RuntimeError(
+            "append violates fresh/context bound: "
+            f"fresh={fresh_tokens}, occupancy={prompt_tokens}+{completion_tokens}, "
+            f"limit={reserve_limit}"
+        )
+
+
 def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  output: pathlib.Path, context_tokens: int, target_tokens: int,
                  fingerprint: str, append_reference: pathlib.Path | None = None,
@@ -596,10 +634,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         prompt_n = int(usage.get("prompt_tokens", rendered_tokens))
         output_n = int(usage.get("completion_tokens", 0))
         fresh = prompt_n - occupied
-        actual_prefill = int(response.get("timings", {}).get("prompt_n", fresh))
-        if (fresh < 0 or fresh > 4096 or actual_prefill > 4096 or
-                prompt_n + output_n > reserve_limit):
-            raise RuntimeError(f"append violates fresh/context bound: frontier={fresh}, prefill={actual_prefill}, {prompt_n}+{output_n}")
+        validate_fill_bounds(fresh, prompt_n, output_n, reserve_limit)
         assistant_message = {"role": "assistant", "content": response.get("content", "")}
         reasoning_text = response.get("reasoning_content", "")
         if reasoning_text:
@@ -609,10 +644,12 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         # response is recorded in the conversation but is not necessarily
         # installed in the resumable KV snapshot (EOS/length boundary).
         occupied = prompt_n
+        fill_rates = prefill_measurements(
+            fresh, response.get("timings", {}), elapsed)
         rec = {"append_index": append_index, "source_text_sha256": hashlib.sha256(
                    selected_text.encode()).hexdigest(), "fresh_tokens": fresh,
                "cumulative_tokens": occupied, "elapsed_seconds": elapsed,
-               "fresh_prefill_tok_s": response.get("timings", {}).get("prompt_per_second"),
+               **fill_rates,
                "cache_n": response.get("timings", {}).get("cache_n"),
                "prompt_n": response.get("timings", {}).get("prompt_n"),
                "timings": response.get("timings", {}),
@@ -882,14 +919,11 @@ def main() -> int:
         observation = final._mtp_observation(before, after, feature_off=not mtp_enabled)
         usage = response.get("usage", {})
         timings = response.get("timings", {})
-        prompt_timing = timings.get("prompt_per_second")
-        # Upstream timing.prompt_n is the number actually evaluated after
-        # prefix reuse; cache_n is separately reported cached context and must
-        # not be subtracted from prompt_n a second time.
-        fresh_timed = timings.get("prompt_n")
-        fresh_rate = (prompt_timing if isinstance(prompt_timing, (int, float))
-                      and prompt_timing > 0 and isinstance(fresh_timed, (int, float))
-                      else None)
+        usage_details = usage.get("prompt_tokens_details", {})
+        cached_tokens = usage_details.get("cached_tokens", timings.get("cache_n", 0))
+        fresh_timed = max(0, int(usage.get("prompt_tokens", rendered)) -
+                          int(cached_tokens or 0))
+        rates = prefill_measurements(fresh_timed, timings, elapsed)
         complete_sse = b"data: [DONE]" in raw_path.read_bytes()
         rec = {**case, "fingerprint": fingerprint,
                "status": "pass" if status == 200 and error is None and usage and complete_sse else "runtime_fault",
@@ -899,8 +933,7 @@ def main() -> int:
                "usage": usage, "timings": timings,
                "decode_tok_s": timings.get("predicted_per_second"),
                "prefill_tok_s": timings.get("prompt_per_second"),
-               "fresh_prefill_tokens": fresh_timed,
-               "fresh_prefill_tok_s": fresh_rate,
+               **rates,
                "mtp": observation.get("mtp"), "mtp_counters": observation.get("counters"),
                "elapsed_seconds": elapsed, "request_path": str(request_path),
                "request_sha256": hashlib.sha256(request_path.read_bytes()).hexdigest(),
@@ -966,7 +999,19 @@ def main() -> int:
                    for mode in MODES} if mtp_enabled else None),
                "fresh_prefill_tok_s_median": statistics.median(fill_rates) if fill_rates else None,
                "fresh_prefill_tok_s_medians": table("fresh_prefill_tok_s"),
+               "prefill_tok_s_medians": table("prefill_tok_s"),
+               "wall_prefill_tok_s_medians": table("wall_prefill_tok_s"),
                "incremental_fill_curve": fill_rates,
+               "incremental_fill_backend_curve": [
+                   json.loads(line).get("backend_prefill_tok_s")
+                   for line in (output / "schedule.jsonl").read_text().splitlines()
+                   if line.strip()
+               ] if (output / "schedule.jsonl").exists() else [],
+               "incremental_fill_wall_curve": [
+                   json.loads(line).get("wall_prefill_tok_s")
+                   for line in (output / "schedule.jsonl").read_text().splitlines()
+                   if line.strip()
+               ] if (output / "schedule.jsonl").exists() else [],
                "completed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     (output / "row.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))

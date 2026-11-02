@@ -17,6 +17,24 @@ SPEC.loader.exec_module(matrix)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_backend_work_does_not_inflate_fresh_input_bound(self) -> None:
+        # ACO/MTP may report additional backend work while occupancy advanced
+        # by a valid source chunk. Only the latter is constrained by the fill
+        # chunk limit; backend work and elapsed rates remain separate evidence.
+        matrix.validate_fill_bounds(3116, 5456, 1, 10000)
+        rates = matrix.prefill_measurements(
+            3116,
+            {"prompt_n": 6219, "prompt_ms": 4554.479,
+             "prompt_per_second": 1365.469},
+            5.0,
+        )
+        self.assertEqual(rates["backend_prefill_tokens"], 6219)
+        self.assertEqual(rates["backend_prefill_tok_s"], 1365.469)
+        self.assertAlmostEqual(rates["fresh_prefill_tok_s"], 3116 / 4.554479)
+        self.assertAlmostEqual(rates["wall_prefill_tok_s"], 3116 / 5.0)
+        with self.assertRaisesRegex(RuntimeError, "fresh/context bound"):
+            matrix.validate_fill_bounds(4097, 5456, 1, 10000)
+
     def test_pager_off_adapts_to_upstream_without_pager_cli(self) -> None:
         upstream_help = "--ctx-size N --no-kv-offload"
         fork_help = "--ctx-size N --kv-pager off|selective"
