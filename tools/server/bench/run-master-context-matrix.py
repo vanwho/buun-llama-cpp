@@ -927,9 +927,10 @@ def main() -> int:
             messages = [{"role": "user", "content": case["prompt"]}]
         else:
             filename = pathlib.Path(base["base_file"]).name
-            cleared = final.clear_slot(endpoint, key, 0, 180)
-            if not cleared.get("ok"):
-                raise RuntimeError(f"canonical slot erase failed: {cleared}")
+            # The server's slot-file restore paths clear/replace an occupied
+            # slot themselves (resume_install_sequence/chunks). A separate
+            # /slots?action=erase performs the same expensive pager teardown
+            # twice and is unnecessary before restoring this frozen base.
             restore_status, restored = _post(endpoint, key, "/slots/0?action=restore", {"filename": filename})
             if (restore_status != 200 or
                     restored.get("n_restored") != int(base["occupied_tokens"])):
