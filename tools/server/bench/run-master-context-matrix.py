@@ -27,6 +27,7 @@ PROMPTS = (
     "write a bash script that watches a directory and prints new files as they appear.",
 )
 MODES = ("off", "low", "medium", "xhigh")
+SLOT_SNAPSHOT_TIMEOUT = 1800
 SAFETY_TOKENS = 1536
 MTP_REPLAY_TOKENS = 3
 MAX_FRESH_FILL_TOKENS = 4096
@@ -703,7 +704,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     source_manifest["occupancy_delta_tokens"] = occupancy_delta
     base_file = f"base-{fingerprint[:16]}.bin"
     status, saved = _post(endpoint, key, "/slots/0?action=save",
-                          {"filename": base_file, "format": "resume"})
+                          {"filename": base_file, "format": "resume"},
+                          timeout=SLOT_SNAPSHOT_TIMEOUT)
     if status != 200 or not saved.get("n_saved"):
         raise RuntimeError(f"base snapshot save failed: {saved}")
     base_path = SLOT_STATE / base_file
@@ -717,7 +719,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     cleared = final.clear_slot(endpoint, key, 0, 180)
     if not cleared.get("ok"):
         raise RuntimeError(f"base snapshot round-trip erase failed: {cleared}")
-    status, restored = _post(endpoint, key, "/slots/0?action=restore", {"filename": base_file})
+    status, restored = _post(endpoint, key, "/slots/0?action=restore",
+                             {"filename": base_file}, timeout=SLOT_SNAPSHOT_TIMEOUT)
     if status != 200 or restored.get("n_restored") != saved.get("n_saved"):
         raise RuntimeError(f"base snapshot round-trip mismatch: {saved} / {restored}")
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
@@ -931,7 +934,9 @@ def main() -> int:
             # slot themselves (resume_install_sequence/chunks). A separate
             # /slots?action=erase performs the same expensive pager teardown
             # twice and is unnecessary before restoring this frozen base.
-            restore_status, restored = _post(endpoint, key, "/slots/0?action=restore", {"filename": filename})
+            restore_status, restored = _post(endpoint, key, "/slots/0?action=restore",
+                                             {"filename": filename},
+                                             timeout=SLOT_SNAPSHOT_TIMEOUT)
             if (restore_status != 200 or
                     restored.get("n_restored") != int(base["occupied_tokens"])):
                 raise RuntimeError(f"canonical snapshot restore failed: {restored}")
