@@ -176,6 +176,11 @@ def request_fingerprint(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def canonical_render_key(mode: str, messages: list[dict[str, Any]]) -> str:
+    """Key exact rendered/tokenized conversation content, independent of output cap."""
+    return request_fingerprint({"reasoning": mode, "messages": messages})
+
+
 def append_jsonl(path: pathlib.Path, value: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("ab") as stream:
@@ -848,6 +853,8 @@ def main() -> int:
     elif json.loads(schedule_path.read_text()) != cases:
         raise SystemExit("resume refused: canonical request schedule changed")
     prepared = {}
+    canonical_renderers: dict[str, ServerPromptRenderer] = {}
+    rendered_token_counts: dict[str, int] = {}
     for case in cases:
         messages = ([{"role": "user", "content": case["prompt"]}]
                     if geometry["target_tokens"] is None else
@@ -857,9 +864,17 @@ def main() -> int:
             "enable_thinking": case["reasoning"] != "off"})
         renderer_options["reasoning_effort"] = (
             "none" if case["reasoning"] == "off" else case["reasoning"])
-        renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
-            request_options=renderer_options)
-        rendered = len(renderer_mode(messages).token_ids)
+        mode = case["reasoning"]
+        renderer_mode = canonical_renderers.get(mode)
+        if renderer_mode is None:
+            renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
+                request_options=renderer_options)
+            canonical_renderers[mode] = renderer_mode
+        render_key = canonical_render_key(mode, messages)
+        rendered = rendered_token_counts.get(render_key)
+        if rendered is None:
+            rendered = len(renderer_mode(messages).token_ids)
+            rendered_token_counts[render_key] = rendered
         reserve = args.context_tokens - rendered - int(case["max_tokens"]) - MTP_REPLAY_TOKENS
         if reserve < SAFETY_TOKENS:
             raise RuntimeError(f"canonical case {case['case_index']} violates context reserve: {reserve}")

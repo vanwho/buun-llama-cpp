@@ -53,6 +53,16 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertEqual({case["reasoning"] for case in cases}, set(matrix.MODES))
         self.assertEqual({case["prompt_index"] for case in cases}, {0, 1, 2})
 
+    def test_render_cache_key_reuses_only_same_mode_and_messages(self) -> None:
+        messages = [{"role": "user", "content": "same frozen context and prompt"}]
+        self.assertEqual(matrix.canonical_render_key("low", messages),
+                         matrix.canonical_render_key("low", messages))
+        self.assertNotEqual(matrix.canonical_render_key("low", messages),
+                            matrix.canonical_render_key("high", messages))
+        self.assertNotEqual(matrix.canonical_render_key("low", messages),
+                            matrix.canonical_render_key("low", messages + [
+                                {"role": "assistant", "content": "new history"}]))
+
     def test_geometry_argv_mapping_has_no_pager_flags(self) -> None:
         self.assertEqual(matrix.row_geometry(8192, 6144, "gpu"),
                          {"context_tokens": 8192, "target_tokens": 6144, "placement": "gpu"})
