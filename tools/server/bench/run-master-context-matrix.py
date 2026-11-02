@@ -46,6 +46,11 @@ SOURCE_WORKTREE = pathlib.Path(os.environ.get(
     "/srv/ai/paged-kv/worktrees/master106-d2407c33f959"))
 
 
+def prompt_sizing_timeout(context_tokens: int) -> float:
+    """Bound full-history sizing requests without a tiny-context timeout."""
+    return max(60.0, min(300.0, context_tokens / 1024.0))
+
+
 def load_final_curve():
     path = HERE / "run-final-curve.py"
     spec = importlib.util.spec_from_file_location("master106_final_curve", path)
@@ -770,7 +775,8 @@ def main() -> int:
     fill_thinking = False
     fill_options = request_options(chat_template_kwargs={"enable_thinking": fill_thinking})
     fill_options["reasoning_effort"] = "none" if fill_mode == "off" else fill_mode
-    renderer = ServerPromptRenderer(endpoint, MODEL, key,
+    sizing_timeout = prompt_sizing_timeout(args.context_tokens)
+    renderer = ServerPromptRenderer(endpoint, MODEL, key, timeout=sizing_timeout,
         request_options=fill_options)
     if args.startup_log is None or not args.startup_log.is_file():
         raise SystemExit("--startup-log with the captured server startup is required")
@@ -868,7 +874,7 @@ def main() -> int:
         renderer_mode = canonical_renderers.get(mode)
         if renderer_mode is None:
             renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
-                request_options=renderer_options)
+                timeout=sizing_timeout, request_options=renderer_options)
             canonical_renderers[mode] = renderer_mode
         render_key = canonical_render_key(mode, messages)
         rendered = rendered_token_counts.get(render_key)

@@ -63,6 +63,12 @@ class MasterContextMatrixTests(unittest.TestCase):
                             matrix.canonical_render_key("low", messages + [
                                 {"role": "assistant", "content": "new history"}]))
 
+    def test_prompt_sizing_timeout_scales_for_full_context(self) -> None:
+        self.assertEqual(matrix.prompt_sizing_timeout(8192), 60.0)
+        self.assertEqual(matrix.prompt_sizing_timeout(80896), 79.0)
+        self.assertEqual(matrix.prompt_sizing_timeout(262144), 256.0)
+        self.assertEqual(matrix.prompt_sizing_timeout(524288), 300.0)
+
     def test_geometry_argv_mapping_has_no_pager_flags(self) -> None:
         self.assertEqual(matrix.row_geometry(8192, 6144, "gpu"),
                          {"context_tokens": 8192, "target_tokens": 6144, "placement": "gpu"})
