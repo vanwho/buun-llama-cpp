@@ -96,7 +96,13 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
     argv = [str(server_bin), "-m", "/srv/ai/models/text/current.gguf", "--alias", model_alias,
             "-ngl", "999", "--device", "CUDA0", "--fit", "off", "-fa", "on",
             "-c", str(context_tokens), "-np", "1"]
-    if placement == "cpu":
+    # ACO's selective pager owns GPU hot residency and host backing. It must
+    # use the Turbo4 cache representation end-to-end; the ordinary CPU-Q4
+    # control below is not a valid pager candidate (the runtime rejects that
+    # cache type and --no-kv-offload would disable its hot device pages).
+    if pager == "selective":
+        argv.extend(("-ctk", "turbo4", "-ctv", "turbo4"))
+    elif placement == "cpu":
         argv.extend(("-ctk", "q4_0", "-ctv", "q4_0", "--no-kv-offload"))
     else:
         argv.extend(("-ctk", "turbo4", "-ctv", "turbo4"))

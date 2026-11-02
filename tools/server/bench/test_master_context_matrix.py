@@ -55,6 +55,15 @@ class MasterContextMatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "reserve"):
             matrix.row_geometry(131072, 130000, "gpu")
 
+    def test_selective_pager_uses_turbo4_hot_cache_even_for_host_backing(self) -> None:
+        argv = matrix.argv_for_row(90112, "cpu", pager="selective", hot_pages=256,
+                                   mtp=True, draft_device="gpu")
+        self.assertEqual(argv[argv.index("-ctk") + 1], "turbo4")
+        self.assertEqual(argv[argv.index("-ctv") + 1], "turbo4")
+        self.assertNotIn("--no-kv-offload", argv)
+        self.assertEqual(argv[argv.index("--kv-hot-pages") + 1], "256")
+        self.assertEqual(argv[argv.index("--spec-draft-kv-device") + 1], "gpu")
+
     def test_resume_fingerprint_refuses_changes_and_never_overwrites(self) -> None:
         identity = {"geometry": {"context_tokens": 8192, "target_tokens": 6144},
                     "source": "source-a", "server": "server-a"}
