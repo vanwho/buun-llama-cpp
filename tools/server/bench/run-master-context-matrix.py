@@ -500,10 +500,9 @@ def prefill_measurements(fresh_tokens: int, timings: Mapping[str, Any],
                          elapsed_seconds: float) -> dict[str, Any]:
     """Keep server work rate distinct from net-new tokens per time.
 
-    With ACO/MTP, the backend's processed-token counter can include internal
-    verification work and need not equal the user-visible occupancy delta.
-    The fresh-input bound is enforced on that delta; backend counts remain
-    useful measurements and must not be mistaken for request size.
+    The server's processed-token counter can differ from the user-visible
+    occupancy delta (observed in both MTP-on and MTP-off ACO rows). Preserve
+    both values; enforce the input bound only on the measured occupancy delta.
     """
     backend_tokens = timings.get("prompt_n")
     backend_rate = timings.get("prompt_per_second")
