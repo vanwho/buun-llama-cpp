@@ -69,6 +69,13 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertEqual(matrix.prompt_sizing_timeout(262144), 256.0)
         self.assertEqual(matrix.prompt_sizing_timeout(524288), 300.0)
 
+    def test_filled_prompt_preflight_uses_only_reserved_suffix(self) -> None:
+        # L-C=2048 leaves 1536 safety + 400 output + 3 MTP replay + 96 suffix.
+        estimate = matrix.canonical_prompt_upper_bound(78847)
+        self.assertEqual(estimate, 78943)
+        self.assertGreaterEqual(80896 - estimate - 400 - matrix.MTP_REPLAY_TOKENS,
+                                matrix.SAFETY_TOKENS)
+
     def test_geometry_argv_mapping_has_no_pager_flags(self) -> None:
         self.assertEqual(matrix.row_geometry(8192, 6144, "gpu"),
                          {"context_tokens": 8192, "target_tokens": 6144, "placement": "gpu"})

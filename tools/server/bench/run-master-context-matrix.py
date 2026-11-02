@@ -30,6 +30,7 @@ MODES = ("off", "low", "medium", "xhigh")
 SAFETY_TOKENS = 1536
 MTP_REPLAY_TOKENS = 3
 MAX_FRESH_FILL_TOKENS = 4096
+CANONICAL_SUFFIX_RESERVE_TOKENS = 96
 # Server-side templating can add a few tokens beyond the preflight tokenizer
 # estimate (notably with thinking enabled). Leave 16 tokens of margin so a
 # setup discrepancy cannot turn an otherwise valid fill into a failed row.
@@ -184,6 +185,11 @@ def request_fingerprint(value: Mapping[str, Any]) -> str:
 def canonical_render_key(mode: str, messages: list[dict[str, Any]]) -> str:
     """Key exact rendered/tokenized conversation content, independent of output cap."""
     return request_fingerprint({"reasoning": mode, "messages": messages})
+
+
+def canonical_prompt_upper_bound(base_tokens: int) -> int:
+    """Avoid re-tokenizing a huge frozen prefix just to size a short final prompt."""
+    return base_tokens + CANONICAL_SUFFIX_RESERVE_TOKENS
 
 
 def append_jsonl(path: pathlib.Path, value: Mapping[str, Any]) -> None:
@@ -876,11 +882,19 @@ def main() -> int:
             renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
                 timeout=sizing_timeout, request_options=renderer_options)
             canonical_renderers[mode] = renderer_mode
-        render_key = canonical_render_key(mode, messages)
-        rendered = rendered_token_counts.get(render_key)
-        if rendered is None:
-            rendered = len(renderer_mode(messages).token_ids)
-            rendered_token_counts[render_key] = rendered
+        if geometry["target_tokens"] is None:
+            render_key = canonical_render_key(mode, messages)
+            rendered = rendered_token_counts.get(render_key)
+            if rendered is None:
+                rendered = len(renderer_mode(messages).token_ids)
+                rendered_token_counts[render_key] = rendered
+        else:
+            # Filled rows already have exact server-measured base occupancy.
+            # The benchmark prompts are short; reserve a fixed upper bound for
+            # the final user turn/template suffix instead of asking the server
+            # to tokenize the entire 8K–256K history once per prompt.
+            rendered = canonical_prompt_upper_bound(
+                int(base.get("occupied_tokens", geometry["target_tokens"])))
         reserve = args.context_tokens - rendered - int(case["max_tokens"]) - MTP_REPLAY_TOKENS
         if reserve < SAFETY_TOKENS:
             raise RuntimeError(f"canonical case {case['case_index']} violates context reserve: {reserve}")
@@ -948,7 +962,8 @@ def main() -> int:
         rec = {**case, "fingerprint": fingerprint,
                "status": "pass" if status == 200 and error is None and usage and complete_sse else "runtime_fault",
                "http_status": status, "error": error, "stream_complete": complete_sse,
-               "prompt_tokens": rendered,
+               "prompt_tokens": usage.get("prompt_tokens", rendered),
+               "prompt_tokens_estimate": rendered,
                "completion_tokens": usage.get("completion_tokens"),
                "usage": usage, "timings": timings,
                "decode_tok_s": timings.get("predicted_per_second"),
