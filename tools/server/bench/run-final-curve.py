@@ -258,6 +258,7 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
     error: str | None = None
     chunks: list[dict[str, Any]] = []
     content: list[str] = []
+    reasoning_content: list[str] = []
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     with raw_path.open("wb") as raw_file:
         try:
@@ -298,8 +299,14 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
                     choice = choices[0] if isinstance(choices, list) and choices else {}
                     delta = choice.get("delta", {}) if isinstance(choice, Mapping) else {}
                     piece = delta.get("content", "") if isinstance(delta, Mapping) else ""
+                    reasoning_piece = (delta.get("reasoning_content", "")
+                                       if isinstance(delta, Mapping) else "")
                     if isinstance(piece, str) and piece:
                         content.append(piece)
+                        saw_token = True
+                        chunks.append({"timestamp": now, "token_count": 1})
+                    if isinstance(reasoning_piece, str) and reasoning_piece:
+                        reasoning_content.append(reasoning_piece)
                         saw_token = True
                         chunks.append({"timestamp": now, "token_count": 1})
                     if isinstance(item.get("usage"), dict):
@@ -327,6 +334,7 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
             os.fsync(raw_file.fileno())
             raise
     return status, {"usage": usage, "timings": timings, "content": "".join(content),
+                    "reasoning_content": "".join(reasoning_content),
                     "stream_metrics": stream_metrics(started, chunks)}, error
 
 

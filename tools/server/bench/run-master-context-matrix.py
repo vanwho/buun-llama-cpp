@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one frozen master GPU/CPU-KV context row as independent slot branches."""
+"""Run one frozen repository-content benchmark row as independent slot branches."""
 
 from __future__ import annotations
 
@@ -27,10 +27,13 @@ PROMPTS = (
     "write a bash script that watches a directory and prints new files as they appear.",
 )
 MODES = ("off", "low", "medium", "xhigh")
-GEOMETRIES = {77824: None, 8192: 6144, 16384: 14336, 32768: 30000,
-              65536: 61440, 131072: 126976}
 SAFETY_TOKENS = 1536
 MTP_REPLAY_TOKENS = 3
+MAX_FRESH_FILL_TOKENS = 4096
+# Server-side templating can add a few tokens beyond the preflight tokenizer
+# estimate (notably with thinking enabled). Leave 16 tokens of margin so a
+# setup discrepancy cannot turn an otherwise valid fill into a failed row.
+FILL_REQUEST_BUDGET = MAX_FRESH_FILL_TOKENS - 16
 MODEL = "qwen38-fast-turbo4-mtp"
 SERVER_BIN = pathlib.Path(os.environ.get(
     "MASTER106_SERVER_BIN",
@@ -57,39 +60,71 @@ def load_final_curve():
 def row_geometry(context_tokens: int, target_tokens: int | None, placement: str) -> dict[str, Any]:
     if placement not in {"gpu", "cpu"}:
         raise ValueError("placement must be gpu or cpu")
-    if context_tokens not in GEOMETRIES or GEOMETRIES[context_tokens] != target_tokens:
-        raise ValueError("unsupported L/C geometry")
-    if placement == "gpu" and context_tokens == 131072:
-        raise ValueError("128K is not in the GPU-only matrix")
+    if context_tokens <= 0 or context_tokens % 256:
+        raise ValueError("context L must be a positive multiple of 256 tokens")
+    if target_tokens is not None:
+        if target_tokens <= 0 or target_tokens >= context_tokens:
+            raise ValueError("occupied target C must be positive and below context L")
+        reserve = SAFETY_TOKENS + 400 + MTP_REPLAY_TOKENS
+        if context_tokens - target_tokens < reserve:
+            raise ValueError(
+                f"L={context_tokens}, C={target_tokens} leaves less than the "
+                f"{reserve}-token output/runtime reserve"
+            )
     return {"context_tokens": context_tokens, "target_tokens": target_tokens,
             "placement": placement}
 
 
-def argv_for_row(context_tokens: int, placement: str) -> list[str]:
+def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
+                 pager: str = "none", hot_pages: int | None = None,
+                 draft_device: str | None = None,
+                 server_bin: pathlib.Path = SERVER_BIN,
+                 slot_state: pathlib.Path = SLOT_STATE,
+                 model_alias: str = MODEL) -> list[str]:
     if placement not in {"gpu", "cpu"}:
         raise ValueError("placement must be gpu or cpu")
-    argv = [str(SERVER_BIN), "-m", "/srv/ai/models/text/current.gguf", "--alias", MODEL,
+    if pager not in {"none", "off", "selective"}:
+        raise ValueError("pager must be none, off, or selective")
+    if pager == "selective" and (hot_pages is None or hot_pages <= 0):
+        raise ValueError("selective paging requires a positive --hot-pages count")
+    if pager != "selective" and hot_pages is not None:
+        raise ValueError("--hot-pages is valid only with --pager selective")
+    if draft_device not in {None, "gpu", "cpu", "auto"}:
+        raise ValueError("draft device must be gpu, cpu, auto, or omitted")
+    if not mtp and draft_device is not None:
+        raise ValueError("draft device cannot be set when MTP is disabled")
+    argv = [str(server_bin), "-m", "/srv/ai/models/text/current.gguf", "--alias", model_alias,
             "-ngl", "999", "--device", "CUDA0", "--fit", "off", "-fa", "on",
             "-c", str(context_tokens), "-np", "1"]
     if placement == "cpu":
-        argv.extend(("-ctk", "f16", "-ctv", "f16", "--no-kv-offload"))
+        argv.extend(("-ctk", "q4_0", "-ctv", "q4_0", "--no-kv-offload"))
     else:
         argv.extend(("-ctk", "turbo4", "-ctv", "turbo4"))
     argv.extend(("-b", "1024", "-ub", "256", "--poll", "0", "--host", "0.0.0.0",
                  "--port", "8080", "--api-key-file", "/srv/ai/config/llama/api-keys",
                  "--metrics", "--reasoning-preserve", "--no-context-shift",
                  "--cache-ram", "12288", "--ctx-checkpoints", "8",
-                 "--checkpoint-min-step", "8192", "--slot-save-path", str(SLOT_STATE),
-                 "--cache-idle-slots", "--kv-unified",
-                 "--spec-draft-kv-device", "gpu", "--spec-type", "draft-mtp", "--spec-draft-n-max", "2",
-                 "--spec-draft-type-k", "turbo4", "--spec-draft-type-v", "turbo4"))
+                 "--checkpoint-min-step", "8192", "--slot-save-path", str(slot_state),
+                 "--cache-idle-slots", "--kv-unified"))
+    if pager != "none":
+        argv.extend(("--kv-pager", pager))
+        if pager == "selective":
+            argv.extend(("--kv-page-size", "256", "--kv-hot-pages", str(hot_pages),
+                         "--kv-router", "probe-rerank", "--kv-pin-recent", "0"))
+    if mtp:
+        argv.extend(("--spec-type", "draft-mtp", "--spec-draft-n-max", "2",
+                     "--spec-draft-type-k", "turbo4", "--spec-draft-type-v", "turbo4"))
+        if draft_device is not None:
+            argv.extend(("--spec-draft-kv-device", draft_device))
     return argv
 
 
-def canonical_schedule() -> list[dict[str, Any]]:
+def canonical_schedule(modes: tuple[str, ...] = MODES,
+                      prompt_indices: tuple[int, ...] = (0, 1, 2)) -> list[dict[str, Any]]:
     cases = []
-    for mode in MODES:
-        for prompt_index, prompt in enumerate(PROMPTS):
+    for mode in modes:
+        for prompt_index in prompt_indices:
+            prompt = PROMPTS[prompt_index]
             for repetition, maximum in enumerate((40, 400, 400, 400)):
                 cases.append({"case_index": len(cases), "reasoning": mode,
                               "prompt_index": prompt_index, "prompt": prompt,
@@ -131,7 +166,9 @@ def key_from(path: pathlib.Path) -> str:
     raise ValueError("API key file contains no key")
 
 
-def capture_live_identity(expected_argv: list[str], startup_log: pathlib.Path) -> dict[str, Any]:
+def capture_live_identity(expected_argv: list[str], startup_log: pathlib.Path, *,
+                          mtp_enabled: bool, placement: str, pager: str,
+                          hot_pages: int | None) -> dict[str, Any]:
     """Bind a row to the live 8080 process and independently logged KV residency."""
     listeners = subprocess.run(["ss", "-tlnpH", "sport = :8080"], check=True,
                                capture_output=True, text=True).stdout
@@ -142,7 +179,8 @@ def capture_live_identity(expected_argv: list[str], startup_log: pathlib.Path) -
     proc = pathlib.Path("/proc") / pid
     observed_argv = [x.decode() for x in (proc / "cmdline").read_bytes().split(b"\0") if x]
     executable = pathlib.Path(os.readlink(proc / "exe")).resolve()
-    validate_live_identity(expected_argv, observed_argv, SERVER_BIN.resolve(), executable)
+    validate_live_identity(expected_argv, observed_argv,
+                           pathlib.Path(expected_argv[0]).resolve(), executable)
     loaded = {}
     for line in (proc / "maps").read_text().splitlines():
         fields = line.split()
@@ -152,27 +190,55 @@ def capture_live_identity(expected_argv: list[str], startup_log: pathlib.Path) -
                 loaded[str(path.resolve())] = hashlib.sha256(path.read_bytes()).hexdigest()
     text = startup_log.read_text(errors="replace")
     cpu_target = "--no-kv-offload" in observed_argv
-    required = ("MASTER106 native MTP draft K/V device=gpu offload_kqv=true "
-                "type_k=turbo4 type_v=turbo4",)
-    missing = [marker for marker in required if marker not in text]
+    # The upstream master binary does not know the fork-only
+    # --spec-draft-kv-device option and does not emit the branch's
+    # MASTER106 placement markers. Bind its placement to the exact live argv;
+    # preserve any optional diagnostic markers without making them a gate.
+    observed_markers = [line for line in text.splitlines()
+                        if "MASTER106 target KV residency" in line or
+                        "MASTER106 draft KV residency" in line or
+                        "MASTER106 native MTP draft K/V" in line]
     target_rows = re.findall(
         r"MASTER106 target KV residency device=([^\s]+) host=(true|false) context_bytes=(\d+)", text)
     draft_rows = re.findall(
         r"MASTER106 draft KV residency device=([^\s]+) host=(true|false) context_bytes=(\d+)", text)
-    if missing or not residency_rows_match(target_rows, draft_rows, cpu_target):
-        raise RuntimeError("startup residency evidence missing or mismatched: "
-                           f"markers={missing}, target_rows={target_rows}, draft_rows={draft_rows}")
     target_k = observed_argv[observed_argv.index("-ctk") + 1]
     target_v = observed_argv[observed_argv.index("-ctv") + 1]
-    if cpu_target and (target_k != "f16" or target_v != "f16"):
-        raise RuntimeError("live target KV is not CPU F16")
+    if cpu_target and (target_k != "q4_0" or target_v != "q4_0"):
+        raise RuntimeError("live target KV is not CPU Q4_0")
     if not cpu_target and (target_k != "turbo4" or target_v != "turbo4"):
         raise RuntimeError("live target KV is not GPU Turbo4")
+    actual_mtp = ("--spec-type" in observed_argv and
+                  observed_argv[observed_argv.index("--spec-type") + 1] == "draft-mtp")
+    if actual_mtp != mtp_enabled:
+        raise RuntimeError(f"live MTP state mismatch: expected={mtp_enabled} actual={actual_mtp}")
+    if mtp_enabled:
+        draft_k = observed_argv[observed_argv.index("--spec-draft-type-k") + 1]
+        draft_v = observed_argv[observed_argv.index("--spec-draft-type-v") + 1]
+        if draft_k != "turbo4" or draft_v != "turbo4":
+            raise RuntimeError("MTP draft KV must be Turbo4")
+    actual_pager = (observed_argv[observed_argv.index("--kv-pager") + 1]
+                    if "--kv-pager" in observed_argv else "none")
+    if actual_pager != pager:
+        raise RuntimeError(f"live pager mode mismatch: expected={pager} actual={actual_pager}")
+    if pager == "selective":
+        actual_pages = int(observed_argv[observed_argv.index("--kv-hot-pages") + 1])
+        if actual_pages != hot_pages:
+            raise RuntimeError(f"live hot-page count mismatch: expected={hot_pages} actual={actual_pages}")
+    if placement not in {"gpu", "cpu"}:
+        raise RuntimeError(f"unsupported live placement: {placement}")
+    draft_device = (observed_argv[observed_argv.index("--spec-draft-kv-device") + 1]
+                    if "--spec-draft-kv-device" in observed_argv else "auto")
     return {"argv": observed_argv, "executable": str(executable),
             "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
             "loaded_project_dsos": loaded,
-            "target_kv": "cpu-f16" if cpu_target else "gpu-turbo4",
-            "draft_kv": "gpu-turbo4", "residency_markers": list(required),
+            "target_kv": "cpu-q4_0" if cpu_target else "gpu-turbo4",
+            "draft_kv": ("disabled" if not mtp_enabled else
+                         f"turbo4-{draft_device}-device"),
+            "mtp_enabled": mtp_enabled, "pager_mode": pager,
+            "hot_pages": hot_pages, "placement": placement,
+            "residency_evidence": "exact /proc live argv; upstream exposes no fork placement marker",
+            "optional_residency_markers": observed_markers,
             "target_residency_rows": [list(row) for row in target_rows],
             "draft_residency_rows": [list(row) for row in draft_rows]}
 
@@ -223,6 +289,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--context-tokens", type=int, required=True)
     parser.add_argument("--target-tokens", type=int)
     parser.add_argument("--placement", choices=("gpu", "cpu"), required=True)
+    parser.add_argument("--mtp", choices=("on", "off"), default="on")
+    parser.add_argument("--pager", choices=("none", "off", "selective"), default="none")
+    parser.add_argument("--hot-pages", type=int)
+    parser.add_argument("--draft-device", choices=("auto", "gpu", "cpu"))
+    parser.add_argument("--server-binary", type=pathlib.Path, default=SERVER_BIN)
+    parser.add_argument("--source-worktree", type=pathlib.Path, default=SOURCE_WORKTREE)
+    parser.add_argument("--slot-state", type=pathlib.Path, default=SLOT_STATE)
+    parser.add_argument("--model-alias", default=MODEL)
+    parser.add_argument("--reasoning-modes", nargs="+", choices=MODES, default=list(MODES))
+    parser.add_argument("--prompt-indices", nargs="+", type=int, choices=(0, 1, 2),
+                        default=[0, 1, 2])
+    parser.add_argument("--prefill-only", action="store_true",
+                        help="fill and record fresh repository chunks, omit canonical prompt runs")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--startup-log", type=pathlib.Path,
@@ -234,6 +313,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preserve-prefix-tokens", type=int)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8080")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--skip-runtime-fault-case", type=int, action="append", default=[],
+                        help="after a failure has reproduced in an independent clean session, "
+                             "retain that failure and continue with the remaining cases")
     return parser.parse_args()
 
 
@@ -313,6 +395,37 @@ def _split_to_budget(renderer: ServerPromptRenderer, prefix: list[dict[str, str]
     return best, count
 
 
+def _split_to_budget_single_user(renderer: ServerPromptRenderer, existing: str,
+                                text: str, max_fresh: int,
+                                max_total: int) -> tuple[str, int]:
+    """Append repo bytes to one user turn so all modes share an exact prefix."""
+    base = (len(renderer([{"role": "user", "content": existing}]).token_ids)
+            if existing else 0)
+    low, high, best, count = 1, len(text), "", 0
+    while low <= high:
+        middle = (low + high) // 2
+        piece = text[:middle]
+        messages = [{"role": "user", "content": existing + piece}]
+        tokens = len(renderer(messages).token_ids)
+        fresh = tokens - base
+        if fresh <= max_fresh and tokens + 1 <= max_total:
+            best, count = piece, tokens
+            low = middle + 1
+        else:
+            high = middle - 1
+    if not best:
+        raise RuntimeError("no repo-source suffix fits the fresh-token/context bound")
+    best.encode("utf-8")
+    return best, count
+
+
+def canonical_context_messages(history: list[dict[str, str]], prompt: str) -> list[dict[str, str]]:
+    """Append a query to the exact filled conversation, including reasoning."""
+    if not history:
+        raise RuntimeError("filled repository history is empty")
+    return history + [{"role": "user", "content": prompt}]
+
+
 def _exact_tail_rewrite(renderer: ServerPromptRenderer,
                         history: list[dict[str, str]], text: str,
                         target_tokens: int) -> tuple[list[dict[str, str]], str]:
@@ -348,12 +461,8 @@ def _tail_target_for_frontier(current_goal: int, occupied: int) -> int | None:
     return current_goal if 0 < current_goal - occupied <= 16 else None
 
 
-def _append_request(final, endpoint: str, key: str, messages: list[dict[str, str]],
-                    maximum: int, raw: pathlib.Path) -> dict[str, Any]:
-    payload = {"model": MODEL, "messages": messages, "max_tokens": maximum,
-               "temperature": 0, "seed": 42, "stream": True,
-               "stream_options": {"include_usage": True},
-               "chat_template_kwargs": {"enable_thinking": False}}
+def _append_request(final, endpoint: str, key: str, payload: Mapping[str, Any],
+                    raw: pathlib.Path) -> dict[str, Any]:
     status, response, error = final._stream_completion(
         endpoint.rstrip("/") + "/v1/chat/completions", key, payload, raw,
         connect_timeout=10, prefill_idle_timeout=300, decode_idle_timeout=120,
@@ -366,18 +475,19 @@ def _append_request(final, endpoint: str, key: str, messages: list[dict[str, str
 def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  output: pathlib.Path, context_tokens: int, target_tokens: int,
                  fingerprint: str, append_reference: pathlib.Path | None = None,
-                 preserve_prefix_tokens: int | None = None) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    manifest = repo_context.load_manifest()
-    prompts = repo_context.load_prompts()
-    seed = repo_context.a_b_a_messages(manifest, prompts)
+                 preserve_prefix_tokens: int | None = None,
+                 reasoning_mode: str = "off") -> tuple[list[dict[str, str]], dict[str, Any]]:
+    # The measured context is filled only with tracked repository source.
+    # A/B/A retrieval fixtures belong to a separate promotion campaign and
+    # would contaminate this fresh-content prefill workload.
+    seed: list[dict[str, str]] = []
     inventory = repo_context.tracked_inventory(root=SOURCE_WORKTREE)
     chunks = repo_context.source_chunks(inventory)
     cleared = final.clear_slot(endpoint, key, 0, 180)
     if not cleared.get("ok"):
         raise RuntimeError(f"filled-row initial slot erase failed: {cleared}")
     source_manifest = {"git_identity": repo_context.git_identity(root=SOURCE_WORKTREE),
-                       "fixture_sha256": repo_context.sha256_bytes(
-                           (repo_context.FIXTURE / "manifest.json").read_bytes()),
+                       "fixture_sha256": None,
                        "inventory": [{"path": f.path, "sha256": f.sha256,
                                       "byte_length": f.byte_length} for f in inventory],
                        "source_schedule": repo_context.selection_record(chunks),
@@ -387,8 +497,10 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     occupied = 0
     append_index = 0
     planned = []
-    # A/B/A turns and source slices use the exact server tokenizer and stay
-    # below the per-request 4,096 fresh-token ceiling.
+    # Preserve the full assistant content and reasoning in history. Replaying
+    # this exact mode-specific conversation lets the server reuse the entire
+    # saved prefix on the next source chunk and on canonical prompts.
+    enable_thinking = reasoning_mode != "off"
     parts = list(seed)
     source_texts = []
     for chunk in chunks:
@@ -400,6 +512,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             "source_start_byte": chunk.start_byte, "source_end_byte": chunk.end_byte,
         }))
     while occupied < target_tokens:
+        if 0 < target_tokens - occupied <= 8:
+            break
         if parts:
             part = parts.pop(0)
             text = part["content"]
@@ -408,21 +522,11 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             text, source_range = source_texts.pop(0)
         else:
             raise RuntimeError(f"tracked source ended at C={occupied}, target={target_tokens}")
-        # Leave one token of headroom for server-side tokenization differences
-        # in the live chat parser; the recorded server delta remains the
-        # authoritative fresh-token count and must never exceed 4,096.
-        # Keep a one-token tail unfilled until the final chunk. The server's
-        # usage count can exceed apply-template's delta by one at a turn
-        # boundary, so the live prefill closes the exact target safely.
         current_goal = target_tokens
         if preserve_prefix_tokens is not None and occupied < preserve_prefix_tokens:
             current_goal = preserve_prefix_tokens
         remaining_frontier = current_goal - occupied
-        # Preserve one token of live-tokenizer headroom while there is room for
-        # another chunk. At the minimum two-token tail, however, reserving that
-        # token makes the next user turn impossible to render at all.
-        budget = min(4095, remaining_frontier if remaining_frontier <= 2
-                     else remaining_frontier - 1)
+        budget = min(FILL_REQUEST_BUDGET, remaining_frontier)
         reserve_limit = context_tokens - SAFETY_TOKENS - 400 - MTP_REPLAY_TOKENS
         rewritten_tail = False
         tail_bridge = False
@@ -430,28 +534,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             selected_text, rendered_tokens = _split_to_budget(
                 renderer, history, text, budget, reserve_limit)
         except RuntimeError:
-            tail_target = _tail_target_for_frontier(current_goal, occupied)
-            if tail_target is None:
-                raise
-            try:
-                messages, selected_text = _exact_tail_rewrite(
-                    renderer, history, text, tail_target)
-                rendered_tokens = tail_target
-            except RuntimeError:
-                # A tokenizer can skip the last frontier count for every
-                # source prefix in the current chunk. Replace the final
-                # one-token assistant completion with a fixed, explicit
-                # closure turn whose rendered input reaches the requested C.
-                # This also closes an intermediate preserved prefix before
-                # continuing with the remaining source suffix.
-                messages = history[:-1] + [{"role": "assistant", "content": "Done."}]
-                rendered_tokens = len(renderer(messages).token_ids)
-                if rendered_tokens != tail_target:
-                    raise RuntimeError(
-                        f"tail closure renders C={rendered_tokens}, expected {tail_target}")
-                selected_text = ""
-                tail_bridge = True
-            rewritten_tail = True
+            raise
         # Preserve any unconsumed source suffix; fixture turns remain immutable.
         rest = text[len(selected_text):]
         if rest:
@@ -466,14 +549,14 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                 if "rendered_start_byte" in next_range:
                     next_range["rendered_start_byte"] += len(selected_text.encode("utf-8"))
                 source_texts.insert(0, (rest, next_range))
-        if not rewritten_tail:
-            messages = history + [{"role": "user", "content": selected_text}]
+        messages = history + [{"role": "user", "content": selected_text}]
         req_path = output / "requests" / f"append-{append_index:04d}.json"
         raw_path = output / "raw" / f"append-{append_index:04d}.sse"
         payload = {"model": MODEL, "messages": messages, "max_tokens": 1,
                    "temperature": 0, "seed": 42, "stream": True,
                    "stream_options": {"include_usage": True},
-                   "chat_template_kwargs": {"enable_thinking": False}}
+                   "chat_template_kwargs": {"enable_thinking": enable_thinking}}
+        payload["reasoning_effort"] = "none" if reasoning_mode == "off" else reasoning_mode
         request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
         if append_reference is not None:
             reference = append_reference / "requests" / req_path.name
@@ -483,7 +566,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                 raise RuntimeError(f"frozen append reference missing: {reference}")
         _write_unique(req_path, request_bytes)
         start = time.monotonic()
-        response = _append_request(final, endpoint, key, messages, 1, raw_path)
+        response = _append_request(final, endpoint, key, payload, raw_path)
         elapsed = time.monotonic() - start
         usage = response.get("usage", {})
         prompt_n = int(usage.get("prompt_tokens", rendered_tokens))
@@ -493,8 +576,11 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         if (fresh < 0 or fresh > 4096 or actual_prefill > 4096 or
                 prompt_n + output_n > reserve_limit):
             raise RuntimeError(f"append violates fresh/context bound: frontier={fresh}, prefill={actual_prefill}, {prompt_n}+{output_n}")
-        history = messages if tail_bridge else messages + [{
-            "role": "assistant", "content": response.get("content", "")}]
+        assistant_message = {"role": "assistant", "content": response.get("content", "")}
+        reasoning_text = response.get("reasoning_content", "")
+        if reasoning_text:
+            assistant_message["reasoning_content"] = reasoning_text
+        history = messages + [assistant_message]
         # Occupancy is the server's prompt/KV frontier. A one-token append
         # response is recorded in the conversation but is not necessarily
         # installed in the resumable KV snapshot (EOS/length boundary).
@@ -517,11 +603,6 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         selected_range = dict(source_range)
         selected_range.update({"append_index": append_index,
             "selected_text_sha256": rec["source_text_sha256"], "fresh_tokens": fresh})
-        if tail_bridge:
-            selected_range = {"kind": "deterministic_tail_closure",
-                "assistant_content": "Done.", "replaces_completion_from_append": append_index - 1,
-                "append_index": append_index, "fresh_tokens": fresh}
-            rec["tail_bridge"] = True
         if "rendered_start_byte" in selected_range:
             selected_range["rendered_end_byte"] = selected_range["rendered_start_byte"] + len(selected_text.encode("utf-8"))
         source_manifest["selected_ranges"].append(selected_range)
@@ -529,9 +610,21 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         if occupied == target_tokens:
             break
         if occupied > target_tokens:
-            raise RuntimeError(f"exact C overshot: {occupied} > {target_tokens}")
-    if occupied != target_tokens:
-        raise RuntimeError(f"failed to reach exact occupancy: {occupied} != {target_tokens}")
+            if occupied - target_tokens <= 8:
+                break
+            raise RuntimeError(f"measured C overshot materially: {occupied} > {target_tokens}")
+    occupancy_delta = occupied - target_tokens
+    # The apply-template/tokenize preflight can differ from the live chat
+    # parser by a couple of boundary tokens. Preserve the server's measured
+    # occupancy and continue when that discrepancy is immaterial and the
+    # configured output/runtime reserve still fits; never label the requested
+    # frontier as the actual one.
+    if abs(occupancy_delta) > 8:
+        raise RuntimeError(
+            f"measured occupancy differs materially from target: {occupied} != {target_tokens}")
+    source_manifest["requested_target_tokens"] = target_tokens
+    source_manifest["actual_occupancy_tokens"] = occupied
+    source_manifest["occupancy_delta_tokens"] = occupancy_delta
     base_file = f"base-{fingerprint[:16]}.bin"
     status, saved = _post(endpoint, key, "/slots/0?action=save",
                           {"filename": base_file, "format": "resume"})
@@ -540,8 +633,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     base_path = SLOT_STATE / base_file
     if not base_path.is_file():
         raise RuntimeError("server did not create the frozen base snapshot")
-    if saved.get("n_saved") != target_tokens:
-        raise RuntimeError(f"snapshot occupancy mismatch: {saved.get('n_saved')} != {target_tokens}")
+    if saved.get("n_saved") != occupied:
+        raise RuntimeError(f"snapshot occupancy mismatch: {saved.get('n_saved')} != {occupied}")
     base_hash = hashlib.sha256(base_path.read_bytes()).hexdigest()
     # Round trip before the canonical suite. This verifies the server restore
     # path and token frontier; later request-local MTP counters remain evidence.
@@ -554,8 +647,12 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
     (output / "base-messages.json").write_text(
         json.dumps(history, ensure_ascii=False, indent=2) + "\n")
-    return history, {"fingerprint": fingerprint, "occupied_tokens": occupied, "base_file": str(base_path),
+    return history, {"fingerprint": fingerprint, "requested_target_tokens": target_tokens,
+                     "occupied_tokens": occupied, "occupancy_delta_tokens": occupancy_delta,
+                     "base_file": str(base_path),
                      "base_sha256": base_hash, "save": saved, "restore": restored,
+                     "fill_enable_thinking": enable_thinking,
+                     "fill_reasoning_mode": reasoning_mode,
                      "source_manifest_sha256": hashlib.sha256(
                          (output / "source-manifest.json").read_bytes()).hexdigest()}
 
@@ -570,7 +667,8 @@ def _existing_complete(output: pathlib.Path, fingerprint: str) -> dict[int, dict
             row = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if (row.get("fingerprint") == fingerprint and row.get("status") == "pass" and
+        if (row.get("fingerprint") == fingerprint and
+                row.get("status") in {"pass", "runtime_fault_reproduced_skipped"} and
                 row.get("request_path") and row.get("raw_path") and
                 pathlib.Path(row["request_path"]).is_file() and
                 pathlib.Path(row["raw_path"]).is_file() and
@@ -581,7 +679,13 @@ def _existing_complete(output: pathlib.Path, fingerprint: str) -> dict[int, dict
 
 
 def main() -> int:
+    global SERVER_BIN, SOURCE_WORKTREE, SLOT_STATE, MODEL
     args = parse_args()
+    SERVER_BIN = args.server_binary.resolve()
+    SOURCE_WORKTREE = args.source_worktree.resolve()
+    SLOT_STATE = args.slot_state.resolve()
+    MODEL = args.model_alias
+    mtp_enabled = args.mtp == "on"
     try:
         geometry = row_geometry(args.context_tokens, args.target_tokens, args.placement)
     except ValueError as error:
@@ -591,12 +695,27 @@ def main() -> int:
     key = key_from(args.api_key_file)
     final = load_final_curve()
     endpoint = args.endpoint.rstrip("/")
+    selected_modes = tuple(args.reasoning_modes)
+    # For the legacy single-mode cells, preserve their exact fill-template
+    # identity. When a series includes multiple reasoning modes, use one fixed
+    # reasoning-off fill for the repository turns, then restore that same base
+    # for every canonical prompt/mode. This avoids repeating a large fill for
+    # each mode while keeping existing single-mode measurements unchanged.
+    fill_mode = selected_modes[0] if len(selected_modes) == 1 else "off"
+    fill_thinking = False
+    fill_options = request_options(chat_template_kwargs={"enable_thinking": fill_thinking})
+    fill_options["reasoning_effort"] = "none" if fill_mode == "off" else fill_mode
     renderer = ServerPromptRenderer(endpoint, MODEL, key,
-        request_options=request_options(chat_template_kwargs={"enable_thinking": False}))
+        request_options=fill_options)
     if args.startup_log is None or not args.startup_log.is_file():
         raise SystemExit("--startup-log with the captured server startup is required")
-    live = capture_live_identity(argv_for_row(args.context_tokens, args.placement),
-                                 args.startup_log)
+    expected_argv = argv_for_row(args.context_tokens, args.placement,
+        mtp=mtp_enabled, pager=args.pager, hot_pages=args.hot_pages,
+        draft_device=args.draft_device, server_bin=SERVER_BIN,
+        slot_state=SLOT_STATE, model_alias=MODEL)
+    live = capture_live_identity(expected_argv, args.startup_log,
+        mtp_enabled=mtp_enabled, placement=args.placement,
+        pager=args.pager, hot_pages=args.hot_pages)
     captures = output / "runtime-captures"
     captures.mkdir(parents=True, exist_ok=True)
     capture_path = captures / f"runtime-{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}.json"
@@ -609,8 +728,12 @@ def main() -> int:
     _write_unique(capture_path, json.dumps(capture, indent=2).encode())
     source_identity = repo_context.git_identity(root=SOURCE_WORKTREE)
     source_inventory = repo_context.tracked_inventory(root=SOURCE_WORKTREE)
-    identity = {"geometry": geometry, "argv": argv_for_row(args.context_tokens, args.placement),
+    identity = {"geometry": geometry, "argv": expected_argv,
                 "live_runtime": live,
+                "mtp_enabled": mtp_enabled, "pager": args.pager,
+                "fill_enable_thinking": fill_thinking,
+                "fill_reasoning_mode": fill_mode,
+                "hot_pages": args.hot_pages,
                 "model_sha256": hashlib.sha256(pathlib.Path("/srv/ai/models/text/current.gguf").read_bytes()).hexdigest(),
                 "template_id": renderer.template_id, "repo_context_git": source_identity,
                 "repo_context_inventory": [{"path": item.path, "sha256": item.sha256,
@@ -622,10 +745,21 @@ def main() -> int:
     except ValueError as error:
         raise SystemExit(str(error))
     completed = _existing_complete(output, fingerprint) if args.resume else {}
+    reproducible_failures: dict[int, dict[str, Any]] = {}
+    records_path = output / "records.jsonl"
+    if records_path.exists():
+        for line in records_path.read_text(encoding="utf-8").splitlines():
+            try:
+                previous = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (previous.get("fingerprint") == fingerprint and
+                    previous.get("status") == "runtime_fault"):
+                reproducible_failures[int(previous["case_index"])] = previous
     if geometry["target_tokens"] is not None and not (output / "base.json").exists():
         history, base = fill_context(final, renderer, endpoint, key, output,
             args.context_tokens, args.target_tokens, fingerprint, args.append_reference,
-            args.preserve_prefix_tokens)
+            args.preserve_prefix_tokens, fill_mode)
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
     elif (output / "base.json").exists():
         base = json.loads((output / "base.json").read_text())
@@ -645,7 +779,9 @@ def main() -> int:
                                    allow_suffix=args.context_tokens == 131072)
         except ValueError as error:
             raise SystemExit(f"source replay refused: {error}")
-    cases = canonical_schedule()
+    selected_prompts = tuple(args.prompt_indices)
+    cases = ([] if args.prefill_only else
+             canonical_schedule(selected_modes, selected_prompts))
     schedule_path = output / "canonical-schedule.json"
     if not schedule_path.exists():
         schedule_path.write_text(json.dumps(cases, indent=2, ensure_ascii=False) + "\n")
@@ -655,11 +791,14 @@ def main() -> int:
     for case in cases:
         messages = ([{"role": "user", "content": case["prompt"]}]
                     if geometry["target_tokens"] is None else
-                    history + [{"role": "user", "content": case["prompt"]}])
+                    canonical_context_messages(history, case["prompt"]))
         payload = canonical_payload(case, messages)
+        renderer_options = request_options(chat_template_kwargs={
+            "enable_thinking": case["reasoning"] != "off"})
+        renderer_options["reasoning_effort"] = (
+            "none" if case["reasoning"] == "off" else case["reasoning"])
         renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
-            request_options=request_options(chat_template_kwargs={
-                "enable_thinking": case["reasoning"] != "off"}))
+            request_options=renderer_options)
         rendered = len(renderer_mode(messages).token_ids)
         reserve = args.context_tokens - rendered - int(case["max_tokens"]) - MTP_REPLAY_TOKENS
         if reserve < SAFETY_TOKENS:
@@ -673,6 +812,18 @@ def main() -> int:
         prepared[case["case_index"]] = (payload, rendered)
     for case in cases:
         if case["case_index"] in completed:
+            continue
+        if case["case_index"] in args.skip_runtime_fault_case:
+            previous = reproducible_failures.get(case["case_index"])
+            if previous is None:
+                raise RuntimeError(
+                    f"refusing to skip case {case['case_index']}: no recorded runtime failure")
+            skipped = {**previous,
+                       "status": "runtime_fault_reproduced_skipped",
+                       "skip_reason": "operator confirmed same runtime fault in an independent clean session",
+                       "included_in_performance_medians": False}
+            completed[case["case_index"]] = skipped
+            append_jsonl(output / "records.jsonl", skipped)
             continue
         if geometry["target_tokens"] is None:
             cleared = final.clear_slot(endpoint, key, 0, 180)
@@ -688,7 +839,7 @@ def main() -> int:
             if (restore_status != 200 or
                     restored.get("n_restored") != int(base["occupied_tokens"])):
                 raise RuntimeError(f"canonical snapshot restore failed: {restored}")
-            messages = history + [{"role": "user", "content": case["prompt"]}]
+            messages = canonical_context_messages(history, case["prompt"])
         payload, rendered = prepared[case["case_index"]]
         attempt = sum(1 for p in (output / "requests").glob(f"case-{case['case_index']:02d}-*.json"))
         suffix = f"{attempt:02d}"
@@ -704,7 +855,7 @@ def main() -> int:
             total_timeout=1800)
         elapsed = time.monotonic() - start
         after = final.snapshot(endpoint, key)
-        observation = final._mtp_observation(before, after, feature_off=False)
+        observation = final._mtp_observation(before, after, feature_off=not mtp_enabled)
         usage = response.get("usage", {})
         timings = response.get("timings", {})
         prompt_timing = timings.get("prompt_per_second")
@@ -736,7 +887,8 @@ def main() -> int:
         if rec["status"] != "pass":
             raise RuntimeError(f"canonical row failed; evidence retained: {rec}")
         completed[case["case_index"]] = rec
-    measured = [r for r in completed.values() if r.get("kind") == "measured"]
+    measured = [r for r in completed.values()
+                if r.get("kind") == "measured" and r.get("status") == "pass"]
     def table(metric):
         return {mode: {str(i): statistics.median([
                     r[metric] for r in measured
@@ -754,11 +906,31 @@ def main() -> int:
                 continue
             if isinstance(fill_rec.get("fresh_prefill_tok_s"), (int, float)):
                 fill_rates.append(fill_rec["fresh_prefill_tok_s"])
+    repeat_counts = {mode: {str(i): sum(
+        r.get("reasoning") == mode and r.get("prompt_index") == i
+        for r in measured) for i in range(len(PROMPTS))} for mode in MODES}
+    failed = [r for r in completed.values() if r.get("status") != "pass"]
     summary = {"geometry": geometry, "fingerprint": fingerprint,
-               "case_count": len(completed), "warmup_count": sum(r["kind"] == "warmup" for r in completed.values()),
-               "measured_count": len(measured), "base": base,
+               "case_count": len(completed),
+               "expected_case_count": len(cases),
+               "successful_case_count": sum(r.get("status") == "pass" for r in completed.values()),
+               "warmup_count": sum(r["kind"] == "warmup" and r.get("status") == "pass" for r in completed.values()),
+               "measured_count": len(measured),
+               "expected_measured_count": sum(r["kind"] == "measured" for r in cases),
+               "valid_repeat_counts": repeat_counts,
+               "mtp_state": "on" if mtp_enabled else "off",
+               "mtp_acceptance_scope": ("measured per request; see medians" if mtp_enabled
+                                         else "disabled; zero is not an acceptance result"),
+               "reasoning_modes": list(selected_modes),
+               "prompt_indices": list(selected_prompts),
+               "prefill_only": args.prefill_only,
+               "failed_cases": [{"case_index": r.get("case_index"),
+                                 "status": r.get("status"), "error": r.get("error"),
+                                 "skip_reason": r.get("skip_reason")}
+                                for r in failed],
+               "base": base,
                "decode_tok_s_medians": table("decode_tok_s"),
-               "mtp_acceptance_percent_medians": {mode: {str(i): statistics.median([
+               "mtp_acceptance_percent_medians": ({mode: {str(i): statistics.median([
                    r["mtp"]["acceptance_percent"] for r in measured
                    if r.get("reasoning") == mode and r.get("prompt_index") == i
                    and isinstance(r.get("mtp"), Mapping)
@@ -767,7 +939,7 @@ def main() -> int:
                           and isinstance(r.get("mtp"), Mapping)
                           and isinstance(r["mtp"].get("acceptance_percent"), (int, float))
                           for r in measured) else None for i in range(len(PROMPTS))}
-                   for mode in MODES},
+                   for mode in MODES} if mtp_enabled else None),
                "fresh_prefill_tok_s_median": statistics.median(fill_rates) if fill_rates else None,
                "fresh_prefill_tok_s_medians": table("fresh_prefill_tok_s"),
                "incremental_fill_curve": fill_rates,
