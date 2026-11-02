@@ -170,15 +170,16 @@ def main() -> int:
             raise RuntimeError(f"unrelated GPU compute process(es) present before cell: {apps}")
 
         args.slot_state.mkdir(parents=True, exist_ok=True)
-        argv = matrix.argv_for_row(
-            args.context_tokens, args.placement, mtp=args.mtp == "on",
-            pager=args.pager, hot_pages=args.hot_pages,
-            draft_device=args.draft_device,
-            server_bin=args.server_binary.resolve(), slot_state=args.slot_state.resolve(),
-            model_alias=args.model_alias)
         help_result = subprocess.run([str(args.server_binary), "--help"],
                                      capture_output=True, text=True, timeout=60)
         help_text = help_result.stdout + help_result.stderr
+        effective_pager = matrix.resolve_pager_mode(args.pager, help_text)
+        argv = matrix.argv_for_row(
+            args.context_tokens, args.placement, mtp=args.mtp == "on",
+            pager=effective_pager, hot_pages=args.hot_pages,
+            draft_device=args.draft_device,
+            server_bin=args.server_binary.resolve(), slot_state=args.slot_state.resolve(),
+            model_alias=args.model_alias)
         options = [argv[i] for i in range(1, len(argv)) if argv[i].startswith("--")]
         missing = [option for option in options if option not in help_text]
         if missing:
@@ -188,7 +189,8 @@ def main() -> int:
                        "server_binary_sha256": hashlib.sha256(args.server_binary.read_bytes()).hexdigest(),
                        "source_worktree": str(args.source_worktree.resolve()),
                        "context_tokens": args.context_tokens, "target_tokens": args.target_tokens,
-                       "placement": args.placement, "mtp": args.mtp, "pager": args.pager,
+                       "placement": args.placement, "mtp": args.mtp,
+                       "pager": effective_pager, "pager_requested": args.pager,
                        "hot_pages": args.hot_pages})
         with startup_log.open("wb") as log:
             proc = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
@@ -209,7 +211,7 @@ def main() -> int:
         command = [sys.executable, str(MATRIX_PATH),
             "--context-tokens", str(args.context_tokens),
             "--target-tokens", str(args.target_tokens), "--placement", args.placement,
-            "--mtp", args.mtp, "--pager", args.pager,
+            "--mtp", args.mtp, "--pager", effective_pager,
             "--server-binary", str(args.server_binary.resolve()),
             "--source-worktree", str(args.source_worktree.resolve()),
             "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,

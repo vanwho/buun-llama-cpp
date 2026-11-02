@@ -17,6 +17,15 @@ SPEC.loader.exec_module(matrix)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_pager_off_adapts_to_upstream_without_pager_cli(self) -> None:
+        upstream_help = "--ctx-size N --no-kv-offload"
+        fork_help = "--ctx-size N --kv-pager off|selective"
+        self.assertEqual(matrix.resolve_pager_mode("off", upstream_help), "none")
+        self.assertEqual(matrix.resolve_pager_mode("none", upstream_help), "none")
+        self.assertEqual(matrix.resolve_pager_mode("off", fork_help), "off")
+        with self.assertRaisesRegex(RuntimeError, "does not support requested selective"):
+            matrix.resolve_pager_mode("selective", upstream_help)
+
     def test_exact_48_case_schedule(self) -> None:
         cases = matrix.canonical_schedule()
         self.assertEqual(len(cases), 48)
@@ -34,14 +43,17 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertIn("turbo4", gpu)
         self.assertNotIn("--no-kv-offload", gpu)
         self.assertIn("--no-kv-offload", cpu)
-        self.assertEqual(cpu[cpu.index("-ctk") + 1], "f16")
-        self.assertEqual(cpu[cpu.index("-ctv") + 1], "f16")
+        self.assertEqual(cpu[cpu.index("-ctk") + 1], "q4_0")
+        self.assertEqual(cpu[cpu.index("-ctv") + 1], "q4_0")
         for argv in (gpu, cpu):
             self.assertEqual(argv[argv.index("--spec-draft-type-k") + 1], "turbo4")
             self.assertEqual(argv[argv.index("--spec-draft-type-v") + 1], "turbo4")
             self.assertFalse(any("pager" in item for item in argv))
-        with self.assertRaises(ValueError):
-            matrix.row_geometry(131072, 126976, "gpu")
+        self.assertEqual(matrix.row_geometry(131072, 126976, "gpu"),
+                         {"context_tokens": 131072, "target_tokens": 126976,
+                          "placement": "gpu"})
+        with self.assertRaisesRegex(ValueError, "reserve"):
+            matrix.row_geometry(131072, 130000, "gpu")
 
     def test_resume_fingerprint_refuses_changes_and_never_overwrites(self) -> None:
         identity = {"geometry": {"context_tokens": 8192, "target_tokens": 6144},

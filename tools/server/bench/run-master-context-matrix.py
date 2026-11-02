@@ -119,6 +119,24 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
     return argv
 
 
+def resolve_pager_mode(requested: str, help_text: str) -> str:
+    """Use the binary's real pager capability for an explicitly disabled pager.
+
+    Upstream builds do not expose ``--kv-pager``. A caller may still label a
+    control row ``off``; when the option is unavailable, the only truthful
+    effective mode is ``none`` (ordinary non-pager KV). Selective paging must
+    never silently fall back.
+    """
+    if requested not in {"none", "off", "selective"}:
+        raise ValueError("pager must be none, off, or selective")
+    supports_pager = "--kv-pager" in help_text
+    if supports_pager:
+        return requested
+    if requested in {"none", "off"}:
+        return "none"
+    raise RuntimeError("candidate binary does not support requested selective pager mode")
+
+
 def canonical_schedule(modes: tuple[str, ...] = MODES,
                       prompt_indices: tuple[int, ...] = (0, 1, 2)) -> list[dict[str, Any]]:
     cases = []
