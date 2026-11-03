@@ -28,6 +28,7 @@ PROMPTS = (
 )
 MODES = ("off", "low", "medium", "xhigh")
 SLOT_SNAPSHOT_TIMEOUT = 1800
+CANONICAL_REQUEST_TIMEOUT = 600
 SAFETY_TOKENS = 1536
 MTP_REPLAY_TOKENS = 3
 MAX_FRESH_FILL_TOKENS = 4096
@@ -102,7 +103,7 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
         raise ValueError("draft device cannot be set when MTP is disabled")
     argv = [str(server_bin), "-m", "/srv/ai/models/text/current.gguf", "--alias", model_alias,
             "-ngl", "999", "--device", "CUDA0", "--fit", "off", "-fa", "on",
-            "-c", str(context_tokens), "-np", "1"]
+            "-c", str(context_tokens), "-np", "1", "-t", "16", "-tb", "16"]
     # ACO's selective pager owns GPU hot residency and host backing. It must
     # use the Turbo4 cache representation end-to-end; the ordinary CPU-Q4
     # control below is not a valid pager candidate (the runtime rejects that
@@ -116,9 +117,8 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
     argv.extend(("-b", "1024", "-ub", "256", "--poll", "0", "--host", "0.0.0.0",
                  "--port", "8080", "--api-key-file", "/srv/ai/config/llama/api-keys",
                  "--metrics", "--reasoning-preserve", "--no-context-shift",
-                 "--cache-ram", "12288", "--ctx-checkpoints", "8",
-                 "--checkpoint-min-step", "8192", "--slot-save-path", str(slot_state),
-                 "--cache-idle-slots", "--kv-unified"))
+                 "--ctx-checkpoints", "0", "--cache-ram", "0",
+                 "--slot-save-path", str(slot_state), "--no-cache-idle-slots"))
     if pager != "none":
         argv.extend(("--kv-pager", pager))
         if pager == "selective":
@@ -355,6 +355,8 @@ def parse_args() -> argparse.Namespace:
                         default=pathlib.Path(os.environ["MASTER106_STARTUP_LOG"])
                         if os.environ.get("MASTER106_STARTUP_LOG") else None)
     parser.add_argument("--source-manifest", type=pathlib.Path)
+    parser.add_argument("--continue-from", type=pathlib.Path,
+                        help="append only unseen repo bytes after restoring the prior completed checkpoint")
     parser.add_argument("--append-reference", type=pathlib.Path)
     parser.add_argument("--request-reference", type=pathlib.Path)
     parser.add_argument("--preserve-prefix-tokens", type=int)
@@ -559,35 +561,114 @@ def validate_fill_bounds(fresh_tokens: int, prompt_tokens: int,
         )
 
 
+def validate_cached_prefix(expected_tokens: int, cached_tokens: Any,
+                           *, label: str, tolerance: int = 8) -> None:
+    """Refuse a benchmark request that re-prefills its already-loaded history."""
+    if expected_tokens <= tolerance:
+        return
+    if (isinstance(cached_tokens, bool) or
+            not isinstance(cached_tokens, (int, float)) or
+            cached_tokens < expected_tokens - tolerance):
+        raise RuntimeError(
+            f"{label} did not reuse the loaded context prefix: "
+            f"cached={cached_tokens!r}, expected>={expected_tokens - tolerance} "
+            f"of {expected_tokens} tokens"
+        )
+
+
+def remaining_source_chunks(chunks: list[Any],
+                           selected_ranges: list[Mapping[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
+    """Return only repository bytes not already ingested by an earlier checkpoint."""
+    by_source: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    for row in selected_ranges:
+        if row.get("kind") != "tracked_source":
+            continue
+        key = (str(row.get("path")), str(row.get("sha256")))
+        by_source.setdefault(key, []).append(row)
+
+    remaining: list[tuple[str, dict[str, Any]]] = []
+    for chunk in chunks:
+        key = (chunk.path, chunk.sha256)
+        raw = repo_context.render_chunk(chunk).encode("utf-8")
+        cursor = 0
+        ranges = sorted(by_source.get(key, []),
+                        key=lambda row: int(row.get("rendered_start_byte", -1)))
+        for row in ranges:
+            start = row.get("rendered_start_byte")
+            end = row.get("rendered_end_byte")
+            if (not isinstance(start, int) or not isinstance(end, int) or
+                    start != cursor or end <= start or end > len(raw)):
+                raise RuntimeError(
+                    f"saved source cursor is not contiguous for {chunk.path}: "
+                    f"expected start={cursor}, got [{start}, {end})"
+                )
+            cursor = end
+        if cursor < len(raw):
+            try:
+                text = raw[cursor:].decode("utf-8")
+            except UnicodeDecodeError as error:
+                raise RuntimeError(f"saved source cursor splits UTF-8 in {chunk.path}") from error
+            remaining.append((text, {
+                "kind": "tracked_source", "path": chunk.path, "sha256": chunk.sha256,
+                "rendered_start_byte": cursor, "rendered_end_byte": len(raw),
+                "source_start_byte": chunk.start_byte, "source_end_byte": chunk.end_byte,
+            }))
+    return remaining
+
+
 def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  output: pathlib.Path, context_tokens: int, target_tokens: int,
                  fingerprint: str, append_reference: pathlib.Path | None = None,
                  preserve_prefix_tokens: int | None = None,
                  reasoning_mode: str = "off",
-                 reuse_filled_prefix: bool = False) -> tuple[list[dict[str, str]], dict[str, Any]]:
+                 reuse_filled_prefix: bool = False,
+                 initial_history: list[dict[str, str]] | None = None,
+                 initial_manifest: Mapping[str, Any] | None = None,
+                 initial_occupied: int = 0) -> tuple[list[dict[str, str]], dict[str, Any]]:
     # The measured context is filled only with tracked repository source.
     # A/B/A retrieval fixtures belong to a separate promotion campaign and
     # would contaminate this fresh-content prefill workload.
     seed: list[dict[str, str]] = []
     inventory = repo_context.tracked_inventory(root=SOURCE_WORKTREE)
     chunks = repo_context.source_chunks(inventory)
-    cleared = final.clear_slot(endpoint, key, 0, 180)
-    if not cleared.get("ok"):
-        raise RuntimeError(f"filled-row initial slot erase failed: {cleared}")
-    source_manifest = {"git_identity": repo_context.git_identity(root=SOURCE_WORKTREE),
-                       "fixture_sha256": None,
-                       "inventory": [{"path": f.path, "sha256": f.sha256,
-                                      "byte_length": f.byte_length} for f in inventory],
-                       "source_schedule": repo_context.selection_record(chunks),
-                       "selected_ranges": []}
+    current_git_identity = repo_context.git_identity(root=SOURCE_WORKTREE)
+    current_inventory = [{"path": f.path, "sha256": f.sha256,
+                          "byte_length": f.byte_length} for f in inventory]
+    current_schedule = repo_context.selection_record(chunks)
+    if initial_manifest is None:
+        cleared = final.clear_slot(endpoint, key, 0, 180)
+        if not cleared.get("ok"):
+            raise RuntimeError(f"filled-row initial slot erase failed: {cleared}")
+        source_manifest = {"git_identity": current_git_identity,
+                           "fixture_sha256": None,
+                           "inventory": current_inventory,
+                           "source_schedule": current_schedule,
+                           "selected_ranges": []}
+        history: list[dict[str, str]] = []
+        occupied = 0
+        source_texts = [(repo_context.render_chunk(chunk), {
+            "kind": "tracked_source", "path": chunk.path, "sha256": chunk.sha256,
+            "rendered_start_byte": 0,
+            "rendered_end_byte": len(repo_context.render_chunk(chunk).encode("utf-8")),
+            "source_start_byte": chunk.start_byte, "source_end_byte": chunk.end_byte,
+        }) for chunk in chunks]
+    else:
+        source_manifest = json.loads(json.dumps(initial_manifest))
+        if (source_manifest.get("git_identity") != current_git_identity or
+                source_manifest.get("inventory") != current_inventory or
+                source_manifest.get("source_schedule") != current_schedule):
+            raise RuntimeError("continuation source identity/inventory changed")
+        if source_manifest.get("actual_occupancy_tokens") != initial_occupied:
+            raise RuntimeError("continuation source occupancy does not match saved frontier")
+        if initial_history is None or initial_occupied <= 0:
+            raise RuntimeError("continuation requires a nonempty saved history/frontier")
+        history = list(initial_history)
+        occupied = initial_occupied
+        source_texts = remaining_source_chunks(chunks, source_manifest.get("selected_ranges", []))
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
-    history: list[dict[str, str]] = []
-    occupied = 0
-    existing_append_indices = []
-    for item in (output / "requests").glob("append-*.json"):
-        match = re.fullmatch(r"append-(\d+)\.json", item.name)
-        if match:
-            existing_append_indices.append(int(match.group(1)))
+    existing_append_indices = [row.get("append_index", -1)
+                               for row in source_manifest.get("selected_ranges", [])
+                               if isinstance(row.get("append_index"), int)]
     append_index = max(existing_append_indices, default=-1) + 1
     planned = []
     # Preserve the full assistant content and reasoning in history. Replaying
@@ -595,15 +676,6 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     # saved prefix on the next source chunk and on canonical prompts.
     enable_thinking = reasoning_mode != "off"
     parts = list(seed)
-    source_texts = []
-    for chunk in chunks:
-        rendered_chunk = repo_context.render_chunk(chunk)
-        source_texts.append((rendered_chunk, {
-            "kind": "tracked_source", "path": chunk.path, "sha256": chunk.sha256,
-            "rendered_start_byte": 0,
-            "rendered_end_byte": len(rendered_chunk.encode("utf-8")),
-            "source_start_byte": chunk.start_byte, "source_end_byte": chunk.end_byte,
-        }))
     while occupied < target_tokens:
         if 0 < target_tokens - occupied <= 8:
             break
@@ -662,9 +734,14 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         start = time.monotonic()
         response = _append_request(final, endpoint, key, payload, raw_path)
         elapsed = time.monotonic() - start
+        prior_occupied = occupied
         usage = response.get("usage", {})
         prompt_n = int(usage.get("prompt_tokens", rendered_tokens))
         output_n = int(usage.get("completion_tokens", 0))
+        cache_n = usage.get("prompt_tokens_details", {}).get("cached_tokens")
+        if not isinstance(cache_n, (int, float)):
+            cache_n = response.get("timings", {}).get("cache_n")
+        validate_cached_prefix(occupied, cache_n, label=f"fill append {append_index}")
         fresh = prompt_n - occupied
         validate_fill_bounds(fresh, prompt_n, output_n, reserve_limit)
         assistant_message = {"role": "assistant", "content": response.get("content", "")}
@@ -680,9 +757,10 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             fresh, response.get("timings", {}), elapsed)
         rec = {"append_index": append_index, "source_text_sha256": hashlib.sha256(
                    selected_text.encode()).hexdigest(), "fresh_tokens": fresh,
+               "prior_occupied_tokens": prior_occupied,
                "cumulative_tokens": occupied, "elapsed_seconds": elapsed,
                **fill_rates,
-               "cache_n": response.get("timings", {}).get("cache_n"),
+               "cache_n": cache_n,
                "prompt_n": response.get("timings", {}).get("prompt_n"),
                "timings": response.get("timings", {}),
                "prompt_tokens": prompt_n, "completion_tokens": output_n,
@@ -865,12 +943,58 @@ def main() -> int:
             if (previous.get("fingerprint") == fingerprint and
                     previous.get("status") == "runtime_fault"):
                 reproducible_failures[int(previous["case_index"])] = previous
+    continuation: dict[str, Any] | None = None
+    if args.continue_from is not None and not (args.resume and (output / "base.json").is_file()):
+        prior_output = args.continue_from.resolve()
+        prior_config = json.loads((prior_output / "run-config.json").read_text())
+        prior_identity = prior_config.get("identity")
+        if not isinstance(prior_identity, dict):
+            raise RuntimeError("continuation checkpoint has no frozen run identity")
+        comparable_prior = json.loads(json.dumps(prior_identity))
+        comparable_current = json.loads(json.dumps(identity))
+        comparable_prior.get("geometry", {}).pop("target_tokens", None)
+        comparable_current.get("geometry", {}).pop("target_tokens", None)
+        if comparable_prior != comparable_current:
+            raise RuntimeError("continuation refused: server/source/config identity changed")
+        prior_row = json.loads((prior_output / "row.json").read_text())
+        expected_cases = len(canonical_schedule(selected_modes, tuple(args.prompt_indices)))
+        if (prior_row.get("status") != "complete" or
+                prior_row.get("successful_case_count") != expected_cases or
+                prior_row.get("expected_case_count") != expected_cases):
+            raise RuntimeError("continuation refused: prior checkpoint prompt series is incomplete")
+        prior_base = json.loads((prior_output / "base.json").read_text())
+        prior_messages = json.loads((prior_output / "base-messages.json").read_text())
+        prior_manifest = json.loads((prior_output / "source-manifest.json").read_text())
+        if prior_base.get("reuse_method") == "resident_prefix_reuse":
+            saved_messages = (prior_output / "base-messages.json").read_bytes()
+            if hashlib.sha256(saved_messages).hexdigest() != prior_base.get("base_sha256"):
+                raise RuntimeError("continuation refused: resident prefix description hash changed")
+            # No disk snapshot is needed. cache_prompt truncates the prior
+            # canonical question/answer suffix back to this exact prefix; the
+            # next file chunk is then appended once and checked via cache_n.
+        else:
+            snapshot = pathlib.Path(prior_base.get("base_file", "")).resolve()
+            if (not snapshot.is_file() or snapshot.parent != SLOT_STATE.resolve() or
+                    hashlib.sha256(snapshot.read_bytes()).hexdigest() != prior_base.get("base_sha256")):
+                raise RuntimeError("continuation refused: frozen base snapshot is missing or has changed")
+            restore_status, restore_result = _post(endpoint, key, "/slots/0?action=restore",
+                {"filename": snapshot.name}, timeout=SLOT_SNAPSHOT_TIMEOUT)
+            if (restore_status != 200 or
+                    restore_result.get("n_restored") != prior_base.get("occupied_tokens")):
+                raise RuntimeError(f"continuation snapshot restore failed: {restore_result}")
+        continuation = {"history": prior_messages,
+                       "manifest": prior_manifest,
+                       "occupied": int(prior_base["occupied_tokens"])}
+
     if geometry["target_tokens"] is not None and (
             args.reuse_filled_prefix or not (output / "base.json").exists()):
         history, base = fill_context(final, renderer, endpoint, key, output,
             args.context_tokens, args.target_tokens, fingerprint, args.append_reference,
             args.preserve_prefix_tokens, fill_mode,
-            reuse_filled_prefix=args.reuse_filled_prefix)
+            reuse_filled_prefix=args.reuse_filled_prefix,
+            initial_history=(continuation["history"] if continuation else None),
+            initial_manifest=(continuation["manifest"] if continuation else None),
+            initial_occupied=(continuation["occupied"] if continuation else 0))
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
     elif (output / "base.json").exists():
         base = json.loads((output / "base.json").read_text())
@@ -982,25 +1106,54 @@ def main() -> int:
         start = time.monotonic()
         status, response, error = final._stream_completion(
             endpoint + "/v1/chat/completions", key, payload, raw_path,
-            # Long-context first-token latency is part of the measured result;
-            # keep it bounded by the 30-minute request budget, not a shorter
-            # idle timeout that turns slow valid work into a missing cell.
-            connect_timeout=10, prefill_idle_timeout=1800, decode_idle_timeout=1800,
-            total_timeout=1800)
+            # A query uses the resident base frontier and adds only its short
+            # prompt suffix. Ten minutes is generous for cold-page attention
+            # while preventing a broken full-history replay from tying up a
+            # GPU for 30 minutes without producing a token.
+            connect_timeout=10, prefill_idle_timeout=CANONICAL_REQUEST_TIMEOUT,
+            decode_idle_timeout=CANONICAL_REQUEST_TIMEOUT,
+            total_timeout=CANONICAL_REQUEST_TIMEOUT)
         elapsed = time.monotonic() - start
         after = final.snapshot(endpoint, key)
         observation = final._mtp_observation(before, after, feature_off=not mtp_enabled)
         usage = response.get("usage", {})
         timings = response.get("timings", {})
         usage_details = usage.get("prompt_tokens_details", {})
-        cached_tokens = usage_details.get("cached_tokens", timings.get("cache_n", 0))
+        cached_tokens = usage_details.get("cached_tokens")
+        if not isinstance(cached_tokens, (int, float)):
+            cached_tokens = timings.get("cache_n")
+        prefix_cache_error = None
+        if geometry["target_tokens"] is not None:
+            try:
+                validate_cached_prefix(
+                    int(base.get("occupied_tokens", geometry["target_tokens"])),
+                    cached_tokens,
+                    label=f"canonical case {case['case_index']}",
+                )
+            except RuntimeError as error:
+                prefix_cache_error = str(error)
         fresh_timed = max(0, int(usage.get("prompt_tokens", rendered)) -
                           int(cached_tokens or 0))
         rates = prefill_measurements(fresh_timed, timings, elapsed)
         complete_sse = b"data: [DONE]" in raw_path.read_bytes()
+        mtp_result = observation.get("mtp")
+        mtp_not_measured = (mtp_enabled and
+                            (not isinstance(mtp_result, Mapping) or
+                             mtp_result.get("status") != "measured"))
+        row_status = ("prefix_cache_miss" if prefix_cache_error else
+                      "mtp_unmeasured" if mtp_not_measured else
+                      "pass" if status == 200 and error is None and usage and complete_sse
+                      else "runtime_fault")
         rec = {**case, "fingerprint": fingerprint,
-               "status": "pass" if status == 200 and error is None and usage and complete_sse else "runtime_fault",
+               "status": row_status,
                "http_status": status, "error": error, "stream_complete": complete_sse,
+               "prefix_cache_error": prefix_cache_error,
+               "mtp_observation_error": (mtp_result.get("reason")
+                                          if mtp_not_measured and isinstance(mtp_result, Mapping)
+                                          else "MTP telemetry missing" if mtp_not_measured
+                                          else None),
+               "cached_prompt_tokens": cached_tokens,
+               "base_occupied_tokens": base.get("occupied_tokens"),
                "prompt_tokens": usage.get("prompt_tokens", rendered),
                "prompt_tokens_estimate": rendered,
                "completion_tokens": usage.get("completion_tokens"),
@@ -1041,7 +1194,10 @@ def main() -> int:
         r.get("reasoning") == mode and r.get("prompt_index") == i
         for r in measured) for i in range(len(PROMPTS))} for mode in MODES}
     failed = [r for r in completed.values() if r.get("status") != "pass"]
-    summary = {"geometry": geometry, "fingerprint": fingerprint,
+    summary = {"status": ("complete" if len(completed) == len(cases) and
+                           all(r.get("status") == "pass" for r in completed.values())
+                           else "incomplete"),
+               "geometry": geometry, "fingerprint": fingerprint,
                "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
                                          else "disk_snapshot_restore"),
                "case_count": len(completed),

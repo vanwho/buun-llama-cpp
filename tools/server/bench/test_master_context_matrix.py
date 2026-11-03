@@ -8,12 +8,12 @@ import json
 import tempfile
 import unittest
 
-
 MODULE_PATH = pathlib.Path(__file__).with_name("run-master-context-matrix.py")
 SPEC = importlib.util.spec_from_file_location("master_context_matrix", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 matrix = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(matrix)
+import repo_context  # noqa: E402
 
 
 class MasterContextMatrixTests(unittest.TestCase):
@@ -104,6 +104,44 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertNotIn("--no-kv-offload", argv)
         self.assertEqual(argv[argv.index("--kv-hot-pages") + 1], "256")
         self.assertEqual(argv[argv.index("--spec-draft-kv-device") + 1], "gpu")
+
+    def test_benchmark_launch_pins_parallelism_and_known_clean_cache_profile(self) -> None:
+        argv = matrix.argv_for_row(262144, "cpu", pager="selective", hot_pages=256,
+                                   mtp=True, draft_device="gpu")
+        for option, expected in (("-t", "16"), ("-tb", "16"), ("-b", "1024"),
+                                 ("-ub", "256"), ("-c", "262144"),
+                                 ("--cache-ram", "0"), ("--ctx-checkpoints", "0")):
+            self.assertEqual(argv[argv.index(option) + 1], expected, option)
+        self.assertIn("--slot-save-path", argv)
+        self.assertIn("--no-cache-idle-slots", argv)
+        self.assertNotIn("--cache-idle-slots", argv)
+        self.assertEqual(argv[argv.index("--kv-router") + 1], "probe-rerank")
+        self.assertEqual(argv[argv.index("--spec-draft-kv-device") + 1], "gpu")
+
+    def test_cached_prefix_gate_rejects_reprefill_before_scoring_speed(self) -> None:
+        matrix.validate_cached_prefix(200000, 199996, label="test", tolerance=8)
+        for cached in (None, 0, 100000):
+            with self.subTest(cached=cached):
+                with self.assertRaisesRegex(RuntimeError, "did not reuse"):
+                    matrix.validate_cached_prefix(200000, cached, label="test", tolerance=8)
+
+    def test_series_continuation_uses_only_unseen_repository_bytes(self) -> None:
+        text = "first line\nsecond line\nthird line\n"
+        chunk = repo_context.CorpusChunk("src/example.cpp", "a" * 64,
+            len(text.encode()), 1, 3, text, 0, len(text.encode()))
+        rendered = repo_context.render_chunk(chunk).encode("utf-8")
+        cut = len(rendered) // 2
+        while cut < len(rendered) and (rendered[cut] & 0xC0) == 0x80:
+            cut += 1
+        ranges = [{"kind": "tracked_source", "path": chunk.path,
+                   "sha256": chunk.sha256, "rendered_start_byte": 0,
+                   "rendered_end_byte": cut}]
+        remaining = matrix.remaining_source_chunks([chunk], ranges)
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0][0].encode("utf-8"), rendered[cut:])
+        with self.assertRaisesRegex(RuntimeError, "not contiguous"):
+            matrix.remaining_source_chunks([chunk], [{**ranges[0],
+                "rendered_start_byte": 1}])
 
     def test_resume_fingerprint_refuses_changes_and_never_overwrites(self) -> None:
         identity = {"geometry": {"context_tokens": 8192, "target_tokens": 6144},

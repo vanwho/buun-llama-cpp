@@ -73,17 +73,37 @@ def process_memory_kib(pid: int) -> dict[str, int]:
     path = pathlib.Path(f"/proc/{pid}/status")
     values = {}
     for line in path.read_text().splitlines():
-        if line.startswith(("VmRSS:", "VmHWM:", "VmSwap:")):
+        if line.startswith(("VmRSS:", "VmHWM:", "VmSwap:", "Threads:")):
             key, raw, _ = line.split()
             values[key.rstrip(":")] = int(raw)
     return values
 
 
+def process_cpu_ticks(pid: int) -> int:
+    """Return cumulative user+system CPU ticks for the benchmark server."""
+    stat = pathlib.Path(f"/proc/{pid}/stat").read_text()
+    fields = stat[stat.rfind(")") + 2:].split()
+    # The tail begins at field 3 (state); utime/stime are fields 14/15.
+    return int(fields[11]) + int(fields[12])
+
+
 def sample_resources(pid: int, output: pathlib.Path, stop: threading.Event) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
+    ticks_per_second = os.sysconf("SC_CLK_TCK")
+    previous_ticks: int | None = None
+    previous_monotonic: float | None = None
     with output.open("a", encoding="utf-8") as stream:
         while not stop.is_set():
             try:
+                monotonic_now = time.monotonic()
+                cpu_ticks = process_cpu_ticks(pid)
+                cpu_cores = None
+                if previous_ticks is not None and previous_monotonic is not None:
+                    elapsed = monotonic_now - previous_monotonic
+                    if elapsed > 0:
+                        cpu_cores = ((cpu_ticks - previous_ticks) / ticks_per_second) / elapsed
+                previous_ticks = cpu_ticks
+                previous_monotonic = monotonic_now
                 raw = subprocess.run(
                     ["nvidia-smi", "--query-gpu=timestamp,memory.total,memory.used,memory.free,utilization.gpu,power.draw",
                      "--format=csv,noheader,nounits"],
@@ -95,6 +115,7 @@ def sample_resources(pid: int, output: pathlib.Path, stop: threading.Event) -> N
                     "gpu_free_mib": float(fields[3]), "gpu_util_pct": float(fields[4]),
                     "gpu_power_w": float(fields[5]), "server_pid": pid,
                     "server_memory_kib": process_memory_kib(pid),
+                    "server_cpu_cores": cpu_cores,
                     "system_memory_kib": system_memory_kib(),
                     "gpu_compute_apps": gpu_compute_apps(),
                 }
@@ -104,7 +125,9 @@ def sample_resources(pid: int, output: pathlib.Path, stop: threading.Event) -> N
                 if not stop.is_set():
                     stream.write(json.dumps({"epoch": time.time(), "sample_error": True}) + "\n")
                     stream.flush()
-            stop.wait(1.0)
+            # One sample every five seconds keeps telemetry outside the hot
+            # benchmark path while still capturing short VRAM/CPU peaks.
+            stop.wait(5.0)
 
 
 def stop_server(proc: subprocess.Popen[bytes] | None) -> None:
@@ -124,7 +147,9 @@ def stop_server(proc: subprocess.Popen[bytes] | None) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context-tokens", type=int, required=True)
-    parser.add_argument("--target-tokens", type=int, required=True)
+    parser.add_argument("--target-tokens", type=int)
+    parser.add_argument("--target-sequence", nargs="+", type=int,
+                        help="increasing context checkpoints filled from new repo bytes in one server session")
     parser.add_argument("--placement", choices=("gpu", "cpu"), required=True)
     parser.add_argument("--mtp", choices=("on", "off"), required=True)
     parser.add_argument("--pager", choices=("none", "off", "selective"), default="none")
@@ -133,7 +158,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--server-binary", type=pathlib.Path, required=True)
     parser.add_argument("--source-worktree", type=pathlib.Path, required=True)
     parser.add_argument("--slot-state", type=pathlib.Path, required=True)
-    parser.add_argument("--model-alias", required=True)
+    parser.add_argument("--model-alias", default="qwen38-fast-turbo4-mtp")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--reasoning-modes", nargs="+", choices=matrix.MODES,
@@ -150,11 +175,23 @@ def main() -> int:
     args = parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    startup_log = output / "server-startup.log"
-    campaign_log = output / "campaign.log"
+    if bool(args.target_tokens is not None) == bool(args.target_sequence):
+        raise SystemExit("provide exactly one of --target-tokens or --target-sequence")
+    targets = args.target_sequence or [args.target_tokens]
+    if any(target is None for target in targets):
+        raise SystemExit("context checkpoint list cannot contain an empty target")
+    targets = [int(target) for target in targets]
+    if targets != sorted(set(targets)):
+        raise SystemExit("--target-sequence values must be strictly increasing")
+    for target in targets:
+        matrix.row_geometry(args.context_tokens, target, args.placement)
+    started_slug = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    startup_log = output / f"server-startup-{started_slug}.log"
     cell_report = output / "cell.json"
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    report: dict[str, Any] = {"started_utc": started, "status": "setup_failure"}
+    report: dict[str, Any] = {"started_utc": started, "status": "setup_failure",
+                              "target_sequence": targets, "stages": []}
+    campaign_log = output / "campaign.log"
     proc: subprocess.Popen[bytes] | None = None
     sampler_stop = threading.Event()
     sampler: threading.Thread | None = None
@@ -188,7 +225,9 @@ def main() -> int:
         report.update({"argv": argv, "server_binary": str(args.server_binary.resolve()),
                        "server_binary_sha256": hashlib.sha256(args.server_binary.read_bytes()).hexdigest(),
                        "source_worktree": str(args.source_worktree.resolve()),
-                       "context_tokens": args.context_tokens, "target_tokens": args.target_tokens,
+                       "context_tokens": args.context_tokens,
+                       "target_tokens": targets[0] if len(targets) == 1 else None,
+                       "target_sequence": targets,
                        "placement": args.placement, "mtp": args.mtp,
                        "pager": effective_pager, "pager_requested": args.pager,
                        "hot_pages": args.hot_pages})
@@ -208,44 +247,71 @@ def main() -> int:
         sampler = threading.Thread(target=sample_resources,
             args=(proc.pid, output / "resource-samples.jsonl", sampler_stop), daemon=True)
         sampler.start()
-        command = [sys.executable, str(MATRIX_PATH),
-            "--context-tokens", str(args.context_tokens),
-            "--target-tokens", str(args.target_tokens), "--placement", args.placement,
-            "--mtp", args.mtp, "--pager", effective_pager,
-            "--server-binary", str(args.server_binary.resolve()),
-            "--source-worktree", str(args.source_worktree.resolve()),
-            "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,
-            "--output", str(output / "campaign"), "--api-key-file", str(args.api_key_file),
-            "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
-            # Keep one fresh repository fill resident for the whole prompt
-            # series. cache_prompt reuses the shared KV prefix and rewinds only
-            # each prior question/answer suffix; no giant resume snapshot I/O.
-            "--reuse-filled-prefix"]
-        if args.hot_pages is not None:
-            command.extend(("--hot-pages", str(args.hot_pages)))
-        if args.draft_device is not None:
-            command.extend(("--draft-device", args.draft_device))
-        if args.resume:
-            command.append("--resume")
-        if args.prefill_only:
-            command.append("--prefill-only")
-        command.extend(("--reasoning-modes", *args.reasoning_modes))
-        command.extend(("--prompt-indices", *map(str, args.prompt_indices)))
-        for index in args.skip_runtime_fault_case:
-            command.extend(("--skip-runtime-fault-case", str(index)))
-        report["driver_argv"] = command
-        with campaign_log.open("wb") as log:
-            result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
-                                    timeout=7200, check=False)
-        report["driver_exit_code"] = result.returncode
-        if result.returncode == 0:
-            report["status"] = "complete"
-        else:
-            combined = (startup_log.read_text(errors="replace") + "\n" +
-                        campaign_log.read_text(errors="replace"))
-            report["status"] = ("capacity_limit" if any(token in combined.lower() for token in
-                ("out of memory", "device memory exhausted", "scratch reserve failed"))
-                else "runtime_or_driver_failure")
+        previous_campaign: pathlib.Path | None = None
+        for target in targets:
+            target_dir = output / f"C{target}"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            campaign_output = target_dir / "campaign"
+            campaign_log = target_dir / f"campaign-{started_slug}.log"
+            command = [sys.executable, str(MATRIX_PATH),
+                "--context-tokens", str(args.context_tokens),
+                "--target-tokens", str(target), "--placement", args.placement,
+                "--mtp", args.mtp, "--pager", effective_pager,
+                "--server-binary", str(args.server_binary.resolve()),
+                "--source-worktree", str(args.source_worktree.resolve()),
+                "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,
+                "--output", str(campaign_output), "--api-key-file", str(args.api_key_file),
+                "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
+                # Keep one base frontier in memory. cache_prompt rewinds only
+                # each short prompt/answer suffix; no full-context replay or
+                # snapshot I/O occurs between prompt measurements.
+                "--reuse-filled-prefix"]
+            if previous_campaign is not None:
+                command.extend(("--continue-from", str(previous_campaign)))
+            if args.hot_pages is not None:
+                command.extend(("--hot-pages", str(args.hot_pages)))
+            if args.draft_device is not None:
+                command.extend(("--draft-device", args.draft_device))
+            if args.resume:
+                command.append("--resume")
+            if args.prefill_only:
+                command.append("--prefill-only")
+            command.extend(("--reasoning-modes", *args.reasoning_modes))
+            command.extend(("--prompt-indices", *map(str, args.prompt_indices)))
+            for index in args.skip_runtime_fault_case:
+                command.extend(("--skip-runtime-fault-case", str(index)))
+            stage = {"target_tokens": target, "output": str(target_dir),
+                     "driver_argv": command, "status": "runtime_or_driver_failure"}
+            with campaign_log.open("wb") as log:
+                result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
+                                        timeout=7200, check=False)
+            stage["driver_exit_code"] = result.returncode
+            row_path = campaign_output / "row.json"
+            if row_path.is_file():
+                try:
+                    stage["campaign"] = json.loads(row_path.read_text())
+                    stage["status"] = ("complete" if result.returncode == 0 and
+                        stage["campaign"].get("status") == "complete" else "runtime_or_driver_failure")
+                except json.JSONDecodeError:
+                    stage["status"] = "malformed_campaign_report"
+            log_text = campaign_log.read_text(errors="replace") if campaign_log.exists() else ""
+            startup_text = startup_log.read_text(errors="replace") if startup_log.exists() else ""
+            combined = (startup_text + "\n" + log_text).lower()
+            if any(token in combined for token in
+                   ("out of memory", "device memory exhausted", "scratch reserve failed")):
+                stage["status"] = "capacity_limit"
+            stage["campaign_log"] = str(campaign_log)
+            report["stages"].append(stage)
+            (target_dir / "cell.json").write_text(json.dumps({**report, **stage},
+                indent=2, sort_keys=True) + "\n")
+            print(f"context-series C={target}: {stage['status']}", flush=True)
+            if stage["status"] != "complete":
+                break
+            previous_campaign = campaign_output
+        report["status"] = ("complete" if len(report["stages"]) == len(targets) and
+                            all(stage["status"] == "complete" for stage in report["stages"])
+                            else report["stages"][-1]["status"] if report["stages"]
+                            else "setup_failure")
         return 0 if report["status"] == "complete" else 1
     except Exception as error:
         report["error"] = f"{type(error).__name__}: {error}"
@@ -282,7 +348,35 @@ def main() -> int:
                     "server_vmhwm_max_kib": max(item["server_memory_kib"].get("VmHWM", 0) for item in samples),
                     "system_memavailable_min_kib": min(item["system_memory_kib"].get("MemAvailable", 0) for item in samples),
                     "system_swapfree_min_kib": min(item["system_memory_kib"].get("SwapFree", 0) for item in samples),
+                    "server_cpu_cores_max": max(
+                        (item.get("server_cpu_cores") or 0) for item in samples),
+                    "server_threads_max": max(
+                        item["server_memory_kib"].get("Threads", 0) for item in samples),
                 }
+                for target in targets:
+                    target_cell = output / f"C{target}" / "cell.json"
+                    if target_cell.is_file():
+                        try:
+                            item = json.loads(target_cell.read_text())
+                            item["resource_peaks"] = report["resource_peaks"]
+                            target_cell.write_text(json.dumps(item, indent=2, sort_keys=True) + "\n")
+                        except (OSError, json.JSONDecodeError):
+                            pass
+        curve = []
+        for target in targets:
+            schedule_path = output / f"C{target}" / "campaign" / "schedule.jsonl"
+            if not schedule_path.is_file():
+                continue
+            for line in schedule_path.read_text().splitlines():
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                curve.append({"target_checkpoint_tokens": target, **item})
+        if curve:
+            (output / "prefill-curve.json").write_text(
+                json.dumps(curve, indent=2, sort_keys=True) + "\n")
+            report["prefill_curve_path"] = str(output / "prefill-curve.json")
         cell_report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
 
 
