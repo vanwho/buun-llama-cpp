@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "purpose": "scratch sizing and mapped source preparation; final prefill retests paused",
+  "candidate_server_sha256": "189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794",
+  "geometry": {
+    "L": 262144,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "target_kv": "turbo4",
+    "draft_kv": "turbo4",
+    "mtp_nmax": 2
+  },
+  "selected_chunk_tokens": 65536,
+  "mapped_content_tokens": 262144,
+  "map_path": ".wiretail/execution/benchmarks/repo-prefill-map.json",
+  "map_sha256": "3e0ccc186183f8d4f59b26488fbcb4f0f16703ebc96111b42331fda67da7fdec",
+  "source_files": 74,
+  "cases": [
+    {
+      "payload_tokens": 8192,
+      "http_status": 200,
+      "error": null,
+      "result_path": "/srv/ai/paged-kv/results/forward/repo-prefill-sizing-20261103-64k/run-20261103T192743Z/C8192/result.json",
+      "result_sha256": "44fb264a24e78dee94ac7b1f85cd6bc25d5f6b0ed46abf3f6e0d61cb5918c921"
+    },
+    {
+      "payload_tokens": 16384,
+      "http_status": 200,
+      "error": null,
+      "result_path": "/srv/ai/paged-kv/results/forward/repo-prefill-sizing-20261103-64k/run-20261103T192743Z/C16384/result.json",
+      "result_sha256": "6d02c50b16e44878f6ab4341af966d106a7258e45fcefe23fb927ee179309a6f"
+    },
+    {
+      "payload_tokens": 32768,
+      "http_status": 200,
+      "error": null,
+      "result_path": "/srv/ai/paged-kv/results/forward/repo-prefill-sizing-20261103-64k/run-20261103T192743Z/C32768/result.json",
+      "result_sha256": "731a6e082de38673456bfdfcdfd0a85ab2fb1f791a6eb4b04657de34435872bc"
+    },
+    {
+      "payload_tokens": 65536,
+      "http_status": 200,
+      "error": null,
+      "result_path": "/srv/ai/paged-kv/results/forward/repo-prefill-sizing-20261103-64k/run-20261103T192743Z/C65536/result.json",
+      "result_sha256": "8cb110e6ef15c21c9d1736af7038ff51e2497d7fb3ea1be4a699efe5c9337484"
+    }
+  ],
+  "summary": {
+    "path": "/srv/ai/paged-kv/results/forward/repo-prefill-sizing-20261103-64k/run-20261103T192743Z/summary.json",
+    "sha256": "39b1c4360f956131d439d0f4cd53b92d0717fce429633a8efaebfe5dd822c3e4"
+  },
+  "exact_server_argv": {
+    "path": "/srv/ai/paged-kv/results/forward/repo-prefill-sizing-20261103-64k/run-20261103T192743Z/exact-server-argv.json",
+    "sha256": "c95ab3d5886941b9b2deb10f8083c5a2688eabb6482ae292f1e495afdaba56eb"
+  },
+  "jellyfin": "running healthy; never stopped during sizing",
+  "near_full_frontier_safety": "not established by these fresh-server sizing requests",
+  "final_retests": "paused by user"
+}

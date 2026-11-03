@@ -1,0 +1,1361 @@
+{
+  "schema_version": 1,
+  "protocol": "repo-fixed-token-chunks-v1",
+  "source_root": "/srv/ai/paged-kv/worktrees/benchmark-source-a5a1110",
+  "source_identity": {
+    "commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+    "dirty_fingerprint": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "parse_special": true,
+  "token_units": "native user-content tokens; chat framing/ACK not included",
+  "chunk_tokens": 65536,
+  "minimum_capacity_tokens": 262144,
+  "mapped_content_tokens": 262144,
+  "payload_root": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-64k-v1",
+  "corpus_file": "corpus.utf8",
+  "corpus_bytes": 912974,
+  "corpus_sha256": "23497dad8b11315ab043fe6bb3849b757d2deed32436e6d2962ead0448ec6fee",
+  "inventory": [
+    {
+      "path": ".pre-commit-config.yaml",
+      "sha256": "3c86b628064c078381be5726b2857ce0901b63b54c698c06cf6876c0c5f24598",
+      "source_bytes": 447,
+      "rendered_begin": 0,
+      "body_begin": 45,
+      "body_end": 492,
+      "rendered_end": 535
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "b27e5f05b06f1d3ffe05c88433321c8269d03818f184502c2743f4691a2d7a5d",
+      "source_bytes": 6778,
+      "rendered_begin": 535,
+      "body_begin": 566,
+      "body_end": 7344,
+      "rendered_end": 7373
+    },
+    {
+      "path": "CMakeLists.txt",
+      "sha256": "d1676ed216d8e7b2e1ec35a6f1d711e18a2b61a0814910d12702eb0bdaa95152",
+      "source_bytes": 11187,
+      "rendered_begin": 7373,
+      "body_begin": 7409,
+      "body_end": 18596,
+      "rendered_end": 18630
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "cf80093cca52e66dc1592175c3a2bcb1acf6aec1e30adaf212c5bedf0967da0e",
+      "source_bytes": 12910,
+      "rendered_begin": 18630,
+      "body_begin": 18667,
+      "body_end": 31577,
+      "rendered_end": 31612
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+      "source_bytes": 1078,
+      "rendered_begin": 31612,
+      "body_begin": 31641,
+      "body_end": 32719,
+      "rendered_end": 32746
+    },
+    {
+      "path": "Makefile",
+      "sha256": "81cf8d21005a58822cdf457f1caab1da5f02d34ddcaa75e871b32f05e3e52efe",
+      "source_bytes": 257,
+      "rendered_begin": 32746,
+      "body_begin": 32776,
+      "body_end": 33033,
+      "rendered_end": 33061
+    },
+    {
+      "path": "README.md",
+      "sha256": "539a4cc435523c22be217b3d6d793597e25151c2b125767349e7aade35716c15",
+      "source_bytes": 33034,
+      "rendered_begin": 33061,
+      "body_begin": 33092,
+      "body_end": 66126,
+      "rendered_end": 66155
+    },
+    {
+      "path": "SD-080-benchmark-notes.txt",
+      "sha256": "ac6ce21cfdf0b7e6251d761d9327fe306a3a95ad4af34294d924f1b3dab96639",
+      "source_bytes": 3128,
+      "rendered_begin": 66155,
+      "body_begin": 66203,
+      "body_end": 69331,
+      "rendered_end": 69377
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "78ec7307fd4a94b39daced4f992abadf4874dfa20124d8b3ef17eba9a8ee528d",
+      "source_bytes": 7505,
+      "rendered_begin": 69377,
+      "body_begin": 69410,
+      "body_end": 76915,
+      "rendered_end": 76946
+    },
+    {
+      "path": "apply_turbo_cuda_v2.py",
+      "sha256": "f2a30bd4abd0e245462abcbc2c0333010de961d1d9e47f120d74d09daa8b96ca",
+      "source_bytes": 29299,
+      "rendered_begin": 76946,
+      "body_begin": 76990,
+      "body_end": 106289,
+      "rendered_end": 106331
+    },
+    {
+      "path": "convert_hf_to_gguf.py",
+      "sha256": "e9a1da876330bbce9687541ab31736542a01b4ac43c6686126514a50f122fb7f",
+      "source_bytes": 13012,
+      "rendered_begin": 106331,
+      "body_begin": 106374,
+      "body_end": 119386,
+      "rendered_end": 119427
+    },
+    {
+      "path": "convert_hf_to_gguf_update.py",
+      "sha256": "da0d61d118c5a5316906b10e940b4613fb63b836078746faf26991f19bd3a373",
+      "source_bytes": 29605,
+      "rendered_begin": 119427,
+      "body_begin": 119477,
+      "body_end": 149082,
+      "rendered_end": 149130
+    },
+    {
+      "path": "convert_llama_ggml_to_gguf.py",
+      "sha256": "ec6441674a3d1ab27dd0c5ba22d2aff30052ed66ed8d96cf175406aa7d67d9b6",
+      "source_bytes": 19112,
+      "rendered_begin": 149130,
+      "body_begin": 149181,
+      "body_end": 168293,
+      "rendered_end": 168342
+    },
+    {
+      "path": "convert_lora_to_gguf.py",
+      "sha256": "3c5f109f3d7a5ef530ea388d8e994512df6f544ce1aa8b2e39be446223637b93",
+      "source_bytes": 23200,
+      "rendered_begin": 168342,
+      "body_begin": 168387,
+      "body_end": 191587,
+      "rendered_end": 191630
+    },
+    {
+      "path": "docs/aco-validation.md",
+      "sha256": "a56f03b1cba30ff783fc6a3cad7e5a9acf5b252155ebc6b6ae33e85dadc9d3ff",
+      "source_bytes": 7439,
+      "rendered_begin": 191630,
+      "body_begin": 191674,
+      "body_end": 199113,
+      "rendered_end": 199155
+    },
+    {
+      "path": "docs/aco.md",
+      "sha256": "0f5caefc69b49690092d1f9ef8ccafe504799fa77f0091df14f59e865b0f5d60",
+      "source_bytes": 6699,
+      "rendered_begin": 199155,
+      "body_begin": 199188,
+      "body_end": 205887,
+      "rendered_end": 205918
+    },
+    {
+      "path": "docs/android.md",
+      "sha256": "bc66f29afc8e081714be092363fdc64522933e42bb01f1dfb746aac483a33c32",
+      "source_bytes": 6431,
+      "rendered_begin": 205918,
+      "body_begin": 205955,
+      "body_end": 212386,
+      "rendered_end": 212421
+    },
+    {
+      "path": "docs/autoparser.md",
+      "sha256": "ae2b35d289ceefe408ae4dd45b77f0869336f2144c211a88ecea41a90af1fa11",
+      "source_bytes": 32301,
+      "rendered_begin": 212421,
+      "body_begin": 212461,
+      "body_end": 244762,
+      "rendered_end": 244800
+    },
+    {
+      "path": "docs/backend/AOCL.md",
+      "sha256": "94ddeafe97a5f078a2ed9e7adadc5f8244b750a3061968e6c998cdd33d250419",
+      "source_bytes": 7050,
+      "rendered_begin": 244800,
+      "body_begin": 244842,
+      "body_end": 251892,
+      "rendered_end": 251932
+    },
+    {
+      "path": "docs/backend/BLIS.md",
+      "sha256": "a868d79159ed096e925048fdef04e7768f8d6ed3815897fc76a4f1b2915e494e",
+      "source_bytes": 1657,
+      "rendered_begin": 251932,
+      "body_begin": 251974,
+      "body_end": 253631,
+      "rendered_end": 253671
+    },
+    {
+      "path": "docs/backend/CANN.md",
+      "sha256": "c794f8a9fb448358beeed5855959f8556d6285766d2d346052172e93ccfdd2dd",
+      "source_bytes": 14014,
+      "rendered_begin": 253671,
+      "body_begin": 253713,
+      "body_end": 267727,
+      "rendered_end": 267767
+    },
+    {
+      "path": "docs/backend/CUDA-FEDORA.md",
+      "sha256": "6ec000adf0a2295b4b2f8fc6885d89af0316537e8f22bc0ea721c1f46dc76fb5",
+      "source_bytes": 10558,
+      "rendered_begin": 267767,
+      "body_begin": 267816,
+      "body_end": 278374,
+      "rendered_end": 278421
+    },
+    {
+      "path": "docs/backend/CUDA-MOE-CACHE.md",
+      "sha256": "4b4862d4107159af8519b61830eac8af0198ae599e7987489f2b0c3c56c7127c",
+      "source_bytes": 38913,
+      "rendered_begin": 278421,
+      "body_begin": 278473,
+      "body_end": 317386,
+      "rendered_end": 317436
+    },
+    {
+      "path": "docs/backend/ET.md",
+      "sha256": "83be648e5da5609c443d73ee02ae523d2b25bd4b6ee83b245be75e25532f7a4f",
+      "source_bytes": 7108,
+      "rendered_begin": 317436,
+      "body_begin": 317476,
+      "body_end": 324584,
+      "rendered_end": 324622
+    },
+    {
+      "path": "docs/backend/OPENCL.md",
+      "sha256": "385272f5f7a40eeebab2e4ad50e0d544f7eb686db337c5442327392190b8a2b2",
+      "source_bytes": 11834,
+      "rendered_begin": 324622,
+      "body_begin": 324666,
+      "body_end": 336500,
+      "rendered_end": 336542
+    },
+    {
+      "path": "docs/backend/OPENVINO.md",
+      "sha256": "19d26934de845e6e0d9d1b7e07a40870ad95eca54e3ae439578d010944f6d0c0",
+      "source_bytes": 45041,
+      "rendered_begin": 336542,
+      "body_begin": 336588,
+      "body_end": 381629,
+      "rendered_end": 381673
+    },
+    {
+      "path": "docs/backend/SYCL.md",
+      "sha256": "adca1c317470d658a9f0cf568f8f8a2dd77472838ac13110cec1799234fc5c27",
+      "source_bytes": 45661,
+      "rendered_begin": 381673,
+      "body_begin": 381715,
+      "body_end": 427376,
+      "rendered_end": 427416
+    },
+    {
+      "path": "docs/backend/VirtGPU.md",
+      "sha256": "7cb434e6dd261960017a45393c50c24523ff790a31a7118a9800cbfab5a9ecd3",
+      "source_bytes": 6227,
+      "rendered_begin": 427416,
+      "body_begin": 427461,
+      "body_end": 433688,
+      "rendered_end": 433731
+    },
+    {
+      "path": "docs/backend/VirtGPU/configuration.md",
+      "sha256": "c7d9cb049f3f7af928f69f949e6f46670a626fe0eef925d6b14711d7cb38ab92",
+      "source_bytes": 6820,
+      "rendered_begin": 433731,
+      "body_begin": 433790,
+      "body_end": 440610,
+      "rendered_end": 440667
+    },
+    {
+      "path": "docs/backend/VirtGPU/development.md",
+      "sha256": "fb34988157bf696c0f7de5772b3d3c693b9f106ea74199d9b7e24e179e6e6eaf",
+      "source_bytes": 6169,
+      "rendered_begin": 440667,
+      "body_begin": 440724,
+      "body_end": 446893,
+      "rendered_end": 446948
+    },
+    {
+      "path": "docs/backend/ZenDNN.md",
+      "sha256": "712113bbe1905e14ee9379f5ded4a3ebb1d9167c9c6c3ab87e53b0761aa32579",
+      "source_bytes": 10501,
+      "rendered_begin": 446948,
+      "body_begin": 446992,
+      "body_end": 457493,
+      "rendered_end": 457535
+    },
+    {
+      "path": "docs/backend/snapdragon/README.md",
+      "sha256": "bd57047d2f15028ec947e71e7a5c359b893c8f6565eaa42398ba55e431c583fa",
+      "source_bytes": 18166,
+      "rendered_begin": 457535,
+      "body_begin": 457590,
+      "body_end": 475756,
+      "rendered_end": 475809
+    },
+    {
+      "path": "docs/backend/snapdragon/developer.md",
+      "sha256": "c0fdf8d80130e7cfd3863809b23b957cd2692a0c2c5cd57b81cfc3f3c2a4d6c2",
+      "source_bytes": 18896,
+      "rendered_begin": 475809,
+      "body_begin": 475867,
+      "body_end": 494763,
+      "rendered_end": 494819
+    },
+    {
+      "path": "docs/backend/snapdragon/linux.md",
+      "sha256": "28a01609fcfe06be2342b1388c195c1ee4b5c0d5cbdde4c446cffd7d3a994e84",
+      "source_bytes": 3810,
+      "rendered_begin": 494819,
+      "body_begin": 494873,
+      "body_end": 498683,
+      "rendered_end": 498735
+    },
+    {
+      "path": "docs/backend/snapdragon/windows.md",
+      "sha256": "e716989b8a7f3a93675cdceb084a5216dc790e7a0a3379fd3de28a109b5f0e6d",
+      "source_bytes": 6991,
+      "rendered_begin": 498735,
+      "body_begin": 498791,
+      "body_end": 505782,
+      "rendered_end": 505836
+    },
+    {
+      "path": "docs/backend/zDNN.md",
+      "sha256": "226d985b3de7e196e3ae3d2f03a8f1b7556e94196d8f82e835971f04f5c4bf2f",
+      "source_bytes": 2301,
+      "rendered_begin": 505836,
+      "body_begin": 505878,
+      "body_end": 508179,
+      "rendered_end": 508219
+    },
+    {
+      "path": "docs/benchmarks/multi-gpu-decode-2026-03-28.md",
+      "sha256": "5f639ee201b1f572da12d060bd8ab1e13d487fdef49e236b73cb9b58adb1cb5c",
+      "source_bytes": 4525,
+      "rendered_begin": 508219,
+      "body_begin": 508287,
+      "body_end": 512812,
+      "rendered_end": 512878
+    },
+    {
+      "path": "docs/bonsai-validation.md",
+      "sha256": "623e39583469c6bae128b3b4b942b277fc63e124a300918eb7f22e442826a4ff",
+      "source_bytes": 19355,
+      "rendered_begin": 512878,
+      "body_begin": 512925,
+      "body_end": 532280,
+      "rendered_end": 532325
+    },
+    {
+      "path": "docs/bonsai.md",
+      "sha256": "8f14915351fa9190c342933be7843ae6e875ea72f395a97e374591ac56fb8147",
+      "source_bytes": 5038,
+      "rendered_begin": 532325,
+      "body_begin": 532361,
+      "body_end": 537399,
+      "rendered_end": 537433
+    },
+    {
+      "path": "docs/completions.md",
+      "sha256": "a45053440549c611e633cac4ea996f9861625d1747a4675f7f42269c73b623be",
+      "source_bytes": 385,
+      "rendered_begin": 537433,
+      "body_begin": 537474,
+      "body_end": 537859,
+      "rendered_end": 537898
+    },
+    {
+      "path": "docs/development/HOWTO-add-model.md",
+      "sha256": "36d39ad26717e0d68c8ad9b0d95ed12dea3ef09f061bd5ba37991bb3f53e6f27",
+      "source_bytes": 13824,
+      "rendered_begin": 537898,
+      "body_begin": 537955,
+      "body_end": 551779,
+      "rendered_end": 551834
+    },
+    {
+      "path": "docs/development/debugging-tests.md",
+      "sha256": "fb0aba1f9e57ececadf73726de9d5a1ba02b6bb50bccd8f701acb19a600f700e",
+      "source_bytes": 3179,
+      "rendered_begin": 551834,
+      "body_begin": 551891,
+      "body_end": 555070,
+      "rendered_end": 555125
+    },
+    {
+      "path": "docs/development/exl3-format-plan.md",
+      "sha256": "5e4b140a0ebd3f1551ef6acb914614a9544cb6112e72a1ee3499a87eba7cfe8d",
+      "source_bytes": 4639,
+      "rendered_begin": 555125,
+      "body_begin": 555183,
+      "body_end": 559822,
+      "rendered_end": 559878
+    },
+    {
+      "path": "docs/development/native-safetensors-architecture-plan.md",
+      "sha256": "51fcda03eea3e888f29d43c3d06bde50fda776d07be74b4612b5908cdda851c8",
+      "source_bytes": 96086,
+      "rendered_begin": 559878,
+      "body_begin": 559956,
+      "body_end": 656042,
+      "rendered_end": 656118
+    },
+    {
+      "path": "docs/development/native-safetensors-packed-int-plan.md",
+      "sha256": "53c9578b8c64a8247d390a2ff11674914c34c19a77c724eeadadae5933386f12",
+      "source_bytes": 8454,
+      "rendered_begin": 656118,
+      "body_begin": 656194,
+      "body_end": 664648,
+      "rendered_end": 664722
+    },
+    {
+      "path": "docs/development/parsing.md",
+      "sha256": "1cdff2c633775d4cbb35f85aab40e3019d6870209654ec1863a9cc65f9476579",
+      "source_bytes": 10638,
+      "rendered_begin": 664722,
+      "body_begin": 664771,
+      "body_end": 675409,
+      "rendered_end": 675456
+    },
+    {
+      "path": "docs/development/prepared-weight-cache.md",
+      "sha256": "05376facc55370ddb4f5e765d410927b7e2af54b4be414b269c13266e837b132",
+      "source_bytes": 3849,
+      "rendered_begin": 675456,
+      "body_begin": 675519,
+      "body_end": 679368,
+      "rendered_end": 679429
+    },
+    {
+      "path": "docs/development/server-resume-format.md",
+      "sha256": "b607399bd870cdcbbb9f1d2c40d89229ae3acc07630dd6e9ba3be9b2a3bbf053",
+      "source_bytes": 68143,
+      "rendered_begin": 679429,
+      "body_begin": 679491,
+      "body_end": 747634,
+      "rendered_end": 747694
+    },
+    {
+      "path": "docs/development/token_generation_performance_tips.md",
+      "sha256": "0401c2af372af0467713e00833bfcf86126a4e03f608bcd8f58045855f0f8f7a",
+      "source_bytes": 2302,
+      "rendered_begin": 747694,
+      "body_begin": 747769,
+      "body_end": 750071,
+      "rendered_end": 750144
+    },
+    {
+      "path": "docs/docker.md",
+      "sha256": "73f5543c6c7a5fce2e8dfc104c0ecec7af1ffa344c9c12f25753b29427c842c4",
+      "source_bytes": 12274,
+      "rendered_begin": 750144,
+      "body_begin": 750180,
+      "body_end": 762454,
+      "rendered_end": 762488
+    },
+    {
+      "path": "docs/function-calling.md",
+      "sha256": "38b9e76e9db84696471fbd67f580840bd84b3bcd02c469672480682689f49ab1",
+      "source_bytes": 21081,
+      "rendered_begin": 762488,
+      "body_begin": 762534,
+      "body_end": 783615,
+      "rendered_end": 783659
+    },
+    {
+      "path": "docs/install.md",
+      "sha256": "36bd37248baeca0f52222884d98cf6c3b0a7017739dd68aca1a093ce34434f52",
+      "source_bytes": 1830,
+      "rendered_begin": 783659,
+      "body_begin": 783696,
+      "body_end": 785526,
+      "rendered_end": 785561
+    },
+    {
+      "path": "docs/llguidance.md",
+      "sha256": "ef304ff3a7f29768f595ed798ab0ddab827e1ebda4df651e50c707811db27257",
+      "source_bytes": 3783,
+      "rendered_begin": 785561,
+      "body_begin": 785601,
+      "body_end": 789384,
+      "rendered_end": 789422
+    },
+    {
+      "path": "docs/models.md",
+      "sha256": "aaa614d738bedabed1e748b901476e45eb228fbcf6b50d5880eafceccdea8e86",
+      "source_bytes": 1991,
+      "rendered_begin": 789422,
+      "body_begin": 789458,
+      "body_end": 791449,
+      "rendered_end": 791483
+    },
+    {
+      "path": "docs/multi-gpu.md",
+      "sha256": "08508e676483fb40fdb67730f1787255d4d992599a8c9fd067cf2e1b35b5bad5",
+      "source_bytes": 10148,
+      "rendered_begin": 791483,
+      "body_begin": 791522,
+      "body_end": 801670,
+      "rendered_end": 801707
+    },
+    {
+      "path": "docs/multimodal.md",
+      "sha256": "2c4089673241d6a6cccc4bd577c9d282976ea61596948b13db3f5decd60788bb",
+      "source_bytes": 5053,
+      "rendered_begin": 801707,
+      "body_begin": 801747,
+      "body_end": 806800,
+      "rendered_end": 806838
+    },
+    {
+      "path": "docs/multimodal/MobileVLM.md",
+      "sha256": "1303c8e57852737429c26872ddf4b8eeab1dd703c5913ff33a1fee8d6fda39c8",
+      "source_bytes": 18532,
+      "rendered_begin": 806838,
+      "body_begin": 806888,
+      "body_end": 825420,
+      "rendered_end": 825468
+    },
+    {
+      "path": "docs/multimodal/gemma3.md",
+      "sha256": "57e49f25cd5363e0993f77c6db451495ddf2da2ee4b4fc598cbdf0e3dca07a12",
+      "source_bytes": 1153,
+      "rendered_begin": 825468,
+      "body_begin": 825515,
+      "body_end": 826668,
+      "rendered_end": 826713
+    },
+    {
+      "path": "docs/multimodal/glmedge.md",
+      "sha256": "436fd6e282d169424b29f9921d82aaac4e023c4e3d3e62c9cf2f3f332c5f2c33",
+      "source_bytes": 1518,
+      "rendered_begin": 826713,
+      "body_begin": 826761,
+      "body_end": 828279,
+      "rendered_end": 828325
+    },
+    {
+      "path": "docs/multimodal/granitevision.md",
+      "sha256": "95f41c12dbd44a8cf414f1ec52db34a2f1fa19f960108c742a1afeac9b60bbf3",
+      "source_bytes": 6351,
+      "rendered_begin": 828325,
+      "body_begin": 828379,
+      "body_end": 834730,
+      "rendered_end": 834782
+    },
+    {
+      "path": "docs/multimodal/llava.md",
+      "sha256": "8e6f216b754bf5c605231bb71d5fc86d27d2b3cb2b9ac24f92d8616504f9261b",
+      "source_bytes": 5148,
+      "rendered_begin": 834782,
+      "body_begin": 834828,
+      "body_end": 839976,
+      "rendered_end": 840020
+    },
+    {
+      "path": "docs/multimodal/minicpmo2.6.md",
+      "sha256": "78b99bc806c7b097ee183a707f86bfb6cc76a2971553e7f70e83359707b777e3",
+      "source_bytes": 1814,
+      "rendered_begin": 840020,
+      "body_begin": 840072,
+      "body_end": 841886,
+      "rendered_end": 841936
+    },
+    {
+      "path": "docs/multimodal/minicpmo4.0.md",
+      "sha256": "257538f5643dae8f3cb2deb12c5d7e1c3386f76dc549831d8a8b4d650984d3ff",
+      "source_bytes": 1646,
+      "rendered_begin": 841936,
+      "body_begin": 841988,
+      "body_end": 843634,
+      "rendered_end": 843684
+    },
+    {
+      "path": "docs/multimodal/minicpmv2.5.md",
+      "sha256": "9f8434250be4c860b58083bfe8b4310ab99aa71a8cff240ed981bf733d3fa88c",
+      "source_bytes": 1795,
+      "rendered_begin": 843684,
+      "body_begin": 843736,
+      "body_end": 845531,
+      "rendered_end": 845581
+    },
+    {
+      "path": "docs/multimodal/minicpmv2.6.md",
+      "sha256": "b56fbceac9052f593a1ef827f4efd20c867dac4f1e4b7c1ae65e62793d914cf1",
+      "source_bytes": 1680,
+      "rendered_begin": 845581,
+      "body_begin": 845633,
+      "body_end": 847313,
+      "rendered_end": 847363
+    },
+    {
+      "path": "docs/multimodal/minicpmv4.0.md",
+      "sha256": "d4d4abda08ca8d8fe8fce6ba4ed5350088d183abb86de854e3e8f9bd1f9e7c75",
+      "source_bytes": 1646,
+      "rendered_begin": 847363,
+      "body_begin": 847415,
+      "body_end": 849061,
+      "rendered_end": 849111
+    },
+    {
+      "path": "docs/multimodal/minicpmv4.5.md",
+      "sha256": "9bfe076a2aad6b04cf801ecc397675f2206a0a478cb211bac7973aab8c0a1330",
+      "source_bytes": 1678,
+      "rendered_begin": 849111,
+      "body_begin": 849163,
+      "body_end": 850841,
+      "rendered_end": 850891
+    },
+    {
+      "path": "docs/multimodal/minicpmv4.6.md",
+      "sha256": "aff69f645eeef61c8080e08d177bc14b22d6611391a6c94d2056ec02feb91ee2",
+      "source_bytes": 2018,
+      "rendered_begin": 850891,
+      "body_begin": 850943,
+      "body_end": 852961,
+      "rendered_end": 853011
+    },
+    {
+      "path": "docs/ops.md",
+      "sha256": "10f60de7356ffc3b7b24501cfbfa75d0ae08442c321faf26ac7ee771146d05cb",
+      "source_bytes": 14231,
+      "rendered_begin": 853011,
+      "body_begin": 853044,
+      "body_end": 867275,
+      "rendered_end": 867306
+    },
+    {
+      "path": "docs/preset.md",
+      "sha256": "3e6643541e12ff3dfee2a23c23a57357403bf4500beced780f010eaebbbdfe13",
+      "source_bytes": 4090,
+      "rendered_begin": 867306,
+      "body_begin": 867342,
+      "body_end": 871432,
+      "rendered_end": 871466
+    },
+    {
+      "path": "docs/qwen4-vbr-plan.md",
+      "sha256": "66c8b49806395cdd04b39bf13a50407effce2b36fc6fb2c0ce23445c822f4f18",
+      "source_bytes": 25726,
+      "rendered_begin": 871466,
+      "body_begin": 871510,
+      "body_end": 897236,
+      "rendered_end": 897278
+    },
+    {
+      "path": "docs/release.md",
+      "sha256": "c1de6e220f95d59198e81b335ab7e93636303f4ec4faf0173e479573249e482f",
+      "source_bytes": 2227,
+      "rendered_begin": 897278,
+      "body_begin": 897315,
+      "body_end": 899542,
+      "rendered_end": 899577
+    },
+    {
+      "path": "docs/safetensors.md",
+      "sha256": "2f994921033b84139c99360aa0d2e0853d299872b51ff9674815b3c19effa2af",
+      "source_bytes": 8735,
+      "rendered_begin": 899577,
+      "body_begin": 899618,
+      "body_end": 908353,
+      "rendered_end": 908392
+    },
+    {
+      "path": "docs/speculative.md",
+      "sha256": "370556dee8c8ad51bdae3bf7b04546c3d2aacfe1b4156be117d3654e6e138404",
+      "source_bytes": 34950,
+      "rendered_begin": 908392,
+      "body_begin": 908433,
+      "body_end": 943383,
+      "rendered_end": 943422
+    }
+  ],
+  "chunks": [
+    {
+      "id": 0,
+      "file": "chunks/chunk-0000.txt",
+      "sha256": "f7bf63be4f9ad3c2214281403df0e014acb88d01158e7363a40ff8f05e7558e0",
+      "content_tokens": 65536,
+      "target_content_tokens": 65536,
+      "kind": "full",
+      "corpus_start_byte": 0,
+      "corpus_end_byte": 222599,
+      "source_segments": [
+        {
+          "path": ".pre-commit-config.yaml",
+          "sha256": "3c86b628064c078381be5726b2857ce0901b63b54c698c06cf6876c0c5f24598",
+          "corpus_start_byte": 0,
+          "corpus_end_byte": 535,
+          "source_start_byte": 0,
+          "source_end_byte": 447
+        },
+        {
+          "path": "CLAUDE.md",
+          "sha256": "b27e5f05b06f1d3ffe05c88433321c8269d03818f184502c2743f4691a2d7a5d",
+          "corpus_start_byte": 535,
+          "corpus_end_byte": 7373,
+          "source_start_byte": 0,
+          "source_end_byte": 6778
+        },
+        {
+          "path": "CMakeLists.txt",
+          "sha256": "d1676ed216d8e7b2e1ec35a6f1d711e18a2b61a0814910d12702eb0bdaa95152",
+          "corpus_start_byte": 7373,
+          "corpus_end_byte": 18630,
+          "source_start_byte": 0,
+          "source_end_byte": 11187
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "sha256": "cf80093cca52e66dc1592175c3a2bcb1acf6aec1e30adaf212c5bedf0967da0e",
+          "corpus_start_byte": 18630,
+          "corpus_end_byte": 31612,
+          "source_start_byte": 0,
+          "source_end_byte": 12910
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "corpus_start_byte": 31612,
+          "corpus_end_byte": 32746,
+          "source_start_byte": 0,
+          "source_end_byte": 1078
+        },
+        {
+          "path": "Makefile",
+          "sha256": "81cf8d21005a58822cdf457f1caab1da5f02d34ddcaa75e871b32f05e3e52efe",
+          "corpus_start_byte": 32746,
+          "corpus_end_byte": 33061,
+          "source_start_byte": 0,
+          "source_end_byte": 257
+        },
+        {
+          "path": "README.md",
+          "sha256": "539a4cc435523c22be217b3d6d793597e25151c2b125767349e7aade35716c15",
+          "corpus_start_byte": 33061,
+          "corpus_end_byte": 66155,
+          "source_start_byte": 0,
+          "source_end_byte": 33034
+        },
+        {
+          "path": "SD-080-benchmark-notes.txt",
+          "sha256": "ac6ce21cfdf0b7e6251d761d9327fe306a3a95ad4af34294d924f1b3dab96639",
+          "corpus_start_byte": 66155,
+          "corpus_end_byte": 69377,
+          "source_start_byte": 0,
+          "source_end_byte": 3128
+        },
+        {
+          "path": "SECURITY.md",
+          "sha256": "78ec7307fd4a94b39daced4f992abadf4874dfa20124d8b3ef17eba9a8ee528d",
+          "corpus_start_byte": 69377,
+          "corpus_end_byte": 76946,
+          "source_start_byte": 0,
+          "source_end_byte": 7505
+        },
+        {
+          "path": "apply_turbo_cuda_v2.py",
+          "sha256": "f2a30bd4abd0e245462abcbc2c0333010de961d1d9e47f120d74d09daa8b96ca",
+          "corpus_start_byte": 76946,
+          "corpus_end_byte": 106331,
+          "source_start_byte": 0,
+          "source_end_byte": 29299
+        },
+        {
+          "path": "convert_hf_to_gguf.py",
+          "sha256": "e9a1da876330bbce9687541ab31736542a01b4ac43c6686126514a50f122fb7f",
+          "corpus_start_byte": 106331,
+          "corpus_end_byte": 119427,
+          "source_start_byte": 0,
+          "source_end_byte": 13012
+        },
+        {
+          "path": "convert_hf_to_gguf_update.py",
+          "sha256": "da0d61d118c5a5316906b10e940b4613fb63b836078746faf26991f19bd3a373",
+          "corpus_start_byte": 119427,
+          "corpus_end_byte": 149130,
+          "source_start_byte": 0,
+          "source_end_byte": 29605
+        },
+        {
+          "path": "convert_llama_ggml_to_gguf.py",
+          "sha256": "ec6441674a3d1ab27dd0c5ba22d2aff30052ed66ed8d96cf175406aa7d67d9b6",
+          "corpus_start_byte": 149130,
+          "corpus_end_byte": 168342,
+          "source_start_byte": 0,
+          "source_end_byte": 19112
+        },
+        {
+          "path": "convert_lora_to_gguf.py",
+          "sha256": "3c5f109f3d7a5ef530ea388d8e994512df6f544ce1aa8b2e39be446223637b93",
+          "corpus_start_byte": 168342,
+          "corpus_end_byte": 191630,
+          "source_start_byte": 0,
+          "source_end_byte": 23200
+        },
+        {
+          "path": "docs/aco-validation.md",
+          "sha256": "a56f03b1cba30ff783fc6a3cad7e5a9acf5b252155ebc6b6ae33e85dadc9d3ff",
+          "corpus_start_byte": 191630,
+          "corpus_end_byte": 199155,
+          "source_start_byte": 0,
+          "source_end_byte": 7439
+        },
+        {
+          "path": "docs/aco.md",
+          "sha256": "0f5caefc69b49690092d1f9ef8ccafe504799fa77f0091df14f59e865b0f5d60",
+          "corpus_start_byte": 199155,
+          "corpus_end_byte": 205918,
+          "source_start_byte": 0,
+          "source_end_byte": 6699
+        },
+        {
+          "path": "docs/android.md",
+          "sha256": "bc66f29afc8e081714be092363fdc64522933e42bb01f1dfb746aac483a33c32",
+          "corpus_start_byte": 205918,
+          "corpus_end_byte": 212421,
+          "source_start_byte": 0,
+          "source_end_byte": 6431
+        },
+        {
+          "path": "docs/autoparser.md",
+          "sha256": "ae2b35d289ceefe408ae4dd45b77f0869336f2144c211a88ecea41a90af1fa11",
+          "corpus_start_byte": 212421,
+          "corpus_end_byte": 222599,
+          "source_start_byte": 0,
+          "source_end_byte": 10138
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "file": "chunks/chunk-0001.txt",
+      "sha256": "3db2c421b22ea1a4ddba9b80f29b28739e4579e7247bb9363c8dba7a1a1af5b2",
+      "content_tokens": 65536,
+      "target_content_tokens": 65536,
+      "kind": "full",
+      "corpus_start_byte": 222599,
+      "corpus_end_byte": 459209,
+      "source_segments": [
+        {
+          "path": "docs/autoparser.md",
+          "sha256": "ae2b35d289ceefe408ae4dd45b77f0869336f2144c211a88ecea41a90af1fa11",
+          "corpus_start_byte": 222599,
+          "corpus_end_byte": 244800,
+          "source_start_byte": 10138,
+          "source_end_byte": 32301
+        },
+        {
+          "path": "docs/backend/AOCL.md",
+          "sha256": "94ddeafe97a5f078a2ed9e7adadc5f8244b750a3061968e6c998cdd33d250419",
+          "corpus_start_byte": 244800,
+          "corpus_end_byte": 251932,
+          "source_start_byte": 0,
+          "source_end_byte": 7050
+        },
+        {
+          "path": "docs/backend/BLIS.md",
+          "sha256": "a868d79159ed096e925048fdef04e7768f8d6ed3815897fc76a4f1b2915e494e",
+          "corpus_start_byte": 251932,
+          "corpus_end_byte": 253671,
+          "source_start_byte": 0,
+          "source_end_byte": 1657
+        },
+        {
+          "path": "docs/backend/CANN.md",
+          "sha256": "c794f8a9fb448358beeed5855959f8556d6285766d2d346052172e93ccfdd2dd",
+          "corpus_start_byte": 253671,
+          "corpus_end_byte": 267767,
+          "source_start_byte": 0,
+          "source_end_byte": 14014
+        },
+        {
+          "path": "docs/backend/CUDA-FEDORA.md",
+          "sha256": "6ec000adf0a2295b4b2f8fc6885d89af0316537e8f22bc0ea721c1f46dc76fb5",
+          "corpus_start_byte": 267767,
+          "corpus_end_byte": 278421,
+          "source_start_byte": 0,
+          "source_end_byte": 10558
+        },
+        {
+          "path": "docs/backend/CUDA-MOE-CACHE.md",
+          "sha256": "4b4862d4107159af8519b61830eac8af0198ae599e7987489f2b0c3c56c7127c",
+          "corpus_start_byte": 278421,
+          "corpus_end_byte": 317436,
+          "source_start_byte": 0,
+          "source_end_byte": 38913
+        },
+        {
+          "path": "docs/backend/ET.md",
+          "sha256": "83be648e5da5609c443d73ee02ae523d2b25bd4b6ee83b245be75e25532f7a4f",
+          "corpus_start_byte": 317436,
+          "corpus_end_byte": 324622,
+          "source_start_byte": 0,
+          "source_end_byte": 7108
+        },
+        {
+          "path": "docs/backend/OPENCL.md",
+          "sha256": "385272f5f7a40eeebab2e4ad50e0d544f7eb686db337c5442327392190b8a2b2",
+          "corpus_start_byte": 324622,
+          "corpus_end_byte": 336542,
+          "source_start_byte": 0,
+          "source_end_byte": 11834
+        },
+        {
+          "path": "docs/backend/OPENVINO.md",
+          "sha256": "19d26934de845e6e0d9d1b7e07a40870ad95eca54e3ae439578d010944f6d0c0",
+          "corpus_start_byte": 336542,
+          "corpus_end_byte": 381673,
+          "source_start_byte": 0,
+          "source_end_byte": 45041
+        },
+        {
+          "path": "docs/backend/SYCL.md",
+          "sha256": "adca1c317470d658a9f0cf568f8f8a2dd77472838ac13110cec1799234fc5c27",
+          "corpus_start_byte": 381673,
+          "corpus_end_byte": 427416,
+          "source_start_byte": 0,
+          "source_end_byte": 45661
+        },
+        {
+          "path": "docs/backend/VirtGPU.md",
+          "sha256": "7cb434e6dd261960017a45393c50c24523ff790a31a7118a9800cbfab5a9ecd3",
+          "corpus_start_byte": 427416,
+          "corpus_end_byte": 433731,
+          "source_start_byte": 0,
+          "source_end_byte": 6227
+        },
+        {
+          "path": "docs/backend/VirtGPU/configuration.md",
+          "sha256": "c7d9cb049f3f7af928f69f949e6f46670a626fe0eef925d6b14711d7cb38ab92",
+          "corpus_start_byte": 433731,
+          "corpus_end_byte": 440667,
+          "source_start_byte": 0,
+          "source_end_byte": 6820
+        },
+        {
+          "path": "docs/backend/VirtGPU/development.md",
+          "sha256": "fb34988157bf696c0f7de5772b3d3c693b9f106ea74199d9b7e24e179e6e6eaf",
+          "corpus_start_byte": 440667,
+          "corpus_end_byte": 446948,
+          "source_start_byte": 0,
+          "source_end_byte": 6169
+        },
+        {
+          "path": "docs/backend/ZenDNN.md",
+          "sha256": "712113bbe1905e14ee9379f5ded4a3ebb1d9167c9c6c3ab87e53b0761aa32579",
+          "corpus_start_byte": 446948,
+          "corpus_end_byte": 457535,
+          "source_start_byte": 0,
+          "source_end_byte": 10501
+        },
+        {
+          "path": "docs/backend/snapdragon/README.md",
+          "sha256": "bd57047d2f15028ec947e71e7a5c359b893c8f6565eaa42398ba55e431c583fa",
+          "corpus_start_byte": 457535,
+          "corpus_end_byte": 459209,
+          "source_start_byte": 0,
+          "source_end_byte": 1619
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "file": "chunks/chunk-0002.txt",
+      "sha256": "999fe3851283c9fb7922ea8c847bd070ac54f4129ee7a1a474d35cd58f98dfca",
+      "content_tokens": 65536,
+      "target_content_tokens": 65536,
+      "kind": "full",
+      "corpus_start_byte": 459209,
+      "corpus_end_byte": 693189,
+      "source_segments": [
+        {
+          "path": "docs/backend/snapdragon/README.md",
+          "sha256": "bd57047d2f15028ec947e71e7a5c359b893c8f6565eaa42398ba55e431c583fa",
+          "corpus_start_byte": 459209,
+          "corpus_end_byte": 475809,
+          "source_start_byte": 1619,
+          "source_end_byte": 18166
+        },
+        {
+          "path": "docs/backend/snapdragon/developer.md",
+          "sha256": "c0fdf8d80130e7cfd3863809b23b957cd2692a0c2c5cd57b81cfc3f3c2a4d6c2",
+          "corpus_start_byte": 475809,
+          "corpus_end_byte": 494819,
+          "source_start_byte": 0,
+          "source_end_byte": 18896
+        },
+        {
+          "path": "docs/backend/snapdragon/linux.md",
+          "sha256": "28a01609fcfe06be2342b1388c195c1ee4b5c0d5cbdde4c446cffd7d3a994e84",
+          "corpus_start_byte": 494819,
+          "corpus_end_byte": 498735,
+          "source_start_byte": 0,
+          "source_end_byte": 3810
+        },
+        {
+          "path": "docs/backend/snapdragon/windows.md",
+          "sha256": "e716989b8a7f3a93675cdceb084a5216dc790e7a0a3379fd3de28a109b5f0e6d",
+          "corpus_start_byte": 498735,
+          "corpus_end_byte": 505836,
+          "source_start_byte": 0,
+          "source_end_byte": 6991
+        },
+        {
+          "path": "docs/backend/zDNN.md",
+          "sha256": "226d985b3de7e196e3ae3d2f03a8f1b7556e94196d8f82e835971f04f5c4bf2f",
+          "corpus_start_byte": 505836,
+          "corpus_end_byte": 508219,
+          "source_start_byte": 0,
+          "source_end_byte": 2301
+        },
+        {
+          "path": "docs/benchmarks/multi-gpu-decode-2026-03-28.md",
+          "sha256": "5f639ee201b1f572da12d060bd8ab1e13d487fdef49e236b73cb9b58adb1cb5c",
+          "corpus_start_byte": 508219,
+          "corpus_end_byte": 512878,
+          "source_start_byte": 0,
+          "source_end_byte": 4525
+        },
+        {
+          "path": "docs/bonsai-validation.md",
+          "sha256": "623e39583469c6bae128b3b4b942b277fc63e124a300918eb7f22e442826a4ff",
+          "corpus_start_byte": 512878,
+          "corpus_end_byte": 532325,
+          "source_start_byte": 0,
+          "source_end_byte": 19355
+        },
+        {
+          "path": "docs/bonsai.md",
+          "sha256": "8f14915351fa9190c342933be7843ae6e875ea72f395a97e374591ac56fb8147",
+          "corpus_start_byte": 532325,
+          "corpus_end_byte": 537433,
+          "source_start_byte": 0,
+          "source_end_byte": 5038
+        },
+        {
+          "path": "docs/completions.md",
+          "sha256": "a45053440549c611e633cac4ea996f9861625d1747a4675f7f42269c73b623be",
+          "corpus_start_byte": 537433,
+          "corpus_end_byte": 537898,
+          "source_start_byte": 0,
+          "source_end_byte": 385
+        },
+        {
+          "path": "docs/development/HOWTO-add-model.md",
+          "sha256": "36d39ad26717e0d68c8ad9b0d95ed12dea3ef09f061bd5ba37991bb3f53e6f27",
+          "corpus_start_byte": 537898,
+          "corpus_end_byte": 551834,
+          "source_start_byte": 0,
+          "source_end_byte": 13824
+        },
+        {
+          "path": "docs/development/debugging-tests.md",
+          "sha256": "fb0aba1f9e57ececadf73726de9d5a1ba02b6bb50bccd8f701acb19a600f700e",
+          "corpus_start_byte": 551834,
+          "corpus_end_byte": 555125,
+          "source_start_byte": 0,
+          "source_end_byte": 3179
+        },
+        {
+          "path": "docs/development/exl3-format-plan.md",
+          "sha256": "5e4b140a0ebd3f1551ef6acb914614a9544cb6112e72a1ee3499a87eba7cfe8d",
+          "corpus_start_byte": 555125,
+          "corpus_end_byte": 559878,
+          "source_start_byte": 0,
+          "source_end_byte": 4639
+        },
+        {
+          "path": "docs/development/native-safetensors-architecture-plan.md",
+          "sha256": "51fcda03eea3e888f29d43c3d06bde50fda776d07be74b4612b5908cdda851c8",
+          "corpus_start_byte": 559878,
+          "corpus_end_byte": 656118,
+          "source_start_byte": 0,
+          "source_end_byte": 96086
+        },
+        {
+          "path": "docs/development/native-safetensors-packed-int-plan.md",
+          "sha256": "53c9578b8c64a8247d390a2ff11674914c34c19a77c724eeadadae5933386f12",
+          "corpus_start_byte": 656118,
+          "corpus_end_byte": 664722,
+          "source_start_byte": 0,
+          "source_end_byte": 8454
+        },
+        {
+          "path": "docs/development/parsing.md",
+          "sha256": "1cdff2c633775d4cbb35f85aab40e3019d6870209654ec1863a9cc65f9476579",
+          "corpus_start_byte": 664722,
+          "corpus_end_byte": 675456,
+          "source_start_byte": 0,
+          "source_end_byte": 10638
+        },
+        {
+          "path": "docs/development/prepared-weight-cache.md",
+          "sha256": "05376facc55370ddb4f5e765d410927b7e2af54b4be414b269c13266e837b132",
+          "corpus_start_byte": 675456,
+          "corpus_end_byte": 679429,
+          "source_start_byte": 0,
+          "source_end_byte": 3849
+        },
+        {
+          "path": "docs/development/server-resume-format.md",
+          "sha256": "b607399bd870cdcbbb9f1d2c40d89229ae3acc07630dd6e9ba3be9b2a3bbf053",
+          "corpus_start_byte": 679429,
+          "corpus_end_byte": 693189,
+          "source_start_byte": 0,
+          "source_end_byte": 13698
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "file": "chunks/chunk-0003.txt",
+      "sha256": "28c067bf7e581f7bea2976292cd56b84fb628fb34267496dfb09245305aceea3",
+      "content_tokens": 65536,
+      "target_content_tokens": 65536,
+      "kind": "full",
+      "corpus_start_byte": 693189,
+      "corpus_end_byte": 912974,
+      "source_segments": [
+        {
+          "path": "docs/development/server-resume-format.md",
+          "sha256": "b607399bd870cdcbbb9f1d2c40d89229ae3acc07630dd6e9ba3be9b2a3bbf053",
+          "corpus_start_byte": 693189,
+          "corpus_end_byte": 747694,
+          "source_start_byte": 13698,
+          "source_end_byte": 68143
+        },
+        {
+          "path": "docs/development/token_generation_performance_tips.md",
+          "sha256": "0401c2af372af0467713e00833bfcf86126a4e03f608bcd8f58045855f0f8f7a",
+          "corpus_start_byte": 747694,
+          "corpus_end_byte": 750144,
+          "source_start_byte": 0,
+          "source_end_byte": 2302
+        },
+        {
+          "path": "docs/docker.md",
+          "sha256": "73f5543c6c7a5fce2e8dfc104c0ecec7af1ffa344c9c12f25753b29427c842c4",
+          "corpus_start_byte": 750144,
+          "corpus_end_byte": 762488,
+          "source_start_byte": 0,
+          "source_end_byte": 12274
+        },
+        {
+          "path": "docs/function-calling.md",
+          "sha256": "38b9e76e9db84696471fbd67f580840bd84b3bcd02c469672480682689f49ab1",
+          "corpus_start_byte": 762488,
+          "corpus_end_byte": 783659,
+          "source_start_byte": 0,
+          "source_end_byte": 21081
+        },
+        {
+          "path": "docs/install.md",
+          "sha256": "36bd37248baeca0f52222884d98cf6c3b0a7017739dd68aca1a093ce34434f52",
+          "corpus_start_byte": 783659,
+          "corpus_end_byte": 785561,
+          "source_start_byte": 0,
+          "source_end_byte": 1830
+        },
+        {
+          "path": "docs/llguidance.md",
+          "sha256": "ef304ff3a7f29768f595ed798ab0ddab827e1ebda4df651e50c707811db27257",
+          "corpus_start_byte": 785561,
+          "corpus_end_byte": 789422,
+          "source_start_byte": 0,
+          "source_end_byte": 3783
+        },
+        {
+          "path": "docs/models.md",
+          "sha256": "aaa614d738bedabed1e748b901476e45eb228fbcf6b50d5880eafceccdea8e86",
+          "corpus_start_byte": 789422,
+          "corpus_end_byte": 791483,
+          "source_start_byte": 0,
+          "source_end_byte": 1991
+        },
+        {
+          "path": "docs/multi-gpu.md",
+          "sha256": "08508e676483fb40fdb67730f1787255d4d992599a8c9fd067cf2e1b35b5bad5",
+          "corpus_start_byte": 791483,
+          "corpus_end_byte": 801707,
+          "source_start_byte": 0,
+          "source_end_byte": 10148
+        },
+        {
+          "path": "docs/multimodal.md",
+          "sha256": "2c4089673241d6a6cccc4bd577c9d282976ea61596948b13db3f5decd60788bb",
+          "corpus_start_byte": 801707,
+          "corpus_end_byte": 806838,
+          "source_start_byte": 0,
+          "source_end_byte": 5053
+        },
+        {
+          "path": "docs/multimodal/MobileVLM.md",
+          "sha256": "1303c8e57852737429c26872ddf4b8eeab1dd703c5913ff33a1fee8d6fda39c8",
+          "corpus_start_byte": 806838,
+          "corpus_end_byte": 825468,
+          "source_start_byte": 0,
+          "source_end_byte": 18532
+        },
+        {
+          "path": "docs/multimodal/gemma3.md",
+          "sha256": "57e49f25cd5363e0993f77c6db451495ddf2da2ee4b4fc598cbdf0e3dca07a12",
+          "corpus_start_byte": 825468,
+          "corpus_end_byte": 826713,
+          "source_start_byte": 0,
+          "source_end_byte": 1153
+        },
+        {
+          "path": "docs/multimodal/glmedge.md",
+          "sha256": "436fd6e282d169424b29f9921d82aaac4e023c4e3d3e62c9cf2f3f332c5f2c33",
+          "corpus_start_byte": 826713,
+          "corpus_end_byte": 828325,
+          "source_start_byte": 0,
+          "source_end_byte": 1518
+        },
+        {
+          "path": "docs/multimodal/granitevision.md",
+          "sha256": "95f41c12dbd44a8cf414f1ec52db34a2f1fa19f960108c742a1afeac9b60bbf3",
+          "corpus_start_byte": 828325,
+          "corpus_end_byte": 834782,
+          "source_start_byte": 0,
+          "source_end_byte": 6351
+        },
+        {
+          "path": "docs/multimodal/llava.md",
+          "sha256": "8e6f216b754bf5c605231bb71d5fc86d27d2b3cb2b9ac24f92d8616504f9261b",
+          "corpus_start_byte": 834782,
+          "corpus_end_byte": 840020,
+          "source_start_byte": 0,
+          "source_end_byte": 5148
+        },
+        {
+          "path": "docs/multimodal/minicpmo2.6.md",
+          "sha256": "78b99bc806c7b097ee183a707f86bfb6cc76a2971553e7f70e83359707b777e3",
+          "corpus_start_byte": 840020,
+          "corpus_end_byte": 841936,
+          "source_start_byte": 0,
+          "source_end_byte": 1814
+        },
+        {
+          "path": "docs/multimodal/minicpmo4.0.md",
+          "sha256": "257538f5643dae8f3cb2deb12c5d7e1c3386f76dc549831d8a8b4d650984d3ff",
+          "corpus_start_byte": 841936,
+          "corpus_end_byte": 843684,
+          "source_start_byte": 0,
+          "source_end_byte": 1646
+        },
+        {
+          "path": "docs/multimodal/minicpmv2.5.md",
+          "sha256": "9f8434250be4c860b58083bfe8b4310ab99aa71a8cff240ed981bf733d3fa88c",
+          "corpus_start_byte": 843684,
+          "corpus_end_byte": 845581,
+          "source_start_byte": 0,
+          "source_end_byte": 1795
+        },
+        {
+          "path": "docs/multimodal/minicpmv2.6.md",
+          "sha256": "b56fbceac9052f593a1ef827f4efd20c867dac4f1e4b7c1ae65e62793d914cf1",
+          "corpus_start_byte": 845581,
+          "corpus_end_byte": 847363,
+          "source_start_byte": 0,
+          "source_end_byte": 1680
+        },
+        {
+          "path": "docs/multimodal/minicpmv4.0.md",
+          "sha256": "d4d4abda08ca8d8fe8fce6ba4ed5350088d183abb86de854e3e8f9bd1f9e7c75",
+          "corpus_start_byte": 847363,
+          "corpus_end_byte": 849111,
+          "source_start_byte": 0,
+          "source_end_byte": 1646
+        },
+        {
+          "path": "docs/multimodal/minicpmv4.5.md",
+          "sha256": "9bfe076a2aad6b04cf801ecc397675f2206a0a478cb211bac7973aab8c0a1330",
+          "corpus_start_byte": 849111,
+          "corpus_end_byte": 850891,
+          "source_start_byte": 0,
+          "source_end_byte": 1678
+        },
+        {
+          "path": "docs/multimodal/minicpmv4.6.md",
+          "sha256": "aff69f645eeef61c8080e08d177bc14b22d6611391a6c94d2056ec02feb91ee2",
+          "corpus_start_byte": 850891,
+          "corpus_end_byte": 853011,
+          "source_start_byte": 0,
+          "source_end_byte": 2018
+        },
+        {
+          "path": "docs/ops.md",
+          "sha256": "10f60de7356ffc3b7b24501cfbfa75d0ae08442c321faf26ac7ee771146d05cb",
+          "corpus_start_byte": 853011,
+          "corpus_end_byte": 867306,
+          "source_start_byte": 0,
+          "source_end_byte": 14231
+        },
+        {
+          "path": "docs/preset.md",
+          "sha256": "3e6643541e12ff3dfee2a23c23a57357403bf4500beced780f010eaebbbdfe13",
+          "corpus_start_byte": 867306,
+          "corpus_end_byte": 871466,
+          "source_start_byte": 0,
+          "source_end_byte": 4090
+        },
+        {
+          "path": "docs/qwen4-vbr-plan.md",
+          "sha256": "66c8b49806395cdd04b39bf13a50407effce2b36fc6fb2c0ce23445c822f4f18",
+          "corpus_start_byte": 871466,
+          "corpus_end_byte": 897278,
+          "source_start_byte": 0,
+          "source_end_byte": 25726
+        },
+        {
+          "path": "docs/release.md",
+          "sha256": "c1de6e220f95d59198e81b335ab7e93636303f4ec4faf0173e479573249e482f",
+          "corpus_start_byte": 897278,
+          "corpus_end_byte": 899577,
+          "source_start_byte": 0,
+          "source_end_byte": 2227
+        },
+        {
+          "path": "docs/safetensors.md",
+          "sha256": "2f994921033b84139c99360aa0d2e0853d299872b51ff9674815b3c19effa2af",
+          "corpus_start_byte": 899577,
+          "corpus_end_byte": 908392,
+          "source_start_byte": 0,
+          "source_end_byte": 8735
+        },
+        {
+          "path": "docs/speculative.md",
+          "sha256": "370556dee8c8ad51bdae3bf7b04546c3d2aacfe1b4156be117d3654e6e138404",
+          "corpus_start_byte": 908392,
+          "corpus_end_byte": 912974,
+          "source_start_byte": 0,
+          "source_end_byte": 4541
+        }
+      ]
+    }
+  ],
+  "tokenizer": {
+    "library_dir": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
+    "parse_special": true,
+    "helper_source_sha256": "605f3342b1ccd6e5eff4543afe795832b2766af61cf3c7606d3bcfd0c3937f46"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "protected_containers": ["jellyfin"],
+  "protected_services": ["jellyfin.service", "media-stack.service"],
+  "sizing_checks_allow_jellyfin_running": true,
+  "final_clean_prefill_retests": "paused_until_user_releases_hold",
+  "note": "Never stop Jellyfin or its transcode processes for benchmark cleanup. Record its resource use during sizing. A clean benchmark must pause instead of killing a protected GPU client."
+}

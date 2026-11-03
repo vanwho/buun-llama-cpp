@@ -8,8 +8,9 @@ Matched sizes show both scale and noise: 648-token chunks at 243,798→244,446 a
 
 ## Code path and observed fixed work
 
-`tools/server/bench/repo_context.py` builds one corpus item per tracked file.
-`fill_context()` in `run-master-context-matrix.py` sends one such item or its
+In the measured historical protocol, `tools/server/bench/repo_context.py`
+built one corpus item per tracked file. `fill_context()` in
+`run-master-context-matrix.py` sent one such item or its
 remaining suffix per append, capped by `FILL_REQUEST_BUDGET=4080`. It splits a
 large file but does not combine small adjacent files. The 453–4,081-token
 request sizes therefore pay very different per-token shares of fixed turn work.
@@ -48,3 +49,16 @@ should coalesce file fragments into fixed token-sized batches, retain all source
 paths/byte ranges, and report final short boundary batches separately. Any
 controlled phase timing must be a separate run; do not change the frozen
 completed decode candidate or silently blend ingestion protocols.
+
+## Mapping prepared; final retests paused
+
+The replacement protocol now groups frozen repository bytes into native-token
+payloads. 8K/16K/32K/64K sizing requests passed with the same immutable candidate,
+L262144/H65536, B1024/U256 and GPU Turbo4 MTP. The largest tested payload, 64K,
+added 52MiB process VRAM and left a directly sampled minimum 375MiB free.
+Four exact 65,536-token groups now map 262,144 content tokens from 74 files;
+checkpoint tails are labeled separately. See
+[the sizing and mapping handoff](repo-prefill-chunk-map-20261103.md).
+These are allocation checks, not replacement prefill performance results.
+Jellyfin remains running. The operator requested a pause before final clean
+prefill retests, so no such retest has started.

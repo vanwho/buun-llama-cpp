@@ -3,6 +3,10 @@
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
 [PREFILL101](forward/PREFILL101.md) and [TESTING](forward/TESTING.md).
 Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
+Operator update (2026-11-03): Jellyfin must remain running, including during
+benchmark preparation. Final clean prefill retests are paused after chunk sizing
+and file mapping; see [the mapped-ingest handoff](engineering-notes/repo-prefill-chunk-map-20261103.md)
+and `benchmarks/GPU_POLICY.json`. Do not restart the final matrix automatically.
 Do not change the job count without operator direction; diagnose slowness or
 resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
