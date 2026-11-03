@@ -110,8 +110,11 @@ public:
         mem_attn->note_kv_pager_accepted_tokens(count);
     }
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
-            int64_t query_start, int64_t query_end) override {
-        mem_attn->begin_kv_pager_turn(sequence_id, turn_id, query_start, query_end);
+            int64_t query_start, int64_t query_end, bool ingest = false) override {
+        mem_attn->begin_kv_pager_turn(sequence_id, turn_id, query_start, query_end, ingest);
+    }
+    bool kv_pager_ingest_turn(int32_t sequence_id) const noexcept override {
+        return mem_attn->kv_pager_ingest_turn(sequence_id);
     }
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) override {

@@ -4,9 +4,11 @@
 #include "server-context.h"
 #include "server-prompt-trim.h"
 #include "server-queue.h"
+#include "server-schema.h"
 #include "server-task.h"
 
 #include "../src/llama-memory.h"
+#include "../src/llama-graph.h"
 
 #include "llama.h"
 #include "log.h"
@@ -39,6 +41,78 @@ int failures = 0;
         failures++;                                                             \
     }                                                                           \
 } while (0)
+
+void test_aco_request_mode_is_explicit_and_request_scoped() {
+    common_params base;
+    const std::vector<llama_logit_bias> no_logit_bias;
+    const auto parse = [&](const json & body) {
+        return server_schema::eval_llama_cmpl_schema(
+            nullptr, base, no_logit_bias, body);
+    };
+
+    // Omitted and explicitly queried requests both retain the query default.
+    const auto unmarked = parse(json::object());
+    const auto query = parse(json{{"aco_mode", "query"}});
+    CHECK(!unmarked.aco_ingest);
+    CHECK(!query.aco_ingest);
+
+    // Only selective/exact pager modes consume an explicit ingest hint.
+    const auto ingest = parse(json{{"aco_mode", "ingest"}});
+    CHECK(ingest.aco_ingest);
+    CHECK(ingest.aco_ingest_enabled(llama_kv_pager_mode::selective));
+    CHECK(ingest.aco_ingest_enabled(llama_kv_pager_mode::exact));
+    CHECK(!ingest.aco_ingest_enabled(llama_kv_pager_mode::off));
+    CHECK(!ingest.aco_ingest_enabled(llama_kv_pager_mode::observe));
+
+    // Filename/content shaped fields are not request intent. Parsing a later
+    // request also starts from its own default instead of inheriting ingest.
+    const auto marker_only = parse(json{
+        {"filename", "corpus-ingest.txt"},
+        {"prompt", "[ACO_INGEST] score this document"},
+    });
+    const auto next_request = parse(json::object());
+    CHECK(!marker_only.aco_ingest);
+    CHECK(!next_request.aco_ingest);
+
+    // The endpoint contract rejects non-string values and all unsupported
+    // strings rather than silently falling back to query.
+    for (const json & invalid : {
+             json{{"aco_mode", nullptr}},
+             json{{"aco_mode", true}},
+             json{{"aco_mode", 1}},
+             json{{"aco_mode", "INGEST"}},
+             json{{"aco_mode", "other"}},
+         }) {
+        bool rejected = false;
+        try {
+            (void) parse(invalid);
+        } catch (const std::invalid_argument &) {
+            rejected = true;
+        }
+        CHECK(rejected);
+    }
+
+    // If task parameters expose the normalized mode in their JSON form, keep
+    // the representation tied to the parsed request hint.
+    if (unmarked.to_json().contains("aco_mode")) {
+        CHECK(unmarked.to_json().at("aco_mode") == "query");
+        CHECK(ingest.to_json().at("aco_mode") == "ingest");
+    }
+}
+
+void test_graph_reuse_respects_aco_ingest_topology() {
+    llm_graph_params query{};
+    llm_graph_params same_query{};
+    CHECK(query.allow_reuse(same_query));
+
+    llm_graph_params ingest = query;
+    ingest.kv_pager_ingest = true;
+    CHECK(!query.allow_reuse(ingest));
+    CHECK(!ingest.allow_reuse(query));
+
+    llm_graph_params same_ingest = ingest;
+    CHECK(ingest.allow_reuse(same_ingest));
+}
 
 server_task idle_capture_test_task(int id) {
     server_task task;
@@ -5949,6 +6023,8 @@ int main(int argc, char ** argv) {
     }
     test_lifecycle_full_cache_rotates();
     test_exact_refusal_wire_response();
+    test_aco_request_mode_is_explicit_and_request_scoped();
+    test_graph_reuse_respects_aco_ingest_topology();
     test_slot_pager_lifecycle_generation();
     test_prompt_trim_recovery_runs_paired_resets();
     test_active_storage_budget();

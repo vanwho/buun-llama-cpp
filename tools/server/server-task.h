@@ -95,6 +95,13 @@ struct task_params {
     bool cache_prompt    = true; // remember the prompt to avoid reprocessing all prompt
     bool return_tokens   = false;
     bool return_progress = false;
+    // Explicit request semantics, never inferred from filenames or prompt text.
+    // Only selective/exact ACO consumes this hint; ordinary dense is unchanged.
+    bool aco_ingest = false;
+    bool aco_ingest_enabled(llama_kv_pager_mode mode) const noexcept {
+        return aco_ingest && (mode == llama_kv_pager_mode::selective ||
+                              mode == llama_kv_pager_mode::exact);
+    }
 
     int32_t sse_ping_interval = 30; // seconds between SSE comment pings while the stream stays silent, -1 disables
 

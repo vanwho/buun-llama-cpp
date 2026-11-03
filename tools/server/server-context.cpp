@@ -16039,7 +16039,8 @@ private:
                     ? slot.task->params.final_user_kv_position_offset : 0;
             if (query_start < 0 || query_start >= query_end) query_start = 0;
             ctx_tgt->begin_kv_pager_turn(
-                    slot.id, slot.slot_session_generation, query_start, query_end);
+                    slot.id, slot.slot_session_generation, query_start, query_end,
+                    slot.task->params.aco_ingest_enabled(params_base.kv_pager.mode));
         }
 
         if (prepared_host_restore) {
@@ -22415,6 +22416,7 @@ private:
                                 }
 
                                 const bool query_capture_required =
+                                    !slot.task->params.aco_ingest_enabled(params_base.kv_pager.mode) &&
                                     (params_base.kv_pager.mode == llama_kv_pager_mode::selective ||
                                      params_base.kv_pager.mode == llama_kv_pager_mode::exact) &&
                                     params_base.kv_pager.router == llama_kv_router_mode::probe_rerank;
@@ -23800,7 +23802,8 @@ private:
                     // Capture the replay boundary before the exact final-user
                     // batch is decoded. The checkpoint owns recurrent/draft
                     // state and MTP carry only; history KV remains in place.
-                    if (is_user_start && query_begin >= 0 &&
+                    if (!slot.task->params.aco_ingest_enabled(params_base.kv_pager.mode) &&
+                            is_user_start && query_begin >= 0 &&
                             n_tokens_start == query_begin &&
                             slot.query_checkpoint.state ==
                                 server_query_checkpoint::phase::empty) {
@@ -29020,6 +29023,7 @@ static json get_res_props(const server_context_meta & meta, const common_params 
 
     json props = {
         { "default_generation_settings", default_generation_settings_for_props },
+        { "aco_request_modes",           json::array({"query", "ingest"}) },
         { "total_slots",                 params.n_parallel },
         { "model_alias",                 meta.model_name },
         { "model_ftype",                 meta.model_ftype },

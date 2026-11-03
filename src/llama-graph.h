@@ -1136,10 +1136,14 @@ struct llm_graph_params {
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
     llama_kv_attention_telemetry * kv_attention_telemetry = nullptr;
     llama_kv_attention_packed_cache * kv_attention_packed_cache = nullptr;
+    // Ingestion omits query-selector graph nodes. Crossing this request-mode
+    // boundary must rebuild once even when attention geometry is identical.
+    bool kv_pager_ingest = false;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
     bool allow_reuse(const llm_graph_params & other) const {
+        if (kv_pager_ingest != other.kv_pager_ingest) return false;
         // first check the ubatch
         bool can_reuse_ubatch =
             ubatch.equal_seqs() == other.ubatch.equal_seqs() &&
