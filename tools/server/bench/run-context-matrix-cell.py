@@ -71,11 +71,16 @@ def system_memory_kib() -> dict[str, int]:
 
 def process_memory_kib(pid: int) -> dict[str, int]:
     path = pathlib.Path(f"/proc/{pid}/status")
+    return parse_process_memory_status(path.read_text())
+
+
+def parse_process_memory_status(status_text: str) -> dict[str, int]:
     values = {}
-    for line in path.read_text().splitlines():
+    for line in status_text.splitlines():
         if line.startswith(("VmRSS:", "VmHWM:", "VmSwap:", "Threads:")):
-            key, raw, _ = line.split()
-            values[key.rstrip(":")] = int(raw)
+            parts = line.split()
+            if len(parts) >= 2:
+                values[parts[0].rstrip(":")] = int(parts[1])
     return values
 
 
@@ -163,7 +168,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--reasoning-modes", nargs="+", choices=matrix.MODES,
-                        default=list(matrix.MODES))
+                        default=list(matrix.MODES),
+                        help="for a filled series, pass exactly one mode; each mode needs a fresh matching chat-template fill")
     parser.add_argument("--prompt-indices", nargs="+", type=int, choices=(0, 1, 2),
                         default=[0, 1, 2])
     parser.add_argument("--prefill-only", action="store_true")

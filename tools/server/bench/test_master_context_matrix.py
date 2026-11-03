@@ -14,6 +14,11 @@ assert SPEC is not None and SPEC.loader is not None
 matrix = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(matrix)
 import repo_context  # noqa: E402
+CELL_PATH = pathlib.Path(__file__).with_name("run-context-matrix-cell.py")
+CELL_SPEC = importlib.util.spec_from_file_location("context_matrix_cell", CELL_PATH)
+assert CELL_SPEC is not None and CELL_SPEC.loader is not None
+cell = importlib.util.module_from_spec(CELL_SPEC)
+CELL_SPEC.loader.exec_module(cell)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
@@ -134,6 +139,12 @@ class MasterContextMatrixTests(unittest.TestCase):
             6144, True, ("off", "low", "medium", "xhigh")), "off")
         with self.assertRaisesRegex(ValueError, "exactly one reasoning mode"):
             matrix.filled_series_reasoning_mode(6144, False, ("off", "low"))
+
+    def test_process_memory_parser_accepts_two_field_threads_line(self) -> None:
+        parsed = cell.parse_process_memory_status(
+            "VmRSS:\t123 kB\nVmHWM:\t456 kB\nVmSwap:\t0 kB\nThreads:\t16\n")
+        self.assertEqual(parsed, {"VmRSS": 123, "VmHWM": 456,
+                                  "VmSwap": 0, "Threads": 16})
 
     def test_series_continuation_uses_only_unseen_repository_bytes(self) -> None:
         text = "first line\nsecond line\nthird line\n"
