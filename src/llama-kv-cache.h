@@ -205,8 +205,7 @@ public:
             const llama_ubatch & ubatch) override;
     void note_kv_pager_accepted_tokens(uint32_t count) override;
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
-            int64_t query_start, int64_t query_end, bool ingest = false) override;
-    bool kv_pager_ingest_turn(int32_t sequence_id) const noexcept override;
+            int64_t query_start, int64_t query_end) override;
     bool prepare_router_query_layers(int32_t sequence_id, uint64_t turn_id,
             std::vector<llama_kv_router_layer_plan> & plans,
             llama_kv_router_plan_error & error) noexcept;
@@ -1642,7 +1641,6 @@ private:
         uint64_t turn_id = 0;
         int64_t query_start = -1;
         int64_t query_end = -1;
-        bool ingest = false;
     };
     std::map<int32_t, pager_pending_turn> pager_pending_turns_;
     int32_t pager_policy_current_sequence_ = -1;
@@ -2219,7 +2217,6 @@ public:
             const std::vector<llama_pos> & positions,
             std::vector<int32_t> & rows) const;
     llama_kv_pager * get_kv_pager() const noexcept;
-    bool kv_pager_ingest_turn(int32_t sequence_id) const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages() const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             uint32_t layer) const noexcept;

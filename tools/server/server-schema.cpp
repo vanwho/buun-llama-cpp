@@ -31,17 +31,6 @@ std::vector<std::unique_ptr<field>> make_llama_cmpl_schema(const common_params &
     add((new field_bool("cache_prompt", params.cache_prompt))
         ->set_desc("Re-use KV cache from a previous request if possible. This way the common prefix does not have to be re-processed, only the suffix that differs between the requests"));
 
-    add((new field_json("aco_mode"))
-        ->set_desc("ACO request purpose: query (default) retrieves history; ingest evaluates new content once using the resident hot window")
-        ->set_handler([](field_eval_context & ctx, const json & data) {
-            const auto & value = data.at("aco_mode");
-            if (!value.is_string() ||
-                    (value != "query" && value != "ingest")) {
-                throw std::invalid_argument("aco_mode must be query or ingest");
-            }
-            ctx.params.aco_ingest = value == "ingest";
-        }));
-
     add((new field_bool("return_tokens", params.return_tokens))
         ->set_desc("Return the raw generated token ids in the `tokens` field"));
 
@@ -544,11 +533,6 @@ task_params eval_llama_cmpl_schema(
                 const std::vector<llama_logit_bias> & logit_bias_eog,
                 const json & data) {
     task_params params;
-    // Optional means absent, not an explicit null silently becoming query.
-    // Generic field_json intentionally skips null for other API fields.
-    if (data.contains("aco_mode") && data.at("aco_mode").is_null()) {
-        throw std::invalid_argument("aco_mode must be query or ingest");
-    }
 
     // Sampling parameter defaults are loaded from the global server context (but individual requests can still override them)
     params.sampling      = params_base.sampling;

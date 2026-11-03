@@ -3295,16 +3295,15 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             ? cparams.kv_attention_tokens
             : uint64_t(hot_capacity) * page_tokens;
         const auto turn = pager.turn_state(sequence_id);
-        const bool ingest = attention->kv_pager_ingest_turn(sequence_id);
         // Query replay is a prompt-shaped forward pass, but it must consume
         // the final committed history just like generation/MTP verification.
         // It cannot silently replace a missing frozen page with an advisory
         // fallback merely because this ubatch is classified as prefill.
-        const bool committed_generation_view = !ingest && (turn.phase == llama_kv_pager_turn_phase::query_replay ||
+        const bool committed_generation_view = turn.phase == llama_kv_pager_turn_phase::query_replay ||
             (phase != llama_kv_attention_execution_phase::prefill &&
-             turn.phase == llama_kv_pager_turn_phase::generating));
+             turn.phase == llama_kv_pager_turn_phase::generating);
         std::vector<llama_kv_page_id> routed_pages;
-        if (!ingest && !committed_generation_view) {
+        if (!committed_generation_view) {
             // Per-layer nominees guide provisional prompt attention only.
             // Replay/decode/verification already have an authenticated common
             // R set. Reconstructing and intersecting all layer lists for each
@@ -3429,7 +3428,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         // it before advisory routed pages so a later turn cannot lose facts
         // from the beginning of the conversation merely because the router
         // prefers the newest bounded window.
-        if (!ingest && !committed_generation_view) {
+        if (!committed_generation_view) {
             for (const auto & page : pager_snapshot.pages()) {
                 if (page.id.logical_page == 0) append_fallback(page.id);
             }
@@ -3448,20 +3447,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 }
             }
         };
-        if (!ingest && !committed_generation_view) append_request_boundary();
-        if (ingest) {
-            // A declared ingestion request performs one causal append using
-            // the resident hot window. Use this identical rule for prompt,
-            // ordinary decode and MTP verification: no provisional/final map
-            // switch, stale per-layer route or hidden post-prefill replay.
-            // Mandatory write pages were reserved above; remaining capacity
-            // is filled newest-first. Host-only pages stay available to a
-            // subsequent ordinary query, without promotion in this graph.
-            for (auto page = pager_snapshot.pages().rbegin();
-                    page != pager_snapshot.pages().rend(); ++page) {
-                if (resident_state(*page)) append_fallback(page->id);
-            }
-        } else if (committed_generation_view) {
+        if (!committed_generation_view) append_request_boundary();
+        if (committed_generation_view) {
             // Publication freezes a full-bundle common history set. Consume
             // it directly in every target layer, keeping exact identity and
             // content-version checks below. Nomination provenance is not a
@@ -9318,10 +9305,6 @@ llm_graph_params llama_context::graph_params(
         /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
         /*.kv_attention_telemetry =*/ kv_attention_telemetry.get(),
         /*.kv_attention_packed_cache =*/ &kv_attention_packed_cache,
-        /*.kv_pager_ingest =*/ kv_attention_execution.route() != llama_kv_attention_execution_route::dense &&
-            memory && ubatch.n_tokens != 0 && ubatch.seq_id &&
-            ubatch.n_seq_id && ubatch.n_seq_id[0] == 1 && ubatch.seq_id[0] &&
-            memory->kv_pager_ingest_turn(ubatch.seq_id[0][0]),
     };
 }
 
