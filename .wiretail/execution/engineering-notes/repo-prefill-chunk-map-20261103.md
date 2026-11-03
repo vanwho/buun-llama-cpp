@@ -134,6 +134,8 @@ Arbitrary source plus a question in one user message has no universally safe
 automatic split. One-pass per-layer retrieval before attention is a separate
 architecture change; it cannot be claimed equivalent to the current cross-layer
 selector without checking routing quality and coherent target/draft execution.
-No transparent replacement optimization or new live performance result is claimed
-by this withdrawal. The previously compiled opt-in binary is not a candidate
-for future runs; rebuild from the current committed source when testing resumes.
+The subsequent [automatic reuse implementation](automatic-attention-reuse-20261103.md)
+implements full-coverage admission, canonical R+Q views and replay certificates.
+It has no request mode. No new live performance result is claimed. The previously
+compiled opt-in binary is not a candidate for future runs; rebuild/freeze the
+current committed source when testing resumes.
