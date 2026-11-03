@@ -374,9 +374,10 @@ bool covers(const llama_kv_residency_snapshot & snapshot, int32_t seq,
         } else owner = &p->id;
         if (lo > cursor) return false;
         cursor = hi;
-        if (cursor >= end) return true;
+        // Still inspect other intersecting records: a second generation can
+        // overlap an already covered final page and invalidate the proof.
     }
-    return false;
+    return cursor >= end;
 }
 }
 

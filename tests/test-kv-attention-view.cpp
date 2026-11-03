@@ -255,8 +255,13 @@ static void test_operator_contract() {
                 static_cast<ggml_backend_t>(nullptr), metadata) ==
            llama_kv_attention_backend_status::unsupported_backend);
 
+    // Dense GPU attention now accepts F16 alongside the quantized types;
+    // use a representation that is actually unsupported for the rejection.
+    auto mixed_type = params;
+    mixed_type.type_v = GGML_TYPE_F16;
+    assert(llama_kv_attention_operator_metadata::build(view, mixed_type, status).valid());
     auto wrong_type = params;
-    wrong_type.type_v = GGML_TYPE_F16;
+    wrong_type.type_v = GGML_TYPE_I32;
     assert(!llama_kv_attention_operator_metadata::build(view, wrong_type, status).valid());
     assert(status == llama_kv_attention_operator_status::invalid_type);
 
@@ -498,6 +503,8 @@ static void test_replay_certificate_keeps_full_old_history() {
     pages[2].id.position_end = 768;
     pages[2].valid_length = 256;
     const auto first_window = snapshot_of({ pages[0], pages[1] }, 2);
+    // Logical page 2 takes the slot released by page 1 in this two-slot pool.
+    pages[2].physical_slot = 1;
     const auto second_window = snapshot_of({ pages[0], pages[2] }, 2);
 
     llama_kv_attention_replay_certificate cert;

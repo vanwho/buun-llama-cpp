@@ -3913,6 +3913,10 @@ bool llama_kv_cache::commit_kv_pager_query(
                 state.turn_id != turn_id) return false;
     }
 
+    // Own the filtered snapshot for the entire freeze/prune operation.
+    // residency(sequence_id) creates a new snapshot; iterating .pages() on
+    // that temporary leaves a dangling vector reference in C++17.
+    const auto resident = pager_->residency(sequence_id);
     std::vector<llama_kv_pager_selected_history> selected;
     const auto found = pager_committed_history_.find(sequence_id);
     if (found != pager_committed_history_.end()) selected = found->second;
@@ -3920,7 +3924,7 @@ bool llama_kv_cache::commit_kv_pager_query(
         // All prior history was consumed, not a router subset. Freeze that
         // exact prefix; the bounded request/output plan guarantees it fits.
         selected.clear();
-        for (const auto & page : pager_->residency(sequence_id).pages()) {
+        for (const auto & page : resident.pages()) {
             if (page.id.position_begin >= 0 && page.id.position_end <= state.query_start &&
                     page.physical_slot != UINT32_MAX && page.content_version != 0) {
                 selected.push_back({page.id, page.content_version});
@@ -3929,7 +3933,6 @@ bool llama_kv_cache::commit_kv_pager_query(
     }
     // Recheck at the freeze boundary as query replay may cross a later pager
     // publication than the one observed when this turn started.
-    const auto resident = pager_->residency(sequence_id);
     selected.erase(std::remove_if(selected.begin(), selected.end(), [&](const auto & page) {
         return std::none_of(resident.pages().begin(), resident.pages().end(),
                 [&](const auto & current) {

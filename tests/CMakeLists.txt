@@ -623,6 +623,13 @@ target_include_directories(test-kv-pager-model PRIVATE ${PROJECT_SOURCE_DIR}/src
 llama_build_and_test(test-kv-attention-view.cpp)
 target_include_directories(test-kv-attention-view PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(test-kv-attention-view PRIVATE llama)
+# These assertions perform both fixture setup and the actual coverage checks.
+# Keep them active for the Release builds used by the server benchmark work.
+if (MSVC)
+    target_compile_options(test-kv-attention-view PRIVATE /UNDEBUG)
+else()
+    target_compile_options(test-kv-attention-view PRIVATE -UNDEBUG)
+endif()
 llama_build_and_test(test-mtp-minimal-repair.cpp)
 target_include_directories(test-mtp-minimal-repair PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(test-mtp-minimal-repair PRIVATE llama)
