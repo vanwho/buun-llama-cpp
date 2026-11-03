@@ -17,6 +17,7 @@ import time
 from typing import Any, Mapping
 
 HERE = pathlib.Path(__file__).resolve().parent
+BENCHMARK_TEMPLATE = HERE.parents[2] / ".wiretail/execution/benchmarks/qwen38-shared-prefix.jinja"
 sys.path.insert(0, str(HERE))
 import repo_context  # noqa: E402
 from prompt_sizing import ServerPromptRenderer, request_options  # noqa: E402
@@ -29,7 +30,10 @@ PROMPTS = (
 MODES = ("off", "low", "medium", "xhigh")
 SLOT_SNAPSHOT_TIMEOUT = 1800
 CANONICAL_REQUEST_TIMEOUT = 600
-SAFETY_TOKENS = 1536
+# 1024 tokens of total headroom at C=127K/L=128K safely contains the
+# 96-token question suffix, 400 generated tokens, 3 speculative rows and
+# this 512-token margin. A larger arbitrary margin rejected valid runs.
+SAFETY_TOKENS = 512
 MTP_REPLAY_TOKENS = 3
 MAX_FRESH_FILL_TOKENS = 4096
 CANONICAL_SUFFIX_RESERVE_TOKENS = 96
@@ -73,7 +77,7 @@ def row_geometry(context_tokens: int, target_tokens: int | None, placement: str)
     if target_tokens is not None:
         if target_tokens <= 0 or target_tokens >= context_tokens:
             raise ValueError("occupied target C must be positive and below context L")
-        reserve = SAFETY_TOKENS + 400 + MTP_REPLAY_TOKENS
+        reserve = SAFETY_TOKENS + CANONICAL_SUFFIX_RESERVE_TOKENS + 400 + MTP_REPLAY_TOKENS
         if context_tokens - target_tokens < reserve:
             raise ValueError(
                 f"L={context_tokens}, C={target_tokens} leaves less than the "
@@ -102,6 +106,7 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
     if not mtp and draft_device is not None:
         raise ValueError("draft device cannot be set when MTP is disabled")
     argv = [str(server_bin), "-m", "/srv/ai/models/text/current.gguf", "--alias", model_alias,
+            "--jinja", "--chat-template-file", str(BENCHMARK_TEMPLATE),
             "-ngl", "999", "--device", "CUDA0", "--fit", "off", "-fa", "on",
             "-c", str(context_tokens), "-np", "1", "-t", "16", "-tb", "16"]
     # ACO's selective pager owns GPU hot residency and host backing. It must
@@ -117,8 +122,18 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
     argv.extend(("-b", "1024", "-ub", "256", "--poll", "0", "--host", "0.0.0.0",
                  "--port", "8080", "--api-key-file", "/srv/ai/config/llama/api-keys",
                  "--metrics", "--reasoning-preserve", "--no-context-shift",
-                 "--ctx-checkpoints", "0", "--cache-ram", "0",
-                 "--slot-save-path", str(slot_state), "--no-cache-idle-slots"))
+                 "--slot-save-path", str(slot_state)))
+    if pager == "selective":
+        argv.extend(("--ctx-checkpoints", "0", "--cache-ram", "0",
+                     "--no-cache-idle-slots"))
+    else:
+        # Qwen's hybrid/recurrent state must rewind between the independent
+        # benchmark questions. The stock master cannot do that with zero
+        # checkpoints: its next request reports cache_n=0 and re-prefills L.
+        # Use the exact ordinary-control profile already measured successfully.
+        argv.extend(("--cache-ram", "12288", "--ctx-checkpoints", "8",
+                     "--checkpoint-min-step", "8192", "--cache-idle-slots",
+                     "--kv-unified"))
     if pager != "none":
         argv.extend(("--kv-pager", pager))
         if pager == "selective":
@@ -129,6 +144,8 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
                      "--spec-draft-type-k", "turbo4", "--spec-draft-type-v", "turbo4"))
         if draft_device is not None:
             argv.extend(("--spec-draft-kv-device", draft_device))
+    else:
+        argv.extend(("--spec-type", "none"))
     return argv
 
 
@@ -151,10 +168,13 @@ def resolve_pager_mode(requested: str, help_text: str) -> str:
 
 
 def canonical_schedule(modes: tuple[str, ...] = MODES,
-                      prompt_indices: tuple[int, ...] = (0, 1, 2)) -> list[dict[str, Any]]:
+                      prompt_indices: tuple[int, ...] = (0, 1, 2),
+                      selection: Mapping[str, list[int]] | None = None) -> list[dict[str, Any]]:
     cases = []
     for mode in modes:
         for prompt_index in prompt_indices:
+            if selection is not None and prompt_index not in selection.get(mode, []):
+                continue
             prompt = PROMPTS[prompt_index]
             for repetition, maximum in enumerate((40, 400, 400, 400)):
                 cases.append({"case_index": len(cases), "reasoning": mode,
@@ -163,6 +183,38 @@ def canonical_schedule(modes: tuple[str, ...] = MODES,
                               "kind": "warmup" if repetition == 0 else "measured",
                               "max_tokens": maximum})
     return cases
+
+
+def validate_case_selection(value: Any) -> dict[str, list[int]]:
+    if not isinstance(value, dict) or not value:
+        raise ValueError("case selection must be a nonempty mode-to-prompt-index object")
+    result = {}
+    for mode, indices in value.items():
+        if mode not in MODES or not isinstance(indices, list) or not indices:
+            raise ValueError(f"invalid case selection for {mode!r}")
+        if any(type(i) is not int or i not in (0, 1, 2) for i in indices):
+            raise ValueError(f"invalid prompt indices for {mode!r}")
+        result[mode] = sorted(set(indices))
+    return result
+
+
+def canonical_output_error(response: Mapping[str, Any]) -> str | None:
+    """Reject empty/two-token acknowledgments without forcing exact answers.
+
+    The original prompts request code or a paragraph. Normal early EOS is
+    allowed; an isolated 'I'/acknowledgment is not a decode benchmark. Reasoning
+    that legitimately fills the 400-token budget is retained as generated work.
+    """
+    content = str(response.get("content") or "").strip()
+    reasoning = str(response.get("reasoning_content") or "").strip()
+    count = response.get("usage", {}).get("completion_tokens", 0)
+    if not isinstance(count, (int, float)) or count <= 0:
+        return "no generated tokens"
+    if count <= 16 and len(content + reasoning) < 40:
+        return f"non-substantive benchmark output ({count} tokens): {content!r}"
+    if not content and not reasoning:
+        return "empty benchmark output"
+    return None
 
 
 def canonical_payload(case: Mapping[str, Any], messages: list[dict[str, str]]) -> dict[str, Any]:
@@ -175,7 +227,8 @@ def canonical_payload(case: Mapping[str, Any], messages: list[dict[str, str]]) -
         # case shares the frozen repository conversation prefix.
         "cache_prompt": True,
         "stream_options": {"include_usage": True},
-        "chat_template_kwargs": {"enable_thinking": mode != "off"},
+        "chat_template_kwargs": {"enable_thinking": mode != "off",
+                                 "preserve_thinking": True},
         "reasoning_effort": "none" if mode == "off" else mode,
     }
     return payload
@@ -343,6 +396,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--slot-state", type=pathlib.Path, default=SLOT_STATE)
     parser.add_argument("--model-alias", default=MODEL)
     parser.add_argument("--reasoning-modes", nargs="+", choices=MODES, default=list(MODES))
+    parser.add_argument("--case-selection", type=json.loads,
+                        help='exact remaining pairs, e.g. {"off":[2],"low":[0,1,2]}')
     parser.add_argument("--prompt-indices", nargs="+", type=int, choices=(0, 1, 2),
                         default=[0, 1, 2])
     parser.add_argument("--prefill-only", action="store_true",
@@ -726,7 +781,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                    "temperature": 0, "seed": 42, "stream": True,
                    "cache_prompt": True,
                    "stream_options": {"include_usage": True},
-                   "chat_template_kwargs": {"enable_thinking": enable_thinking}}
+                   "chat_template_kwargs": {"enable_thinking": enable_thinking,
+                                            "preserve_thinking": True}}
         payload["reasoning_effort"] = "none" if reasoning_mode == "off" else reasoning_mode
         request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
         if append_reference is not None:
@@ -776,6 +832,10 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         if rewritten_tail:
             rec["tail_rewrite"] = True
         append_jsonl(output / "schedule.jsonl", rec)
+        print(f"fill C={occupied} +{fresh} new tokens; "
+              f"prefill={fill_rates['fresh_prefill_tok_s']} "
+              f"backend={fill_rates['backend_prefill_tok_s']} "
+              f"wall={fill_rates['wall_prefill_tok_s']} tok/s", flush=True)
         selected_range = dict(source_range)
         selected_range.update({"append_index": append_index,
             "selected_text_sha256": rec["source_text_sha256"], "fresh_tokens": fresh})
@@ -885,6 +945,9 @@ def main() -> int:
     final = load_final_curve()
     endpoint = args.endpoint.rstrip("/")
     selected_modes = tuple(args.reasoning_modes)
+    selection = validate_case_selection(args.case_selection) if args.case_selection is not None else None
+    if selection is not None:
+        selected_modes = tuple(mode for mode in MODES if mode in selection)
     # Fill the repository exactly once for this server/configuration series.
     # Reasoning mode is set per canonical request alongside its prompt; it is
     # not a reason to clear or refill the context. The fill itself is fixed to
@@ -892,7 +955,8 @@ def main() -> int:
     # schedule.
     fill_mode = repository_fill_reasoning_mode()
     fill_thinking = fill_mode != "off"
-    fill_options = request_options(chat_template_kwargs={"enable_thinking": fill_thinking})
+    fill_options = request_options(chat_template_kwargs={"enable_thinking": fill_thinking,
+                                                       "preserve_thinking": True})
     fill_options["reasoning_effort"] = "none" if fill_mode == "off" else fill_mode
     sizing_timeout = prompt_sizing_timeout(args.context_tokens)
     renderer = ServerPromptRenderer(endpoint, MODEL, key, timeout=sizing_timeout,
@@ -962,11 +1026,11 @@ def main() -> int:
         if comparable_prior != comparable_current:
             raise RuntimeError("continuation refused: server/source/config identity changed")
         prior_row = json.loads((prior_output / "row.json").read_text())
-        expected_cases = len(canonical_schedule(selected_modes, tuple(args.prompt_indices)))
-        if (prior_row.get("status") != "complete" or
-                prior_row.get("successful_case_count") != expected_cases or
-                prior_row.get("expected_case_count") != expected_cases):
-            raise RuntimeError("continuation refused: prior checkpoint prompt series is incomplete")
+        # A failed answer is not a failed repository fill. The saved base
+        # frontier, source ranges and runtime identity are checked separately;
+        # do not strand every later checkpoint because one answer was invalid.
+        if not isinstance(prior_row.get("base"), dict):
+            raise RuntimeError("continuation refused: prior filled base is missing")
         prior_base = json.loads((prior_output / "base.json").read_text())
         prior_messages = json.loads((prior_output / "base-messages.json").read_text())
         prior_manifest = json.loads((prior_output / "source-manifest.json").read_text())
@@ -1021,7 +1085,7 @@ def main() -> int:
             raise SystemExit(f"source replay refused: {error}")
     selected_prompts = tuple(args.prompt_indices)
     cases = ([] if args.prefill_only else
-             canonical_schedule(selected_modes, selected_prompts))
+             canonical_schedule(selected_modes, selected_prompts, selection))
     schedule_path = output / "canonical-schedule.json"
     if not schedule_path.exists():
         schedule_path.write_text(json.dumps(cases, indent=2, ensure_ascii=False) + "\n")
@@ -1036,7 +1100,7 @@ def main() -> int:
                     canonical_context_messages(history, case["prompt"]))
         payload = canonical_payload(case, messages)
         renderer_options = request_options(chat_template_kwargs={
-            "enable_thinking": case["reasoning"] != "off"})
+            "enable_thinking": case["reasoning"] != "off", "preserve_thinking": True})
         renderer_options["reasoning_effort"] = (
             "none" if case["reasoning"] == "off" else case["reasoning"])
         mode = case["reasoning"]
@@ -1108,6 +1172,9 @@ def main() -> int:
         request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
         _write_unique(request_path, request_bytes)
         before = final.snapshot(endpoint, key)
+        print(f"request start C={base.get('occupied_tokens', 0)} "
+              f"mode={case['reasoning']} prompt={case['prompt_index'] + 1} "
+              f"{case['kind']} repetition={case['repetition']}", flush=True)
         start = time.monotonic()
         status, response, error = final._stream_completion(
             endpoint + "/v1/chat/completions", key, payload, raw_path,
@@ -1145,14 +1212,19 @@ def main() -> int:
         mtp_not_measured = (mtp_enabled and
                             (not isinstance(mtp_result, Mapping) or
                              mtp_result.get("status") != "measured"))
+        output_error = canonical_output_error(response) if case["kind"] == "measured" else None
         row_status = ("prefix_cache_miss" if prefix_cache_error else
                       "mtp_unmeasured" if mtp_not_measured else
+                      "output_invalid" if output_error else
                       "pass" if status == 200 and error is None and usage and complete_sse
                       else "runtime_fault")
         rec = {**case, "fingerprint": fingerprint,
                "status": row_status,
                "http_status": status, "error": error, "stream_complete": complete_sse,
                "prefix_cache_error": prefix_cache_error,
+               "output_error": output_error,
+               "response_content": response.get("content", ""),
+               "response_reasoning_content": response.get("reasoning_content", ""),
                "mtp_observation_error": (mtp_result.get("reason")
                                           if mtp_not_measured and isinstance(mtp_result, Mapping)
                                           else "MTP telemetry missing" if mtp_not_measured
@@ -1173,9 +1245,13 @@ def main() -> int:
                "raw_sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),
                "base_sha256": base.get("base_sha256")}
         append_jsonl(output / "records.jsonl", rec)
-        if rec["status"] != "pass":
-            raise RuntimeError(f"canonical row failed; evidence retained: {rec}")
+        print(f"request done status={row_status} tokens={rec['completion_tokens']} "
+              f"decode={rec['decode_tok_s']} tok/s cached={cached_tokens}", flush=True)
         completed[case["case_index"]] = rec
+        if prefix_cache_error:
+            # Reprocessing a large prefix is a setup failure. Stop immediately
+            # rather than consume the rest of a multi-hour invalid campaign.
+            raise RuntimeError(f"canonical prefix reuse failed: {prefix_cache_error}")
     measured = [r for r in completed.values()
                 if r.get("kind") == "measured" and r.get("status") == "pass"]
     def table(metric):
@@ -1216,6 +1292,7 @@ def main() -> int:
                "mtp_acceptance_scope": ("measured per request; see medians" if mtp_enabled
                                          else "disabled; zero is not an acceptance result"),
                "reasoning_modes": list(selected_modes),
+               "case_selection": selection,
                "prompt_indices": list(selected_prompts),
                "prefill_only": args.prefill_only,
                "failed_cases": [{"case_index": r.get("case_index"),
@@ -1251,8 +1328,11 @@ def main() -> int:
                ] if (output / "schedule.jsonl").exists() else [],
                "completed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     (output / "row.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(json.dumps(summary, indent=2))
-    return 0
+    print(f"row {summary['status']}: C={base.get('occupied_tokens', 0)} "
+          f"cases={summary['successful_case_count']}/{len(cases)} "
+          f"measured={len(measured)}/{summary['expected_measured_count']}; "
+          f"report={output / 'row.json'}", flush=True)
+    return 0 if summary["status"] == "complete" else 1
 
 
 if __name__ == "__main__":

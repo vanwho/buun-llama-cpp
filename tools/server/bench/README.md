@@ -296,3 +296,36 @@ Do not start another model, silently adopt its geometry, or send a generation
 "setup probe" merely to check counters; a short acknowledgement can correctly
 have zero drafts. Setup is established by identity, health and allocator
 evidence; MTP acceptance comes from completed measured responses.
+
+## Frozen remaining performance matrix
+
+`run-benchmark-gaps.py` executes the explicit missing-only selections in
+`.wiretail/execution/benchmarks/remaining-matrix.json`. The companion
+`REMAINING_MATRIX.md` contains every exact single-line server command, request
+reasoning settings, checkpoint selection and predeclared capacity fallback.
+The old `/tmp/run_remaining_benchmark_matrix.py` scheduler is superseded.
+
+Validate/list without starting a server:
+
+`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --validate`
+
+Execute the remaining variants serially:
+
+`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --run`
+
+Each configuration keeps one freshly loaded server and adds only disjoint
+repository chunks. All selected prompts for one reasoning mode run before the
+next mode, using the same filled base. Native Qwen hybrid controls require the
+recorded checkpoint profile to rewind between independent questions. The model's
+original template puts low/xhigh effort instructions before all history; the
+benchmark-only template moves the identical system instruction directly before
+the final query so changing effort does not invalidate the filled KV prefix.
+The template hash and protocol difference from historical runs are recorded.
+
+The runner hash-checks binaries, adjacent libraries, model and benchmark template;
+enforces 1024/256, explicit 16-thread CPU settings and exclusive GPU use; and
+pauses/restores the profile gateway and managed server. It retains partial results,
+rejects empty/two-token acknowledgments as speed measurements, and resumes only
+missing prompt/mode pairs. It never patches a master control binary or calls a
+capacity/runtime failure a successful benchmark. This harness and its site plan
+are development benchmark tooling to exclude from the final runtime upstream PR.

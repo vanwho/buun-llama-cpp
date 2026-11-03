@@ -22,6 +22,42 @@ CELL_SPEC.loader.exec_module(cell)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_stock_hybrid_rewind_keeps_checkpoints_enabled(self) -> None:
+        argv = matrix.argv_for_row(65536, "gpu", mtp=False)
+        self.assertEqual(argv[argv.index("--ctx-checkpoints") + 1], "8")
+        self.assertEqual(argv[argv.index("--checkpoint-min-step") + 1], "8192")
+        self.assertEqual(argv[argv.index("-b") + 1], "1024")
+        self.assertEqual(argv[argv.index("-ub") + 1], "256")
+
+    def test_127k_fill_has_a_real_128k_generation_reserve(self) -> None:
+        matrix.row_geometry(131072, 130048, "gpu")
+        remaining = (131072 - matrix.canonical_prompt_upper_bound(130048)
+                     - 400 - matrix.MTP_REPLAY_TOKENS)
+        self.assertGreaterEqual(remaining, matrix.SAFETY_TOKENS)
+        with self.assertRaises(ValueError):
+            matrix.row_geometry(131072, 131000, "gpu")
+
+    def test_remaining_pairs_do_not_repeat_completed_modes_or_prompts(self) -> None:
+        selection = matrix.validate_case_selection({"off": [2], "medium": [0, 1, 2]})
+        cases = matrix.canonical_schedule(selection=selection)
+        self.assertEqual(len(cases), 16)
+        self.assertEqual(sum(c["kind"] == "measured" for c in cases), 12)
+        self.assertEqual([c["prompt_index"] for c in cases[:4]], [2] * 4)
+        self.assertEqual({c["reasoning"] for c in cases}, {"off", "medium"})
+        for bad in ({"high": [0]}, {"off": [3]}, {"off": [True]}, {}):
+            with self.assertRaises(ValueError):
+                matrix.validate_case_selection(bad)
+
+    def test_two_token_ack_is_not_a_completed_speed_measurement(self) -> None:
+        self.assertIsNotNone(matrix.canonical_output_error(
+            {"content": "I", "usage": {"completion_tokens": 2}}))
+        self.assertIsNone(matrix.canonical_output_error(
+            {"content": "def merge(a, b):\n    return sorted(a + b)\n" * 4,
+             "usage": {"completion_tokens": 100}}))
+        self.assertIsNone(matrix.canonical_output_error(
+            {"reasoning_content": "Working through the requested algorithm. " * 50,
+             "usage": {"completion_tokens": 400}}))
+
     def test_backend_work_does_not_inflate_fresh_input_bound(self) -> None:
         # ACO/MTP may report additional backend work while occupancy advanced
         # by a valid source chunk. Only the latter is constrained by the fill
@@ -99,7 +135,7 @@ class MasterContextMatrixTests(unittest.TestCase):
                          {"context_tokens": 131072, "target_tokens": 126976,
                           "placement": "gpu"})
         with self.assertRaisesRegex(ValueError, "reserve"):
-            matrix.row_geometry(131072, 130000, "gpu")
+            matrix.row_geometry(131072, 130200, "gpu")
 
     def test_selective_pager_uses_turbo4_hot_cache_even_for_host_backing(self) -> None:
         argv = matrix.argv_for_row(90112, "cpu", pager="selective", hot_pages=256,

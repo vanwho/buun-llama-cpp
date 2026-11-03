@@ -28,6 +28,16 @@ sys.modules[spec.name] = matrix
 spec.loader.exec_module(matrix)
 
 
+def server_environment(server_binary: pathlib.Path) -> dict[str, str]:
+    # A shell's old diagnostic/launcher exports must not select a reference
+    # route or load another build's shared libraries during a benchmark.
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(("GGML_", "LLAMA_ARG_"))}
+    env.update({"LD_LIBRARY_PATH": str(server_binary.resolve().parent),
+                "CUDA_VISIBLE_DEVICES": "0", "OMP_NUM_THREADS": "16"})
+    return env
+
+
 def gpu_compute_apps() -> list[str]:
     result = subprocess.run(
         ["nvidia-smi", "--query-compute-apps=pid,process_name,used_memory",
@@ -173,6 +183,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt-indices", nargs="+", type=int, choices=(0, 1, 2),
                         default=[0, 1, 2])
     parser.add_argument("--prefill-only", action="store_true")
+    parser.add_argument("--checkpoint-selection", type=pathlib.Path,
+                        help="JSON mapping occupied checkpoints to remaining mode/prompt pairs")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--skip-runtime-fault-case", type=int, action="append", default=[])
     return parser.parse_args()
@@ -188,6 +200,11 @@ def main() -> int:
     if any(target is None for target in targets):
         raise SystemExit("context checkpoint list cannot contain an empty target")
     targets = [int(target) for target in targets]
+    selections = (json.loads(args.checkpoint_selection.read_text())
+                  if args.checkpoint_selection else None)
+    if selections is not None:
+        for target in targets:
+            matrix.validate_case_selection(selections[str(target)])
     if targets != sorted(set(targets)):
         raise SystemExit("--target-sequence values must be strictly increasing")
     for target in targets:
@@ -217,8 +234,10 @@ def main() -> int:
             raise RuntimeError(f"unrelated GPU compute process(es) present before cell: {apps}")
 
         args.slot_state.mkdir(parents=True, exist_ok=True)
+        server_env = server_environment(args.server_binary)
         help_result = subprocess.run([str(args.server_binary), "--help"],
-                                     capture_output=True, text=True, timeout=60)
+                                     capture_output=True, text=True, timeout=60,
+                                     env=server_env)
         help_text = help_result.stdout + help_result.stderr
         effective_pager = matrix.resolve_pager_mode(args.pager, help_text)
         argv = matrix.argv_for_row(
@@ -241,9 +260,12 @@ def main() -> int:
                        "placement": args.placement, "mtp": args.mtp,
                        "pager": effective_pager, "pager_requested": args.pager,
                        "hot_pages": args.hot_pages})
+        report["server_environment"] = {key: server_env[key] for key in
+                                       ("LD_LIBRARY_PATH", "CUDA_VISIBLE_DEVICES", "OMP_NUM_THREADS")}
+        report["removed_environment_prefixes"] = ["GGML_", "LLAMA_ARG_"]
         with startup_log.open("wb") as log:
             proc = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
-                                    start_new_session=True)
+                                    start_new_session=True, env=server_env)
         report["server_pid"] = proc.pid
         health_ready(proc)
         live_apps = gpu_compute_apps()
@@ -290,20 +312,34 @@ def main() -> int:
             if args.prefill_only:
                 command.append("--prefill-only")
             command.extend(("--reasoning-modes", *args.reasoning_modes))
+            if selections is not None:
+                command.extend(("--case-selection", json.dumps(selections[str(target)])))
             command.extend(("--prompt-indices", *map(str, args.prompt_indices)))
             for index in args.skip_runtime_fault_case:
                 command.extend(("--skip-runtime-fault-case", str(index)))
             stage = {"target_tokens": target, "output": str(target_dir),
                      "driver_argv": command, "status": "runtime_or_driver_failure"}
-            with campaign_log.open("wb") as log:
-                result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
-                                        timeout=7200, check=False)
-            stage["driver_exit_code"] = result.returncode
+            # Each request already has its own progress/total deadline. An
+            # arbitrary two-hour checkpoint timeout can kill a healthy large
+            # CPU-offload matrix; stream concise progress and keep its raw log.
+            with campaign_log.open("w") as log, subprocess.Popen(
+                    command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1) as campaign_proc:
+                assert campaign_proc.stdout is not None
+                for line in campaign_proc.stdout:
+                    log.write(line)
+                    log.flush()
+                    try:
+                        print(line, end="", flush=True)
+                    except BrokenPipeError:
+                        pass  # terminal loss must not invalidate a benchmark
+                exit_code = campaign_proc.wait()
+            stage["driver_exit_code"] = exit_code
             row_path = campaign_output / "row.json"
             if row_path.is_file():
                 try:
                     stage["campaign"] = json.loads(row_path.read_text())
-                    stage["status"] = ("complete" if result.returncode == 0 and
+                    stage["status"] = ("complete" if exit_code == 0 and
                         stage["campaign"].get("status") == "complete" else "runtime_or_driver_failure")
                 except json.JSONDecodeError:
                     stage["status"] = "malformed_campaign_report"
@@ -318,7 +354,10 @@ def main() -> int:
             (target_dir / "cell.json").write_text(json.dumps({**report, **stage},
                 indent=2, sort_keys=True) + "\n")
             print(f"context-series C={target}: {stage['status']}", flush=True)
-            if stage["status"] != "complete":
+            # Preserve failed measurements, but continue to the next context
+            # if the driver saved its filled base and a full case report.
+            # Prefix/setup/transport failures without a report remain terminal.
+            if not row_path.is_file() or not (campaign_output / "base.json").is_file():
                 break
             previous_campaign = campaign_output
         report["status"] = ("complete" if len(report["stages"]) == len(targets) and
@@ -354,6 +393,12 @@ def main() -> int:
                     continue
                 all_samples.append(item)
         samples = [item for item in all_samples if "gpu_used_mib" in item]
+        foreign_apps = sorted({app for item in samples
+                               for app in item.get("gpu_compute_apps", [])
+                               if app.split(",", 1)[0].strip() != str(report.get("server_pid"))})
+        if foreign_apps:
+            report["status"] = "resource_interference"
+            report["foreign_gpu_compute_apps"] = foreign_apps
         sample_errors = [str(item["sample_error"]) for item in all_samples
                          if item.get("sample_error")]
         report["resource_sample_count"] = len(samples)
@@ -377,6 +422,9 @@ def main() -> int:
                     try:
                         item = json.loads(target_cell.read_text())
                         item["resource_peaks"] = report["resource_peaks"]
+                        if foreign_apps:
+                            item["status"] = "resource_interference"
+                            item["foreign_gpu_compute_apps"] = foreign_apps
                         target_cell.write_text(json.dumps(item, indent=2, sort_keys=True) + "\n")
                     except (OSError, json.JSONDecodeError):
                         pass
