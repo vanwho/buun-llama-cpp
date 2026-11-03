@@ -299,19 +299,29 @@ evidence; MTP acceptance comes from completed measured responses.
 
 ## Frozen remaining performance matrix
 
-`run-benchmark-gaps.py` executes the explicit missing-only selections in
-`.wiretail/execution/benchmarks/remaining-matrix.json`. The companion
-`REMAINING_MATRIX.md` contains every exact single-line server command, request
-reasoning settings, checkpoint selection and predeclared capacity fallback.
+The post-repair plan is `/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json`.
+The focused packed-repair run passed all 48 requests; results are in
+`.wiretail/execution/engineering-notes/packed-attention-boundary-repair.md`.
+The plan uses the stable fork bundle
+`/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin` and a fresh output
+root. Both ACO MTP variants remeasure all ten established context checkpoints,
+all four reasoning modes, and all three prompts: 120 mode/prompt pairs and 480
+requests per variant (960 total). All prior full-matrix ACO results are
+superseded for current repaired-build comparisons; their raw artifacts remain
+archived. New ACO rows are pending until this queue finishes. The separate
+48-request focused comparison remains valid for its paired C=62464/C=78848
+before/after boundary measurements. The other eight variants, source,
+model/template, and benchmark settings are unchanged. The companion
+`.wiretail/execution/benchmarks/REMAINING_MATRIX.md` contains exact commands.
 The old `/tmp/run_remaining_benchmark_matrix.py` scheduler is superseded.
 
 Validate/list without starting a server:
 
-`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --validate`
+`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --manifest /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json --validate`
 
 Execute the remaining variants serially:
 
-`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --run`
+`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --manifest /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json --run`
 
 Each configuration keeps one freshly loaded server and adds only disjoint
 repository chunks. All selected prompts for one reasoning mode run before the
