@@ -644,6 +644,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         raw_path = output / "raw" / f"append-{append_index:04d}.sse"
         payload = {"model": MODEL, "messages": messages, "max_tokens": 1,
                    "temperature": 0, "seed": 42, "stream": True,
+                   "cache_prompt": True,
                    "stream_options": {"include_usage": True},
                    "chat_template_kwargs": {"enable_thinking": enable_thinking}}
         payload["reasoning_effort"] = "none" if reasoning_mode == "off" else reasoning_mode
