@@ -109,3 +109,44 @@ Benchmark tooling is isolated in commit `2539e0178`; exclude that tooling commit
 from the future llama runtime upstream PR, retaining these development records
 on the plan branch. Payloads, raw sizing results and helper binaries remain
 external or ignored.
+
+## Explicit single-pass ingestion implementation
+
+The runtime now accepts top-level `aco_mode: ingest` on a native completion
+or chat-completion request. The default/unmarked `query` mode is unchanged.
+Only selective/exact ACO activates the hint; off/observe remain normal.
+See `docs/aco.md` for the API contract and mixed/file-update examples.
+
+Ingestion consumes the resident causal hot window throughout prefill, decode
+and MTP verification, with no selector/rerank or query replay. Normal writes,
+host sealing, eviction, admission checks and request cleanup still apply.
+It allocates no filename registry or file-hash cache. New bytes under the
+same filename are new tokens. Ingestion/query mode is a graph topology bit,
+preventing accidental reuse of a graph with the wrong selector nodes.
+
+Only source-loading appends in the mapped benchmark carry the ingestion hint.
+The original three decode questions remain normal retrieval queries. A one-time
+`/props.aco_request_modes` check prevents an older binary silently ignoring the
+hint. In particular, the immutable 1d74e9a31 bundle used in the sizing rows above
+predates this implementation and must not be used for new single-pass results.
+Those sizing observations remain historical allocation evidence, not a speed
+measurement of this new ingestion policy.
+
+Implementation validation built `llama-server`, `test-server-prompt-cache`,
+`test-server-query-replay` and `test-kv-pager` incrementally with parallel16.
+The prompt-cache and pager executables passed, including strict mode parsing,
+default/query preservation, no filename/text heuristics, request independence,
+and graph reuse in both mode-transition directions. The 37 Python harness
+checks passed, including source-only ingestion and query-mode canonical tests.
+Logs: `/srv/ai/paged-kv/results/forward/aco-ingest-implementation-20261103/`.
+
+No live model test, server replacement or final performance retest was run.
+Jellyfin and the managed model/gateway services remain active. The final-test
+hold remains in force. When testing resumes, first make one bounded L8192/H4096
+functional check: append distinct source twice in ingestion mode, then ask one
+ordinary question. Check zero ingestion replays, continued prefix reuse, host
+spill without allocation failure, and a query request that resets to normal
+routing. Include a changed file with the same filename and a mixed file/question
+request left in query mode. Preserve actual answers without an exact-format
+oracle, and do not require draft proposals from one-token ingestion acknowledgments.
+Use a fresh candidate identity/result cohort for subsequent performance curves.
