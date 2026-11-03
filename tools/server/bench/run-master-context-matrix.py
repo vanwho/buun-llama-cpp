@@ -512,7 +512,10 @@ def _append_request(final, endpoint: str, key: str, payload: Mapping[str, Any],
                     raw: pathlib.Path) -> dict[str, Any]:
     status, response, error = final._stream_completion(
         endpoint.rstrip("/") + "/v1/chat/completions", key, payload, raw,
-        connect_timeout=10, prefill_idle_timeout=300, decode_idle_timeout=120,
+        # A fresh chunk can take several minutes at a large occupied context
+        # with host-backed KV. Let the request's total budget bound both the
+        # first-token wait and decode rather than failing at a shorter idle cap.
+        connect_timeout=10, prefill_idle_timeout=900, decode_idle_timeout=900,
         total_timeout=900)
     if status != 200 or error:
         raise RuntimeError(f"context append failed: HTTP {status}, {error}")
@@ -979,7 +982,10 @@ def main() -> int:
         start = time.monotonic()
         status, response, error = final._stream_completion(
             endpoint + "/v1/chat/completions", key, payload, raw_path,
-            connect_timeout=10, prefill_idle_timeout=300, decode_idle_timeout=180,
+            # Long-context first-token latency is part of the measured result;
+            # keep it bounded by the 30-minute request budget, not a shorter
+            # idle timeout that turns slow valid work into a missing cell.
+            connect_timeout=10, prefill_idle_timeout=1800, decode_idle_timeout=1800,
             total_timeout=1800)
         elapsed = time.monotonic() - start
         after = final.snapshot(endpoint, key)
