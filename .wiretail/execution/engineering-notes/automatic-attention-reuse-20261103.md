@@ -1,9 +1,14 @@
 # Automatic attention reuse implementation
 
-The three requested improvements are implemented without a request mode,
-filename heuristics, a file registry, or a change to the benchmark workload.
-Final clean prefill retests remain paused. Jellyfin and the managed services
-must remain running; this work does not deploy the rebuilt candidate.
+Current status (2026-11-04): commit `f12d3ff14` fixes the all-hot replay
+failure found by the first live run. A production build passed an exclusive
+fresh prefill ladder through C62465/H65536 with zero replay and backend work
+identical to net-new input. See `../evidence/ALLHOT_REUSE_REPAIR_20261104.md`
+for current evidence; historical results below remain historical. The operator
+then authorized another prefill-only curve through the 256K allocation, now
+complete at C261121. The full decode/reasoning suite remains paused. Jellyfin must remain running;
+authorized exclusive test runs restore the managed server/gateway afterward.
+The implementation adds no client mode, filename heuristic or file registry.
 
 ## Code direction and invariants
 
@@ -104,11 +109,12 @@ one-token fill ACKs. GPU reported-free minimum was 357 MiB, sampled used peak
 Jellyfin stayed running and healthy. Actual admitted physical page telemetry
 was not sampled; 256 pages is the configured pool.
 
-**The replay optimization is not yet demonstrated:** the initial request had
+**Historical pre-fix result (all-hot issue resolved on 2026-11-04):** the initial request had
 zero replay, but all 14 later new-user spans replayed once, including requests
-below H. Existing logs cannot distinguish the full-candidate, prefix-coverage,
-or actual-view certificate rejection. Do not claim the automatic bypass passed
-its live proof, and do not replace this evidence with the model-free fixtures.
+below H. At that point the logs did not distinguish the full-candidate,
+prefix-coverage or actual-view certificate rejection. The 2026-11-04 diagnostic
+resolved this to a commit snapshot lifetime bug and supersedes this all-hot
+conclusion; the historical measurements themselves are retained unchanged.
 
 A separate 64K-group attempt failed after C130049 while finishing an approximately
 65550-token new user span: exact-history publication returned transaction0,
@@ -124,8 +130,57 @@ failed predicate was not instrumented, so this remains code-supported rather
 than a fully traced root cause. Smaller 32K requests completed; this is not a
 runtime fix for large Q spans. Preserve authentication and commit validation.
 
-Next review must address these two specific gaps before attributing all of the
-observed speed gains to code or launching an expensive final comparison suite.
+The all-hot gap below is resolved by the snapshot-lifetime fix; the large-Q
+zero-budget publication gap remains. Do not attribute all older mapped-chunk
+speed gains to runtime code alone or automatically start a final suite.
 The old variable per-file cohort and this mapped32K cohort have different
 request widths; their comparison is useful operational evidence, not an
 isolated code A/B. No new API/request mode was introduced.
+
+
+## All-hot root cause and repair — 2026-11-04
+
+The live diagnostic passed the original eligibility checks: actual physical
+capacity256pages/65536tokens, attention_tokens0, verify1, candidate1, full1,
+planned_end12292 for C12288. No prefix coverage rejection occurred. Replay
+was requested later by the commit certificate, so changing admission limits,
+turn geometry, prefix coverage rules or model placement was unnecessary.
+
+The new all-hot commit loop used
+`for (const auto & page : pager_->residency(seq).pages())`. The filtered
+snapshot is a temporary; its owning shared state dies before iteration in
+C++17, leaving a dangling vector reference. The compiler warned at that line.
+This could corrupt selected history identities, which pruning then removed;
+the actual-view certificate consequently saw changed history. Keep the
+filtered snapshot in a local variable across selection and pruning. This also
+removes a redundant filtered snapshot copy. No replay check was disabled.
+
+The controlled two-request reproduction changed from 12276 backend evaluations
+for 6144 new tokens/replay1 to 6144 evaluations/replay0. The final uninstrumented
+build then passed 5 append operations through C62465: backend and net-new
+rates matched at1457.53/1208.00/950.13/610.40 tok/s by checkpoint. Cached prefix
+counts matched the prior occupied frontier. All temporary ACO-REUSE diagnostic
+code was removed. Executable SHA alone is insufficient because this fix changes
+shared libllama; retain the loaded DSO hashes in future candidate identities.
+
+Release had disabled the assertions in test-kv-attention-view. Its target now
+uses -UNDEBUG (or /UNDEBUG); actual checks exposed a stale unsupported-F16
+expectation and an out-of-range slot in a two-slot fixture, now corrected to
+test supported F16/unsupported I32 and valid slot reuse. An existing duplicate-
+generation case also exposed early acceptance in covers(); it now checks all
+intersecting records before returning success. The assertion-enabled fixture
+passes. No test shape, acceptance threshold or telemetry gate was loosened.
+
+
+The operator-authorized fresh 256K prefill rerun is complete at C261121. It
+made 15 successful appends with exact cached-prefix reuse, no truncation or
+request errors: 5 initial requests through C62465 had zero replay; the next
+10 requests beyond H replayed once. Weighted rates were792.05 backend /
+449.94 net-new /448.61 request-wall tok/s, versus790.36/400.01/398.97 before
+the repair. The full-run net-new gain is12.5%; under-H interval gains were
+89.3%/92.9%/93.9% at12K/28K/61K. Beyond-H interval rates were essentially
+unchanged. Do not call beyond-H replay necessary solely because C>H: the
+remaining actual-view/certificate decisions were not diagnostically traced
+in this run. The full decode/reasoning suite remains paused. The fixed
+candidate was tested, then the prior managed service was restored. See the
+new compact evidence for exact configuration, DSO identities and raw pointers.

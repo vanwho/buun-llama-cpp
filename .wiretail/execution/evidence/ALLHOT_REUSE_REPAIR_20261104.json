@@ -1,0 +1,1019 @@
+{
+  "schema_version": 1,
+  "runtime_fix_commit": "f12d3ff14cd1305107c5bbda7c174b14ead47eb2",
+  "source_identity": {
+    "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/fixed-source-identity.json",
+    "sha256": "7d020d949338aaa87859bd06368986af2afdf094e6c1a76aff4e2fd46113d5b9"
+  },
+  "diagnostic_baseline": {
+    "raw_root": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104",
+    "C": 12288,
+    "new_tokens": 6144,
+    "backend_tokens": 12276,
+    "net_new_tok_s": 640.2214099042585,
+    "libllama_sha256": "a549daf28b0ffad791c6f208478307bc1fad1f4bf454e31303e9dda8dcc5b298",
+    "schedule": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/cell/C12288/campaign/schedule.jsonl",
+      "sha256": "0ea68e42849451489db42e938693aaac2d5fe4e7176f95f350fe270dff8d5054"
+    }
+  },
+  "fix": "Own the filtered residency snapshot while freezing and pruning all-hot history; the former temporary.pages() range dangled in C++17. Keep overlap proof checks active through all intersecting records.",
+  "test_fix": "Enable assertions in the Release attention-view fixture; replace obsolete F16 rejection with I32 and correct physical slot in two-slot fixture.",
+  "temporary_diagnostics_removed": true,
+  "decode_benchmark_cases": 0,
+  "configuration": {
+    "L": 262144,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "KV": "Turbo4 GPU target/draft",
+    "native_MTP": 2,
+    "page_tokens": 256,
+    "physical_hot_pages_confirmed_in_diagnostic": 256,
+    "new_content_chunk_tokens": 32768,
+    "reasoning": "off",
+    "sampling": "greedy, seed42",
+    "ingestion_ACK_max_tokens": 1,
+    "no_context_shift": true
+  },
+  "hot_only_validation": {
+    "raw_root": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production",
+    "status": "complete",
+    "stages": [
+      {
+        "requested_C": 6144,
+        "occupied_C": 6144,
+        "new_tokens": 6144,
+        "backend_prompt_tokens": 6144,
+        "prompt_seconds": 4.215363999999999,
+        "request_wall_seconds": 4.2341050899995025,
+        "backend_tok_s": 1457.5253762189934,
+        "net_new_tok_s": 1457.5253762189934,
+        "net_new_wall_tok_s": 1451.0740450234603,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 0,
+            "new_C": 6144,
+            "new_tokens": 6144,
+            "backend_tokens": 6144,
+            "cached_tokens": 0,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C6144/campaign/schedule.jsonl",
+          "sha256": "d9a34041c4e09d4eff8235d82ddc1be2bed4e36aecc3d0dad34e85b653ea40d4"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C6144/campaign/run-config.json",
+          "sha256": "f9d84c4dcd535e9c8d1799475808be0278a444f3b60a3656c2193e3f10eb9f09"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C6144/campaign/row.json",
+          "sha256": "3db17a16fc2c1641f1cbf30315d5eba7add2e053351cdbfc9f5cf1af50bc3ea1"
+        }
+      },
+      {
+        "requested_C": 12288,
+        "occupied_C": 12288,
+        "new_tokens": 6144,
+        "backend_prompt_tokens": 6144,
+        "prompt_seconds": 5.086077,
+        "request_wall_seconds": 5.108163411001442,
+        "backend_tok_s": 1208.003732542783,
+        "net_new_tok_s": 1208.003732542783,
+        "net_new_wall_tok_s": 1202.7806288983784,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 6144,
+            "new_C": 12288,
+            "new_tokens": 6144,
+            "backend_tokens": 6144,
+            "cached_tokens": 6144,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C12288/campaign/schedule.jsonl",
+          "sha256": "7293dd8fef024e4c4ead98591b823823a8e7620116ae138ab164dbd81a00873b"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C12288/campaign/run-config.json",
+          "sha256": "8fe08060ef0255f1a81ad403531f1dad2c029cd70d7d03c5eff2bd70e9992d75"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C12288/campaign/row.json",
+          "sha256": "883412ed0ec4434e5775c7715dfcdca249a3b4774220e859779ee9e20336219f"
+        }
+      },
+      {
+        "requested_C": 28672,
+        "occupied_C": 28673,
+        "new_tokens": 16385,
+        "backend_prompt_tokens": 16385,
+        "prompt_seconds": 17.245052,
+        "request_wall_seconds": 17.278317586984485,
+        "backend_tok_s": 950.1276076175357,
+        "net_new_tok_s": 950.1276076175357,
+        "net_new_wall_tok_s": 948.2983466134799,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 12288,
+            "new_C": 28673,
+            "new_tokens": 16385,
+            "backend_tokens": 16385,
+            "cached_tokens": 12288,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C28672/campaign/schedule.jsonl",
+          "sha256": "91f77e94cf862f057d6d79def844c45d5f838e8dde373a18f511dc0e8c72ebae"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C28672/campaign/run-config.json",
+          "sha256": "f85e704242121335470d7d89985f7239cc08ac143043ea9b1d606d19eebbf20e"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C28672/campaign/row.json",
+          "sha256": "f0594cc819c07aae71af392008ad1e3ff191b684759d3b9a0e67a864febfebae"
+        }
+      },
+      {
+        "requested_C": 62464,
+        "occupied_C": 62465,
+        "new_tokens": 33792,
+        "backend_prompt_tokens": 33792,
+        "prompt_seconds": 55.360825,
+        "request_wall_seconds": 55.477628905005986,
+        "backend_tok_s": 610.3955278845646,
+        "net_new_tok_s": 610.3955278845646,
+        "net_new_wall_tok_s": 609.1103867806218,
+        "append_count": 2,
+        "appends": [
+          {
+            "old_C": 28673,
+            "new_C": 61456,
+            "new_tokens": 32783,
+            "backend_tokens": 32783,
+            "cached_tokens": 28673,
+            "chunk_kind": "full_group"
+          },
+          {
+            "old_C": 61456,
+            "new_C": 62465,
+            "new_tokens": 1009,
+            "backend_tokens": 1009,
+            "cached_tokens": 61456,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C62464/campaign/schedule.jsonl",
+          "sha256": "6cd9104c242cee71174b11df0077eb35cc84bf03f8c8ef9e5cc88e1315e046c8"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C62464/campaign/run-config.json",
+          "sha256": "d8bc970b65307a0a9d7cf0fa10509794052ff8f6c2c44e9ee656103eb6d5b8c5"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/C62464/campaign/row.json",
+          "sha256": "4a6935dd8a25391c85665ae145078bb51bcecac91d4f6206aa87cb28c3ee5f00"
+        }
+      }
+    ],
+    "total_appends": 5,
+    "totals": {
+      "new_tokens": 62465,
+      "backend_tokens": 62465,
+      "prompt_seconds": 81.907318,
+      "request_wall_seconds": 82.09821499299142,
+      "backend_tok_s": 762.6302694955779,
+      "net_new_tok_s": 762.6302694955779,
+      "net_new_wall_tok_s": 760.8569809384105
+    },
+    "replay": {
+      "unchanged_requests": 5,
+      "replayed_requests": 0,
+      "replay_begin_end_count": []
+    },
+    "identity": {
+      "server_sha256": "70986416002c8d107a4f1251c4aefd69d1058b44d4d3069a82bd3126daa327f8",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "66fa6490bf9765ce5879d9ad90acd17f6bc364cadb265eab75743a87eb81a347",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "1a7fec3dda70b94133a931dec33025edda1a24c5c9ec7d39d0dd2c562f7d5def",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "012edbbfdf7f082d9d59de8de60d14b0c5628983263d722f6a8162e00c05a01c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "3b63f441415e2ab7d222b6a40d018cf44e06c9ad4cfc844a625314c02b01687a",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6"
+      },
+      "source_map": {
+        "path": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-32k-v1/map.json",
+        "sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f",
+        "protocol": "repo-fixed-token-chunks-v1",
+        "chunk_tokens": 32768
+      },
+      "repo_source": {
+        "commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "dirty_fingerprint": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+      },
+      "argv": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "-m",
+        "/srv/ai/models/text/current.gguf",
+        "--alias",
+        "qwen38-fast-turbo4-mtp",
+        "--jinja",
+        "--chat-template-file",
+        "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+        "-ngl",
+        "999",
+        "--device",
+        "CUDA0",
+        "--fit",
+        "off",
+        "-fa",
+        "on",
+        "-c",
+        "262144",
+        "-np",
+        "1",
+        "-t",
+        "16",
+        "-tb",
+        "16",
+        "-ctk",
+        "turbo4",
+        "-ctv",
+        "turbo4",
+        "-b",
+        "1024",
+        "-ub",
+        "256",
+        "--poll",
+        "0",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--metrics",
+        "--reasoning-preserve",
+        "--no-context-shift",
+        "--slot-save-path",
+        "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/slot-state",
+        "--ctx-checkpoints",
+        "0",
+        "--cache-ram",
+        "0",
+        "--no-cache-idle-slots",
+        "--kv-pager",
+        "selective",
+        "--kv-page-size",
+        "256",
+        "--kv-hot-pages",
+        "256",
+        "--kv-router",
+        "probe-rerank",
+        "--kv-pin-recent",
+        "0",
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        "2",
+        "--spec-draft-type-k",
+        "turbo4",
+        "--spec-draft-type-v",
+        "turbo4"
+      ]
+    },
+    "sampled_resources": {
+      "samples": 24,
+      "peak_gpu_used_mib": 15519.0,
+      "minimum_gpu_free_mib": 427.0,
+      "peak_server_rss_kib": 3602512,
+      "peak_server_hwm_kib": 14322628,
+      "maximum_server_swap_kib": 0
+    },
+    "cell": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/cell.json",
+      "sha256": "af6f9c0925c9a73f817cea440f06b69d4329e3effbf5c98ff1c4c610ac587e94"
+    },
+    "server_log": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/server-startup-20261103T232306Z.log",
+      "sha256": "146bf5a5b9c4bee240ba7060356e742e85df71244c9781c552caee121ca822ef"
+    },
+    "resources": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/cell/resource-samples.jsonl",
+      "sha256": "7cfd65ce70812aa27d8fc81808f92fd6ac306af92b4387ff3742bcb0d7312a6b"
+    },
+    "restoration": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/restoration.txt",
+      "sha256": "3cebe73107b721fce1ad51bf694e38aba17553689c9ce05eafa65aa52a54f9a9"
+    }
+  },
+  "full256K_validation": {
+    "raw_root": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k",
+    "status": "complete",
+    "stages": [
+      {
+        "requested_C": 6144,
+        "occupied_C": 6144,
+        "new_tokens": 6144,
+        "backend_prompt_tokens": 6144,
+        "prompt_seconds": 4.248676000000001,
+        "request_wall_seconds": 4.26378831799957,
+        "backend_tok_s": 1446.0975607459827,
+        "net_new_tok_s": 1446.0975607459827,
+        "net_new_wall_tok_s": 1440.972098465377,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 0,
+            "new_C": 6144,
+            "new_tokens": 6144,
+            "backend_tokens": 6144,
+            "cached_tokens": 0,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C6144/campaign/schedule.jsonl",
+          "sha256": "cef6c8a9136a732632de1ee47a93ddfe171b256317f034f0e00c783b916027cb"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C6144/campaign/run-config.json",
+          "sha256": "9105ccb7cea395fa815cfc52eb4e565a610273e410b3f054d9e2cfc0a09da545"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C6144/campaign/row.json",
+          "sha256": "ba99342744eff61101c14d1922c1dc7fe4057325304bbcc60ca08f120f150ee7"
+        }
+      },
+      {
+        "requested_C": 12288,
+        "occupied_C": 12288,
+        "new_tokens": 6144,
+        "backend_prompt_tokens": 6144,
+        "prompt_seconds": 5.123018,
+        "request_wall_seconds": 5.143300588009879,
+        "backend_tok_s": 1199.2930729503585,
+        "net_new_tok_s": 1199.2930729503585,
+        "net_new_wall_tok_s": 1194.5636648814504,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 6144,
+            "new_C": 12288,
+            "new_tokens": 6144,
+            "backend_tokens": 6144,
+            "cached_tokens": 6144,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C12288/campaign/schedule.jsonl",
+          "sha256": "cbfaeacb7613b49d24d3fa632ac302b09c5b1357cf543fe2b40b9f9eaca11970"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C12288/campaign/run-config.json",
+          "sha256": "a0f753a1333b0dff6df3bbeabe5328bca8eb95f358a9bb361b514e25115a9284"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C12288/campaign/row.json",
+          "sha256": "0a8c94761a932b2f95de426be9e27acc26106c43c99df57fe1277e72f23dfca7"
+        }
+      },
+      {
+        "requested_C": 28672,
+        "occupied_C": 28673,
+        "new_tokens": 16385,
+        "backend_prompt_tokens": 16385,
+        "prompt_seconds": 17.274001000000002,
+        "request_wall_seconds": 17.310253584990278,
+        "backend_tok_s": 948.535316166764,
+        "net_new_tok_s": 948.535316166764,
+        "net_new_wall_tok_s": 946.5488139473263,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 12288,
+            "new_C": 28673,
+            "new_tokens": 16385,
+            "backend_tokens": 16385,
+            "cached_tokens": 12288,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C28672/campaign/schedule.jsonl",
+          "sha256": "63604bfd0c1e02448f9d48ca3cfcb58102d267cdbc4c2b83dcd08b508554a4dc"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C28672/campaign/run-config.json",
+          "sha256": "bcf9ad27f6f1d4e8acc0bb5a4b79b3d63100d190aaa1b940e239c1aba6ee3adc"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C28672/campaign/row.json",
+          "sha256": "6d8c6af5d493317aed229716c3623a72adae802944aa6e2bcd6415a4d10a88f6"
+        }
+      },
+      {
+        "requested_C": 62464,
+        "occupied_C": 62465,
+        "new_tokens": 33792,
+        "backend_prompt_tokens": 33792,
+        "prompt_seconds": 55.45803299999999,
+        "request_wall_seconds": 55.67882017698139,
+        "backend_tok_s": 609.3256138384859,
+        "net_new_tok_s": 609.3256138384859,
+        "net_new_wall_tok_s": 606.9094117401972,
+        "append_count": 2,
+        "appends": [
+          {
+            "old_C": 28673,
+            "new_C": 61456,
+            "new_tokens": 32783,
+            "backend_tokens": 32783,
+            "cached_tokens": 28673,
+            "chunk_kind": "full_group"
+          },
+          {
+            "old_C": 61456,
+            "new_C": 62465,
+            "new_tokens": 1009,
+            "backend_tokens": 1009,
+            "cached_tokens": 61456,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C62464/campaign/schedule.jsonl",
+          "sha256": "8e69224427fa9937cc442d515829eab68ccb9501b0d58ad41b1c6dfe160b7e00"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C62464/campaign/run-config.json",
+          "sha256": "197f1c9b7ffe608c0ae72e9bd7411006010bbf8d2163574047e79384445dc360"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C62464/campaign/row.json",
+          "sha256": "6d0814e509c8d37a2e15ca245dd02871264f0c939069b80590507f09b70ac589"
+        }
+      },
+      {
+        "requested_C": 78848,
+        "occupied_C": 78849,
+        "new_tokens": 16384,
+        "backend_prompt_tokens": 32756,
+        "prompt_seconds": 40.035258,
+        "request_wall_seconds": 40.110017275990685,
+        "backend_tok_s": 818.1788162823879,
+        "net_new_tok_s": 409.2392760401344,
+        "net_new_wall_tok_s": 408.47651316787744,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 62465,
+            "new_C": 78849,
+            "new_tokens": 16384,
+            "backend_tokens": 32756,
+            "cached_tokens": 62465,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C78848/campaign/schedule.jsonl",
+          "sha256": "ea9e8d2c88813949cadca0b9d054e6a962016aeb4c39646702b0760760298ee2"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C78848/campaign/run-config.json",
+          "sha256": "d4286f56b0e51a8f8abeecf2af16fd9db2f94dc2a383f2f62d0bca637a74061d"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C78848/campaign/row.json",
+          "sha256": "5546aa4d299bcc570c4d21d4ca5dce2079e834dbf44a13a06ed835e365452765"
+        }
+      },
+      {
+        "requested_C": 88064,
+        "occupied_C": 88065,
+        "new_tokens": 9216,
+        "backend_prompt_tokens": 18420,
+        "prompt_seconds": 22.412528,
+        "request_wall_seconds": 22.49280682700919,
+        "backend_tok_s": 821.8617730226596,
+        "net_new_tok_s": 411.19859392925247,
+        "net_new_wall_tok_s": 409.73098959501567,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 78849,
+            "new_C": 88065,
+            "new_tokens": 9216,
+            "backend_tokens": 18420,
+            "cached_tokens": 78849,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C88064/campaign/schedule.jsonl",
+          "sha256": "e4980f8c29553d188ba24636cbe83ba6200a6afd1e15694a5f27f84849ca2eec"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C88064/campaign/run-config.json",
+          "sha256": "5ace6fff837f5c9c0ff6a1f9d91fe409af112e2e2ada37acf8649e72e015d066"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C88064/campaign/row.json",
+          "sha256": "5f056a58f38ed1b405d7de587d13294c1224c665fc8671f3e799f0161b24d483"
+        }
+      },
+      {
+        "requested_C": 100352,
+        "occupied_C": 100352,
+        "new_tokens": 12287,
+        "backend_prompt_tokens": 24562,
+        "prompt_seconds": 29.460956,
+        "request_wall_seconds": 29.547054645983735,
+        "backend_tok_s": 833.7136106513312,
+        "net_new_tok_s": 417.0604647045398,
+        "net_new_wall_tok_s": 415.845171277339,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 88065,
+            "new_C": 100352,
+            "new_tokens": 12287,
+            "backend_tokens": 24562,
+            "cached_tokens": 88065,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C100352/campaign/schedule.jsonl",
+          "sha256": "6d31a9c132f97b0613368e2391bf803933d40fde47f68770735a96420da49546"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C100352/campaign/run-config.json",
+          "sha256": "83074a42f4a38fdc5ed580919b6bba290dcf4d484737f490f582bbe2092387f8"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C100352/campaign/row.json",
+          "sha256": "a4ac96fb3d0fc0bb9bbe70af0318481067e0f6d44aba2bd6e6bd9ec8195fb202"
+        }
+      },
+      {
+        "requested_C": 130048,
+        "occupied_C": 130049,
+        "new_tokens": 29697,
+        "backend_prompt_tokens": 59382,
+        "prompt_seconds": 68.241393,
+        "request_wall_seconds": 68.35461167700123,
+        "backend_tok_s": 870.1756718242841,
+        "net_new_tok_s": 435.17575908803616,
+        "net_new_wall_tok_s": 434.4549588011474,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 100352,
+            "new_C": 130049,
+            "new_tokens": 29697,
+            "backend_tokens": 59382,
+            "cached_tokens": 100352,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C130048/campaign/schedule.jsonl",
+          "sha256": "fe6f97ad3e72cad5984ea8258a9d50f4ef94177aaa57a160f483f66a55aa24a3"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C130048/campaign/run-config.json",
+          "sha256": "64782f40971f17979a3bf27e3d1149827e59b89411ff52a2239affee5fca908e"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C130048/campaign/row.json",
+          "sha256": "fe70f3f541b47e816d896c6027b2ea70a1ba87a049c8a9d1b81901d00195d5be"
+        }
+      },
+      {
+        "requested_C": 196608,
+        "occupied_C": 196608,
+        "new_tokens": 66559,
+        "backend_prompt_tokens": 133082,
+        "prompt_seconds": 163.598213,
+        "request_wall_seconds": 164.06427987696952,
+        "backend_tok_s": 813.4685432046865,
+        "net_new_tok_s": 406.84429725402936,
+        "net_new_wall_tok_s": 405.6885511575832,
+        "append_count": 3,
+        "appends": [
+          {
+            "old_C": 130049,
+            "new_C": 162832,
+            "new_tokens": 32783,
+            "backend_tokens": 65554,
+            "cached_tokens": 130049,
+            "chunk_kind": "full_group"
+          },
+          {
+            "old_C": 162832,
+            "new_C": 195615,
+            "new_tokens": 32783,
+            "backend_tokens": 65554,
+            "cached_tokens": 162832,
+            "chunk_kind": "full_group"
+          },
+          {
+            "old_C": 195615,
+            "new_C": 196608,
+            "new_tokens": 993,
+            "backend_tokens": 1974,
+            "cached_tokens": 195615,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C196608/campaign/schedule.jsonl",
+          "sha256": "88e94a14cbdacc39762bce234e05500161d6eccb67a7bb69d800849591275749"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C196608/campaign/run-config.json",
+          "sha256": "d294ea2c0612da8d4bdb0c4f1d7a02bacce51d38ae76163a12adc934d4d635ed"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C196608/campaign/row.json",
+          "sha256": "85a0b5f7416a4ffbe695851201c40eae6809409c0e77c2643ce6ef90248461c6"
+        }
+      },
+      {
+        "requested_C": 256000,
+        "occupied_C": 256001,
+        "new_tokens": 59393,
+        "backend_prompt_tokens": 118762,
+        "prompt_seconds": 157.156943,
+        "request_wall_seconds": 157.55663780201576,
+        "backend_tok_s": 755.6904437877746,
+        "net_new_tok_s": 377.9215786858363,
+        "net_new_wall_tok_s": 376.9628549362211,
+        "append_count": 2,
+        "appends": [
+          {
+            "old_C": 196608,
+            "new_C": 229391,
+            "new_tokens": 32783,
+            "backend_tokens": 65554,
+            "cached_tokens": 196608,
+            "chunk_kind": "full_group"
+          },
+          {
+            "old_C": 229391,
+            "new_C": 256001,
+            "new_tokens": 26610,
+            "backend_tokens": 53208,
+            "cached_tokens": 229391,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C256000/campaign/schedule.jsonl",
+          "sha256": "3290ecf1445a6121cff9e06781088b5ae07ed07f4e572b696d55a56b09fe3db9"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C256000/campaign/run-config.json",
+          "sha256": "67375e69ddbc678a3fc8be9a6400adb0884dfe8109bcaee1e897b497b6b170fa"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C256000/campaign/row.json",
+          "sha256": "6907e8187e448dba22c75b698ba3906a202ef2e94579c477a2aa5701fd7973fa"
+        }
+      },
+      {
+        "requested_C": 261120,
+        "occupied_C": 261121,
+        "new_tokens": 5120,
+        "backend_prompt_tokens": 10228,
+        "prompt_seconds": 17.330848999999997,
+        "request_wall_seconds": 17.545284638996236,
+        "backend_tok_s": 590.1615091101423,
+        "net_new_tok_s": 295.4269580215026,
+        "net_new_wall_tok_s": 291.81629738968513,
+        "append_count": 1,
+        "appends": [
+          {
+            "old_C": 256001,
+            "new_C": 261121,
+            "new_tokens": 5120,
+            "backend_tokens": 10228,
+            "cached_tokens": 256001,
+            "chunk_kind": "checkpoint_tail"
+          }
+        ],
+        "schedule": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C261120/campaign/schedule.jsonl",
+          "sha256": "fcabd55b0e248679a9cb3f1c2256e63636800f23300f8f1281da41e3cde3459e"
+        },
+        "run_config": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C261120/campaign/run-config.json",
+          "sha256": "4061a2c19786dce4fbc1dcb079452fb78e0abcca8821917c6ee7b6c78ff97423"
+        },
+        "row": {
+          "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/C261120/campaign/row.json",
+          "sha256": "96ae2ba4f8151532b5b192a55a0273b7097a6b4de14b7cfe867f0c8120c985c4"
+        }
+      }
+    ],
+    "total_appends": 15,
+    "totals": {
+      "new_tokens": 261121,
+      "backend_tokens": 459657,
+      "prompt_seconds": 580.339868,
+      "request_wall_seconds": 582.0668554119475,
+      "backend_tok_s": 792.0479452567956,
+      "net_new_tok_s": 449.9449622509822,
+      "net_new_wall_tok_s": 448.6099793728957,
+      "net_new_gain_percent_vs_previous_curve": 12.482273232346675
+    },
+    "replay": {
+      "unchanged_requests": 5,
+      "replayed_requests": 10,
+      "replay_begin_end_count": [
+        [
+          62468,
+          78840,
+          1
+        ],
+        [
+          78852,
+          88056,
+          1
+        ],
+        [
+          88068,
+          100343,
+          1
+        ],
+        [
+          100355,
+          130040,
+          1
+        ],
+        [
+          130052,
+          162823,
+          1
+        ],
+        [
+          162835,
+          195606,
+          1
+        ],
+        [
+          195618,
+          196599,
+          1
+        ],
+        [
+          196611,
+          229382,
+          1
+        ],
+        [
+          229394,
+          255992,
+          1
+        ],
+        [
+          256004,
+          261112,
+          1
+        ]
+      ]
+    },
+    "identity": {
+      "server_sha256": "70986416002c8d107a4f1251c4aefd69d1058b44d4d3069a82bd3126daa327f8",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "3b63f441415e2ab7d222b6a40d018cf44e06c9ad4cfc844a625314c02b01687a",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "66fa6490bf9765ce5879d9ad90acd17f6bc364cadb265eab75743a87eb81a347",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "1a7fec3dda70b94133a931dec33025edda1a24c5c9ec7d39d0dd2c562f7d5def",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "012edbbfdf7f082d9d59de8de60d14b0c5628983263d722f6a8162e00c05a01c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6"
+      },
+      "source_map": {
+        "path": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-32k-v1/map.json",
+        "sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f",
+        "protocol": "repo-fixed-token-chunks-v1",
+        "chunk_tokens": 32768
+      },
+      "repo_source": {
+        "commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "dirty_fingerprint": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+      },
+      "argv": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "-m",
+        "/srv/ai/models/text/current.gguf",
+        "--alias",
+        "qwen38-fast-turbo4-mtp",
+        "--jinja",
+        "--chat-template-file",
+        "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+        "-ngl",
+        "999",
+        "--device",
+        "CUDA0",
+        "--fit",
+        "off",
+        "-fa",
+        "on",
+        "-c",
+        "262144",
+        "-np",
+        "1",
+        "-t",
+        "16",
+        "-tb",
+        "16",
+        "-ctk",
+        "turbo4",
+        "-ctv",
+        "turbo4",
+        "-b",
+        "1024",
+        "-ub",
+        "256",
+        "--poll",
+        "0",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--metrics",
+        "--reasoning-preserve",
+        "--no-context-shift",
+        "--slot-save-path",
+        "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/slot-state",
+        "--ctx-checkpoints",
+        "0",
+        "--cache-ram",
+        "0",
+        "--no-cache-idle-slots",
+        "--kv-pager",
+        "selective",
+        "--kv-page-size",
+        "256",
+        "--kv-hot-pages",
+        "256",
+        "--kv-router",
+        "probe-rerank",
+        "--kv-pin-recent",
+        "0",
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        "2",
+        "--spec-draft-type-k",
+        "turbo4",
+        "--spec-draft-type-v",
+        "turbo4"
+      ]
+    },
+    "sampled_resources": {
+      "samples": 138,
+      "peak_gpu_used_mib": 15589.0,
+      "minimum_gpu_free_mib": 357.0,
+      "peak_server_rss_kib": 8696788,
+      "peak_server_hwm_kib": 14322560,
+      "maximum_server_swap_kib": 0
+    },
+    "cell": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/cell.json",
+      "sha256": "0408293c3132671cb88d5aee453b86d423e18c2cc2b488e911bf57c2265c899a"
+    },
+    "server_log": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/server-startup-20261103T232741Z.log",
+      "sha256": "ab985a1dae68e85df3a8bbc4935ad3be22210f545a6f81160b52dbd9a4eaa69a"
+    },
+    "resources": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/cell/resource-samples.jsonl",
+      "sha256": "b063058960c8e919441e489aaea4a521e950f8b5018fd53f443af1e90e9f1f35"
+    },
+    "restoration": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/restoration.txt",
+      "sha256": "1975ec33603e54c508d863be5e2e89c7cf383bb782a39ddfe58608c99b5e176b"
+    }
+  },
+  "previous_curve_comparison": {
+    "source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/AUTOMATIC_REUSE_PREFILL_20261103.json",
+    "rows": [
+      {
+        "C": 6144,
+        "before_net_new_tok_s": 1450.7160313093987,
+        "after_backend_tok_s": 1446.0975607459827,
+        "after_net_new_tok_s": 1446.0975607459827,
+        "net_new_change_percent": -0.3183580014103349
+      },
+      {
+        "C": 12288,
+        "before_net_new_tok_s": 633.6707513196059,
+        "after_backend_tok_s": 1199.2930729503585,
+        "after_net_new_tok_s": 1199.2930729503585,
+        "net_new_change_percent": 89.26123234390353
+      },
+      {
+        "C": 28672,
+        "before_net_new_tok_s": 491.84824201851274,
+        "after_backend_tok_s": 948.535316166764,
+        "after_net_new_tok_s": 948.535316166764,
+        "net_new_change_percent": 92.85121611374225
+      },
+      {
+        "C": 62464,
+        "before_net_new_tok_s": 314.3007745311606,
+        "after_backend_tok_s": 609.3256138384859,
+        "after_net_new_tok_s": 609.3256138384859,
+        "net_new_change_percent": 93.8670417683224
+      },
+      {
+        "C": 78848,
+        "before_net_new_tok_s": 408.66097880290675,
+        "after_backend_tok_s": 818.1788162823879,
+        "after_net_new_tok_s": 409.2392760401344,
+        "net_new_change_percent": 0.1415102657762235
+      },
+      {
+        "C": 88064,
+        "before_net_new_tok_s": 410.0909244021677,
+        "after_backend_tok_s": 821.8617730226596,
+        "after_net_new_tok_s": 411.19859392925247,
+        "net_new_change_percent": 0.2701033993131041
+      },
+      {
+        "C": 100352,
+        "before_net_new_tok_s": 416.0511145222765,
+        "after_backend_tok_s": 833.7136106513312,
+        "after_net_new_tok_s": 417.0604647045398,
+        "net_new_change_percent": 0.24260244643792284
+      },
+      {
+        "C": 130048,
+        "before_net_new_tok_s": 435.2082459806327,
+        "after_backend_tok_s": 870.1756718242841,
+        "after_net_new_tok_s": 435.17575908803616,
+        "net_new_change_percent": -0.007464677633417516
+      },
+      {
+        "C": 196608,
+        "before_net_new_tok_s": 407.4154596241235,
+        "after_backend_tok_s": 813.4685432046865,
+        "after_net_new_tok_s": 406.84429725402936,
+        "net_new_change_percent": -0.1401916291102756
+      },
+      {
+        "C": 256000,
+        "before_net_new_tok_s": 378.26635510149754,
+        "after_backend_tok_s": 755.6904437877746,
+        "after_net_new_tok_s": 377.9215786858363,
+        "net_new_change_percent": -0.09114646624299727
+      },
+      {
+        "C": 261120,
+        "before_net_new_tok_s": 295.88187332291466,
+        "after_backend_tok_s": 590.1615091101423,
+        "after_net_new_tok_s": 295.4269580215026,
+        "net_new_change_percent": -0.15374895944219036
+      }
+    ]
+  },
+  "scope": [
+    "No full decode/reasoning suite was run.",
+    "All-hot replay fix is separate from genuine attention-view changes beyond H.",
+    "The earlier 64K-new-query zero-budget publication failure is not repaired or tested by this 32K chunk series."
+  ],
+  "restoration": "Each wrapper restores gateway/managed service; Jellyfin protected and running,8091 preserved,8092 untouched.",
+  "focused_test": {
+    "target": "test-kv-attention-view",
+    "status": "pass",
+    "exit_code": 0,
+    "assertions_enabled_in_release": true,
+    "summary": {
+      "path": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/production/validation-summary.md",
+      "sha256": "ffcffbb105b0983cc1558ac28c126bffb1cfcc35cff15c4c0a3cb90b89dd5a6f"
+    },
+    "flags_at_validation": "-O3 -DNDEBUG -std=gnu++17 -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wextra-semi -UNDEBUG"
+  },
+  "temporary_diagnostics_absent_from_final_libllama": true
+}

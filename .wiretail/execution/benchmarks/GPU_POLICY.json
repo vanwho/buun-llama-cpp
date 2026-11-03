@@ -20,6 +20,22 @@
     "actual_final_occupied_tokens": 261121,
     "request_content_group_tokens": 32768,
     "result": ".wiretail/execution/evidence/AUTOMATIC_REUSE_PREFILL_20261103.md",
-    "next_action": "Full suite remains paused; review replay-bypass miss and long-query zero-history-budget publication failure before a final suite."
+    "next_action": "Historical pre-fix curve; superseded for all-hot behavior by f12d3ff14 and ALLHOT_REUSE_REPAIR_20261104.md. Full suite remains paused."
+  },
+  "authorized_allhot_repair": {
+    "status": "completed",
+    "runtime_fix_commit": "f12d3ff14",
+    "scope": "focused hot-only diagnosis/repair, then operator-authorized fresh256K prefill-only",
+    "L": 262144,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "mtp": "GPU native MTP2, Turbo4 target/draft",
+    "group_tokens": 32768,
+    "final_occupied_tokens": 261121,
+    "result": ".wiretail/execution/evidence/ALLHOT_REUSE_REPAIR_20261104.md",
+    "no_decode_suite": true,
+    "temporary_diagnostics": "removed",
+    "next_action": "Full suite remains paused. All-hot replay is fixed; examine remaining beyond-H replay and large-Q zero-budget publication separately before final suite."
   }
 }
