@@ -262,13 +262,20 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     with raw_path.open("wb") as raw_file:
         try:
-            open_timeout = connect_timeout if total_timeout is None else min(
-                connect_timeout, total_timeout)
+            initial_timeout = prefill_idle_timeout
+            if total_timeout is not None:
+                initial_timeout = min(initial_timeout, total_timeout)
+            # urllib applies this timeout while waiting for response headers as
+            # well as while connecting. A long first prefill can delay those
+            # headers, so a short connect timeout here creates false prefill
+            # failures before the SSE stream is even available. Keep the open
+            # bounded by the prefill/total deadline while honoring the caller's
+            # minimum connection timeout.
+            open_timeout = max(connect_timeout, initial_timeout)
+            if total_timeout is not None:
+                open_timeout = min(open_timeout, total_timeout)
             with urllib.request.urlopen(request, timeout=open_timeout) as response:
                 status = response.status
-                initial_timeout = prefill_idle_timeout
-                if total_timeout is not None:
-                    initial_timeout = min(initial_timeout, total_timeout)
                 _set_response_timeout(response, initial_timeout)
                 for raw_line in response:
                     raw_file.write(raw_line)
