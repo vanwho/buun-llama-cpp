@@ -170,6 +170,10 @@ def canonical_payload(case: Mapping[str, Any], messages: list[dict[str, str]]) -
     payload = {
         "model": MODEL, "messages": messages, "max_tokens": case["max_tokens"],
         "temperature": 0, "seed": 42, "stream": True,
+        # Retain the resident filled prefix between canonical cases. The
+        # server rewinds only the prior question/answer suffix when the next
+        # case shares the frozen repository conversation prefix.
+        "cache_prompt": True,
         "stream_options": {"include_usage": True},
         "chat_template_kwargs": {"enable_thinking": mode != "off"},
         "reasoning_effort": "none" if mode == "off" else mode,
@@ -343,6 +347,8 @@ def parse_args() -> argparse.Namespace:
                         default=[0, 1, 2])
     parser.add_argument("--prefill-only", action="store_true",
                         help="fill and record fresh repository chunks, omit canonical prompt runs")
+    parser.add_argument("--reuse-filled-prefix", action="store_true",
+                        help="keep the filled KV prefix resident and reuse it with cache_prompt; skip disk snapshots")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--startup-log", type=pathlib.Path,
@@ -554,7 +560,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  output: pathlib.Path, context_tokens: int, target_tokens: int,
                  fingerprint: str, append_reference: pathlib.Path | None = None,
                  preserve_prefix_tokens: int | None = None,
-                 reasoning_mode: str = "off") -> tuple[list[dict[str, str]], dict[str, Any]]:
+                 reasoning_mode: str = "off",
+                 reuse_filled_prefix: bool = False) -> tuple[list[dict[str, str]], dict[str, Any]]:
     # The measured context is filled only with tracked repository source.
     # A/B/A retrieval fixtures belong to a separate promotion campaign and
     # would contaminate this fresh-content prefill workload.
@@ -573,7 +580,12 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
     history: list[dict[str, str]] = []
     occupied = 0
-    append_index = 0
+    existing_append_indices = []
+    for item in (output / "requests").glob("append-*.json"):
+        match = re.fullmatch(r"append-(\d+)\.json", item.name)
+        if match:
+            existing_append_indices.append(int(match.group(1)))
+    append_index = max(existing_append_indices, default=-1) + 1
     planned = []
     # Preserve the full assistant content and reasoning in history. Replaying
     # this exact mode-specific conversation lets the server reuse the entire
@@ -702,34 +714,45 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     source_manifest["requested_target_tokens"] = target_tokens
     source_manifest["actual_occupancy_tokens"] = occupied
     source_manifest["occupancy_delta_tokens"] = occupancy_delta
-    base_file = f"base-{fingerprint[:16]}.bin"
-    status, saved = _post(endpoint, key, "/slots/0?action=save",
-                          {"filename": base_file, "format": "resume"},
-                          timeout=SLOT_SNAPSHOT_TIMEOUT)
-    if status != 200 or not saved.get("n_saved"):
-        raise RuntimeError(f"base snapshot save failed: {saved}")
-    base_path = SLOT_STATE / base_file
-    if not base_path.is_file():
-        raise RuntimeError("server did not create the frozen base snapshot")
-    if saved.get("n_saved") != occupied:
-        raise RuntimeError(f"snapshot occupancy mismatch: {saved.get('n_saved')} != {occupied}")
-    base_hash = hashlib.sha256(base_path.read_bytes()).hexdigest()
-    # Round trip before the canonical suite. This verifies the server restore
-    # path and token frontier; later request-local MTP counters remain evidence.
-    cleared = final.clear_slot(endpoint, key, 0, 180)
-    if not cleared.get("ok"):
-        raise RuntimeError(f"base snapshot round-trip erase failed: {cleared}")
-    status, restored = _post(endpoint, key, "/slots/0?action=restore",
-                             {"filename": base_file}, timeout=SLOT_SNAPSHOT_TIMEOUT)
-    if status != 200 or restored.get("n_restored") != saved.get("n_saved"):
-        raise RuntimeError(f"base snapshot round-trip mismatch: {saved} / {restored}")
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
-    (output / "base-messages.json").write_text(
-        json.dumps(history, ensure_ascii=False, indent=2) + "\n")
+    base_messages = json.dumps(history, ensure_ascii=False, indent=2) + "\n"
+    (output / "base-messages.json").write_text(base_messages)
+    if reuse_filled_prefix:
+        # The live slot already contains this exact measured prefix. Keep it
+        # resident and use normal cache_prompt LCP reuse for each independent
+        # canonical question; serializing the entire KV state to disk is both
+        # unnecessary and prohibitively expensive at long contexts.
+        base_file = None
+        base_hash = hashlib.sha256(base_messages.encode("utf-8")).hexdigest()
+        saved = {"method": "resident_prefix_reuse", "n_saved": occupied}
+        restored = {"method": "resident_prefix_reuse", "n_restored": occupied}
+    else:
+        base_file = f"base-{fingerprint[:16]}.bin"
+        status, saved = _post(endpoint, key, "/slots/0?action=save",
+                              {"filename": base_file, "format": "resume"},
+                              timeout=SLOT_SNAPSHOT_TIMEOUT)
+        if status != 200 or not saved.get("n_saved"):
+            raise RuntimeError(f"base snapshot save failed: {saved}")
+        base_path = SLOT_STATE / base_file
+        if not base_path.is_file():
+            raise RuntimeError("server did not create the frozen base snapshot")
+        if saved.get("n_saved") != occupied:
+            raise RuntimeError(f"snapshot occupancy mismatch: {saved.get('n_saved')} != {occupied}")
+        base_hash = hashlib.sha256(base_path.read_bytes()).hexdigest()
+        # Retained for callers that explicitly request disk-backed snapshots.
+        cleared = final.clear_slot(endpoint, key, 0, 180)
+        if not cleared.get("ok"):
+            raise RuntimeError(f"base snapshot round-trip erase failed: {cleared}")
+        status, restored = _post(endpoint, key, "/slots/0?action=restore",
+                                 {"filename": base_file}, timeout=SLOT_SNAPSHOT_TIMEOUT)
+        if status != 200 or restored.get("n_restored") != saved.get("n_saved"):
+            raise RuntimeError(f"base snapshot round-trip mismatch: {saved} / {restored}")
     return history, {"fingerprint": fingerprint, "requested_target_tokens": target_tokens,
                      "occupied_tokens": occupied, "occupancy_delta_tokens": occupancy_delta,
-                     "base_file": str(base_path),
+                     "base_file": (str(SLOT_STATE / base_file) if base_file else None),
                      "base_sha256": base_hash, "save": saved, "restore": restored,
+                     "reuse_method": ("resident_prefix_reuse" if reuse_filled_prefix
+                                      else "disk_snapshot_restore"),
                      "fill_enable_thinking": enable_thinking,
                      "fill_reasoning_mode": reasoning_mode,
                      "source_manifest_sha256": hashlib.sha256(
@@ -813,6 +836,8 @@ def main() -> int:
                 "mtp_enabled": mtp_enabled, "pager": args.pager,
                 "fill_enable_thinking": fill_thinking,
                 "fill_reasoning_mode": fill_mode,
+                "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
+                                         else "disk_snapshot_restore"),
                 "hot_pages": args.hot_pages,
                 "model_sha256": hashlib.sha256(pathlib.Path("/srv/ai/models/text/current.gguf").read_bytes()).hexdigest(),
                 "template_id": renderer.template_id, "repo_context_git": source_identity,
@@ -836,10 +861,12 @@ def main() -> int:
             if (previous.get("fingerprint") == fingerprint and
                     previous.get("status") == "runtime_fault"):
                 reproducible_failures[int(previous["case_index"])] = previous
-    if geometry["target_tokens"] is not None and not (output / "base.json").exists():
+    if geometry["target_tokens"] is not None and (
+            args.reuse_filled_prefix or not (output / "base.json").exists()):
         history, base = fill_context(final, renderer, endpoint, key, output,
             args.context_tokens, args.target_tokens, fingerprint, args.append_reference,
-            args.preserve_prefix_tokens, fill_mode)
+            args.preserve_prefix_tokens, fill_mode,
+            reuse_filled_prefix=args.reuse_filled_prefix)
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
     elif (output / "base.json").exists():
         base = json.loads((output / "base.json").read_text())
@@ -929,17 +956,16 @@ def main() -> int:
                 raise RuntimeError(f"baseline slot erase failed: {cleared}")
             messages = [{"role": "user", "content": case["prompt"]}]
         else:
-            filename = pathlib.Path(base["base_file"]).name
-            # The server's slot-file restore paths clear/replace an occupied
-            # slot themselves (resume_install_sequence/chunks). A separate
-            # /slots?action=erase performs the same expensive pager teardown
-            # twice and is unnecessary before restoring this frozen base.
-            restore_status, restored = _post(endpoint, key, "/slots/0?action=restore",
-                                             {"filename": filename},
-                                             timeout=SLOT_SNAPSHOT_TIMEOUT)
-            if (restore_status != 200 or
-                    restored.get("n_restored") != int(base["occupied_tokens"])):
-                raise RuntimeError(f"canonical snapshot restore failed: {restored}")
+            if not args.reuse_filled_prefix:
+                filename = pathlib.Path(base["base_file"]).name
+                # The server's slot-file restore paths clear/replace an occupied
+                # slot themselves (resume_install_sequence/chunks).
+                restore_status, restored = _post(endpoint, key, "/slots/0?action=restore",
+                                                 {"filename": filename},
+                                                 timeout=SLOT_SNAPSHOT_TIMEOUT)
+                if (restore_status != 200 or
+                        restored.get("n_restored") != int(base["occupied_tokens"])):
+                    raise RuntimeError(f"canonical snapshot restore failed: {restored}")
             messages = canonical_context_messages(history, case["prompt"])
         payload, rendered = prepared[case["case_index"]]
         attempt = sum(1 for p in (output / "requests").glob(f"case-{case['case_index']:02d}-*.json"))
@@ -1009,6 +1035,8 @@ def main() -> int:
         for r in measured) for i in range(len(PROMPTS))} for mode in MODES}
     failed = [r for r in completed.values() if r.get("status") != "pass"]
     summary = {"geometry": geometry, "fingerprint": fingerprint,
+               "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
+                                         else "disk_snapshot_restore"),
                "case_count": len(completed),
                "expected_case_count": len(cases),
                "successful_case_count": sum(r.get("status") == "pass" for r in completed.values()),

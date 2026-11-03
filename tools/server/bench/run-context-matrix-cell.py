@@ -216,7 +216,11 @@ def main() -> int:
             "--source-worktree", str(args.source_worktree.resolve()),
             "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,
             "--output", str(output / "campaign"), "--api-key-file", str(args.api_key_file),
-            "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080"]
+            "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
+            # Keep one fresh repository fill resident for the whole prompt
+            # series. cache_prompt reuses the shared KV prefix and rewinds only
+            # each prior question/answer suffix; no giant resume snapshot I/O.
+            "--reuse-filled-prefix"]
         if args.hot_pages is not None:
             command.extend(("--hot-pages", str(args.hot_pages)))
         if args.draft_device is not None:
