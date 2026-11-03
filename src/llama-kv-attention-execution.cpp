@@ -56,19 +56,14 @@ bool llama_kv_attention_graph_capacity(uint32_t base_capacity,
         return true;
     }
 
-    // build_attn_inp_kv_impl creates four page views; build_attn creates
-    // two cache-write-dependent views and two copy tensors per page/layer.
-    // All eight consume arena objects, even though only six enter the graph.
-    // The fixed layer allowance covers cache/staging aliases, selector/probe
-    // sidebands and masks. Shared staging/padding/input objects have their own
-    // fixed allowance. One upper bound serves both the scheduler node array
-    // and llm_graph_result's tensor arena: this adds CPU metadata only, not
-    // target KV, packed numerical buffers or CUDA scratch bytes.
+    // Batched encoded packing has constant tensor/node count per layer.
+    // Page membership lives in one mutable input, not per-page copy views.
+    // Reserve bounded metadata for layer aliases, pack results and sidebands;
+    // neither the CPU arena nor CUDA graph grows with H or logical context L.
     constexpr uint32_t shared_objects = 32;
     constexpr uint32_t layer_objects = 32;
-    constexpr uint32_t page_layer_objects = 8;
     const uint64_t remaining = uint64_t(UINT32_MAX) - base_capacity;
-    const uint64_t per_layer = uint64_t(physical_pages) * page_layer_objects + layer_objects;
+    const uint64_t per_layer = layer_objects;
     if (remaining < shared_objects ||
             attention_layers > (remaining - shared_objects) / per_layer) return false;
     capacity = base_capacity + shared_objects + uint32_t(per_layer * attention_layers);
@@ -109,15 +104,10 @@ uint32_t llama_kv_attention_packed_row_capacity(
     if (!metadata.valid() || page_tokens == 0) {
         return 0;
     }
-    uint64_t selected_rows = 0;
-    for (const auto & page : metadata.page_table()) {
-        const uint64_t page_end = uint64_t(page.compact_row_begin) + page.row_count;
-        selected_rows = std::max(selected_rows, page_end);
-    }
-    if (selected_rows == 0 || selected_rows > UINT64_MAX - page_tokens + 1) {
+    const uint64_t required_pages = metadata.page_table().size();
+    if (required_pages == 0 || required_pages > UINT32_MAX / page_tokens) {
         return 0;
     }
-    const uint64_t required_pages = (selected_rows + page_tokens - 1) / page_tokens;
     uint64_t pages = required_pages;
     if (admitted_rows != 0) {
         // Prefer one stable owner covering the admitted hot window. The
@@ -131,6 +121,46 @@ uint32_t llama_kv_attention_packed_row_capacity(
     }
     const uint64_t rows = pages * page_tokens;
     return rows > UINT32_MAX ? 0 : uint32_t(rows);
+}
+
+bool llama_kv_attention_packed_page_layout(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t page_tokens, uint64_t physical_rows,
+        std::vector<int32_t> & pages,
+        std::vector<llama_pos> & positions,
+        std::vector<uint8_t> & mask) noexcept {
+    pages.clear();
+    positions.clear();
+    mask.clear();
+    const uint32_t capacity = llama_kv_attention_packed_row_capacity(metadata, page_tokens);
+    if (capacity == 0 || capacity > physical_rows) return false;
+    try {
+        positions.assign(capacity, -1);
+        mask.assign(capacity, 0);
+        pages.reserve(metadata.page_table().size() * 2);
+        for (size_t index = 0; index < metadata.page_table().size(); ++index) {
+            const auto & page = metadata.page_table()[index];
+            const uint64_t source_row = uint64_t(page.source_physical_slot) * page_tokens;
+            if (page.row_count == 0 || page.row_count > page_tokens ||
+                    source_row > INT32_MAX || source_row > physical_rows ||
+                    page_tokens > physical_rows - source_row ||
+                    uint64_t(page.compact_row_begin) + page.row_count > metadata.native_positions().size() ||
+                    uint64_t(page.compact_row_begin) + page.row_count > metadata.native_mask().size()) {
+                pages.clear(); positions.clear(); mask.clear();
+                return false;
+            }
+            pages.push_back(int32_t(source_row));
+            pages.push_back(int32_t(page.row_count));
+            for (uint32_t row = 0; row < page.row_count; ++row) {
+                positions[index * page_tokens + row] = metadata.native_positions()[page.compact_row_begin + row];
+                mask[index * page_tokens + row] = metadata.native_mask()[page.compact_row_begin + row];
+            }
+        }
+        return true;
+    } catch (...) {
+        pages.clear(); positions.clear(); mask.clear();
+        return false;
+    }
 }
 
 float llama_kv_attention_selected_mask_value(

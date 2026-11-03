@@ -799,6 +799,9 @@ extern "C" {
         // Incrementally update a min/max catalogue from packed Turbo4 K.
         GGML_OP_KV_PAGE_SUMMARY,
 
+        // Pack page rows into fixed-size buckets, zero-padding each tail.
+        GGML_OP_KV_PACK,
+
         GGML_OP_COUNT,
     };
 
@@ -1804,6 +1807,17 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             struct ggml_tensor  * b);
+
+    // Copy encoded K/V page rows into fixed-size destination buckets. pages is
+    // contiguous I32 [2,n_pages], with {source_row_begin, valid_rows} pairs.
+    // Source and destination storage must not overlap. The operation preserves
+    // encoded bytes without dequantization and zeroes each invalid page tail.
+    GGML_API struct ggml_tensor * ggml_kv_pack(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * source,
+            struct ggml_tensor  * destination,
+            struct ggml_tensor  * pages,
+            int32_t               page_tokens);
 
     // note: casting from f32 to i32 will discard the fractional part
     GGML_API struct ggml_tensor * ggml_cast(

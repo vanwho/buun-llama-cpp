@@ -5257,6 +5257,46 @@ void ggml_compute_forward_cpy(
     ggml_compute_forward_dup(params, dst);
 }
 
+// ggml_compute_forward_kv_pack
+void ggml_compute_forward_kv_pack(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    if (params->ith != 0) {
+        return;
+    }
+
+    const ggml_tensor * src = dst->src[0];
+    const ggml_tensor * output = dst->src[1];
+    const ggml_tensor * pages = dst->src[2];
+    const int32_t page_tokens = ggml_get_op_params_i32(dst, 0);
+    GGML_ASSERT(page_tokens > 0);
+    GGML_ASSERT(src->type == output->type && src->ne[3] == 1 && output->ne[3] == 1);
+
+    // One time row spans all KV heads: dims 0 and 1 are contiguous.
+    const size_t row_bytes = src->nb[2];
+    const size_t page_bytes = row_bytes * (size_t) page_tokens;
+    const int32_t * descriptors = (const int32_t *) pages->data;
+    const char * source = (const char *) src->data;
+    char * destination = (char *) output->data;
+    const int64_t n_pages = pages->ne[1];
+
+    for (int64_t page = 0; page < n_pages; ++page) {
+        char * bucket = destination + (size_t) page * page_bytes;
+        memset(bucket, 0, page_bytes);
+
+        const int32_t source_row = descriptors[2 * page + 0];
+        const int32_t valid_rows = descriptors[2 * page + 1];
+        if (source_row < 0 || valid_rows < 0 || valid_rows > page_tokens ||
+                source_row > src->ne[2] - valid_rows) {
+            continue;
+        }
+        if (valid_rows != 0) {
+            memcpy(bucket, source + (size_t) source_row * row_bytes,
+                    (size_t) valid_rows * row_bytes);
+        }
+    }
+}
+
 // ggml_compute_forward_cont
 
 void ggml_compute_forward_cont(

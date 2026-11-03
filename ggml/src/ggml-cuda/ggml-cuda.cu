@@ -3766,6 +3766,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
         case GGML_OP_CPY:
             ggml_cuda_cpy(ctx, dst->src[0], dst->src[1]);
             break;
+        case GGML_OP_KV_PACK:
+            ggml_cuda_kv_pack(ctx, dst);
+            break;
         case GGML_OP_CONT:
             ggml_cuda_dup(ctx, dst);
             break;
@@ -10354,6 +10357,25 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
         case GGML_OP_KV_PAGE_SUMMARY:
             return op->type == GGML_TYPE_F16 && op->src[0]->type == GGML_TYPE_TURBO4_0 &&
                 op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F16;
+        case GGML_OP_KV_PACK: {
+            const int32_t page_tokens = ggml_get_op_params_i32(op, 0);
+            const ggml_tensor * source = op->src[0];
+            const ggml_tensor * destination = op->src[1];
+            const ggml_tensor * pages = op->src[2];
+            return page_tokens > 0 && source != nullptr && destination != nullptr && pages != nullptr &&
+                source->type == destination->type && op->type == destination->type &&
+                source->ne[3] == 1 && destination->ne[3] == 1 &&
+                source->ne[0] == destination->ne[0] && source->ne[1] == destination->ne[1] &&
+                pages->type == GGML_TYPE_I32 && pages->ne[0] == 2 && pages->ne[2] == 1 && pages->ne[3] == 1 &&
+                destination->ne[2] == pages->ne[1] * page_tokens &&
+                ggml_is_contiguous(pages) &&
+                source->nb[0] == ggml_type_size(source->type) &&
+                source->nb[1] == ggml_row_size(source->type, source->ne[0]) &&
+                source->nb[2] == source->nb[1] * source->ne[1] &&
+                destination->nb[0] == ggml_type_size(destination->type) &&
+                destination->nb[1] == ggml_row_size(destination->type, destination->ne[0]) &&
+                destination->nb[2] == destination->nb[1] * destination->ne[1];
+        }
         case GGML_OP_REPEAT:
             {
                 // the CUDA REPEAT path only implements F32/F16; other types assert at runtime

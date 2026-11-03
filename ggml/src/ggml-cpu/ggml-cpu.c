@@ -2897,6 +2897,10 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_cpy(params, tensor);
             } break;
+        case GGML_OP_KV_PACK:
+            {
+                ggml_compute_forward_kv_pack(params, tensor);
+            } break;
         case GGML_OP_CONT:
             {
                 ggml_compute_forward_cont(params, tensor);
@@ -3319,6 +3323,9 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
     }
 
     switch (node->op) {
+        case GGML_OP_KV_PACK:
+            n_tasks = 1;
+            break;
         case GGML_OP_CPY:
         case GGML_OP_DUP:
         case GGML_OP_CONT:

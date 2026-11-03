@@ -524,47 +524,28 @@ public:
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
 
-    // The packed route retains the cache's native Turbo4 bytes. Each page
-    // copy is a typed view, so packing never passes through F16/F32 rows.
-    struct packed_copy {
-        ggml_tensor * source_k = nullptr;
-        ggml_tensor * source_v = nullptr;
-        ggml_tensor * packed_k = nullptr;
-        ggml_tensor * packed_v = nullptr;
-        uint32_t page_index = 0;
-        uint32_t page_generation = 0;
-        uint64_t content_version = 0;
-        uint64_t source_lifetime_epoch = 0;
-        uint64_t source_offset_k = 0;
-        uint64_t source_offset_v = 0;
-        bool current_rows = false;
-        uint32_t page_row_count = 0;
-        uint32_t row_count = 0;
-        uint64_t bytes = 0;
-    };
+    // One mutable [source row, valid rows] descriptor per selected page.
+    // Fixed page-sized destination buckets keep CUDA graph addresses/shapes
+    // stable as current rows grow. KV_PACK zeroes invalid rows without ever
+    // reading uninitialized canonical tails; no extra per-layer H cache exists.
+    uint32_t packed_page_tokens = 0;
+    ggml_tensor * packed_pages = nullptr;
+    std::vector<int32_t> packed_pages_host;
+    std::vector<int32_t> packed_pages_uploaded;
+    std::vector<llama_pos> packed_positions;
+    std::vector<uint8_t> packed_mask;
+    ggml_backend_t packed_backend = nullptr;
     struct packed_layer {
         uint32_t layer_id = 0;
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
-        // First-layer-only tail views: masked rows still pass through
-        // quantized tile loads, and must be zeroed once per slab execution.
-        ggml_tensor * padding_k = nullptr;
-        ggml_tensor * padding_v = nullptr;
         ggml_tensor * source_k = nullptr;
         ggml_tensor * source_v = nullptr;
-        ggml_backend_t backend = nullptr;
         uint32_t row_capacity = 0;
-        // Borrowed source tensors remain owned by the pager/cache context;
-        // these identities document the lifetime and physical slab against
-        // which the compact duplicate was captured.
-        uint64_t source_lifetime_epoch = 0;
-        uint64_t source_physical_key = 0;
-        std::vector<packed_copy> copies;
     };
     std::vector<packed_layer> packed_layers;
-    // One graph-owned Turbo4 workspace is shared by layer-specific views.
-    // Transformer dependencies serialize its producers and consumers, so
-    // every layer can repopulate it after the preceding attention completes.
+    // One encoded workspace shared between transformer layers. Each layer
+    // executes two batched pack nodes, rather than two copies per page.
     ggml_tensor * packed_staging_k = nullptr;
     ggml_tensor * packed_staging_v = nullptr;
 

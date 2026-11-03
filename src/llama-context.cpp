@@ -9005,12 +9005,10 @@ uint32_t llama_context::graph_max_nodes(uint32_t n_tokens) const {
         res += (n_sampling_outputs_max - 1) * n_sampling_nodes_max;
     }
     if (kv_pager.mode == llama_kv_pager_mode::selective && kv_pager_plan_valid_) {
-        // The upstream model-only budget does not count packed selected
-        // page-copy views, including non-executed copy-plan tensors. The
-        // preallocated physical pool is known before initial sched_reserve;
-        // using it also covers later sparse/fragmented maps without growing
-        // the arena with occupied or logical context. Draft-only contexts
-        // have no target pager plan and keep their original capacity.
+        // The upstream model-only budget does not count selected staging
+        // aliases, descriptors and batched pack nodes. Their arena cost is
+        // bounded per attention layer, independent of sparse/fragmented page
+        // membership. Draft-only contexts keep their original capacity.
         uint32_t attention_layers = 0;
         for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
             if (model.hparams.has_kv(il)) ++attention_layers;

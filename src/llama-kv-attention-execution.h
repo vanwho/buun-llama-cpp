@@ -12,9 +12,9 @@
 
 struct llama_kv_attention_execution_metrics;
 
-// A graph arena holds tensor objects as well as executable nodes. Packed
-// selected attention creates page-copy views outside the model's dense graph.
-// Budget those objects from admitted physical pages, never logical context L.
+// A graph arena holds tensor objects as well as executable nodes. Batched
+// encoded packing adds a bounded number per attention layer, independent of
+// selected page count and logical context L.
 bool llama_kv_attention_graph_capacity(uint32_t base_capacity,
         uint32_t physical_pages, uint32_t attention_layers,
         uint32_t & capacity) noexcept;
@@ -82,12 +82,21 @@ enum class llama_kv_attention_execution_route_override : uint8_t {
 // kernel uses the same bound for its fixed shared-memory query workspace.
 constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 
-// Compact packed storage is page-aligned in rows. This is the selected-view
-// extent, not the admitted physical cache window.
+// Packed storage uses one fixed page-sized bucket per selected page, including
+// partial pages. This is selected-view storage, never full logical context L.
 uint32_t llama_kv_attention_packed_row_capacity(
         const llama_kv_attention_operator_metadata & metadata,
         uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
         uint64_t admitted_rows = 0) noexcept;
+
+// Construct the mutable encoded-pack descriptors and matching bucket mask.
+// No source tail beyond row_count is valid, including after slot recycling.
+bool llama_kv_attention_packed_page_layout(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t page_tokens, uint64_t physical_rows,
+        std::vector<int32_t> & pages,
+        std::vector<llama_pos> & positions,
+        std::vector<uint8_t> & mask) noexcept;
 
 // Return the causal/alibi mask value for one compact selected row. Callers
 // pass the full admitted capacity; rows beyond native validity are always

@@ -1462,9 +1462,10 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "KV_QUERY_ACCUMULATE",
     "KV_QUERY_PROBES",
     "KV_PAGE_SUMMARY",
+    "KV_PACK",
 };
 
-static_assert(GGML_OP_COUNT == 114, "GGML_OP_COUNT != 114");
+static_assert(GGML_OP_COUNT == 115, "GGML_OP_COUNT != 115");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1590,9 +1591,10 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "kv_query_accumulate(q, positions, sum, count, control)",
     "kv_query_probes(q, positions, probes, validity, control)",
     "kv_page_summary(k, metadata, catalogue)",
+    "kv_pack(source, destination, pages)",
 };
 
-static_assert(GGML_OP_COUNT == 114, "GGML_OP_COUNT != 114");
+static_assert(GGML_OP_COUNT == 115, "GGML_OP_COUNT != 115");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -4044,6 +4046,38 @@ struct ggml_tensor * ggml_cpy(
         struct ggml_tensor * a,
         struct ggml_tensor * b) {
     return ggml_cpy_impl(ctx, a, b);
+}
+
+struct ggml_tensor * ggml_kv_pack(
+        struct ggml_context * ctx,
+        struct ggml_tensor * source,
+        struct ggml_tensor * destination,
+        struct ggml_tensor * pages,
+        int32_t page_tokens) {
+    GGML_ASSERT(source != NULL && destination != NULL && pages != NULL);
+    GGML_ASSERT(page_tokens > 0);
+    GGML_ASSERT(source->type == destination->type);
+    GGML_ASSERT(source->ne[0] == destination->ne[0] && source->ne[1] == destination->ne[1]);
+    GGML_ASSERT(source->ne[3] == 1 && destination->ne[3] == 1);
+    GGML_ASSERT(source->nb[0] == ggml_type_size(source->type));
+    GGML_ASSERT(source->nb[1] == ggml_row_size(source->type, source->ne[0]));
+    GGML_ASSERT(source->nb[2] == source->nb[1] * source->ne[1]);
+    GGML_ASSERT(destination->nb[0] == ggml_type_size(destination->type));
+    GGML_ASSERT(destination->nb[1] == ggml_row_size(destination->type, destination->ne[0]));
+    GGML_ASSERT(destination->nb[2] == destination->nb[1] * destination->ne[1]);
+    GGML_ASSERT(destination->ne[2] % page_tokens == 0);
+    GGML_ASSERT(pages->type == GGML_TYPE_I32 && pages->ne[0] == 2 &&
+            pages->ne[1] == destination->ne[2] / page_tokens && pages->ne[2] == 1 && pages->ne[3] == 1);
+    GGML_ASSERT(ggml_is_contiguous(pages));
+
+    struct ggml_tensor * result = ggml_view_tensor(ctx, destination);
+    ggml_format_name(result, "%s (kv pack)", destination->name);
+    result->op = GGML_OP_KV_PACK;
+    result->src[0] = source;
+    result->src[1] = destination;
+    result->src[2] = pages;
+    ggml_set_op_params_i32(result, 0, page_tokens);
+    return result;
 }
 
 struct ggml_tensor * ggml_cast(
@@ -8494,6 +8528,11 @@ void ggml_build_backward_expand(
             case GGML_OP_ROPE:          // positions not differentiable
                 ignore_src[1] = true;
                 break;
+            case GGML_OP_KV_PACK:       // encoded page packing has no backward operation
+                ignore_src[0] = true;
+                ignore_src[1] = true;
+                ignore_src[2] = true;
+                break;
 
             default:
                 break;
@@ -8511,7 +8550,7 @@ void ggml_build_backward_expand(
         }
 
         // inplace operations are currently not supported
-        GGML_ASSERT(!node->view_src || node->op == GGML_OP_CPY || node->op == GGML_OP_SET_ROWS || node->op == GGML_OP_VIEW ||
+        GGML_ASSERT(!node->view_src || node->op == GGML_OP_CPY || node->op == GGML_OP_KV_PACK || node->op == GGML_OP_SET_ROWS || node->op == GGML_OP_VIEW ||
             node->op == GGML_OP_RESHAPE || node->op == GGML_OP_PERMUTE || node->op == GGML_OP_TRANSPOSE);
 
         const size_t ihash = ggml_hash_find(&cgraph->visited_hash_set, node);

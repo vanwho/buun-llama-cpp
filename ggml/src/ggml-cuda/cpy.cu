@@ -5,6 +5,63 @@
 #include "ggml-musa/mudnn.cuh"
 #endif // GGML_USE_MUSA && GGML_MUSA_MUDNN_COPY
 
+// Each CTA copies a useful tile rather than launching one CTA per KiB.
+// Descriptor reads stay on-device; a frozen history never needs host fences.
+template <typename Word>
+static __global__ void kv_pack_kernel(
+        const char * source, char * destination, const int32_t * pages,
+        int64_t source_rows, int64_t row_bytes, int32_t page_tokens,
+        int64_t bucket_bytes) {
+    const int64_t page = blockIdx.y;
+    const int32_t source_row = pages[2 * page + 0];
+    const int32_t valid_rows = pages[2 * page + 1];
+    const bool valid = source_row >= 0 && valid_rows >= 0 &&
+        valid_rows <= page_tokens && int64_t(source_row) <= source_rows - valid_rows;
+    const int64_t valid_bytes = valid ? int64_t(valid_rows) * row_bytes : 0;
+    auto * target = reinterpret_cast<Word *>(destination + page * bucket_bytes);
+    const int64_t words = bucket_bytes / sizeof(Word);
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x;
+            i < words; i += int64_t(gridDim.x) * blockDim.x) {
+        const int64_t offset = i * sizeof(Word);
+        Word value = {};
+        if (offset < valid_bytes) {
+            value = *reinterpret_cast<const Word *>(source + int64_t(source_row) * row_bytes + offset);
+        }
+        target[i] = value;
+    }
+}
+
+void ggml_cuda_kv_pack(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * source = dst->src[0];
+    const ggml_tensor * output = dst->src[1];
+    const ggml_tensor * pages = dst->src[2];
+    const int32_t page_tokens = ggml_get_op_params_i32(dst, 0);
+    GGML_ASSERT(page_tokens > 0);
+
+    const int64_t n_pages = pages->ne[1];
+    if (n_pages == 0) return;
+
+    const int64_t row_bytes = source->nb[2];
+    const int64_t bucket_bytes = row_bytes * page_tokens;
+    const uintptr_t alignment = reinterpret_cast<uintptr_t>(source->data) |
+        reinterpret_cast<uintptr_t>(output->data);
+    const dim3 grid((unsigned)((bucket_bytes + 32767) / 32768), (unsigned)n_pages);
+    const dim3 block(256);
+    const char * src_ptr = (const char *) source->data;
+    char * dst_ptr = (char *) output->data;
+    const int32_t * page_ptr = (const int32_t *) pages->data;
+    if ((row_bytes % sizeof(uint4)) == 0 && (alignment % alignof(uint4)) == 0) {
+        kv_pack_kernel<uint4><<<grid, block, 0, ctx.stream()>>>(src_ptr, dst_ptr, page_ptr,
+                source->ne[2], row_bytes, page_tokens, bucket_bytes);
+    } else if ((row_bytes % sizeof(uint32_t)) == 0 && (alignment % alignof(uint32_t)) == 0) {
+        kv_pack_kernel<uint32_t><<<grid, block, 0, ctx.stream()>>>(src_ptr, dst_ptr, page_ptr,
+                source->ne[2], row_bytes, page_tokens, bucket_bytes);
+    } else {
+        kv_pack_kernel<uint8_t><<<grid, block, 0, ctx.stream()>>>(src_ptr, dst_ptr, page_ptr,
+                source->ne[2], row_bytes, page_tokens, bucket_bytes);
+    }
+}
+
 typedef void (*cpy_kernel_t)(const char * cx, char * cdst);
 
 struct cpy_batch_item {

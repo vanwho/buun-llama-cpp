@@ -41,14 +41,16 @@ static llama_kv_residency_snapshot snapshot(uint32_t last_end = 700) {
     return snapshot_slots(5, 1, 7, last_end);
 }
 
-static llama_kv_residency_snapshot snapshot_high_logical_positions() {
+static llama_kv_residency_snapshot snapshot_high_logical_positions(uint32_t final_rows = 188) {
     llama_kv_residency_table table(8);
     auto tx = table.begin();
     assert(table.replace(tx, page(1024, 5, 1024 * VBR_GENERATION_PAGE_CELLS + 256)) ==
            llama_kv_residency_status::ok);
     assert(table.replace(tx, page(1025, 1, 1025 * VBR_GENERATION_PAGE_CELLS + 256)) ==
            llama_kv_residency_status::ok);
-    assert(table.replace(tx, page(1026, 7, 1026 * VBR_GENERATION_PAGE_CELLS + 188)) ==
+    assert(final_rows > 0 && final_rows <= VBR_GENERATION_PAGE_CELLS);
+    assert(table.replace(tx, page(1026, 7,
+            1026 * VBR_GENERATION_PAGE_CELLS + final_rows)) ==
            llama_kv_residency_status::ok);
     assert(table.publish(tx) == llama_kv_residency_status::ok);
     return table.snapshot();
@@ -171,28 +173,27 @@ static void test_graph_capacity_budget() {
 
     assert(llama_kv_attention_graph_capacity(base, 200, 16, capacity));
     const uint32_t budget_200x16 = capacity;
-    assert(uint64_t(budget_200x16) > uint64_t(base) + 8 * 200 * 16);
+    assert(budget_200x16 > base && budget_200x16 < base + 8 * 200 * 16);
     uint32_t fewer_pages = 0;
     uint32_t more_pages = 0;
     assert(llama_kv_attention_graph_capacity(base, 199, 16, fewer_pages));
     assert(llama_kv_attention_graph_capacity(base, 201, 16, more_pages));
-    assert(fewer_pages < budget_200x16 && budget_200x16 < more_pages);
+    assert(fewer_pages == budget_200x16 && budget_200x16 == more_pages);
 
     // A rejected capacity calculation must leave its output untouched.
     capacity = 0x12345678;
     assert(!llama_kv_attention_graph_capacity(UINT32_MAX - 10, 1, 1, capacity));
     assert(capacity == 0x12345678);
 
-    // Exercise the actual no-allocation graph-result arena with all per-page
-    // tensor objects, including plan-only views that are never expanded into
-    // executable nodes, plus the two cache-write views and copy nodes.
+    // Exercise the real no-allocation arena with the layer-bounded aliases
+    // and pack results. Increasing page count must not multiply graph nodes.
     constexpr uint32_t pages = 200;
     constexpr uint32_t layers = 16;
-    constexpr uint32_t model_only_budget = 1024;
+    constexpr uint32_t model_only_budget = 64;
     uint32_t arena_capacity = 0;
     assert(llama_kv_attention_graph_capacity(
             model_only_budget, pages, layers, arena_capacity));
-    const uint64_t planned_objects = uint64_t(pages) * layers * 8;
+    const uint64_t planned_objects = uint64_t(layers) * 8;
     assert(planned_objects > model_only_budget);
     assert(planned_objects + 1 <= arena_capacity);
 
@@ -200,8 +201,8 @@ static void test_graph_capacity_budget() {
     ggml_context * ctx = result.get_ctx();
     auto * storage = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 1);
     for (uint32_t layer = 0; layer < layers; ++layer) {
-        for (uint32_t page_id = 0; page_id < pages; ++page_id) {
-            // Four immutable-plan views plus two updated cache-write views.
+        {
+            // Four staging/owner views plus two updated cache-write views.
             auto * planned0 = ggml_view_1d(ctx, storage, 1, 0);
             auto * planned1 = ggml_view_1d(ctx, storage, 1, 0);
             auto * planned2 = ggml_view_1d(ctx, storage, 1, 0);
@@ -729,6 +730,191 @@ static void test_packed_cache_identity_and_versions() {
     ggml_backend_free(backend);
 }
 
+static void test_packed_page_layout_fixed_buckets() {
+    constexpr uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS;
+    const auto selected = metadata(snapshot_high_logical_positions(), 3, 1,
+            { 1026, 1024, 1025 }, 1024 * page_tokens + 255, 8, 2);
+    assert(selected.page_table().size() == 3);
+    assert(selected.get_n_kv() == 700);
+    assert(llama_kv_attention_packed_row_capacity(selected, page_tokens) == 3 * page_tokens);
+
+    std::vector<int32_t> pages;
+    std::vector<llama_pos> positions;
+    std::vector<uint8_t> mask;
+    // The selected view is native-position ordered while its physical slots
+    // are deliberately reordered (5, 1, 7). Each output page still owns a
+    // fixed bucket, so the partial final page cannot shift later buckets.
+    assert(llama_kv_attention_packed_page_layout(selected, page_tokens,
+            8 * page_tokens, pages, positions, mask));
+    const std::vector<int32_t> expected_pages = {
+        5 * int32_t(page_tokens), 256,
+        1 * int32_t(page_tokens), 256,
+        7 * int32_t(page_tokens), 188,
+    };
+    assert(pages == expected_pages);
+    assert(positions.size() == 3 * page_tokens && mask.size() == positions.size());
+    for (uint32_t row = 0; row < page_tokens; ++row) {
+        assert(positions[row] == 1024 * page_tokens + row && mask[row] == 1);
+        assert(positions[page_tokens + row] == 1025 * page_tokens + row &&
+                mask[page_tokens + row] == 1);
+    }
+    for (uint32_t row = 0; row < 188; ++row) {
+        assert(positions[2 * page_tokens + row] == 1026 * page_tokens + row);
+        assert(mask[2 * page_tokens + row] == 1);
+    }
+    for (uint32_t row = 188; row < page_tokens; ++row) {
+        const uint32_t index = 2 * page_tokens + row;
+        assert(positions[index] == -1 && mask[index] == 0);
+    }
+
+    const auto is_visible = [&](uint32_t row, llama_pos query) {
+        return llama_kv_attention_selected_mask_value(row, positions, mask,
+                query, true, false) == 0.0f;
+    };
+    assert(is_visible(10, 1024 * page_tokens + 10));
+    assert(!is_visible(11, 1024 * page_tokens + 10));
+    assert(!is_visible(2 * page_tokens + 188, 1026 * page_tokens + 255));
+
+    // Growing then rolling back the partial tail changes contents/masks but
+    // not the page-count capacity bucket. This covers same-graph descriptor
+    // refreshes across partial-page growth and query rollback.
+    const auto grown = metadata(snapshot_high_logical_positions(200), 3, 1,
+            { 1026, 1024, 1025 }, 1026 * page_tokens + 199, 8, 2);
+    assert(llama_kv_attention_packed_row_capacity(grown, page_tokens) ==
+            llama_kv_attention_packed_row_capacity(selected, page_tokens));
+    std::vector<int32_t> grown_pages;
+    std::vector<llama_pos> grown_positions;
+    std::vector<uint8_t> grown_mask;
+    assert(llama_kv_attention_packed_page_layout(grown, page_tokens,
+            8 * page_tokens, grown_pages, grown_positions, grown_mask));
+    auto expected_grown_pages = pages;
+    expected_grown_pages.back() = 200;
+    assert(grown_pages == expected_grown_pages);
+    assert(grown_mask[2 * page_tokens + 199] == 1);
+    assert(grown_mask[2 * page_tokens + 200] == 0);
+    assert(grown_positions[2 * page_tokens + 200] == -1);
+    assert(llama_kv_attention_selected_mask_value(
+            2 * page_tokens + 199, grown_positions, grown_mask,
+            1026 * page_tokens + 199, true, false) == 0.0f);
+
+    std::vector<int32_t> rolled_back_pages;
+    std::vector<llama_pos> rolled_back_positions;
+    std::vector<uint8_t> rolled_back_mask;
+    assert(llama_kv_attention_packed_page_layout(selected, page_tokens,
+            8 * page_tokens, rolled_back_pages, rolled_back_positions, rolled_back_mask));
+    assert(rolled_back_pages == pages);
+    assert(rolled_back_mask[2 * page_tokens + 187] == 1);
+    assert(rolled_back_mask[2 * page_tokens + 188] == 0);
+    assert(rolled_back_positions[2 * page_tokens + 188] == -1);
+
+    std::vector<int32_t> rejected_pages { 7 };
+    std::vector<llama_pos> rejected_positions { 1 };
+    std::vector<uint8_t> rejected_mask { 1 };
+    assert(!llama_kv_attention_packed_page_layout(selected, page_tokens,
+            7 * page_tokens, rejected_pages, rejected_positions, rejected_mask));
+    assert(rejected_pages.empty() && rejected_positions.empty() && rejected_mask.empty());
+}
+
+static void run_kv_pack_byte_fixture(ggml_backend_t backend, uint32_t n_heads) {
+    assert(backend != nullptr);
+    constexpr int32_t page_tokens = 4;
+    constexpr int32_t physical_rows = 20;
+    constexpr int32_t n_pages = 3;
+    ggml_context * ctx = ggml_init({ 4u * 1024u * 1024u, nullptr, true });
+    assert(ctx != nullptr);
+    ggml_tensor * source = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0,
+            256, n_heads, physical_rows);
+    ggml_tensor * destination = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0,
+            256, n_heads, n_pages * page_tokens);
+    ggml_tensor * pages = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, 2, n_pages);
+    assert(source != nullptr && destination != nullptr && pages != nullptr);
+    ggml_set_input(source);
+    ggml_set_input(pages);
+    ggml_tensor * packed = ggml_kv_pack(ctx, source, destination, pages, page_tokens);
+    ggml_cgraph * graph = ggml_new_graph_custom(ctx, 16, false);
+    assert(packed != nullptr && graph != nullptr);
+    ggml_build_forward_expand(graph, packed);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer != nullptr);
+
+    std::vector<uint8_t> source_bytes(ggml_nbytes(source));
+    for (size_t i = 0; i < source_bytes.size(); ++i) {
+        source_bytes[i] = uint8_t((i * 37 + i / 7 + 11) & 0xff);
+    }
+    const std::vector<uint8_t> source_before = source_bytes;
+    std::vector<uint8_t> destination_bytes(ggml_nbytes(destination), 0xA5);
+    ggml_backend_tensor_set(source, source_bytes.data(), 0, source_bytes.size());
+
+    const size_t row_bytes = source->nb[2];
+    const size_t bucket_bytes = row_bytes * page_tokens;
+    const auto check_output = [&](const int32_t (&descriptors)[2 * n_pages]) {
+        std::vector<uint8_t> expected(destination_bytes.size(), 0);
+        for (int32_t page_index = 0; page_index < n_pages; ++page_index) {
+            const int32_t source_row = descriptors[2 * page_index];
+            const int32_t valid_rows = descriptors[2 * page_index + 1];
+            if (source_row < 0 || valid_rows < 0 || valid_rows > page_tokens ||
+                    source_row > physical_rows - valid_rows) {
+                continue;
+            }
+            if (valid_rows != 0) {
+                std::memcpy(expected.data() + size_t(page_index) * bucket_bytes,
+                        source_before.data() + size_t(source_row) * row_bytes,
+                        size_t(valid_rows) * row_bytes);
+            }
+        }
+        ggml_backend_tensor_set(pages, descriptors, 0, sizeof(descriptors));
+        ggml_backend_tensor_set(destination, destination_bytes.data(), 0, destination_bytes.size());
+        assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+        ggml_backend_tensor_get(destination, destination_bytes.data(), 0, destination_bytes.size());
+        assert(destination_bytes == expected);
+        std::vector<uint8_t> source_after(source_before.size());
+        ggml_backend_tensor_get(source, source_after.data(), 0, source_after.size());
+        assert(source_after == source_before);
+    };
+
+    // Noncontiguous source slots, mixed full/partial pages, and multiple
+    // heads ensure the primitive copies complete encoded token rows.
+    const int32_t first_descriptors[2 * n_pages] = {
+        12, 2, 4, 4, 7, 1,
+    };
+    check_output(first_descriptors);
+
+    // Reuse the exact same graph and output owner with changed descriptors:
+    // remapping, growth, shrink, an empty page, and an invalid range all need
+    // deterministic zeroed tails with no stale bytes from the prior replay.
+    const int32_t changed_descriptors[2 * n_pages] = {
+        8, 4, 1, 3, physical_rows - 1, 4,
+    };
+    check_output(changed_descriptors);
+    const int32_t rollback_descriptors[2 * n_pages] = {
+        8, 1, -1, 2, 5, 0,
+    };
+    check_output(rollback_descriptors);
+
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+}
+
+static void test_kv_pack_byte_exact_cpu() {
+    ggml_backend_t backend = ggml_backend_cpu_init();
+    assert(backend != nullptr);
+    run_kv_pack_byte_fixture(backend, 2);
+    run_kv_pack_byte_fixture(backend, 4);
+    ggml_backend_free(backend);
+}
+
+static void test_kv_pack_byte_exact_cuda() {
+    ggml_backend_load_all();
+    ggml_backend_dev_t device = ggml_backend_dev_by_name("CUDA0");
+    assert(device != nullptr && "--cuda requested but CUDA0 is unavailable");
+    ggml_backend_t backend = ggml_backend_dev_init(device, nullptr);
+    assert(backend != nullptr);
+    run_kv_pack_byte_fixture(backend, 2);
+    run_kv_pack_byte_fixture(backend, 4);
+    ggml_backend_synchronize(backend);
+    ggml_backend_free(backend);
+}
+
 static void test_selected_mask_capacity_padding() {
     const std::vector<llama_pos> positions = { 10, 12, 13 };
     const std::vector<uint8_t> valid = { 1, 1, 0 };
@@ -766,10 +952,9 @@ static void test_packed_view_copy_intervals() {
     assert(pages[0].native_position_begin == 0 && pages[0].row_count == 256);
     assert(pages[1].native_position_begin == 512 && pages[1].row_count == 188);
 
-    // Transient staging has no content cache: one full encoded copy per page
-    // runs after each layer's canonical KV writes on every graph execution.
-    // This includes rows belonging to the current query and invalidates no
-    // layer when page generations change.
+    // The legacy interval planner preserves exact valid extents. Production
+    // packed graphs now use KV_PACK with fixed buckets and a mutable page
+    // descriptor; the interval helper remains useful for explicit copy plans.
     std::vector<llama_kv_attention_view_copy_interval> transient_copies;
     assert(llama_kv_attention_view_copy_intervals(pages, {}, transient_copies));
     assert(transient_copies.size() == pages.size());
@@ -1370,7 +1555,16 @@ static void test_committed_layer_union() {
     assert(std::find(selected.begin(), selected.end(), 25) != selected.end());
 }
 
-int main() {
+int main(int argc, char ** argv) {
+    bool run_cuda_pack = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--cuda") == 0) {
+            run_cuda_pack = true;
+        } else {
+            std::fprintf(stderr, "unknown argument: %s\n", argv[i]);
+            return 2;
+        }
+    }
     test_prefill_admission();
     test_graph_capacity_budget();
     test_graph_thread_config_cache();
@@ -1378,6 +1572,11 @@ int main() {
     test_routes_epochs_and_fences();
     test_packed_view_copy_intervals();
     test_packed_cache_identity_and_versions();
+    test_packed_page_layout_fixed_buckets();
+    test_kv_pack_byte_exact_cpu();
+    if (run_cuda_pack) {
+        test_kv_pack_byte_exact_cuda();
+    }
     test_selected_mask_capacity_padding();
     test_visibility_snapshot_records_native_mask_and_pages();
     test_view_sized_scratch_contract();
