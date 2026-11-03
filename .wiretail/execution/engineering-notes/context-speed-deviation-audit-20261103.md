@@ -1,5 +1,14 @@
 # Adjacent-context performance deviation audit — 2026-11-03
 
+The decode cliff was subsequently reproduced and repaired in `ca54933a7`.
+See [the repair and paired measurements](packed-attention-boundary-repair.md).
+The baseline tables below remain measurements of the earlier implementation.
+All prior full-matrix ACO rows are superseded for current repaired-build
+comparisons; their raw results remain archived. The new all-checkpoint ACO
+matrix is pending in `../benchmarks/remaining-matrix.json`. The paired
+C=62,464/C=78,848 boundary comparison remains valid focused old-versus-repaired
+evidence.
+
 The checkpoint ladder is unchanged. L is server allocation, C is actual occupied
 context, and H is requested GPU hot capacity. In particular, the saved 61K point
 is C=62,464, the 77K point is C=78,848, and H=65,536 in the ACO comparison.

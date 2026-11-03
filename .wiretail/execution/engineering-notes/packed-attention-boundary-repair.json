@@ -1,0 +1,957 @@
+{
+  "candidate": {
+    "server_sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7",
+    "source_commit": "ca54933a7c43c02c1f6c56b39279cea08ece032a"
+  },
+  "cells": {
+    "baseline_mtp_off": {
+      "C62464": {
+        "actual_occupied_tokens": 62465,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.0034474151819608,
+          "server_cpu_cores_peak": 1.0080021436406792,
+          "server_cpu_cores_sample_count": 11,
+          "server_hwm_peak_mib": 13986.24,
+          "server_rss_peak_mib": 3654.34,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 52797.31640625
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 1421.0,
+          "gpu_used_peak_mib_in_measured_windows": 14525.0,
+          "gpu_util_median_pct_in_measured_windows": 97.0,
+          "gpu_util_peak_pct_in_measured_windows": 97.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/resource-samples.jsonl",
+          "resource_samples_sha256": "3df365db0100524ccb4df65f4cfcc253a76f9537eeac90bc6a9eee6f653111d8",
+          "sample_count_in_measured_request_windows": 11,
+          "sample_count_total": 101
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 188,
+            "decode_tok_s_median": 42.36344528534499,
+            "decode_tok_s_repeats": [
+              42.37170041712333,
+              42.36344528534499,
+              42.36039362093246
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 169,
+            "decode_tok_s_median": 42.37222944259585,
+            "decode_tok_s_repeats": [
+              42.37222944259585,
+              42.34050231965466,
+              42.374505882993894
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 42.214708450834465,
+            "decode_tok_s_repeats": [
+              42.26718198023972,
+              42.214708450834465,
+              42.20184029639019
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/C62464/campaign/records.jsonl",
+        "records_sha256": "c05866cf490310a6a35012c39cfe4de241382211a9992363e72a42d15e582efe",
+        "route": [
+          "selected dense"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/C62464/campaign/row.json",
+        "row_sha256": "627a16fc7c650ae43b899705c9bf252d226f525eba39c8b0f8e839e28b0a8a1a",
+        "server_binary_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+        "status": "complete"
+      },
+      "C78848": {
+        "actual_occupied_tokens": 78849,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.003195917261637,
+          "server_cpu_cores_peak": 1.0058261860872968,
+          "server_cpu_cores_sample_count": 36,
+          "server_hwm_peak_mib": 13986.24,
+          "server_rss_peak_mib": 4189.46,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 52515.41796875
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 1393.0,
+          "gpu_used_peak_mib_in_measured_windows": 14553.0,
+          "gpu_util_median_pct_in_measured_windows": 55.0,
+          "gpu_util_peak_pct_in_measured_windows": 94.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/resource-samples.jsonl",
+          "resource_samples_sha256": "3df365db0100524ccb4df65f4cfcc253a76f9537eeac90bc6a9eee6f653111d8",
+          "sample_count_in_measured_request_windows": 36,
+          "sample_count_total": 101
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 227,
+            "decode_tok_s_median": 14.908702011460964,
+            "decode_tok_s_repeats": [
+              14.9678766848299,
+              14.908702011460964,
+              14.822920537733582
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 205,
+            "decode_tok_s_median": 14.99874083151568,
+            "decode_tok_s_repeats": [
+              14.99874083151568,
+              15.021204196924455,
+              14.912351557225966
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 14.999746244894354,
+            "decode_tok_s_repeats": [
+              15.010541801932401,
+              14.96734642677299,
+              14.999746244894354
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/C78848/campaign/records.jsonl",
+        "records_sha256": "400f29d179a21e7b906f065fe8a9830e6e07dde88b46d39ec56a2a4b6bdf5f9c",
+        "route": [
+          "selected packed"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/C78848/campaign/row.json",
+        "row_sha256": "746307fdee12074c9ae906cacf27c145eb68469e185b00d5d98fcbc0c1277f39",
+        "server_binary_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+        "status": "complete"
+      }
+    },
+    "baseline_mtp_on": {
+      "C62464": {
+        "actual_occupied_tokens": 62465,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.004084058729775,
+          "server_cpu_cores_peak": 1.0094045568104548,
+          "server_cpu_cores_sample_count": 7,
+          "server_hwm_peak_mib": 13986.25,
+          "server_rss_peak_mib": 4263.31,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 52172.44921875
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 275.0,
+          "gpu_used_peak_mib_in_measured_windows": 15671.0,
+          "gpu_util_median_pct_in_measured_windows": 90.0,
+          "gpu_util_peak_pct_in_measured_windows": 93.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/resource-samples.jsonl",
+          "resource_samples_sha256": "2c802c6bb0306a0534dd20cfc9d3c3519e1b18c5f1bade1d5a5655ece622ab2d",
+          "sample_count_in_measured_request_windows": 7,
+          "sample_count_total": 79
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 188,
+            "decode_tok_s_median": 78.8492229978306,
+            "decode_tok_s_repeats": [
+              78.93209518282066,
+              78.6771137532223,
+              78.8492229978306
+            ],
+            "mtp_acceptance_percent_median": 91.66666666666667,
+            "mtp_acceptance_percent_repeats": [
+              91.66666666666667,
+              91.66666666666667,
+              91.66666666666667
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 176,
+            "decode_tok_s_median": 56.25484796243334,
+            "decode_tok_s_repeats": [
+              56.28873871410789,
+              56.25484796243334,
+              56.244524193823125
+            ],
+            "mtp_acceptance_percent_median": 51.74418604651163,
+            "mtp_acceptance_percent_repeats": [
+              51.74418604651163,
+              51.74418604651163,
+              51.74418604651163
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 72.25157455013435,
+            "decode_tok_s_repeats": [
+              72.52592529175325,
+              72.2034203791711,
+              72.25157455013435
+            ],
+            "mtp_acceptance_percent_median": 81.25,
+            "mtp_acceptance_percent_repeats": [
+              81.25,
+              81.25,
+              81.25
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/C62464/campaign/records.jsonl",
+        "records_sha256": "0af3aa374b39ba84f124891d7765e8e629c9be80c4d184dec111a4f8a4de7af5",
+        "route": [
+          "selected dense"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/C62464/campaign/row.json",
+        "row_sha256": "1920ac5201b8199ef8aacb135055d0c57618c1762937b820a0356e77227de9eb",
+        "server_binary_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+        "status": "complete"
+      },
+      "C78848": {
+        "actual_occupied_tokens": 78849,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.002515070502108,
+          "server_cpu_cores_peak": 1.0068833147852378,
+          "server_cpu_cores_sample_count": 15,
+          "server_hwm_peak_mib": 13986.25,
+          "server_rss_peak_mib": 5046.05,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 51559.1953125
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 271.0,
+          "gpu_used_peak_mib_in_measured_windows": 15675.0,
+          "gpu_util_median_pct_in_measured_windows": 78.0,
+          "gpu_util_peak_pct_in_measured_windows": 100.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/resource-samples.jsonl",
+          "resource_samples_sha256": "2c802c6bb0306a0534dd20cfc9d3c3519e1b18c5f1bade1d5a5655ece622ab2d",
+          "sample_count_in_measured_request_windows": 15,
+          "sample_count_total": 79
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 227,
+            "decode_tok_s_median": 43.09406213401033,
+            "decode_tok_s_repeats": [
+              43.07470277978592,
+              43.09406213401033,
+              43.48363985771999
+            ],
+            "mtp_acceptance_percent_median": 90.12345679012346,
+            "mtp_acceptance_percent_repeats": [
+              90.12345679012346,
+              90.12345679012346,
+              91.875
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 158,
+            "decode_tok_s_median": 30.97551158918185,
+            "decode_tok_s_repeats": [
+              33.2910530393451,
+              30.67729807645525,
+              30.97551158918185
+            ],
+            "mtp_acceptance_percent_median": 49.36708860759494,
+            "mtp_acceptance_percent_repeats": [
+              56.962025316455694,
+              49.36708860759494,
+              49.36708860759494
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 40.08541508748717,
+            "decode_tok_s_repeats": [
+              41.05306566597332,
+              39.65971763473818,
+              40.08541508748717
+            ],
+            "mtp_acceptance_percent_median": 80.92105263157895,
+            "mtp_acceptance_percent_repeats": [
+              84.17508417508418,
+              79.80456026058631,
+              80.92105263157895
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/C78848/campaign/records.jsonl",
+        "records_sha256": "40286c35d51116005fe355b1345871a7023c77321be03abb6e659bf93b3f5420",
+        "route": [
+          "selected packed"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/C78848/campaign/row.json",
+        "row_sha256": "c56d5f33dac06367af83638157ac971e04df46cf6eeb8d38b0d2f620b96cda4e",
+        "server_binary_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+        "status": "complete"
+      }
+    },
+    "repaired_mtp_off": {
+      "C62464": {
+        "actual_occupied_tokens": 62465,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.0029147353191283,
+          "server_cpu_cores_peak": 1.0088288827061334,
+          "server_cpu_cores_sample_count": 12,
+          "server_hwm_peak_mib": 13986.96,
+          "server_rss_peak_mib": 3246.47,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 53220.31640625
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 1421.0,
+          "gpu_used_peak_mib_in_measured_windows": 14525.0,
+          "gpu_util_median_pct_in_measured_windows": 97.0,
+          "gpu_util_peak_pct_in_measured_windows": 97.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-off/L262144/20261103T165443.776852Z/resource-samples.jsonl",
+          "resource_samples_sha256": "043ef109c103eaaaa59fd87e7cfccd8db3359cb415f3170c35950cce082b5fbd",
+          "sample_count_in_measured_request_windows": 12,
+          "sample_count_total": 81
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 188,
+            "decode_tok_s_median": 42.35468492644328,
+            "decode_tok_s_repeats": [
+              42.35468492644328,
+              42.37298697155277,
+              42.33673415791104
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 169,
+            "decode_tok_s_median": 42.33634106156359,
+            "decode_tok_s_repeats": [
+              42.33634106156359,
+              42.30832189581575,
+              42.33869900738432
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 42.208367158209015,
+            "decode_tok_s_repeats": [
+              42.269308890443355,
+              42.208367158209015,
+              42.20205455255457
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-off/L262144/20261103T165443.776852Z/C62464/campaign/records.jsonl",
+        "records_sha256": "1ce301b017290f4effc6891dc1706fd31e4bfcf47cd1d6419eb4667dee5dece3",
+        "route": [
+          "selected dense"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-off/L262144/20261103T165443.776852Z/C62464/campaign/row.json",
+        "row_sha256": "73e9341a62870a4ccc4f1f15ca059a76a15faa1c9aacd1dfc0a2174a87facc49",
+        "server_binary_sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7",
+        "status": "complete"
+      },
+      "C78848": {
+        "actual_occupied_tokens": 78849,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.003634155448164,
+          "server_cpu_cores_peak": 1.006867087630839,
+          "server_cpu_cores_sample_count": 16,
+          "server_hwm_peak_mib": 13986.96,
+          "server_rss_peak_mib": 3694.64,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 52799.05078125
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 1377.0,
+          "gpu_used_peak_mib_in_measured_windows": 14569.0,
+          "gpu_util_median_pct_in_measured_windows": 96.0,
+          "gpu_util_peak_pct_in_measured_windows": 100.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-off/L262144/20261103T165443.776852Z/resource-samples.jsonl",
+          "resource_samples_sha256": "043ef109c103eaaaa59fd87e7cfccd8db3359cb415f3170c35950cce082b5fbd",
+          "sample_count_in_measured_request_windows": 16,
+          "sample_count_total": 81
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 227,
+            "decode_tok_s_median": 37.4187735285026,
+            "decode_tok_s_repeats": [
+              37.4941373934507,
+              37.4187735285026,
+              37.40951366970114
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 205,
+            "decode_tok_s_median": 37.63782084397278,
+            "decode_tok_s_repeats": [
+              37.62651155912733,
+              37.63782084397278,
+              37.67598981196911
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 37.568495417538045,
+            "decode_tok_s_repeats": [
+              37.575833258228755,
+              37.535609440008216,
+              37.568495417538045
+            ],
+            "mtp_acceptance_percent_median": 0.0,
+            "mtp_acceptance_percent_repeats": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-off/L262144/20261103T165443.776852Z/C78848/campaign/records.jsonl",
+        "records_sha256": "cf4d05d6b802183c6fe3d7f34d01fae2786873e58da6d7717026b692560952fa",
+        "route": [
+          "selected packed"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-off/L262144/20261103T165443.776852Z/C78848/campaign/row.json",
+        "row_sha256": "6f8b0d46673858ea97f3ad9b2f398f888b9d70efa567798babf3ed1738076435",
+        "server_binary_sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7",
+        "status": "complete"
+      }
+    },
+    "repaired_mtp_on": {
+      "C62464": {
+        "actual_occupied_tokens": 62465,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.004233354839348,
+          "server_cpu_cores_peak": 1.0082464547012033,
+          "server_cpu_cores_sample_count": 7,
+          "server_hwm_peak_mib": 13987.05,
+          "server_rss_peak_mib": 3906.32,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 52407.81640625
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 275.0,
+          "gpu_used_peak_mib_in_measured_windows": 15671.0,
+          "gpu_util_median_pct_in_measured_windows": 90.0,
+          "gpu_util_peak_pct_in_measured_windows": 91.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-on/L262144/20261103T170130.085744Z/resource-samples.jsonl",
+          "resource_samples_sha256": "a1862db8cc5fbfd6f16296305d7bcefb23304666c497e843d03757fccb447447",
+          "sample_count_in_measured_request_windows": 7,
+          "sample_count_total": 74
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 188,
+            "decode_tok_s_median": 78.79254428709812,
+            "decode_tok_s_repeats": [
+              79.07391338911638,
+              78.30774861453911,
+              78.79254428709812
+            ],
+            "mtp_acceptance_percent_median": 91.66666666666667,
+            "mtp_acceptance_percent_repeats": [
+              91.66666666666667,
+              91.66666666666667,
+              91.66666666666667
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 176,
+            "decode_tok_s_median": 56.39352756982888,
+            "decode_tok_s_repeats": [
+              56.41807144978002,
+              56.39352756982888,
+              56.226001537700824
+            ],
+            "mtp_acceptance_percent_median": 51.74418604651163,
+            "mtp_acceptance_percent_repeats": [
+              51.74418604651163,
+              51.74418604651163,
+              51.74418604651163
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 72.25078955264448,
+            "decode_tok_s_repeats": [
+              72.45695167248441,
+              72.21607048288479,
+              72.25078955264448
+            ],
+            "mtp_acceptance_percent_median": 81.25,
+            "mtp_acceptance_percent_repeats": [
+              81.25,
+              81.25,
+              81.25
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-on/L262144/20261103T170130.085744Z/C62464/campaign/records.jsonl",
+        "records_sha256": "e06e8325ebc382ceaed79700402229ceb388bd0473adaa1f637e6def353adccc",
+        "route": [
+          "selected dense"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-on/L262144/20261103T170130.085744Z/C62464/campaign/row.json",
+        "row_sha256": "1bf7795837988388880fa956f206d17a2a2895fe87050c32e4a3c52d763be523",
+        "server_binary_sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7",
+        "status": "complete"
+      },
+      "C78848": {
+        "actual_occupied_tokens": 78849,
+        "complete": true,
+        "cpu_request_window": {
+          "server_cpu_cores_median": 1.002712176599122,
+          "server_cpu_cores_peak": 1.0100687360487828,
+          "server_cpu_cores_sample_count": 11,
+          "server_hwm_peak_mib": 13987.05,
+          "server_rss_peak_mib": 4266.47,
+          "server_swap_peak_mib": 0.0,
+          "system_mem_available_min_mib": 51790.234375
+        },
+        "gpu_request_window": {
+          "gpu_free_min_mib_in_measured_windows": 261.0,
+          "gpu_used_peak_mib_in_measured_windows": 15685.0,
+          "gpu_util_median_pct_in_measured_windows": 88.0,
+          "gpu_util_peak_pct_in_measured_windows": 91.0,
+          "resource_samples_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-on/L262144/20261103T170130.085744Z/resource-samples.jsonl",
+          "resource_samples_sha256": "a1862db8cc5fbfd6f16296305d7bcefb23304666c497e843d03757fccb447447",
+          "sample_count_in_measured_request_windows": 11,
+          "sample_count_total": 74
+        },
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "prompt_results": {
+          "0": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 227,
+            "decode_tok_s_median": 70.55874093234323,
+            "decode_tok_s_repeats": [
+              70.69405925913878,
+              70.55874093234323,
+              68.92977976935363
+            ],
+            "mtp_acceptance_percent_median": 90.12345679012346,
+            "mtp_acceptance_percent_repeats": [
+              90.12345679012346,
+              90.12345679012346,
+              91.875
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58"
+          },
+          "1": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 158,
+            "decode_tok_s_median": 50.40432616799987,
+            "decode_tok_s_repeats": [
+              53.90147830385762,
+              50.40432616799987,
+              50.35991299603311
+            ],
+            "mtp_acceptance_percent_median": 49.36708860759494,
+            "mtp_acceptance_percent_repeats": [
+              56.962025316455694,
+              49.36708860759494,
+              49.36708860759494
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855"
+          },
+          "2": {
+            "completed_measured_requests": 3,
+            "completion_tokens_median": 400,
+            "decode_tok_s_median": 65.97452391278863,
+            "decode_tok_s_repeats": [
+              67.774476437923,
+              65.25321764597464,
+              65.97452391278863
+            ],
+            "mtp_acceptance_percent_median": 80.92105263157895,
+            "mtp_acceptance_percent_repeats": [
+              84.17508417508418,
+              79.80456026058631,
+              80.92105263157895
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce"
+          }
+        },
+        "records_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-on/L262144/20261103T170130.085744Z/C78848/campaign/records.jsonl",
+        "records_sha256": "3d2c457b7101ced64b0409485db7bdc9e0dc1f92fd3a8074379e9484cbd89c0e",
+        "route": [
+          "selected packed"
+        ],
+        "row_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/aco-hot-boundary-mtp-on/L262144/20261103T170130.085744Z/C78848/campaign/row.json",
+        "row_sha256": "551b3def7b6dc47ad496237e471fcc6efd419154beeb2134db3c644466a67091",
+        "server_binary_sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7",
+        "status": "complete"
+      }
+    }
+  },
+  "comparison_method": "Per prompt index: median of three successful substantive measured repetitions; new/old decode tok/s. GPU/CPU resources use samples within measured request intervals; route counters sum before/after metric snapshot deltas.",
+  "deployment": {
+    "B": 1024,
+    "H": 65536,
+    "L": 262144,
+    "U": 256,
+    "activation": "next ACO profile selection; existing fast profile remains active",
+    "geometry_unchanged": true,
+    "mtp_n_max": 2,
+    "profile": "/srv/ai/config/profiles/qwen38-aco.env",
+    "stable_bundle": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7"
+  },
+  "full_comparison": {
+    "path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103/comparison.json",
+    "sha256": "ec243863124a792b29d5f33628b9c627912e59dc8a05beacec4c8763407e0a14"
+  },
+  "full_matrix_status": {
+    "focused_boundary_comparison": "complete; paired old/repaired C=62464 and C=78848 results remain valid",
+    "manifest_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json",
+    "prior_full_matrix_rows": "superseded for current repaired-build comparisons; raw artifacts retained as historical evidence",
+    "stable_bundle": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+    "status": "pending",
+    "total_canonical_requests": 960,
+    "variants": {
+      "aco-mtp-off": {
+        "canonical_requests": 480,
+        "context_checkpoints": [
+          6144,
+          12288,
+          28672,
+          62464,
+          78848,
+          88064,
+          100352,
+          130048,
+          196608,
+          256000
+        ],
+        "mode_prompt_pairs": 120
+      },
+      "aco-mtp-on": {
+        "canonical_requests": 480,
+        "context_checkpoints": [
+          6144,
+          12288,
+          28672,
+          62464,
+          78848,
+          88064,
+          100352,
+          130048,
+          196608,
+          256000
+        ],
+        "mode_prompt_pairs": 120
+      }
+    }
+  },
+  "generated_utc": "2026-11-03T17:10:42Z",
+  "manifest_path": "/srv/ai/paged-kv/results/forward/packed-decode-cliff-20261103-manifest.json",
+  "manifest_sha256": "b591190bd377d1101312f603ef763945c169c1ac93676b0e12c4352146b61d75",
+  "per_prompt_comparison_by_mtp": {
+    "off": {
+      "C62464": {
+        "0": {
+          "change_percent": -0.020679052052319236,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 42.35468492644328,
+          "new_mtp_acceptance_percent": 0.0,
+          "new_over_old_ratio": 0.9997932094794768,
+          "old_decode_tok_s": 42.36344528534499,
+          "old_mtp_acceptance_percent": 0.0
+        },
+        "1": {
+          "change_percent": -0.08469788232616793,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 42.33634106156359,
+          "new_mtp_acceptance_percent": 0.0,
+          "new_over_old_ratio": 0.9991530211767383,
+          "old_decode_tok_s": 42.37222944259585,
+          "old_mtp_acceptance_percent": 0.0
+        },
+        "2": {
+          "change_percent": -0.015021524151548338,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 42.208367158209015,
+          "new_mtp_acceptance_percent": 0.0,
+          "new_over_old_ratio": 0.9998497847584845,
+          "old_decode_tok_s": 42.214708450834465,
+          "old_mtp_acceptance_percent": 0.0
+        }
+      },
+      "C78848": {
+        "0": {
+          "change_percent": 150.98612541680131,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 37.4187735285026,
+          "new_mtp_acceptance_percent": 0.0,
+          "new_over_old_ratio": 2.509861254168013,
+          "old_decode_tok_s": 14.908702011460964,
+          "old_mtp_acceptance_percent": 0.0
+        },
+        "1": {
+          "change_percent": 150.93987066492528,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 37.63782084397278,
+          "new_mtp_acceptance_percent": 0.0,
+          "new_over_old_ratio": 2.509398706649253,
+          "old_decode_tok_s": 14.99874083151568,
+          "old_mtp_acceptance_percent": 0.0
+        },
+        "2": {
+          "change_percent": 150.46087316527567,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 37.568495417538045,
+          "new_mtp_acceptance_percent": 0.0,
+          "new_over_old_ratio": 2.5046087316527568,
+          "old_decode_tok_s": 14.999746244894354,
+          "old_mtp_acceptance_percent": 0.0
+        }
+      }
+    },
+    "on": {
+      "C62464": {
+        "0": {
+          "change_percent": -0.07188239601806368,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 78.79254428709812,
+          "new_mtp_acceptance_percent": 91.66666666666667,
+          "new_over_old_ratio": 0.9992811760398194,
+          "old_decode_tok_s": 78.8492229978306,
+          "old_mtp_acceptance_percent": 91.66666666666667
+        },
+        "1": {
+          "change_percent": 0.2465202776623876,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 56.39352756982888,
+          "new_mtp_acceptance_percent": 51.74418604651163,
+          "new_over_old_ratio": 1.0024652027766239,
+          "old_decode_tok_s": 56.25484796243334,
+          "old_mtp_acceptance_percent": 51.74418604651163
+        },
+        "2": {
+          "change_percent": -0.0010864780383812445,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 72.25078955264448,
+          "new_mtp_acceptance_percent": 81.25,
+          "new_over_old_ratio": 0.9999891352196162,
+          "old_decode_tok_s": 72.25157455013435,
+          "old_mtp_acceptance_percent": 81.25
+        }
+      },
+      "C78848": {
+        "0": {
+          "change_percent": 63.7319329816844,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 70.55874093234323,
+          "new_mtp_acceptance_percent": 90.12345679012346,
+          "new_over_old_ratio": 1.637319329816844,
+          "old_decode_tok_s": 43.09406213401033,
+          "old_mtp_acceptance_percent": 90.12345679012346
+        },
+        "1": {
+          "change_percent": 62.72314348345907,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 50.40432616799987,
+          "new_mtp_acceptance_percent": 49.36708860759494,
+          "new_over_old_ratio": 1.6272314348345907,
+          "old_decode_tok_s": 30.97551158918185,
+          "old_mtp_acceptance_percent": 49.36708860759494
+        },
+        "2": {
+          "change_percent": 64.58485902864668,
+          "new_completed_measured_requests": 3,
+          "new_decode_tok_s": 65.97452391278863,
+          "new_mtp_acceptance_percent": 80.92105263157895,
+          "new_over_old_ratio": 1.6458485902864668,
+          "old_decode_tok_s": 40.08541508748717,
+          "old_mtp_acceptance_percent": 80.92105263157895
+        }
+      }
+    }
+  },
+  "progress": {
+    "mtp_off_cells": {
+      "C62464": {
+        "complete": true,
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "status": "complete"
+      },
+      "C78848": {
+        "complete": true,
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "status": "complete"
+      }
+    },
+    "mtp_off_complete": true,
+    "mtp_on_cells": {
+      "C62464": {
+        "complete": true,
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "status": "complete"
+      },
+      "C78848": {
+        "complete": true,
+        "measured_completed": 9,
+        "measured_expected": 9,
+        "status": "complete"
+      }
+    },
+    "mtp_on_complete": true,
+    "total_focused_cells": 4,
+    "total_measured_requests": 36,
+    "total_requests": 48,
+    "total_warmup_requests": 12
+  },
+  "protocol": {
+    "B": 1024,
+    "H": 65536,
+    "L": 262144,
+    "U": 256,
+    "context_fill": "fresh disjoint repository chunks; one incremental fill per configuration",
+    "draft_kv": "turbo4",
+    "max_output_tokens": 400,
+    "measured_per_prompt": 3,
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "mtp_n_max": 2,
+    "page_tokens": 256,
+    "reasoning": "off",
+    "source_fill_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+    "target_kv": "turbo4",
+    "template": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+      "reason": "Native low/xhigh prepend effort instructions before all history. Preserve original wording and system role but place them before final user query so request modes share the filled KV prefix.",
+      "sha256": "0103d81679a0cc43ce416da910e7db86a04c0e8548d7df3f41564c98a203deb7"
+    },
+    "warmup_tokens": 40,
+    "warmups_per_prompt": 1
+  },
+  "purpose": "Focused selected-route decode-cliff comparison; MTP-off and MTP-on before/after cells complete.",
+  "schema_version": 1,
+  "status": "complete"
+}

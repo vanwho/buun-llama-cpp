@@ -1,5 +1,12 @@
 # Consolidated performance results: upstream master and ACO
 
+ACO-enabled measurements in this historical document are superseded for current
+comparisons. Every ACO MTP-on/off context, reasoning mode and prompt is being
+remeasured with the fixed `ca54933a7` build. The current replacement dataset is
+[ACO fixed-build results](ACO_FIXED_RESULTS_20261103.md); pending cells must remain
+pending, with no fallback to older ACO rows. Historical artifacts below remain
+archived for provenance. Ordinary GPU/CPU controls are separately identified.
+
 Compiled 2026-10-23 from benchmark artifacts in this repository and /srv/ai/paged-kv/results.
 This is a results consolidation and missing-cell completion. It includes the
 standardized 105-series three-prompt matrix, fresh-chunk context-ingest curves, the

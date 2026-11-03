@@ -162,5 +162,14 @@
     "Comparable late-ingest windows do not show a prefill cliff.",
     "Copy fan-out/graph dispatch are concrete source-level candidates; exact time fractions are unmeasured.",
     "The low/MTP-on standalone C256000 prefill aggregate discrepancy resolves when comparing the same late interval; retain its data."
-  ]
+  ],
+  "follow_up_repair": {
+    "measured_requests": 36,
+    "note": "Old speed measurements remain historical evidence; do not relabel as repaired-build performance.",
+    "report": ".wiretail/execution/engineering-notes/packed-attention-boundary-repair.json",
+    "server_sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7",
+    "source_commit": "ca54933a7c43c02c1f6c56b39279cea08ece032a",
+    "status": "focused_pair_passed",
+    "warmup_requests": 12
+  }
 }
