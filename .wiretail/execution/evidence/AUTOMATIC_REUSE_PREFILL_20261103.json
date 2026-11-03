@@ -1,0 +1,1452 @@
+{
+  "attempt": "attempt-03",
+  "attempt_references": {
+    "raw_root": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03",
+    "cell": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03/cell/cell.json",
+      "sha256": "548bb1179454fa7b1f68d7c7a2a162a74c4dfdcd34560e46d9177afb8d47c734"
+    },
+    "candidate_identity_json": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-attention-reuse-20261103/candidate-identity.json",
+      "sha256": "a6e8afe861ca77ea916da6917353e4b94ea5421acef79ef287ddd4965288451a"
+    },
+    "restoration": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03/restoration.txt",
+      "sha256": "4e47a68ecc89cce1f6f3b4c5ea375d34ac90e4732de1960f6945c20b9a835627"
+    }
+  },
+  "campaign": "automatic-reuse-prefill-20261103",
+  "cell_resource_summary": {
+    "max_gpu_free_mib": 489.0,
+    "max_gpu_used_mib": 15589.0,
+    "max_server_vm_hwm_kib": 14322216.0,
+    "max_server_vm_rss_kib": 8696184.0,
+    "max_server_vm_swap_kib": 0.0,
+    "min_gpu_free_mib": 357.0,
+    "samples": 153,
+    "sha256": "57cf79b5cbada079215e2657254e397cfe55fafcb38a39c3b3b12c4b4bb0d6c9",
+    "source": "cell/resource-samples.jsonl"
+  },
+  "checkpoints": [
+    {
+      "actual_c_tokens": 6144,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 0,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        6134
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        6144
+      ],
+      "backend_prompt_tokens": 6144,
+      "backend_tok_s": 1450.7160313093987,
+      "checkpoint_directory": "C6144",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 1450.7160313093987,
+      "net_new_tokens": 6144,
+      "net_new_wall_tok_s": 1445.1922432273614,
+      "prompt_seconds": 4.23515,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C6144/campaign/row.json",
+          "sha256": "650501b2799d12399188e44a68c4e7106b4ea519a37296da2e7af642e5905c5e"
+        },
+        "run_config": {
+          "path": "cell/C6144/campaign/run-config.json",
+          "sha256": "45e5aed3238978f897ab52273eb7290f8d14fdc9b95d4f20b086069a2e6e897c"
+        },
+        "schedule": {
+          "path": "cell/C6144/campaign/schedule.jsonl",
+          "sha256": "eb95c4176d89acae14878bdea1c1368ed8cac9600abce4ebb5af1f0464c01f4d"
+        },
+        "source_manifest": {
+          "path": "cell/C6144/campaign/source-manifest.json",
+          "sha256": "350a247d1df1cdd49440878193dbf12f8e6314d14fe3644c7df189ed28cc03c9"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 6144,
+      "wall_seconds": 4.251337514986517
+    },
+    {
+      "actual_c_tokens": 12288,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 0,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        6130
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        6144
+      ],
+      "backend_prompt_tokens": 12276,
+      "backend_tok_s": 1266.1038644530406,
+      "checkpoint_directory": "C12288",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 633.6707513196059,
+      "net_new_tokens": 6144,
+      "net_new_wall_tok_s": 632.2157859063891,
+      "prompt_seconds": 9.695887,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C12288/campaign/row.json",
+          "sha256": "8912fc4c31f53237a1b9e8a7cb034606f50599761eb37a388311d70a99ddd96d"
+        },
+        "run_config": {
+          "path": "cell/C12288/campaign/run-config.json",
+          "sha256": "a653b7b080a8939d53dfcafe831128af36b4d2fb897c94ae72b628886acd62b3"
+        },
+        "schedule": {
+          "path": "cell/C12288/campaign/schedule.jsonl",
+          "sha256": "40f6a1b79a1ec1a10e2bb460bf3f1d1f04489c4e2c74894b9de62197cb92e19d"
+        },
+        "source_manifest": {
+          "path": "cell/C12288/campaign/source-manifest.json",
+          "sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 12288,
+      "wall_seconds": 9.718200869014254
+    },
+    {
+      "actual_c_tokens": 28673,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        16371
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        16385
+      ],
+      "backend_prompt_tokens": 32758,
+      "backend_tok_s": 983.3362656113787,
+      "checkpoint_directory": "C28672",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 491.84824201851274,
+      "net_new_tokens": 16385,
+      "net_new_wall_tok_s": 491.4074954527895,
+      "prompt_seconds": 33.313121,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C28672/campaign/row.json",
+          "sha256": "8dcf8452f404bbfead6c360980ea1e6f7fee22bd34c0bdf09ac6a96035af8bcf"
+        },
+        "run_config": {
+          "path": "cell/C28672/campaign/run-config.json",
+          "sha256": "8e6af7051a0e0f3142e2ac601e57cd0e303a190a236e310b7c5e57b19bd2958b"
+        },
+        "schedule": {
+          "path": "cell/C28672/campaign/schedule.jsonl",
+          "sha256": "f3f256ba1c23148c65b1a988f248fac56f29b954bea9d00a418e62d54c0e9f0f"
+        },
+        "source_manifest": {
+          "path": "cell/C28672/campaign/source-manifest.json",
+          "sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 28672,
+      "wall_seconds": 33.342999754007906
+    },
+    {
+      "actual_c_tokens": 62465,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "full_group",
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        32768,
+        994
+      ],
+      "append_count": 2,
+      "append_fresh_tokens": [
+        32783,
+        1009
+      ],
+      "backend_prompt_tokens": 67560,
+      "backend_tok_s": 628.3783240804099,
+      "checkpoint_directory": "C62464",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1,
+        "full_group": 1
+      },
+      "net_new_prompt_tok_s": 314.3007745311606,
+      "net_new_tokens": 33792,
+      "net_new_wall_tok_s": 313.9380186742344,
+      "prompt_seconds": 107.51484799999999,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C62464/campaign/row.json",
+          "sha256": "952dd727be3611251331268e787d681029950bb7d3af89fc78717663d047c576"
+        },
+        "run_config": {
+          "path": "cell/C62464/campaign/run-config.json",
+          "sha256": "7cd2eaefe159ac4fd8e3d89094fa10f127f374ec8cfc79fc5b36f9b5eb034f92"
+        },
+        "schedule": {
+          "path": "cell/C62464/campaign/schedule.jsonl",
+          "sha256": "1ce185a241278a1ac5fb77db8b8ab1d33136f949225ba11ed0d21de163c2b9a1"
+        },
+        "source_manifest": {
+          "path": "cell/C62464/campaign/source-manifest.json",
+          "sha256": "30c571d555af16d6bcd02682e4811428379d680b0fa2a7738ad503c105b6524a"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 62464,
+      "wall_seconds": 107.63908156999969
+    },
+    {
+      "actual_c_tokens": 78849,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        16370
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        16384
+      ],
+      "backend_prompt_tokens": 32756,
+      "backend_tok_s": 817.0226453654793,
+      "checkpoint_directory": "C78848",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 408.66097880290675,
+      "net_new_tokens": 16384,
+      "net_new_wall_tok_s": 407.90616701071207,
+      "prompt_seconds": 40.091911999999994,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C78848/campaign/row.json",
+          "sha256": "1c602df1ad06e70974b0aeda81e5fb35ae5bdd9fa680fdb15ebc0d8ae1147084"
+        },
+        "run_config": {
+          "path": "cell/C78848/campaign/run-config.json",
+          "sha256": "df7a7699af75c4becf3180055c870f67d966497597186a26462ff0487cc33536"
+        },
+        "schedule": {
+          "path": "cell/C78848/campaign/schedule.jsonl",
+          "sha256": "aa2cc4fda2207b55cd36586922cbf4857c76b6a515289734d11b1a3215cc2d7d"
+        },
+        "source_manifest": {
+          "path": "cell/C78848/campaign/source-manifest.json",
+          "sha256": "9cf37d751924c4f6dd08335deec430933708ae56d8da65b51459ec55ec710bd9"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 78848,
+      "wall_seconds": 40.16610025797854
+    },
+    {
+      "actual_c_tokens": 88065,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        9201
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        9216
+      ],
+      "backend_prompt_tokens": 18420,
+      "backend_tok_s": 819.64787624652,
+      "checkpoint_directory": "C88064",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 410.0909244021677,
+      "net_new_tokens": 9216,
+      "net_new_wall_tok_s": 408.57756922600873,
+      "prompt_seconds": 22.473065,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C88064/campaign/row.json",
+          "sha256": "e297799d4ee092d31132782024a0337ebdaa933df7083785e15a8f0854af6777"
+        },
+        "run_config": {
+          "path": "cell/C88064/campaign/run-config.json",
+          "sha256": "0d5d7f06429e2645328ecf956c0afbb3f7694ded4b3fd83d8fcb8e6f23f9f5b2"
+        },
+        "schedule": {
+          "path": "cell/C88064/campaign/schedule.jsonl",
+          "sha256": "e5fe15bac279ba3f9e1f1c64611d0a0851f0945b85b4e56f8d741eaad010721b"
+        },
+        "source_manifest": {
+          "path": "cell/C88064/campaign/source-manifest.json",
+          "sha256": "801d1033318e24962b69242f850d4d2c561890a1778b99c3982f3b2306c0fc20"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 88064,
+      "wall_seconds": 22.556304344994714
+    },
+    {
+      "actual_c_tokens": 100352,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 0,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        12274
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        12287
+      ],
+      "backend_prompt_tokens": 24562,
+      "backend_tok_s": 831.6958960605645,
+      "checkpoint_directory": "C100352",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 416.0511145222765,
+      "net_new_tokens": 12287,
+      "net_new_wall_tok_s": 414.7881614020984,
+      "prompt_seconds": 29.532429,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C100352/campaign/row.json",
+          "sha256": "9338bcfbeb243654d87626b827223907f75de3648548eb66f8848f75c6a80851"
+        },
+        "run_config": {
+          "path": "cell/C100352/campaign/run-config.json",
+          "sha256": "f40e6b1d57528fe64658175b8f4aac0e18cb772282465876cec5a7e01b3934ec"
+        },
+        "schedule": {
+          "path": "cell/C100352/campaign/schedule.jsonl",
+          "sha256": "273d5180ff4ff859937f5887827508e22b0a6ac9f5887af13e16938ee9dfcd0d"
+        },
+        "source_manifest": {
+          "path": "cell/C100352/campaign/source-manifest.json",
+          "sha256": "515c4f0ca68ffd0e5f5459f539d19a8e08f4479a89c4761586d3c81896fffa85"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 100352,
+      "wall_seconds": 29.622349776007468
+    },
+    {
+      "actual_c_tokens": 130049,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        29682
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        29697
+      ],
+      "backend_prompt_tokens": 59382,
+      "backend_tok_s": 870.2406324821338,
+      "checkpoint_directory": "C130048",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 435.2082459806327,
+      "net_new_tokens": 29697,
+      "net_new_wall_tok_s": 434.46333883951763,
+      "prompt_seconds": 68.236299,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C130048/campaign/row.json",
+          "sha256": "25a1e3f5646e8c14b79831f7679f377f1f556104baa7ec31a512904065600fc2"
+        },
+        "run_config": {
+          "path": "cell/C130048/campaign/run-config.json",
+          "sha256": "c79858723968237420a2bb48a71e355bdb66f2af1f0069c220421266942224b1"
+        },
+        "schedule": {
+          "path": "cell/C130048/campaign/schedule.jsonl",
+          "sha256": "3f4f5ecef4912fc759a23402a4791f88dc3874c1cc0d60d1d7159e0e65684f54"
+        },
+        "source_manifest": {
+          "path": "cell/C130048/campaign/source-manifest.json",
+          "sha256": "3d8f3fe94cfeebb0b69a139f22a5e72c9fe1fef83ab6343c073cf9aafc5485aa"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 130048,
+      "wall_seconds": 68.35329323602491
+    },
+    {
+      "actual_c_tokens": 196608,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 0,
+      "append_chunk_kinds": [
+        "full_group",
+        "full_group",
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        32768,
+        32768,
+        979
+      ],
+      "append_count": 3,
+      "append_fresh_tokens": [
+        32783,
+        32783,
+        993
+      ],
+      "backend_prompt_tokens": 133082,
+      "backend_tok_s": 814.6105590182787,
+      "checkpoint_directory": "C196608",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1,
+        "full_group": 2
+      },
+      "net_new_prompt_tok_s": 407.4154596241235,
+      "net_new_tokens": 66559,
+      "net_new_wall_tok_s": 406.18300977266443,
+      "prompt_seconds": 163.36886199999998,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C196608/campaign/row.json",
+          "sha256": "82a784de992b6cfa43e3a38780faae138e8171bbfcb628d47a404c41b5e8c42a"
+        },
+        "run_config": {
+          "path": "cell/C196608/campaign/run-config.json",
+          "sha256": "9c7bb5f7e7f95a4da8d8f5c31eec050bbea8188cc2e1460a31e0f782cc18a6be"
+        },
+        "schedule": {
+          "path": "cell/C196608/campaign/schedule.jsonl",
+          "sha256": "c03a67778e02acb1bf77a472c0f7f93475f769c1e7a8a3342ee73303f38169da"
+        },
+        "source_manifest": {
+          "path": "cell/C196608/campaign/source-manifest.json",
+          "sha256": "1253cd91930646d57ab39b4781cf0754ceec922627eaeeb64e6f27d42cc62a23"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 196608,
+      "wall_seconds": 163.86455956700956
+    },
+    {
+      "actual_c_tokens": 256001,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "full_group",
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        32768,
+        26596
+      ],
+      "append_count": 2,
+      "append_fresh_tokens": [
+        32783,
+        26610
+      ],
+      "backend_prompt_tokens": 118762,
+      "backend_tok_s": 756.3798572990764,
+      "checkpoint_directory": "C256000",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1,
+        "full_group": 1
+      },
+      "net_new_prompt_tok_s": 378.26635510149754,
+      "net_new_tokens": 59393,
+      "net_new_wall_tok_s": 377.1893379890399,
+      "prompt_seconds": 157.0137,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C256000/campaign/row.json",
+          "sha256": "32cdff0c119d5bc1ba4a1a3422d7980405aff87652159e1c6401fab00e298d2c"
+        },
+        "run_config": {
+          "path": "cell/C256000/campaign/run-config.json",
+          "sha256": "52853537e2b4d2d430376ead30a4fae414daab4bca0eeca66c23829310a35ec0"
+        },
+        "schedule": {
+          "path": "cell/C256000/campaign/schedule.jsonl",
+          "sha256": "4242b9db42c20a1aaed1ca6adfe9ac2bd217c1a211eb9f10678291f7ca635d3c"
+        },
+        "source_manifest": {
+          "path": "cell/C256000/campaign/source-manifest.json",
+          "sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 256000,
+      "wall_seconds": 157.46203303796938
+    },
+    {
+      "actual_c_tokens": 261121,
+      "actual_cases": 0,
+      "actual_minus_target_tokens": 1,
+      "append_chunk_kinds": [
+        "checkpoint_tail"
+      ],
+      "append_content_tokens": [
+        5105
+      ],
+      "append_count": 1,
+      "append_fresh_tokens": [
+        5120
+      ],
+      "backend_prompt_tokens": 10228,
+      "backend_tok_s": 591.0702735052287,
+      "checkpoint_directory": "C261120",
+      "chunk_kind_counts": {
+        "checkpoint_tail": 1
+      },
+      "net_new_prompt_tok_s": 295.88187332291466,
+      "net_new_tokens": 5120,
+      "net_new_wall_tok_s": 292.25089517113975,
+      "prompt_seconds": 17.304203,
+      "raw_references": {
+        "cell": null,
+        "row": {
+          "path": "cell/C261120/campaign/row.json",
+          "sha256": "2c01dcd4ce44eb904712fd3d6876a4b9e87a70a11a86943c639baf4283bc2bda"
+        },
+        "run_config": {
+          "path": "cell/C261120/campaign/run-config.json",
+          "sha256": "30ebbda04c8868814c79763be6cb86296acd7c08f70a89c2bac07f274b747813"
+        },
+        "schedule": {
+          "path": "cell/C261120/campaign/schedule.jsonl",
+          "sha256": "1ed4e0a09fc53d935e8b9ee61cf331df0c754919ba8febde073c5396edf668be"
+        },
+        "source_manifest": {
+          "path": "cell/C261120/campaign/source-manifest.json",
+          "sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da"
+        }
+      },
+      "status": "complete",
+      "target_c_tokens": 261120,
+      "wall_seconds": 17.519193557993276
+    }
+  ],
+  "configuration": {
+    "context_tokens": 262144,
+    "configured_hot_tokens": 65536,
+    "configured_hot_pages": 256,
+    "page_tokens": 256,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "GPU Turbo4 K/V",
+    "draft_kv": "GPU Turbo4 K/V full-L",
+    "native_mtp_n_max": 2,
+    "reasoning": "off during ingestion",
+    "flash_attention": true,
+    "parallel_slots": 1,
+    "threads": 16,
+    "threads_batch": 16,
+    "context_shift": false,
+    "server_argv": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "-m",
+      "/srv/ai/models/text/current.gguf",
+      "--alias",
+      "qwen38-fast-turbo4-mtp",
+      "--jinja",
+      "--chat-template-file",
+      "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+      "-ngl",
+      "999",
+      "--device",
+      "CUDA0",
+      "--fit",
+      "off",
+      "-fa",
+      "on",
+      "-c",
+      "262144",
+      "-np",
+      "1",
+      "-t",
+      "16",
+      "-tb",
+      "16",
+      "-ctk",
+      "turbo4",
+      "-ctv",
+      "turbo4",
+      "-b",
+      "1024",
+      "-ub",
+      "256",
+      "--poll",
+      "0",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--api-key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--metrics",
+      "--reasoning-preserve",
+      "--no-context-shift",
+      "--slot-save-path",
+      "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03/cell/slot-state",
+      "--ctx-checkpoints",
+      "0",
+      "--cache-ram",
+      "0",
+      "--no-cache-idle-slots",
+      "--kv-pager",
+      "selective",
+      "--kv-page-size",
+      "256",
+      "--kv-hot-pages",
+      "256",
+      "--kv-router",
+      "probe-rerank",
+      "--kv-pin-recent",
+      "0",
+      "--spec-type",
+      "draft-mtp",
+      "--spec-draft-n-max",
+      "2",
+      "--spec-draft-type-k",
+      "turbo4",
+      "--spec-draft-type-v",
+      "turbo4"
+    ],
+    "draft_device_requested": "auto",
+    "draft_device_observed": "CUDA0",
+    "draft_reservation_rows": 262144,
+    "draft_reservation_bytes": 276955136,
+    "startup_evidence": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03/cell/server-startup-20261103T215654Z.log",
+      "sha256": "4be5909af0293bf2f25b255ea2768b468992005772f85a5e4394a3bd29b3705f"
+    },
+    "decode_benchmark_cases": 0,
+    "ingestion_ack_max_tokens": 1,
+    "actual_admitted_gpu_pages": "not sampled; configured256pages, no telemetry gate or extra run imposed"
+  },
+  "excluded_attempt": "attempt-01: authentication harness failure; excluded from all performance totals",
+  "interpretation": [
+    "This is a completed prefill-only run; ACKs do not measure decode speed or MTP acceptance.",
+    "New repo content is disjoint. Earlier context was cached; subsequent current user spans replayed once. The intended replay reduction was not demonstrated.",
+    "Rates are weighted token totals divided by summed durations. Net-new prefill uses server prompt time; request-wall rate uses full HTTP request duration. Backend rate counts all evaluated prompt tokens including current-span replay.",
+    "Append sizes vary at checkpoints, so the curve does not isolate context length from per-request overhead.",
+    "Attempt 02 with 64K groups failed history publication after C130049, not GPU OOM. The 32K grouping completed but does not repair that runtime limitation.",
+    "Code-supported explanation for the large-request failure: Q touches about 257 pages; query history budget becomes zero, no winners are prepared, but nonempty exact candidates prevent the empty-publication fallback. Exact failing predicates were not instrumented.",
+    "All-hot replay also persists below H. The available logs do not establish which candidate/prefix/certificate condition rejected reuse.",
+    "Full decode/reasoning benchmark suite remains paused."
+  ],
+  "overall_status": {
+    "expected_checkpoint_tokens": [
+      6144,
+      12288,
+      28672,
+      62464,
+      78848,
+      88064,
+      100352,
+      130048,
+      196608,
+      256000,
+      261120
+    ],
+    "final_c_target": 261120,
+    "final_c_tokens": 261121,
+    "final_c_within_plus_minus_8": true,
+    "missing_checkpoints": [],
+    "observed_checkpoint_count": 11,
+    "rows_not_complete": [],
+    "status": "complete"
+  },
+  "partial_attempts": [
+    {
+      "attempt": "attempt-02",
+      "attempt_references": {
+        "candidate_identity_json": null,
+        "candidate_runtime_commit": null,
+        "raw_root": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-02",
+        "restoration": null
+      },
+      "cell_resource_summary": {
+        "max_gpu_free_mib": 491.0,
+        "max_gpu_used_mib": 15557.0,
+        "max_server_vm_hwm_kib": 14322108.0,
+        "max_server_vm_rss_kib": 6753304.0,
+        "max_server_vm_swap_kib": 0.0,
+        "min_gpu_free_mib": 389.0,
+        "samples": 95,
+        "sha256": "f010f1eb2326941253d93310f872eea1d22f729b753c7a990c5a3a0d2f7cecdd",
+        "source": "cell/resource-samples.jsonl"
+      },
+      "checkpoints": [
+        {
+          "actual_c_tokens": 6144,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 0,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            6134
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            6144
+          ],
+          "backend_prompt_tokens": 6144,
+          "backend_tok_s": 1456.7979041458277,
+          "checkpoint_directory": "C6144",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 1456.7979041458277,
+          "net_new_tokens": 6144,
+          "net_new_wall_tok_s": 1450.9458995946743,
+          "prompt_seconds": 4.217469,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C6144/campaign/row.json",
+              "sha256": "acc50c30daf4b3922dc33bb235be860a5379f8588fb374b963aad301fbef68c7"
+            },
+            "run_config": {
+              "path": "cell/C6144/campaign/run-config.json",
+              "sha256": "8a47de609cedd110a6410f04e4e0a96c439a726fd718a04cc140e8dff8dc4ddc"
+            },
+            "schedule": {
+              "path": "cell/C6144/campaign/schedule.jsonl",
+              "sha256": "dabf89d0bc3060462ef0c1c2acc652e8efb528db5f07bf074f4fe1e320111160"
+            },
+            "source_manifest": {
+              "path": "cell/C6144/campaign/source-manifest.json",
+              "sha256": "fce3f944d5b5fceb0a122a85050e7ff36c316ae041e10c085f1fcbb315d791aa"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 6144,
+          "wall_seconds": 4.234479039994767
+        },
+        {
+          "actual_c_tokens": 12288,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 0,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            6130
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            6144
+          ],
+          "backend_prompt_tokens": 12276,
+          "backend_tok_s": 1275.9874870904491,
+          "checkpoint_directory": "C12288",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 638.6173933434114,
+          "net_new_tokens": 6144,
+          "net_new_wall_tok_s": 637.2220331355634,
+          "prompt_seconds": 9.620784,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C12288/campaign/row.json",
+              "sha256": "b80c44491f459fce262ceee61da01acedda59f12b24a0952a98bfff048f29e5d"
+            },
+            "run_config": {
+              "path": "cell/C12288/campaign/run-config.json",
+              "sha256": "c3f22dbd06545cfd003ab09cc9aa93d079f5625dfdf38dce347e39766ff694fb"
+            },
+            "schedule": {
+              "path": "cell/C12288/campaign/schedule.jsonl",
+              "sha256": "a68245534a4020e9f94cdcb24c62bc8b92f8a39358881ea52237383a588447c1"
+            },
+            "source_manifest": {
+              "path": "cell/C12288/campaign/source-manifest.json",
+              "sha256": "36071fec82d851d8c3abf1ffe9df00933d93e9e5a26dfc698ac2a05cfe1d710c"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 12288,
+          "wall_seconds": 9.64185116099543
+        },
+        {
+          "actual_c_tokens": 28673,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 1,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            16371
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            16385
+          ],
+          "backend_prompt_tokens": 32758,
+          "backend_tok_s": 989.4785667246797,
+          "checkpoint_directory": "C28672",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 494.9205176074204,
+          "net_new_tokens": 16385,
+          "net_new_wall_tok_s": 494.4162300109809,
+          "prompt_seconds": 33.106326,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C28672/campaign/row.json",
+              "sha256": "7b97e484487e30b77bea293e62812abe486fe89d9b71dd813be0b199751fd65c"
+            },
+            "run_config": {
+              "path": "cell/C28672/campaign/run-config.json",
+              "sha256": "57f93dc710544aea9a64bbe658dfd7b3f4f69912b3c84f19ca5af527d45ef2ed"
+            },
+            "schedule": {
+              "path": "cell/C28672/campaign/schedule.jsonl",
+              "sha256": "d8c70a6e9c077f676085a2a97835b2a287f291895aba95271d5ab04866dfa062"
+            },
+            "source_manifest": {
+              "path": "cell/C28672/campaign/source-manifest.json",
+              "sha256": "1cf911d5a976cdae270c0b45825f2f80b54462aa47064a82fff3a4530ecb5f24"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 28672,
+          "wall_seconds": 33.14009331699344
+        },
+        {
+          "actual_c_tokens": 62465,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 1,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            33778
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            33792
+          ],
+          "backend_prompt_tokens": 67572,
+          "backend_tok_s": 632.2781120171084,
+          "checkpoint_directory": "C62464",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 316.19519862194585,
+          "net_new_tokens": 33792,
+          "net_new_wall_tok_s": 316.02056727383876,
+          "prompt_seconds": 106.870693,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C62464/campaign/row.json",
+              "sha256": "15a49081bdc6dab4c7cb1be372388dab35b38d323ea5ea0d00a233f128c92a88"
+            },
+            "run_config": {
+              "path": "cell/C62464/campaign/run-config.json",
+              "sha256": "6098925610210f074dd8c32bc3be28dde52d749895ba0174d97a69b908b9ed46"
+            },
+            "schedule": {
+              "path": "cell/C62464/campaign/schedule.jsonl",
+              "sha256": "20f9af857cfbb1ebacc1e93a25654c716ec4d63f40f27a3da4a9c91b2a997877"
+            },
+            "source_manifest": {
+              "path": "cell/C62464/campaign/source-manifest.json",
+              "sha256": "bd490428267781361b62d05d01cab06a14aec2ee5b8b8b839df60a3abe0cd0bf"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 62464,
+          "wall_seconds": 106.92974919799599
+        },
+        {
+          "actual_c_tokens": 78849,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 1,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            16370
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            16384
+          ],
+          "backend_prompt_tokens": 32756,
+          "backend_tok_s": 818.2183422990307,
+          "checkpoint_directory": "C78848",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 409.25904628853704,
+          "net_new_tokens": 16384,
+          "net_new_wall_tok_s": 408.5224720891015,
+          "prompt_seconds": 40.033324,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C78848/campaign/row.json",
+              "sha256": "b590d4342f2c8626c54eea7128b36a5ae81c3407dbdaedc4a74efe33ad8130d0"
+            },
+            "run_config": {
+              "path": "cell/C78848/campaign/run-config.json",
+              "sha256": "48e862f1bc8aa1302cc96740c6bcb693ce8cadcbb935aa7da7d40b4c35c99e8c"
+            },
+            "schedule": {
+              "path": "cell/C78848/campaign/schedule.jsonl",
+              "sha256": "3d5a5b505410d2b0f667e6695d87c983541df1789b3867e3a9f28e550cab1e05"
+            },
+            "source_manifest": {
+              "path": "cell/C78848/campaign/source-manifest.json",
+              "sha256": "a93b97cc44db7eaa489eff7a9fea450a432848791c6343f60d4f8ca7bef0ac81"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 78848,
+          "wall_seconds": 40.10550488499575
+        },
+        {
+          "actual_c_tokens": 88065,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 1,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            9202
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            9216
+          ],
+          "backend_prompt_tokens": 18420,
+          "backend_tok_s": 821.4516066670296,
+          "checkpoint_directory": "C88064",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 410.9933771467614,
+          "net_new_tokens": 9216,
+          "net_new_wall_tok_s": 409.42646764846154,
+          "prompt_seconds": 22.423719000000002,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C88064/campaign/row.json",
+              "sha256": "ab1f2ef04cf62d2b531b461859aeb8dd6de61a6e6d3050548be96a1508cd3b08"
+            },
+            "run_config": {
+              "path": "cell/C88064/campaign/run-config.json",
+              "sha256": "13ee43d26aec82fbe55d0a6e427b6e6502530ebe6da33fda707715e4f602023a"
+            },
+            "schedule": {
+              "path": "cell/C88064/campaign/schedule.jsonl",
+              "sha256": "3c865b5710f9fb6b93b87371570e3d8b317a4f31c6514166200244688989ef31"
+            },
+            "source_manifest": {
+              "path": "cell/C88064/campaign/source-manifest.json",
+              "sha256": "a5aef27416a8b42859b69ee55831d9ff3c0b65c19a8a29ba0dccf2c1c952859f"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 88064,
+          "wall_seconds": 22.5095364570152
+        },
+        {
+          "actual_c_tokens": 100353,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 1,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            12273
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            12288
+          ],
+          "backend_prompt_tokens": 24564,
+          "backend_tok_s": 834.1972797099749,
+          "checkpoint_directory": "C100352",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 417.30240079287455,
+          "net_new_tokens": 12288,
+          "net_new_wall_tok_s": 415.88828445531374,
+          "prompt_seconds": 29.446272,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C100352/campaign/row.json",
+              "sha256": "3b5fedf8511048cea83f48a5bff645ead7a2bc6523e32c32df37fe45e306cd77"
+            },
+            "run_config": {
+              "path": "cell/C100352/campaign/run-config.json",
+              "sha256": "6fca0a695585a60ef87fa9b5b793a14c5de8ed1a493cfd426bce1e0bc05ce87b"
+            },
+            "schedule": {
+              "path": "cell/C100352/campaign/schedule.jsonl",
+              "sha256": "23f35f4fff1a78e7ee63b00c899a497bf9e85d680abfb0d35fc5b892ba4d63d4"
+            },
+            "source_manifest": {
+              "path": "cell/C100352/campaign/source-manifest.json",
+              "sha256": "c9a7f553539850ff96559d15cff5004094ca64530c364787a589edb1b18ab203"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 100352,
+          "wall_seconds": 29.546396133984672
+        },
+        {
+          "actual_c_tokens": 130049,
+          "actual_cases": 0,
+          "actual_minus_target_tokens": 1,
+          "append_chunk_kinds": [
+            "checkpoint_tail"
+          ],
+          "append_content_tokens": [
+            29681
+          ],
+          "append_count": 1,
+          "append_fresh_tokens": [
+            29696
+          ],
+          "backend_prompt_tokens": 59380,
+          "backend_tok_s": 871.7567434010306,
+          "checkpoint_directory": "C130048",
+          "chunk_kind_counts": {
+            "checkpoint_tail": 1
+          },
+          "net_new_prompt_tok_s": 435.966457595773,
+          "net_new_tokens": 29696,
+          "net_new_wall_tok_s": 435.26550750277687,
+          "prompt_seconds": 68.115332,
+          "raw_references": {
+            "cell": null,
+            "row": {
+              "path": "cell/C130048/campaign/row.json",
+              "sha256": "732daaf6069be35d0afaed37831b78c10fa51d2408dad2a235f368ee2fef969a"
+            },
+            "run_config": {
+              "path": "cell/C130048/campaign/run-config.json",
+              "sha256": "ff4f9b8309e4f5d02344cdfe49ee91715c2633607e87e8ce2cfbf188ec3cf59c"
+            },
+            "schedule": {
+              "path": "cell/C130048/campaign/schedule.jsonl",
+              "sha256": "9333a1499f2c27236514e1ad55a55b5d2d2638991db8b6eae492e75e45f7a425"
+            },
+            "source_manifest": {
+              "path": "cell/C130048/campaign/source-manifest.json",
+              "sha256": "eff40a6403ca691777fbbc34dd4d8448ee6bb21ed13cf5e7f05ed30471375393"
+            }
+          },
+          "status": "complete",
+          "target_c_tokens": 130048,
+          "wall_seconds": 68.22502469900064
+        },
+        {
+          "actual_c_tokens": null,
+          "actual_cases": null,
+          "actual_minus_target_tokens": null,
+          "append_chunk_kinds": [],
+          "append_content_tokens": [],
+          "append_count": 0,
+          "append_fresh_tokens": [],
+          "backend_prompt_tokens": 0,
+          "backend_tok_s": null,
+          "checkpoint_directory": "C196608",
+          "chunk_kind_counts": {},
+          "net_new_prompt_tok_s": null,
+          "net_new_tokens": 0,
+          "net_new_wall_tok_s": null,
+          "prompt_seconds": 0,
+          "raw_references": {
+            "cell": null,
+            "row": null,
+            "run_config": {
+              "path": "cell/C196608/campaign/run-config.json",
+              "sha256": "86156b827a5430a56279f220d9654866f6b26a4b2f242ba540235951cc587d49"
+            },
+            "schedule": null,
+            "source_manifest": {
+              "path": "cell/C196608/campaign/source-manifest.json",
+              "sha256": "eff40a6403ca691777fbbc34dd4d8448ee6bb21ed13cf5e7f05ed30471375393"
+            }
+          },
+          "status": null,
+          "target_c_tokens": 196608,
+          "wall_seconds": 0
+        }
+      ],
+      "failure": "After C130049, a full 65536-token group attempted about 65550 fresh tokens and failed exact-history publication (tx=0/gen=0/winners=0) before reaching C195591.",
+      "included_in_primary_totals": false,
+      "raw_root": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-02",
+      "runtime_replay_evidence": {
+        "bounded_log_match_count": 60,
+        "log_references": [
+          {
+            "path": "cell/C100352/campaign-20261103T214618Z.log",
+            "sha256": "e6243f3c100b59383661e0187ecff8c577fe736e7892cec974d61288ab008f94"
+          },
+          {
+            "path": "cell/C12288/campaign-20261103T214618Z.log",
+            "sha256": "40404c2a871682a6f3996fc3b859137e59c212e063773a1d9ac86dae786efc51"
+          },
+          {
+            "path": "cell/C130048/campaign-20261103T214618Z.log",
+            "sha256": "3183dd8863c8944eec19c803075a6f9e58c3ad5a6830b8b223f93c4e41885f3f"
+          },
+          {
+            "path": "cell/C196608/campaign-20261103T214618Z.log",
+            "sha256": "597a51512d691f381197c795556ea5891833e633b3da17848d1b809f115bcdb1"
+          },
+          {
+            "path": "cell/C28672/campaign-20261103T214618Z.log",
+            "sha256": "daf6ab8eecfaa82c82d1212676db32a44e9a912e69d90f6666f036a886a77d7f"
+          },
+          {
+            "path": "cell/C6144/campaign-20261103T214618Z.log",
+            "sha256": "efc484463f0cadf11f2a6c287b32a6099777919f99e89af4e2f6d5439c223683"
+          },
+          {
+            "path": "cell/C62464/campaign-20261103T214618Z.log",
+            "sha256": "b68b7c9495ed93dd5882b532d638e38540e5a706783bec7aea61c4f8708b3312"
+          },
+          {
+            "path": "cell/C78848/campaign-20261103T214618Z.log",
+            "sha256": "3d79162098d872dec7db20027f30811145cd21cd79ec25cdbed6c234bda68085"
+          },
+          {
+            "path": "cell/C88064/campaign-20261103T214618Z.log",
+            "sha256": "8fc6e749b21d35c00459e126c4ba39754664c8aa3339bb42395459171f5e1855"
+          },
+          {
+            "path": "cell/server-startup-20261103T214618Z.log",
+            "sha256": "ce5c08ead9d42fe4abfd2110b5cb41f728d9d98b668e93afa7f6626b5473740c"
+          }
+        ],
+        "match_counts": {
+          "draft": 27,
+          "mtp": 54,
+          "replay": 5
+        }
+      },
+      "status": "partial_failed",
+      "content_group_tokens": 65536
+    }
+  ],
+  "performance_comparison": null,
+  "runtime_replay_evidence": {
+    "initial_replay_count": 0,
+    "subsequent_replayed_requests": 14,
+    "total_replayed_query_tokens": 254809,
+    "replay_count_per_replayed_request": [
+      1
+    ],
+    "source": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03/cell/server-startup-20261103T215654Z.log",
+      "sha256": "4be5909af0293bf2f25b255ea2768b468992005772f85a5e4394a3bd29b3705f"
+    },
+    "old_prefix_reuse": "all 15 appends checked cached_tokens >= prior occupancy - 8; no old-prefix reload recorded",
+    "max_cached_prefix_deviation_tokens": 0
+  },
+  "schema_version": 1,
+  "candidate": {
+    "workspace": "/srv/repos/vanwho/buun-llama-cpp",
+    "head": "7b26110ecca6d6c04bd6f166da7eb37b4b3b147c",
+    "working_tree_clean": true,
+    "binary": "build-cuda/bin/llama-server",
+    "binary_sha256": "da58c02c2c9a9cbc7b1879e07fa96fa86b02f4ca155feab09a0a2c1b12587dc2",
+    "build_log": "/srv/ai/paged-kv/results/forward/automatic-attention-reuse-20261103/build-committed.log",
+    "runtime_commit": "d2d9c7291e3b1e057d90dea42c9bfe7c145a0ff6",
+    "runtime_source_paths": [
+      "docs/aco.md",
+      "src/llama-context.cpp",
+      "src/llama-context.h",
+      "src/llama-graph.h",
+      "src/llama-kv-attention-view.cpp",
+      "src/llama-kv-attention-view.h",
+      "src/llama-kv-cache.cpp",
+      "src/llama-kv-cache.h",
+      "src/llama-kv-pager.cpp",
+      "src/llama-kv-residency.h",
+      "src/llama-memory-hybrid-iswa.h",
+      "src/llama-memory-hybrid.h",
+      "src/llama-memory.h",
+      "tests/test-kv-attention-view.cpp",
+      "tests/test-kv-pager.cpp",
+      "tests/test-server-prompt-cache.cpp",
+      "tools/server/server-context.cpp",
+      "tools/server/server-task.cpp"
+    ],
+    "identity_artifact": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-attention-reuse-20261103/candidate-identity.json",
+      "sha256": "a6e8afe861ca77ea916da6917353e4b94ea5421acef79ef287ddd4965288451a"
+    }
+  },
+  "source": {
+    "git": {
+      "commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+      "dirty_fingerprint": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+    },
+    "map": {
+      "path": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-32k-v1/map.json",
+      "sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f",
+      "protocol": "repo-fixed-token-chunks-v1",
+      "chunk_tokens": 32768
+    },
+    "map_artifact": {
+      "path": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-32k-v1/map.json",
+      "sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f"
+    },
+    "corpus_sha256": "23497dad8b11315ab043fe6bb3849b757d2deed32436e6d2962ead0448ec6fee",
+    "corpus_bytes": 912974,
+    "files": 74,
+    "content_group_tokens": 32768,
+    "mapped_content_tokens": 262144,
+    "method": "append next disjoint repo bytes, same live cached prefix; no disk KV restore or prefix reevaluation"
+  },
+  "restoration": {
+    "exit_code": 0,
+    "gateway": "active",
+    "llama_service": "active",
+    "health_http_codes": {
+      "8080": 200,
+      "8091": 200,
+      "8096": 200
+    },
+    "jellyfin_pid_unchanged": 1000914,
+    "jellyfin_container_health": "healthy",
+    "port_8092": "untouched",
+    "evidence": {
+      "path": "/srv/ai/paged-kv/results/forward/automatic-reuse-prefill-20261103/attempt-03/restoration.txt",
+      "sha256": "4e47a68ecc89cce1f6f3b4c5ea375d34ac90e4732de1960f6945c20b9a835627"
+    }
+  },
+  "totals": {
+    "new_occupied_tokens": 261121,
+    "backend_evaluated_tokens": 515930,
+    "append_requests": 15,
+    "prompt_seconds": 652.7794759999999,
+    "request_wall_seconds": 654.4954534859862,
+    "net_new_prefill_tok_s": 400.0141082867011,
+    "backend_prefill_tok_s": 790.3587949202007,
+    "net_new_request_wall_tok_s": 398.9653382757853,
+    "final_occupied_tokens": 261121,
+    "final_reserve_tokens": 1023
+  },
+  "historical_comparison": {
+    "source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FIXED_RESULTS_20261103.json",
+    "caveat": "Old runtime1d74 used variable per-file appends up to4080tokens. New runtime d2d9 uses mapped32Kgroups andcheckpointtails; cannotattributeall change to code alone. ContextL/H/B/U/MTPsame. Intervalboundaries differ by0-1token.",
+    "rows": [
+      {
+        "target_c_tokens": 6144,
+        "old_backend_tok_s": 1287.7171376532642,
+        "old_net_new_tok_s": 797.2817945470337,
+        "new_backend_tok_s": 1450.7160313093987,
+        "new_net_new_tok_s": 1450.7160313093987,
+        "new_vs_old_net_new_percent": 81.9577521061554,
+        "old_chunk_count": 4,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 12288,
+        "old_backend_tok_s": 1009.8100712841798,
+        "old_net_new_tok_s": 953.4767293637622,
+        "new_backend_tok_s": 1266.1038644530406,
+        "new_net_new_tok_s": 633.6707513196059,
+        "new_vs_old_net_new_percent": -33.541036524043655,
+        "old_chunk_count": 4,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 28672,
+        "old_backend_tok_s": 909.5410519529887,
+        "old_net_new_tok_s": 520.6092997204362,
+        "new_backend_tok_s": 983.3362656113787,
+        "new_net_new_tok_s": 491.84824201851274,
+        "new_vs_old_net_new_percent": -5.524499412009732,
+        "old_chunk_count": 6,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 62464,
+        "old_backend_tok_s": 595.9337154988925,
+        "old_net_new_tok_s": 317.3604834074854,
+        "new_backend_tok_s": 628.3783240804099,
+        "new_net_new_tok_s": 314.3007745311606,
+        "new_vs_old_net_new_percent": -0.9641114871873246,
+        "old_chunk_count": 12,
+        "new_chunk_count": 2
+      },
+      {
+        "target_c_tokens": 78848,
+        "old_backend_tok_s": 569.2920359720066,
+        "old_net_new_tok_s": 297.5588820699724,
+        "new_backend_tok_s": 817.0226453654793,
+        "new_net_new_tok_s": 408.66097880290675,
+        "new_vs_old_net_new_percent": 37.33785258233635,
+        "old_chunk_count": 8,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 88064,
+        "old_backend_tok_s": 607.6440049888058,
+        "old_net_new_tok_s": 304.46621812520164,
+        "new_backend_tok_s": 819.64787624652,
+        "new_net_new_tok_s": 410.0909244021677,
+        "new_vs_old_net_new_percent": 34.69176545344397,
+        "old_chunk_count": 3,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 100352,
+        "old_backend_tok_s": 592.6450824159679,
+        "old_net_new_tok_s": 296.9387471040739,
+        "new_backend_tok_s": 831.6958960605645,
+        "new_net_new_tok_s": 416.0511145222765,
+        "new_vs_old_net_new_percent": 40.11344716035155,
+        "old_chunk_count": 4,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 130048,
+        "old_backend_tok_s": 560.7149483206318,
+        "old_net_new_tok_s": 280.99618788209807,
+        "new_backend_tok_s": 870.2406324821338,
+        "new_net_new_tok_s": 435.2082459806327,
+        "new_vs_old_net_new_percent": 54.88048050076741,
+        "old_chunk_count": 11,
+        "new_chunk_count": 1
+      },
+      {
+        "target_c_tokens": 196608,
+        "old_backend_tok_s": 513.9477305021783,
+        "old_net_new_tok_s": 257.6066580484287,
+        "new_backend_tok_s": 814.6105590182787,
+        "new_net_new_tok_s": 407.4154596241235,
+        "new_vs_old_net_new_percent": 58.15408759642055,
+        "old_chunk_count": 27,
+        "new_chunk_count": 3
+      },
+      {
+        "target_c_tokens": 256000,
+        "old_backend_tok_s": 443.0423344214529,
+        "old_net_new_tok_s": 222.2002037304104,
+        "new_backend_tok_s": 756.3798572990764,
+        "new_net_new_tok_s": 378.26635510149754,
+        "new_vs_old_net_new_percent": 70.23672739762112,
+        "old_chunk_count": 30,
+        "new_chunk_count": 2
+      }
+    ],
+    "matched_occupied_span_0_to_256001": {
+      "old": {
+        "net_new_tokens": 256001,
+        "backend_evaluated_tokens": 493245,
+        "prompt_seconds": 910.1633850000001,
+        "backend_tok_s": 541.9301722404489,
+        "net_new_tok_s": 281.26928002053165
+      },
+      "new": {
+        "net_new_tokens": 256001,
+        "backend_evaluated_tokens": 505702,
+        "prompt_seconds": 635.475273,
+        "backend_tok_s": 795.7854876282495,
+        "net_new_tok_s": 402.8496636721221
+      },
+      "net_new_percent": 43.22561768662241,
+      "backend_percent": 46.842808980040985
+    }
+  },
+  "historical_full_gpu_comparison": {
+    "caveat": "Historical controls, not matched32Kmap A/B. Different builds, allocatedL, fillgrouping/template/possiblyreasoning fill. Rates useallnewsourcefill only, excludingbenchmarkquestionprefill. No fullGPU256K MTPon row exists.",
+    "rows": [
+      {
+        "reference": "master full GPU + MTP2",
+        "occupied_span": [
+          0,
+          12288
+        ],
+        "full_gpu_backend_tok_s": 1488.112718725503,
+        "full_gpu_net_new_tok_s": 1488.112718725503,
+        "full_gpu_wall_tok_s": 1458.335587603921,
+        "new_aco_backend_tok_s": 1322.227483854935,
+        "new_aco_net_new_tok_s": 882.0592465586014,
+        "net_new_delta_percent": -40.72631491826488,
+        "backend_delta_percent": -11.147356835484945,
+        "reference_configured_L": 16384,
+        "reference_binary_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "reference_fill_enable_thinking": null,
+        "reference_run_config": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/master-gpu-mtp-on/C12288/attempt-03/campaign/run-config.json",
+        "reference_schedule": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/master-gpu-mtp-on/C12288/attempt-03/campaign/schedule.jsonl",
+        "reference_schedule_sha256": "bb455f123ecd53491f42a7e1254a28a9b6960d85580dbda1ecfad2ae3f7468c0"
+      },
+      {
+        "reference": "fork full GPU, ACO off + MTP2",
+        "occupied_span": [
+          0,
+          78849
+        ],
+        "full_gpu_backend_tok_s": 703.9508337718165,
+        "full_gpu_net_new_tok_s": 703.9508337718165,
+        "full_gpu_wall_tok_s": 694.5438726727849,
+        "new_aco_backend_tok_s": 777.4867142273357,
+        "new_aco_net_new_tok_s": 404.66322052431906,
+        "net_new_delta_percent": -42.51541427174595,
+        "backend_delta_percent": 10.446167108221038,
+        "reference_configured_L": 80896,
+        "reference_binary_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+        "reference_fill_enable_thinking": true,
+        "reference_run_config": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-gpu-mtp-on/C78848/attempt-07/reasoning-low/campaign/run-config.json",
+        "reference_schedule": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-gpu-mtp-on/C78848/attempt-07/reasoning-low/campaign/schedule.jsonl",
+        "reference_schedule_sha256": "6b3d5597a3372a12582ac3fa057e817d4d6a76134239d7a8e44108de73551c38"
+      }
+    ]
+  }
+}

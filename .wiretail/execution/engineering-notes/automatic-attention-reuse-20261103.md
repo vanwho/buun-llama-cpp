@@ -83,3 +83,49 @@ contiguous-prefix flag; that mutation path was fixed and the assertion now
 passes. No live server was replaced, no final prefill test ran, and Jellyfin
 remained healthy. The runtime source slice is separate from these plan notes
 and earlier development-only benchmark commits.
+
+
+## Authorized prefill-only result (2026-11-03)
+
+The operator authorized one fresh L262144/H65536/B1024/U256/Turbo4 target+draft,
+GPU native MTP2 prefill curve, without canonical decode tests. Candidate binary
+SHA-256 was `da58c02c2c9a9cbc7b1879e07fa96fa86b02f4ca155feab09a0a2c1b12587dc2`;
+no runtime rebuild or source change occurred during the attempts. Full suite
+remains paused. See `../evidence/AUTOMATIC_REUSE_PREFILL_20261103.md` and JSON.
+
+The completed 32K-group attempt made 15 successful disjoint-source appends and
+reached C261121, leaving 1023 tokens in the configured 256K allocation. Old
+prefix cache counts matched the previous occupied frontier exactly. It did
+515930 backend prompt-token evaluations for 261121 new occupied tokens:
+790.36 backend tok/s, 400.01 net-new/prompt-second tok/s, 398.97 net-new/request-
+wall-second tok/s. No decode or MTP acceptance conclusion follows from the
+one-token fill ACKs. GPU reported-free minimum was 357 MiB, sampled used peak
+15589 MiB, and process VmSwap stayed zero. Prior managed services were restored;
+Jellyfin stayed running and healthy. Actual admitted physical page telemetry
+was not sampled; 256 pages is the configured pool.
+
+**The replay optimization is not yet demonstrated:** the initial request had
+zero replay, but all 14 later new-user spans replayed once, including requests
+below H. Existing logs cannot distinguish the full-candidate, prefix-coverage,
+or actual-view certificate rejection. Do not claim the automatic bypass passed
+its live proof, and do not replace this evidence with the model-free fixtures.
+
+A separate 64K-group attempt failed after C130049 while finishing an approximately
+65550-token new user span: exact-history publication returned transaction0,
+generation0 and winners0. It was not an OOM. Code explains a likely path:
+`llama_kv_query_history_budget` (`src/llama-kv-live-policy.cpp`) returns zero
+when the mandatory Q-page count consumes the retrieval pool; a span crossing
+257 pages exceeds this 256-page hot configuration. In
+`llama_kv_cache::apply_pager_live_policy` the zero candidate budget makes
+history_capacity zero and yields no selected winners. The commit fallback
+only accepts empty publication when `exact_candidates().empty()`, so nonempty
+ranked candidates with no budget can leave publication incomplete. The exact
+failed predicate was not instrumented, so this remains code-supported rather
+than a fully traced root cause. Smaller 32K requests completed; this is not a
+runtime fix for large Q spans. Preserve authentication and commit validation.
+
+Next review must address these two specific gaps before attributing all of the
+observed speed gains to code or launching an expensive final comparison suite.
+The old variable per-file cohort and this mapped32K cohort have different
+request widths; their comparison is useful operational evidence, not an
+isolated code A/B. No new API/request mode was introduced.
