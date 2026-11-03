@@ -780,6 +780,9 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             req_path = output / "requests" / f"append-{append_index:04d}.json"
             raw_path = output / "raw" / f"append-{append_index:04d}.sse"
             payload = {"model": MODEL, "messages": messages, "max_tokens": 1,
+                       # Only the bulk source append is ingestion. Canonical
+                       # questions below remain ordinary retrieval requests.
+                       "aco_mode": "ingest",
                        "temperature": 0, "seed": 42, "stream": True,
                        "cache_prompt": True,
                        "stream_options": {"include_usage": True},
@@ -966,6 +969,13 @@ def main() -> int:
     sizing_timeout = prompt_sizing_timeout(args.context_tokens)
     renderer = ServerPromptRenderer(endpoint, MODEL, key, timeout=sizing_timeout,
         request_options=fill_options)
+    if args.pager in ("selective", "exact") and geometry["target_tokens"] is not None:
+        # Unknown extension fields can be silently ignored by an older server.
+        # Establish support without a generation/setup probe before ingestion.
+        props = renderer._get("/props")
+        if "ingest" not in props.get("aco_request_modes", []):
+            raise RuntimeError("ACO candidate lacks explicit ingestion support; build the "
+                               "new runtime before starting mapped prefill")
     if args.startup_log is None or not args.startup_log.is_file():
         raise SystemExit("--startup-log with the captured server startup is required")
     expected_argv = argv_for_row(args.context_tokens, args.placement,
@@ -992,6 +1002,7 @@ def main() -> int:
     with pathlib.Path("/srv/ai/models/text/current.gguf").open("rb") as model_file:
         model_sha256 = hashlib.file_digest(model_file, "sha256").hexdigest()
     identity = {"geometry": geometry, "argv": expected_argv,
+                "source_ingestion_mode": "aco_mode=ingest; questions=query",
                 "live_runtime": live,
                 "mtp_enabled": mtp_enabled, "pager": args.pager,
                 "fill_enable_thinking": fill_thinking,
