@@ -61,10 +61,13 @@ class MasterContextMatrixTests(unittest.TestCase):
                 self.clear_calls = 0
 
             def clear_slot(self, endpoint, key, slot, timeout):
+                self_outer.assertEqual(key, "offline-auth-sentinel")
                 self.clear_calls += 1
                 return {"ok": True}
 
         def fake_append(final, endpoint, key, payload, raw_path):
+            self.assertEqual(key, "offline-auth-sentinel",
+                             "continuation metadata must not overwrite the API key")
             raw_path.parent.mkdir(parents=True, exist_ok=True)
             raw_path.write_text("offline fake SSE\n", encoding="utf-8")
             messages = payload["messages"]
@@ -80,6 +83,7 @@ class MasterContextMatrixTests(unittest.TestCase):
                             "prompt_per_second": prompt_n * 100.0, "cache_n": cache_n},
             }
 
+        self_outer = self
         with tempfile.TemporaryDirectory(prefix="mapped-fill-integration-") as tmp:
             base = pathlib.Path(tmp)
             source = base / "source"
@@ -119,12 +123,12 @@ class MasterContextMatrixTests(unittest.TestCase):
                       patch.object(matrix, "_append_request", side_effect=fake_append),
                       patch.object(matrix, "validate_fill_bounds", side_effect=capture_bound)):
                     history1, info1 = matrix.fill_context(
-                        final, FakeRenderer(), "http://offline", "", output1,
+                        final, FakeRenderer(), "http://offline", "offline-auth-sentinel", output1,
                         context_tokens=4096, target_tokens=250, fingerprint="a" * 64,
                         reuse_filled_prefix=True, chunk_map_path=map_path)
                     manifest1 = json.loads((output1 / "source-manifest.json").read_text())
                     history2, info2 = matrix.fill_context(
-                        final, FakeRenderer(), "http://offline", "", output2,
+                        final, FakeRenderer(), "http://offline", "offline-auth-sentinel", output2,
                         context_tokens=4096, target_tokens=500, fingerprint="a" * 64,
                         reuse_filled_prefix=True, initial_history=history1,
                         initial_manifest=manifest1, initial_occupied=info1["occupied_tokens"],

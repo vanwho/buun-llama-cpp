@@ -728,11 +728,11 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
         occupied = 0
     else:
         source_manifest = json.loads(json.dumps(initial_manifest))
-        for key, expected in (("git_identity", current_git_identity),
+        for field_name, expected in (("git_identity", current_git_identity),
                               ("inventory", current_inventory),
                               ("source_schedule", current_schedule), ("chunk_map", map_identity)):
-            if source_manifest.get(key) != expected:
-                raise RuntimeError(f"continuation source {key} differs; use a fresh mapped run")
+            if source_manifest.get(field_name) != expected:
+                raise RuntimeError(f"continuation source {field_name} differs; use a fresh mapped run")
         if source_manifest.get("actual_occupancy_tokens") != initial_occupied:
             raise RuntimeError("continuation occupancy does not match saved frontier")
         if initial_history is None or initial_occupied <= 0:
