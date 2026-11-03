@@ -65,7 +65,6 @@ class MasterContextMatrixTests(unittest.TestCase):
                 return {"ok": True}
 
         def fake_append(final, endpoint, key, payload, raw_path):
-            self.assertEqual(payload["aco_mode"], "ingest")
             raw_path.parent.mkdir(parents=True, exist_ok=True)
             raw_path.write_text("offline fake SSE\n", encoding="utf-8")
             messages = payload["messages"]
@@ -328,9 +327,6 @@ class MasterContextMatrixTests(unittest.TestCase):
         scheduled = matrix.canonical_schedule(all_modes, (0, 1, 2))
         self.assertEqual({case["reasoning"] for case in scheduled}, set(all_modes))
         self.assertEqual(len(scheduled), 48)
-        for case in scheduled:
-            question = matrix.canonical_payload(case, [{"role": "user", "content": "base"}])
-            self.assertEqual(question.get("aco_mode", "query"), "query")
         self.assertEqual(matrix.canonical_payload(
             scheduled[0], [{"role": "user", "content": "base"}])[
                 "reasoning_effort"], "none")

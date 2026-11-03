@@ -359,15 +359,6 @@ tok/s, net-new prompt tok/s and net-new wall-time tok/s separate. Checkpoint
 framing, generated output and the context reserve are additional to mapped
 content tokens; never send the entire 262,144-token corpus into L=262,144.
 
-Mapped source appends explicitly send `aco_mode: ingest`; canonical decode
-questions keep the default `query` mode. The source-ingestion policy is part
-of the frozen run identity. An ACO run checks `/props.aco_request_modes` once
-before any generation, so the older 1d74e9a31 bundle cannot silently ignore
-the hint and produce a mislabeled single-pass curve. Build/freeze a candidate
-containing the ingestion implementation before releasing the retest hold.
-This policy change needs a new result cohort/output root; it does not relabel
-any completed historical decode or prefill results.
-
 Sizing checks with B1024/U256, L262144/H65536 and Turbo4 GPU MTP admitted
 8K/16K/32K/64K multi-file requests. These are allocation checks from fresh
 servers, not final ingest-speed results or proof of every occupied frontier.
