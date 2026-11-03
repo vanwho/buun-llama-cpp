@@ -1,0 +1,7 @@
+{
+  "protocol": "shared-prefix-late-effort-v1",
+  "original_template_sha256": "12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce",
+  "benchmark_template_sha256": "0103d81679a0cc43ce416da910e7db86a04c0e8548d7df3f41564c98a203deb7",
+  "change": "Move existing low/xhigh system effort instructions from before all history to immediately before the final user query; preserve exact words and system role. Preserve off/medium generation suffix behavior.",
+  "scope": "benchmark requests only; no model/CUDA/runtime changes"
+}

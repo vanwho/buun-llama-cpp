@@ -1,0 +1,2343 @@
+{
+  "schema_version": 1,
+  "description": "Frozen missing-only ten-variant benchmark suite; no historical data discarded.",
+  "binaries": {
+    "master": {
+      "path": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+      "sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+      "libraries": {
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b"
+      }
+    },
+    "fork": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+      "libraries": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.4.1": "7b138d699f2abb0af6b7a6b1a61f3bb87047915730c3ed999f0ff12aec7e3384",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-fit-params-impl.so": "4a3884c4fb8ef0be89d9fd9cdb0b1546c4b8219762b73050a5b7fc23fa139bc2",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "468c4cf29f21718d8a21ae8d60adceb906c8bc5d5c3d24a0a8f628afc2afb2d2",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-quantize-impl.so": "1947143a733e0970afb8ae7b7876f3d53ac075f5da98a1daa140ed275f083d8f",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.24.0": "702dffe5358234c23e49d572d41c381a833ef877383e692dbe6f465e3cabe062",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "0e76abfa31bfe3e8c296d06143d1d67bda4dd86b3dc69a847ff81e6b4a386b4b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "045fd8d387c35be64f9989bcb32e8fb7d42c182d9825e27b1855276c737a9e6c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-completion-impl.so": "9280647f363c70347a0921505e101c81fdde487bfde949fda6df19b4c0babee9",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.3.0": "26f448bcfc81fe89587c78308a60fa32693f8a2363aad6e4235cde35e13eeb34",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-cli-impl.so": "dc4f36163ff27ee0cccc29628b86676fd4e3c764963ab28eec9a9edd28903b08",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "25586e18e8c7ab6302194b0608aa475ce0ab5b476d98ab9905c2e33d88a686fa",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "f8b90fe9a7ca9f71540d93227ed97bc177c41c358c04a5d4ad6a1c7674c5c8ce",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.22.0": "316d6d2ee32bff3011b64324478efc02179cfe124ca12fddf5b577ce3b2950c1",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.24.0": "f98260d6df69bd37c936b033e4fd391f0a8f8de8b042afd69323591288d36c14",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "d2a949c0ea692bcd6e24d3a3638bba9e132c5f93e06d143493dcb87faeb3b03f",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-perplexity-impl.so": "7b351db9cf54754a91dec8b34629cb1fe6ab255875f82ec92294473767b4edfc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.4.1": "3f59c79273a7b5d510a0c2b716e3011156b60db0ec378fc7ae966176a199bf85",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.24.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.22.0": "55b25e1324dd587b5d9659532ebc016e7f174f8bdaa4afb821ee9c42bb5eb4ab",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-bench-impl.so": "05a1a64514d4068c8a5fdf8f88a94a7579f93f87689f87547bd79cf51a029c69",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.24.0": "600460973ed30070a2b8dac069190a4a0e175669d0cd0c0a952655f038d31114",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-batched-bench-impl.so": "9851e78ebde17fe65cd311be88f89df3ec0c91da3d7973e1b52a6ecaeea4fce9",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3": "4fc85c242ed1a0085c8c4a2598564946b6d78f4ec4332a52dfd2bdb17c59a420",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3": "c12734653ac843921f49ea959e105314cbd6640751cec39fbb989c8f8c608f87",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.3.0": "3be6f0e1aba6bb93aa636ae816f3b1c28569185719ef06f29d3a260d3c180c5a",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.4.1": "6e46c735f16aa51fd5c2eb41f1a243e81f99957cfeb736c7c1b9f5fcd3d7757c",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f"
+      }
+    }
+  },
+  "model_path": "/srv/ai/models/text/current.gguf",
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "model_alias": "qwen38-fast-turbo4-mtp",
+  "api_key_file": "/srv/ai/config/llama/api-keys",
+  "source_worktree": "/srv/ai/paged-kv/worktrees/benchmark-source-a5a1110",
+  "source_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+  "output_root": "/srv/ai/paged-kv/results/forward/final-remaining-20261103",
+  "services_to_pause": [
+    "ai-profile-gateway.service",
+    "llama-server.service"
+  ],
+  "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+  "gateway": "bypassed; benchmark requests go directly to isolated server 8080",
+  "clean_attempts_per_allocation": 2,
+  "occupied_checkpoints": [
+    6144,
+    12288,
+    28672,
+    62464,
+    78848,
+    88064,
+    100352,
+    130048,
+    196608,
+    256000
+  ],
+  "warmup_tokens": 40,
+  "measured_tokens": 400,
+  "measured_repetitions": 3,
+  "sampling": {
+    "temperature": 0,
+    "seed": 42,
+    "stream": true
+  },
+  "reasoning_requests": {
+    "off": {
+      "chat_template_kwargs": {
+        "enable_thinking": false,
+        "preserve_thinking": true
+      },
+      "reasoning_effort": "none"
+    },
+    "low": {
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      },
+      "reasoning_effort": "low"
+    },
+    "medium": {
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      },
+      "reasoning_effort": "medium"
+    },
+    "xhigh": {
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      },
+      "reasoning_effort": "xhigh"
+    }
+  },
+  "variants": [
+    {
+      "id": "master-cpu-mtp-on",
+      "build": "master",
+      "placement": "cpu",
+      "mtp": "on",
+      "pager": "none",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state",
+      "remaining": {
+        "6144": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "12288": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "28672": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "78848": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "88064": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "100352": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "130048": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "196608": {
+          "off": [
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "256000": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "q4_0",
+            "-ctv",
+            "q4_0",
+            "--no-kv-offload",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        },
+        {
+          "L": 200704,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "200704",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "q4_0",
+            "-ctv",
+            "q4_0",
+            "--no-kv-offload",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 200704 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        },
+        {
+          "L": 133120,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "133120",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "q4_0",
+            "-ctv",
+            "q4_0",
+            "--no-kv-offload",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 133120 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "master-cpu-mtp-off",
+      "build": "master",
+      "placement": "cpu",
+      "mtp": "off",
+      "pager": "none",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-off/slot-state",
+      "remaining": {
+        "6144": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "12288": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "28672": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "78848": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "88064": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "100352": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "130048": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "196608": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "256000": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "q4_0",
+            "-ctv",
+            "q4_0",
+            "--no-kv-offload",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-off/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-cpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "master-gpu-mtp-on",
+      "build": "master",
+      "placement": "gpu",
+      "mtp": "on",
+      "pager": "none",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-on/slot-state",
+      "remaining": {
+        "28672": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 65536,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "65536",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-on/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "master-gpu-mtp-off",
+      "build": "master",
+      "placement": "gpu",
+      "mtp": "off",
+      "pager": "none",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-off/slot-state",
+      "remaining": {
+        "6144": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "12288": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "28672": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "130048": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "low": [
+            0,
+            1,
+            2
+          ]
+        },
+        "88064": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 131072,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "131072",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-off/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 131072 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        },
+        {
+          "L": 122880,
+          "server_argv": [
+            "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "122880",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-off/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/ai/paged-kv/builds/master106-d2407c33f959/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 122880 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/master-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fork-cpu-mtp-on",
+      "build": "fork",
+      "placement": "cpu",
+      "mtp": "on",
+      "pager": "off",
+      "hot_pages": null,
+      "draft_device": "gpu",
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-cpu-mtp-on/slot-state",
+      "remaining": {
+        "12288": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "28672": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "78848": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "88064": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "100352": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "130048": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "196608": {
+          "off": [
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "q4_0",
+            "-ctv",
+            "q4_0",
+            "--no-kv-offload",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-cpu-mtp-on/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--kv-pager",
+            "off",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4",
+            "--spec-draft-kv-device",
+            "gpu"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fork-cpu-mtp-off",
+      "build": "fork",
+      "placement": "cpu",
+      "mtp": "off",
+      "pager": "off",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-cpu-mtp-off/slot-state",
+      "remaining": {
+        "78848": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "88064": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "100352": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "196608": {
+          "off": [
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "q4_0",
+            "-ctv",
+            "q4_0",
+            "--no-kv-offload",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-cpu-mtp-off/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--kv-pager",
+            "off",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-cpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fork-gpu-mtp-on",
+      "build": "fork",
+      "placement": "gpu",
+      "mtp": "on",
+      "pager": "off",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-on/slot-state",
+      "remaining": {
+        "6144": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "28672": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 65536,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "65536",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-on/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--kv-pager",
+            "off",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fork-gpu-mtp-off",
+      "build": "fork",
+      "placement": "gpu",
+      "mtp": "off",
+      "pager": "off",
+      "hot_pages": null,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-off/slot-state",
+      "remaining": {
+        "130048": {
+          "off": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ],
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 131072,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "131072",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-off/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--kv-pager",
+            "off",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 131072 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        },
+        {
+          "L": 122880,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "122880",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-off/slot-state",
+            "--cache-ram",
+            "12288",
+            "--ctx-checkpoints",
+            "8",
+            "--checkpoint-min-step",
+            "8192",
+            "--cache-idle-slots",
+            "--kv-unified",
+            "--kv-pager",
+            "off",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 122880 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/fork-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "aco-mtp-on",
+      "build": "fork",
+      "placement": "gpu",
+      "mtp": "on",
+      "pager": "selective",
+      "hot_pages": 256,
+      "draft_device": "gpu",
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-mtp-on/slot-state",
+      "remaining": {},
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-mtp-on/slot-state",
+            "--ctx-checkpoints",
+            "0",
+            "--cache-ram",
+            "0",
+            "--no-cache-idle-slots",
+            "--kv-pager",
+            "selective",
+            "--kv-page-size",
+            "256",
+            "--kv-hot-pages",
+            "256",
+            "--kv-router",
+            "probe-rerank",
+            "--kv-pin-recent",
+            "0",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4",
+            "--spec-draft-kv-device",
+            "gpu"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "aco-mtp-off",
+      "build": "fork",
+      "placement": "gpu",
+      "mtp": "off",
+      "pager": "selective",
+      "hot_pages": 256,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-mtp-off/slot-state",
+      "remaining": {
+        "6144": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "12288": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "28672": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "62464": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "78848": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "88064": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "100352": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "130048": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ]
+        },
+        "196608": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ]
+        },
+        "256000": {
+          "medium": [
+            0,
+            1,
+            2
+          ],
+          "xhigh": [
+            0,
+            1,
+            2
+          ],
+          "low": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-mtp-off/slot-state",
+            "--ctx-checkpoints",
+            "0",
+            "--cache-ram",
+            "0",
+            "--no-cache-idle-slots",
+            "--kv-pager",
+            "selective",
+            "--kv-page-size",
+            "256",
+            "--kv-hot-pages",
+            "256",
+            "--kv-router",
+            "probe-rerank",
+            "--kv-pin-recent",
+            "0",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ]
+    }
+  ],
+  "protocol": "shared-prefix-late-effort-v1",
+  "chat_template": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+    "sha256": "0103d81679a0cc43ce416da910e7db86a04c0e8548d7df3f41564c98a203deb7",
+    "reason": "Native low/xhigh prepend effort instructions before all history. Preserve original wording and system role but place them before final user query so request modes share the filled KV prefix."
+  },
+  "historical_compatibility": "Retain existing measurements under their recorded original-template/per-mode-fill protocol. New late-effort rows are labelled with the new template hash; do not silently claim byte-identical prompt provenance across protocols. No blanket historical invalidation or automatic remeasurement is authorized by this gap manifest.",
+  "retained_evidence_roots": [
+    "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101",
+    "/srv/ai/paged-kv/results/forward/benchmark-reruns-corrected-20261103",
+    "/srv/ai/paged-kv/results/forward/106-master/106-01"
+  ],
+  "excluded_benchmark_answers": [
+    {
+      "variant": "master-cpu-mtp-on",
+      "occupied_tokens": 196608,
+      "reasoning": "off",
+      "prompt_index": 2,
+      "reason": "All three measured replies were two tokens with content I; not a substantive decode benchmark."
+    },
+    {
+      "variant": "fork-cpu-mtp-on",
+      "occupied_tokens": 196608,
+      "reasoning": "off",
+      "prompt_index": 2,
+      "reason": "All three measured replies were two tokens with content I; not a substantive decode benchmark."
+    },
+    {
+      "variant": "fork-cpu-mtp-off",
+      "occupied_tokens": 196608,
+      "reasoning": "off",
+      "prompt_index": 2,
+      "reason": "All three measured replies were two tokens with content I; not a substantive decode benchmark."
+    }
+  ],
+  "removed_environment_prefixes": [
+    "GGML_",
+    "LLAMA_ARG_"
+  ]
+}
