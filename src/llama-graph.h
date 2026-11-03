@@ -1136,10 +1136,14 @@ struct llm_graph_params {
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
     llama_kv_attention_telemetry * kv_attention_telemetry = nullptr;
     llama_kv_attention_packed_cache * kv_attention_packed_cache = nullptr;
+    // Full causal coverage omits selector graph nodes. This is an internal
+    // proven request property, never an API/user-selectable mode.
+    bool kv_full_attention = false;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
     bool allow_reuse(const llm_graph_params & other) const {
+        if (kv_full_attention != other.kv_full_attention) return false;
         // first check the ubatch
         bool can_reuse_ubatch =
             ubatch.equal_seqs() == other.ubatch.equal_seqs() &&

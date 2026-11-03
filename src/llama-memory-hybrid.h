@@ -110,8 +110,16 @@ public:
         mem_attn->note_kv_pager_accepted_tokens(count);
     }
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
-            int64_t query_start, int64_t query_end) override {
-        mem_attn->begin_kv_pager_turn(sequence_id, turn_id, query_start, query_end);
+            int64_t query_start, int64_t query_end, int64_t planned_end = -1,
+            uint32_t attention_tokens = 0, bool verify_view = false) override {
+        mem_attn->begin_kv_pager_turn(sequence_id, turn_id, query_start, query_end, planned_end, attention_tokens, verify_view);
+    }
+    bool kv_pager_full_attention(int32_t sequence_id) const noexcept override {
+        return mem_attn->kv_pager_full_attention(sequence_id);
+    }
+    void note_kv_pager_attention(int32_t sequence_id, const std::vector<uint32_t> & selected,
+            int64_t first, int64_t last) override {
+        mem_attn->note_kv_pager_attention(sequence_id, selected, first, last);
     }
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) override {

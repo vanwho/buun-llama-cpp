@@ -8930,17 +8930,10 @@ size_t server_prompt_query_capture_reuse_prefix(
             uint64_t(query_end) > prompt_tokens) {
         return cached_prefix;
     }
-    for (int probe = 0; probe < 4; ++probe) {
-        const int64_t position = ggml_kv_query_probe_target(
-            query_begin, query_end, probe, GGML_KV_QUERY_PROBES_SPREAD);
-        if (position >= 0 && uint64_t(position) < cached_prefix) {
-            // Restore at the user boundary, rather than partway through the
-            // query: a changed selection may need the existing whole-query
-            // checkpoint/replay transaction as well as all four Q probes.
-            return size_t(query_begin);
-        }
-    }
-    return cached_prefix;
+    // Cached Q prefix rows are not a certificate for this request's view,
+    // even when they precede the first probe. Start at the existing user seam
+    // so the checkpoint and actual-view proof cover the same computation.
+    return std::min(cached_prefix, size_t(query_begin));
 }
 
 llama_pos server_prompt_checkpoint_reuse_threshold(llama_pos pos_next, int32_t n_swa, bool has_new_tokens) {

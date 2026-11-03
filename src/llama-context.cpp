@@ -3295,32 +3295,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             ? cparams.kv_attention_tokens
             : uint64_t(hot_capacity) * page_tokens;
         const auto turn = pager.turn_state(sequence_id);
-        // Query replay is a prompt-shaped forward pass, but it must consume
-        // the final committed history just like generation/MTP verification.
-        // It cannot silently replace a missing frozen page with an advisory
-        // fallback merely because this ubatch is classified as prefill.
+        const bool previously_full = attention->full_attention(sequence_id);
+        const bool full_attention = attention->full_attention(sequence_id,
+                int64_t(*std::max_element(query_positions.begin(), query_positions.end())) + 1);
+        if (previously_full && !full_attention && memory)
+            memory->capture_kv_routing_query(nullptr, -1, ubatch);
         const bool committed_generation_view = turn.phase == llama_kv_pager_turn_phase::query_replay ||
-            (phase != llama_kv_attention_execution_phase::prefill &&
-             turn.phase == llama_kv_pager_turn_phase::generating);
-        std::vector<llama_kv_page_id> routed_pages;
-        if (!committed_generation_view) {
-            // Per-layer nominees guide provisional prompt attention only.
-            // Replay/decode/verification already have an authenticated common
-            // R set. Reconstructing and intersecting all layer lists for each
-            // generated token cannot change that set and only adds host work.
-            std::vector<std::vector<llama_kv_page_id>> routed_layer_pages;
-            if (!attention->selected_attention_page_layers(routed_layer_pages)) {
-                return refuse("selected attention layer union allocation failed");
-            }
-            for (const auto & layer : routed_layer_pages) {
-                for (const auto & page : layer) {
-                    if (std::find(routed_pages.begin(), routed_pages.end(), page) ==
-                            routed_pages.end()) {
-                        routed_pages.push_back(page);
-                    }
-                }
-            }
-        }
+            turn.phase == llama_kv_pager_turn_phase::generating;
         if (phase != llama_kv_attention_execution_phase::prefill) {
             kv_attention_prefill_active_ = false;
         } else if (!kv_attention_prefill_active_) {
@@ -3424,154 +3405,48 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 }
             }
         }
-        // The first logical page is the durable prompt/sink prefix. Reserve
-        // it before advisory routed pages so a later turn cannot lose facts
-        // from the beginning of the conversation merely because the router
-        // prefers the newest bounded window.
-        if (!committed_generation_view) {
-            for (const auto & page : pager_snapshot.pages()) {
-                if (page.id.logical_page == 0) append_fallback(page.id);
+        const llama_pos last_position = *std::max_element(query_positions.begin(), query_positions.end());
+        if (full_attention) {
+            // Automatic dense-equivalent coverage, not a file/prompt heuristic.
+            // The whole bounded request fits, and every causal row must exist.
+            if (!llama_kv_attention_full_prefix(pager_snapshot, sequence_id,
+                    int64_t(last_position) + 1, bounded_pages)) {
+                return refuse("automatic full attention lost causal prefix coverage");
             }
-        }
-        // A cached continuation can begin in the middle of the logical
-        // inventory. Preserve the page containing the first query row before
-        // consuming advisory routed slots; otherwise the first uncached page
-        // of a new prompt can be omitted even while the frontier and recent
-        // route remain resident. The query position is scheduler-owned, so
-        // this does not accept a client-selected page identity.
-        const auto append_request_boundary = [&]() {
             for (const auto & page : pager_snapshot.pages()) {
-                if (page.id.logical_page == request_page ||
-                        page.id.logical_page == request_following_page) {
+                if (page.id.position_begin <= last_position && resident_state(page))
                     append_fallback(page.id);
-                }
             }
-        };
-        if (!committed_generation_view) append_request_boundary();
-        if (committed_generation_view) {
-            // Publication freezes a full-bundle common history set. Consume
-            // it directly in every target layer, keeping exact identity and
-            // content-version checks below. Nomination provenance is not a
-            // second admission rule. This is the same set formerly returned
-            // by llama_kv_attention_committed_pages, without rebuilding the
-            // per-layer union or rescanning R once per union member.
-            for (const auto & selected : turn.selected_history) {
-                const auto page = std::find_if(pager_snapshot.pages().begin(),
-                        pager_snapshot.pages().end(), [&](const auto & value) {
-                    return value.id == selected.identity &&
-                        value.content_version == selected.content_version;
-                });
-                if (page == pager_snapshot.pages().end()) {
-                    return refuse("committed frozen history identity is absent from pager snapshot");
-                }
-                if (!resident_state(*page)) {
-                    return refuse("committed frozen history page is not resident in admitted attention view");
-                }
-                if (!append_page(selected.identity)) {
-                    return refuse("committed frozen history exceeds admitted attention view capacity");
-                }
-            }
-            // R (selected_history) freezes retrieved *prior-turn* history,
-            // not the whole attention view. Q (this turn's prompt) and the
-            // generated suffix remain ordinary resident KV. Restricting the
-            // graph to R plus this ubatch's write pages discarded almost all
-            // of Q on the first verification call; R can legitimately be
-            // empty on a fresh request. The full-context MTP draft then saw
-            // a different prompt from the target verifying its proposals.
-            //
-            // Keep resident Q/output pages in the remaining admitted window,
-            // including the page straddling query_start and sealed output
-            // pages behind the mutable tail. Do not add them to frozen R:
-            // replay must still be able to rewrite Q, and generation's FIFO
-            // must still be able to evict clean output pages. Read only this
-            // immutable H-bounded snapshot; do not scan host history, promote
-            // pages, rerank R, or change pins here. Native causal masking
-            // handles individual rows within a boundary page.
-            const llama_pos last_query_position =
-                *std::max_element(query_positions.begin(), query_positions.end());
-            for (auto page = pager_snapshot.pages().rbegin();
-                    page != pager_snapshot.pages().rend(); ++page) {
-                if (page->id.sequence_id == sequence_id &&
-                        page->id.position_end > turn.query_start &&
-                        page->id.position_begin <= last_query_position &&
-                        resident_state(*page)) {
-                    append_fallback(page->id);
-                }
-            }
-        } else if (!routed_pages.empty()) {
-            bool routed_valid = true;
-            for (const auto & id : routed_pages) {
-                if (!append_page(id)) {
-                    routed_valid = false;
-                    // Keep looking: valid routed history after this stale
-                    // entry still has priority over optional fallback pages.
-                }
-            }
-            if (!routed_valid) {
-                // A subsequent write may have replaced a routed cold page
-                // before this graph acquired its snapshot. Keep the mandatory
-                // query/frontier pages and every routed entry already validated
-                // against that same snapshot. Only fill their remaining bounded
-                // capacity with resident fallback; do not reload evicted route
-                // entries or perform promotion in graph construction.
-                std::vector<uint32_t> optional_pages = selected_pages;
-                for (const auto & page : pager_snapshot.pages()) {
-                    if (pager.is_current_page(page.id)) optional_pages.push_back(page.id.logical_page);
-                }
-                for (const auto & page : pager_snapshot.pages()) {
-                    if (page.pin_count != 0) optional_pages.push_back(page.id.logical_page);
-                }
-                for (const auto & page : pager_snapshot.pages()) {
-                    if (page.id.logical_page == 0) optional_pages.push_back(page.id.logical_page);
-                }
-                if (request_page != UINT32_MAX) optional_pages.push_back(request_page);
-                if (request_following_page != UINT32_MAX) {
-                    optional_pages.push_back(request_following_page);
-                }
-                for (auto page = pager_snapshot.pages().rbegin();
-                        page != pager_snapshot.pages().rend(); ++page) {
-                    optional_pages.push_back(page->id.logical_page);
-                }
-                std::vector<uint32_t> resident_logical_pages;
-                resident_logical_pages.reserve(pager_snapshot.pages().size());
-                for (const auto & page : pager_snapshot.pages()) {
-                    if (resident_state(page)) {
-                        resident_logical_pages.push_back(page.id.logical_page);
-                    }
-                }
-                std::vector<uint32_t> resident_optional_pages;
-                if (!llama_kv_attention_resident_page_ids(optional_pages,
-                        resident_logical_pages, resident_optional_pages)) {
-                    return refuse("resident routing refresh allocation failed");
-                }
-                std::vector<uint32_t> refreshed_pages;
-                if (!llama_kv_attention_refresh_page_ids(query_pages, resident_optional_pages,
-                        bounded_pages, refreshed_pages)) {
-                    return refuse("stale routing refresh cannot cover mandatory query pages");
-                }
-                for (const uint32_t logical_page : refreshed_pages) {
-                    const auto page = std::find_if(pager_snapshot.pages().begin(),
-                            pager_snapshot.pages().end(), [&](const auto & value) {
-                        return value.id.logical_page == logical_page;
-                    });
-                    if (page == pager_snapshot.pages().end() || !append_page(page->id)) {
-                        return refuse("stale routing refresh page is no longer resident");
-                    }
-                }
-            }
+        } else if (last_position < turn.query_start) {
+            // Incoming earlier messages are ordinary causal prefill, before
+            // the final user query/replay seam. No query witness covers them.
+            for (const auto & page : pager_snapshot.pages())
+                if (page.id.logical_page == 0 && resident_state(page)) append_fallback(page.id);
+            for (const auto & selected : attention->initial_history(sequence_id))
+                append_fallback(selected.identity);
+            for (auto page = pager_snapshot.pages().rbegin(); page != pager_snapshot.pages().rend(); ++page)
+                if (resident_state(*page)) append_fallback(page->id);
         } else {
-            // No route is an explicit bounded fallback, not permission to
-            // materialize the complete H-sized resident inventory.
-            for (const auto & page : pager_snapshot.pages()) {
-                if (pager.is_current_page(page.id)) append_fallback(page.id);
+            // One canonical R+Q rule for the first query pass, replay, decode
+            // and MTP verification. Router nominees remain ranking evidence;
+            // they do not silently add another provisional attention policy.
+            const auto & history = committed_generation_view
+                ? turn.selected_history : attention->initial_history(sequence_id);
+            for (const auto & selected : history) {
+                const auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+                    [&](const auto & value) { return value.id == selected.identity &&
+                        value.content_version == selected.content_version && resident_state(value); });
+                if (page == pager_snapshot.pages().end()) {
+                    if (committed_generation_view) return refuse("frozen history is absent or changed");
+                    continue; // the actual-view certificate will require replay
+                }
+                if (!append_page(page->id) && committed_generation_view)
+                    return refuse("frozen history exceeds admitted attention capacity");
             }
-            for (const auto & page : pager_snapshot.pages()) {
-                if (page.id.logical_page == 0) append_fallback(page.id);
-            }
-            append_request_boundary();
-            for (auto page = pager_snapshot.pages().rbegin();
-                    page != pager_snapshot.pages().rend(); ++page) {
-                append_fallback(page->id);
+            for (auto page = pager_snapshot.pages().rbegin(); page != pager_snapshot.pages().rend(); ++page) {
+                if (page->id.position_end > turn.query_start &&
+                        page->id.position_begin <= last_position && resident_state(*page))
+                    append_fallback(page->id);
             }
         }
         if (selected_pages.empty()) {
@@ -7433,6 +7308,16 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
     const int64_t retained_state_start_us = hotpath_profile ? ggml_time_us() : 0;
     if (mctx) mctx->finish(true);
+    if (memory && attention_decision.phase == llama_kv_attention_execution_phase::prefill &&
+            kv_pager.mode == llama_kv_pager_mode::selective &&
+            ubatch.n_tokens && ubatch.seq_id && ubatch.seq_id[0] && ubatch.n_pos && ubatch.pos) {
+        int64_t first = ubatch.pos0(0), last = ubatch.pos0(ubatch.n_tokens - 1);
+        bool contiguous = last >= first && uint64_t(last - first + 1) == ubatch.n_tokens;
+        for (uint32_t i = 0; contiguous && i < ubatch.n_tokens; ++i)
+            contiguous = int64_t(ubatch.pos0(i)) == first + i;
+        memory->note_kv_pager_attention(ubatch.seq_id[0][0], kv_attention_selected_pages_scratch_,
+                contiguous ? first : -1, contiguous ? last : INT64_MAX);
+    }
     if (hotpath_profile) {
         retained_state_us = ggml_time_us() - retained_state_start_us;
         const llama_pos first_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
@@ -9305,6 +9190,9 @@ llm_graph_params llama_context::graph_params(
         /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
         /*.kv_attention_telemetry =*/ kv_attention_telemetry.get(),
         /*.kv_attention_packed_cache =*/ &kv_attention_packed_cache,
+        /*.kv_full_attention =*/ kv_pager.mode == llama_kv_pager_mode::selective && memory &&
+            ubatch.n_tokens && ubatch.seq_id && ubatch.seq_id[0] &&
+            memory->kv_pager_full_attention(ubatch.seq_id[0][0]),
     };
 }
 

@@ -373,7 +373,12 @@ struct llama_memory_i {
     // submissions so prefill, target verification and rollback cannot mint turns.
     virtual void begin_kv_pager_turn(
             int32_t /* sequence_id */, uint64_t /* turn_id */,
-            int64_t /* query_start */, int64_t /* query_end */) {}
+            int64_t /* query_start */, int64_t /* query_end */,
+            int64_t /* planned_end */ = -1, uint32_t /* attention_tokens */ = 0,
+            bool /* verify_view */ = false) {}
+    virtual bool kv_pager_full_attention(int32_t /* sequence_id */) const noexcept { return false; }
+    virtual void note_kv_pager_attention(int32_t /* sequence_id */,
+            const std::vector<uint32_t> & /* selected */, int64_t /* first */, int64_t /* last */) {}
     virtual bool commit_kv_pager_query(
             int32_t /* sequence_id */, uint64_t /* turn_id */,
             bool * changed, uint64_t * frozen_history_generation) {

@@ -2,6 +2,7 @@
 #include "llama-kv-attention-op.h"
 #include "llama-graph.h"
 
+#include <algorithm>
 #include <cassert>
 #include <vector>
 
@@ -49,6 +50,42 @@ static llama_kv_residency_snapshot make_contiguous_snapshot() {
     assert(table.replace(tx, page(3, 3, 900)) == llama_kv_residency_status::ok);
     assert(table.publish(tx) == llama_kv_residency_status::ok);
     return table.snapshot();
+}
+
+static llama_kv_page_record certified_page(uint32_t logical, uint32_t slot,
+        llama_pos end, uint32_t valid_length = VBR_GENERATION_PAGE_CELLS,
+        uint64_t version = 1) {
+    auto result = page(logical, slot, end);
+    result.state = llama_kv_page_state::gpu_host_clean;
+    result.valid_length = valid_length;
+    result.content_version = version;
+    result.id.page_generation = 1;
+    result.id.sequence_generation = 1;
+    return result;
+}
+
+static llama_kv_residency_snapshot snapshot_of(
+        const std::vector<llama_kv_page_record> & pages, uint32_t capacity = 8,
+        uint32_t publishes = 1) {
+    llama_kv_residency_table table(capacity);
+    auto tx = table.begin();
+    for (const auto & record : pages) {
+        assert(table.replace(tx, record) == llama_kv_residency_status::ok);
+    }
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    for (uint32_t i = 1; i < publishes; ++i) {
+        auto next = table.begin();
+        assert(table.publish(next) == llama_kv_residency_status::ok);
+    }
+    return table.snapshot();
+}
+
+static std::vector<llama_kv_page_record> complete_history(uint64_t first_version = 1) {
+    return {
+        certified_page(0, 0, 256, 256, first_version),
+        certified_page(1, 1, 512, 256, 1),
+        certified_page(2, 2, 600, 88, 1),
+    };
 }
 
 static void test_sequence_scoped_lookup() {
@@ -250,11 +287,239 @@ static void test_operator_contract() {
     assert(!graph_a.allow_reuse(graph_b));
 }
 
+static void test_full_prefix_coverage_proof() {
+    auto pages = complete_history();
+    const auto contiguous = snapshot_of(pages);
+    assert(llama_kv_attention_full_prefix(contiguous, 0, 600, 3));
+    assert(llama_kv_attention_full_prefix(contiguous, 0, 336, 3));
+    assert(!llama_kv_attention_full_prefix(contiguous, 1, 600, 3));
+    assert(!llama_kv_attention_full_prefix(contiguous, 0, 600, 0));
+    assert(!llama_kv_attention_full_prefix(contiguous, 0, 600, 2));
+
+    // A resident page count does not prove that the requested prefix has no holes.
+    const auto hole = snapshot_of({ pages[0], pages[2] });
+    assert(!llama_kv_attention_full_prefix(hole, 0, 600, 3));
+
+    // Two residency generations claiming the same native range overlap even
+    // though either record on its own would provide complete coverage.
+    auto overlapping_generation = pages[0];
+    overlapping_generation.id.sequence_generation++;
+    overlapping_generation.physical_slot = 3;
+    const auto overlap = snapshot_of({ pages[0], overlapping_generation });
+    assert(!llama_kv_attention_full_prefix(overlap, 0, 256, 2));
+
+    // Adjacent pages from different model/representation owners cannot be
+    // combined into one causal prefix.
+    auto mixed_representation_pages = complete_history();
+    mixed_representation_pages[1].id.representation_epoch++;
+    const auto mixed_representation = snapshot_of(mixed_representation_pages);
+    assert(!llama_kv_attention_full_prefix(mixed_representation, 0, 600, 3));
+
+    // Host-only inventory cannot be used as a live full-attention prefix.
+    pages[1].state = llama_kv_page_state::host_clean;
+    const auto cold = snapshot_of(pages);
+    assert(!llama_kv_attention_full_prefix(cold, 0, 600, 3));
+
+    // valid_length can shorten an otherwise full position range, and coverage
+    // uses that committed extent rather than the larger identity range.
+    pages = complete_history();
+    pages[1].valid_length = 80;
+    const auto short_extent = snapshot_of(pages);
+    assert(llama_kv_attention_full_prefix(short_extent, 0, 336, 3));
+    assert(!llama_kv_attention_full_prefix(short_extent, 0, 337, 3));
+
+    // A maximum valid_length alone cannot prove that every interior row is
+    // present; the residency record must also certify a contiguous prefix.
+    pages = complete_history();
+    pages[0].contiguous_prefix = false;
+    const auto interior_hole = snapshot_of(pages);
+    assert(!llama_kv_attention_full_prefix(interior_hole, 0, 600, 3));
+
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 300, 350);
+    cert.observe(interior_hole, { 0, 1, 2 }, 300, 349);
+    assert(!cert.matches(interior_hole, { 0, 1, 2 }));
+}
+
+static void test_replay_certificate_identity_and_submission() {
+    const auto baseline = snapshot_of(complete_history());
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 300, 350);
+    cert.observe(baseline, { 0, 1, 2 }, 300, 349);
+    assert(cert.matches(baseline, { 0, 1, 2 }));
+    assert(cert.matches(baseline, { 2, 0, 1 }));
+    // Page 2 starts after this request's causal horizon and may be omitted.
+    assert(cert.matches(baseline, { 0, 1 }));
+    // Page 0 contributes observed history and must remain selected.
+    assert(!cert.matches(baseline, { 1, 2 }));
+
+    llama_kv_attention_replay_certificate unobserved;
+    unobserved.reset(0, 300, 350);
+    assert(!unobserved.matches(baseline, { 0, 1, 2 }));
+
+    llama_kv_attention_replay_certificate gap;
+    gap.reset(0, 300, 350);
+    gap.observe(baseline, { 0, 1, 2 }, 301, 349);
+    assert(!gap.matches(baseline, { 0, 1, 2 }));
+
+    llama_kv_attention_replay_certificate incomplete;
+    incomplete.reset(0, 300, 350);
+    incomplete.observe(baseline, { 0, 1, 2 }, 300, 348);
+    assert(!incomplete.matches(baseline, { 0, 1, 2 }));
+
+    llama_kv_attention_replay_certificate wrong_sequence;
+    wrong_sequence.reset(0, 300, 350);
+    auto wrong_seq_pages = complete_history();
+    for (auto & p : wrong_seq_pages) p.id.sequence_id = 1;
+    const auto wrong_seq = snapshot_of(wrong_seq_pages);
+    wrong_sequence.observe(wrong_seq, { 0, 1, 2 }, 300, 349);
+    assert(!wrong_sequence.matches(wrong_seq, { 0, 1, 2 }));
+
+    llama_kv_attention_replay_certificate invalidated;
+    invalidated.reset(0, 300, 350);
+    invalidated.observe(baseline, { 0, 1, 2 }, 300, 349);
+    invalidated.invalidate();
+    assert(!invalidated.matches(baseline, { 0, 1, 2 }));
+}
+
+static void test_replay_certificate_snapshot_changes() {
+    const auto baseline = snapshot_of(complete_history());
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 300, 350);
+    cert.observe(baseline, { 0, 1, 2 }, 300, 349);
+
+    // Slot assignment, snapshot epoch, and caller page ordering do not alter
+    // the logical causal history submitted by the graph.
+    auto permuted_pages = complete_history();
+    permuted_pages[0].physical_slot = 6;
+    permuted_pages[1].physical_slot = 4;
+    permuted_pages[2].physical_slot = 7;
+    std::reverse(permuted_pages.begin(), permuted_pages.end());
+    const auto relocated = snapshot_of(permuted_pages, 8, 2);
+    assert(relocated.epoch() != baseline.epoch());
+    assert(cert.matches(relocated, { 2, 1, 0 }));
+
+    // A rewrite to a full historical page must invalidate even when logical
+    // coverage and every other page identity stay the same.
+    auto rewritten_pages = complete_history(2);
+    const auto rewritten = snapshot_of(rewritten_pages);
+    assert(!cert.matches(rewritten, { 0, 1, 2 }));
+
+    // A changed causal generation also invalidates the certificate.
+    auto new_generation_pages = complete_history();
+    new_generation_pages[0].id.page_generation++;
+    const auto new_generation = snapshot_of(new_generation_pages);
+    assert(!cert.matches(new_generation, { 0, 1, 2 }));
+}
+
+static void test_replay_certificate_append_seam() {
+    // The first query is inside page 1. Its already committed prefix ends at
+    // the user-span seam, so an append to that page may extend the page/version
+    // while preserving the observed causal prefix.
+    auto before_pages = std::vector<llama_kv_page_record> {
+        certified_page(0, 0, 256, 256, 4),
+        certified_page(1, 1, 350, 94, 8),
+    };
+    const auto before = snapshot_of(before_pages);
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 300, 350);
+    cert.observe(before, { 0, 1 }, 300, 349);
+    assert(cert.matches(before, { 0, 1 }));
+
+    auto appended_pages = before_pages;
+    appended_pages[1].id.position_end = 400;
+    appended_pages[1].valid_length = 144;
+    appended_pages[1].content_version++;
+    const auto appended = snapshot_of(appended_pages);
+    assert(cert.matches(appended, { 0, 1 }));
+
+    // Page 0 is wholly historical, so changing its version is never covered
+    // by the append-only seam exception.
+    appended_pages[0].content_version++;
+    const auto rewritten_full_page = snapshot_of(appended_pages);
+    assert(!cert.matches(rewritten_full_page, { 0, 1 }));
+
+    // A page whose old extent ends exactly at query_begin is wholly historical;
+    // extending the query span cannot excuse a version change to that page.
+    const auto exact_seam_before = snapshot_of(complete_history());
+    llama_kv_attention_replay_certificate exact_seam_cert;
+    exact_seam_cert.reset(0, 512, 540);
+    exact_seam_cert.observe(exact_seam_before, { 0, 1, 2 }, 512, 539);
+    assert(exact_seam_cert.matches(exact_seam_before, { 0, 1, 2 }));
+    auto exact_seam_pages = complete_history();
+    exact_seam_pages[1].content_version++;
+    const auto changed_at_seam = snapshot_of(exact_seam_pages);
+    assert(!exact_seam_cert.matches(changed_at_seam, { 0, 1, 2 }));
+}
+
+static void test_replay_certificate_rolling_query_window() {
+    auto pages = complete_history();
+    pages[2].id.position_end = 768;
+    pages[2].valid_length = 256;
+    const auto first_window = snapshot_of({ pages[0] }, 2);
+    const auto second_window = snapshot_of({ pages[0], pages[1] }, 2);
+    // The query window rolls forward while staying within the two resident
+    // attention pages available to each graph submission.
+    auto third_pages = std::vector<llama_kv_page_record> { pages[1], pages[2] };
+    third_pages[0].physical_slot = 0;
+    third_pages[1].physical_slot = 1;
+    const auto third_window = snapshot_of(third_pages, 2);
+
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 0, 768, VBR_GENERATION_PAGE_CELLS, 2);
+    cert.observe(first_window, { 0 }, 0, 255);
+    cert.observe(second_window, { 0, 1 }, 256, 511);
+    cert.observe(third_window, { 1, 2 }, 512, 767);
+    assert(cert.matches(third_window, { 1, 2 }));
+    assert(!cert.matches(third_window, { 2 }));
+}
+
+static void test_replay_certificate_rolling_query_after_non_aligned_seam() {
+    auto pages = complete_history();
+    pages[2].id.position_end = 768;
+    pages[2].valid_length = 256;
+    const auto first_window = snapshot_of({ pages[0] }, 2);
+    const auto second_window = snapshot_of({ pages[0], pages[1] }, 2);
+    auto third_pages = std::vector<llama_kv_page_record> { pages[1], pages[2] };
+    third_pages[0].physical_slot = 0;
+    third_pages[1].physical_slot = 1;
+    const auto third_window = snapshot_of(third_pages, 2);
+
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 100, 768, VBR_GENERATION_PAGE_CELLS, 2);
+    cert.observe(first_window, { 0 }, 100, 255);
+    cert.observe(second_window, { 0, 1 }, 256, 511);
+    cert.observe(third_window, { 1, 2 }, 512, 767);
+    assert(cert.matches(third_window, { 1, 2 }));
+}
+
+static void test_replay_certificate_keeps_full_old_history() {
+    auto pages = complete_history();
+    pages[2].id.position_end = 768;
+    pages[2].valid_length = 256;
+    const auto first_window = snapshot_of({ pages[0], pages[1] }, 2);
+    const auto second_window = snapshot_of({ pages[0], pages[2] }, 2);
+
+    llama_kv_attention_replay_certificate cert;
+    cert.reset(0, 256, 768, VBR_GENERATION_PAGE_CELLS, 2);
+    cert.observe(first_window, { 0, 1 }, 256, 511);
+    cert.observe(second_window, { 0, 2 }, 512, 767);
+    assert(cert.matches(second_window, { 0, 2 }));
+    assert(!cert.matches(second_window, { 2 }));
+}
+
 int main() {
     test_compact_permuted_gapped_view();
     test_tail_and_rejections();
     test_contiguous_prefix_after_reordering();
     test_sequence_scoped_lookup();
     test_operator_contract();
+    test_full_prefix_coverage_proof();
+    test_replay_certificate_identity_and_submission();
+    test_replay_certificate_snapshot_changes();
+    test_replay_certificate_append_seam();
+    test_replay_certificate_rolling_query_window();
+    test_replay_certificate_rolling_query_after_non_aligned_seam();
+    test_replay_certificate_keeps_full_old_history();
     return 0;
 }

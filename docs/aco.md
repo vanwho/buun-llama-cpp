@@ -66,6 +66,46 @@ its exact-mode invariants and fails closed when they are not met. The optional
 `--kv-router probe-rerank` selects query-boundary reranking; the default is
 `legacy`.
 
+## Automatic attention reuse
+
+Selective ACO handles ordinary requests without an ingestion mode or file
+classification. Existing prefix caching and authenticated message boundaries
+remain the source of token continuity and query positions. A changed file is
+new text, regardless of its name; no file registry or content hashing is added.
+
+When the complete request, its bounded output and speculative lookahead fit
+the admitted attention capacity, ACO checks that the existing causal prefix
+has valid GPU-resident rows with consistent ownership and representation.
+It then consumes the full causal view through prefill, decode and native MTP,
+using the existing CUDA dense/packed/direct machinery as appropriate. It skips
+query routing and avoids a second pass when the completed view is certified.
+An unbounded output request or incomplete/cold prefix retains selective routing.
+Eligibility is rechecked after cache restoration before the query is evaluated.
+
+For larger requests, the first query pass and replay/generation use one R+Q
+rule: selected prior history R plus the bounded recent current-message/output
+window Q. Selector nominations are ranking evidence, not a second provisional
+attention policy. Actual successful prefill submissions establish a bounded
+CPU metadata certificate of historical page identities, content versions and
+causal query coverage. Commit fences those graphs before trusting the certificate.
+Physical relocation, table epochs and invisible future pages do not force
+replay. Normal Q-window rollover is allowed; a changed/missing historical page,
+unproven coverage, content edit or representation change retains replay.
+
+Recurrent state and native-MTP carry remain live when reuse is proven. Required
+replay still uses the existing joint checkpoint/restore path. Cached user-span
+rows that lack a certificate for the new request are evaluated from the existing
+user seam so a partial cached query cannot bypass its checkpoint or proof.
+Exact attention retains its existing full-coverage contract, and pager-off and
+observe requests retain their existing behavior.
+
+No tensor readbacks, additional model pass, per-file lookup or generation-token
+trace is used for this decision. Certificate storage is bounded by the hot-page
+capacity and uses host metadata; it does not copy K/V or allocate GPU buffers.
+These changes need model-backed quality/performance validation; the build and
+deterministic tests alone do not establish a speedup or dense-equivalent quality
+for selective requests whose history exceeds the hot window.
+
 ## Build
 
 Use the CUDA toolkit and CMake versions required by

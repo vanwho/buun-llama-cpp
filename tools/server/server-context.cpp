@@ -16038,8 +16038,14 @@ private:
             query_end += has_rendered_user_span
                     ? slot.task->params.final_user_kv_position_offset : 0;
             if (query_start < 0 || query_start >= query_end) query_start = 0;
+            // Internal bounded request plan. Unbounded generation cannot
+            // claim all-hot coverage; normal selective routing remains active.
+            const int64_t planned_end = slot.task->params.n_predict >= 0
+                ? int64_t(slot.task->n_tokens()) + slot.task->params.n_predict +
+                    std::max(0, common_speculative_n_max(&slot.task->params.speculative)) + 1
+                : -1;
             ctx_tgt->begin_kv_pager_turn(
-                    slot.id, slot.slot_session_generation, query_start, query_end);
+                    slot.id, slot.slot_session_generation, query_start, query_end, planned_end);
         }
 
         if (prepared_host_restore) {

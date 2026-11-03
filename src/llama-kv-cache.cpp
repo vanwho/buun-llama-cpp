@@ -2309,7 +2309,15 @@ llama_kv_cache::~llama_kv_cache() {
     vbr_release_resources();
 }
 
+void llama_kv_cache::invalidate_attention_certificate(llama_seq_id sequence_id) noexcept {
+    for (auto & pending : pager_pending_turns_) {
+        if ((sequence_id < 0 || pending.first == sequence_id) &&
+                pending.second.certificate.observed()) pending.second.certificate.invalidate();
+    }
+}
+
 void llama_kv_cache::invalidate_pager_query_probes(llama_seq_id sequence_id) noexcept {
+    invalidate_attention_certificate(sequence_id);
     for (auto & state : pager_query_accumulators_) {
         if (sequence_id >= 0 && state.sequence_id != sequence_id) continue;
         if (state.probe_validity == nullptr) continue;
@@ -3211,12 +3219,48 @@ void llama_kv_cache::capture_kv_routing_query(
                     // it at the final user graph boundary, after prefix KV is
                     // published but before selector evaluation consumes it.
                     begin_kv_pager_turn(sequence_id, pending->second.turn_id,
-                        pending->second.query_start, pending->second.query_end);
+                        pending->second.query_start, pending->second.query_end,
+                        pending->second.planned_end, pending->second.attention_tokens, pending->second.verify_view);
                 }
             }
         }
+        if (kv_pager_full_attention(sequence_id)) return;
         const auto turn = sequence_id >= 0 ? pager_->turn_state(sequence_id)
                                             : llama_kv_pager_turn_state{};
+        auto pending_query = pager_pending_turns_.find(sequence_id);
+        if (pending_query != pager_pending_turns_.end() && pending_query->second.verify_view &&
+                !pending_query->second.history_prepared &&
+                turn.phase == llama_kv_pager_turn_phase::query_provisional && ubatch.pos &&
+                ubatch.n_tokens && ubatch.pos0(ubatch.n_tokens - 1) >= turn.query_start) {
+            // Earlier messages in this request may have been prefilling since
+            // begin(). Bind the baseline at the actual final-user seam.
+            auto & history = pager_turn_initial_history_[sequence_id];
+            const auto resident = pager_->residency(sequence_id);
+            history.erase(std::remove_if(history.begin(), history.end(), [&](const auto & selected) {
+                return std::none_of(resident.pages().begin(), resident.pages().end(), [&](const auto & p) {
+                    return p.id == selected.identity && p.content_version == selected.content_version &&
+                        p.physical_slot != UINT32_MAX;
+                });
+            }), history.end());
+            if (history.empty()) {
+                const auto tokens = pending_query->second.attention_tokens;
+                const uint64_t cap = std::min<uint64_t>(pager_->snapshot().physical_page_count,
+                    tokens ? (uint64_t(tokens) + pager_->snapshot().geometry.page_tokens - 1) /
+                        pager_->snapshot().geometry.page_tokens : UINT64_MAX);
+                const size_t budget = cap > 2 ? size_t(cap - 2) : 0;
+                for (const auto & p : resident.pages()) {
+                    if (budget && p.id.logical_page == 0 && p.id.position_end <= turn.query_start &&
+                            p.physical_slot != UINT32_MAX && p.content_version != 0)
+                        history.push_back({p.id, p.content_version});
+                }
+                for (auto p = resident.pages().rbegin(); p != resident.pages().rend() && history.size() < budget; ++p) {
+                    if (p->id.position_end <= turn.query_start && p->physical_slot != UINT32_MAX &&
+                            p->content_version != 0 && (history.empty() || p->id.logical_page != 0))
+                        history.push_back({p->id, p->content_version});
+                }
+            }
+            pending_query->second.history_prepared = true;
+        }
         // The server opens one provisional query turn for a real request.
         // Decode/verify submissions may advance query_generation_, but cannot
         // create a turn or refresh selection after the server freezes history.
@@ -3471,17 +3515,87 @@ void llama_kv_cache::note_kv_pager_accepted_tokens(uint32_t count) {
         ? UINT64_MAX : pager_query_accepted_tokens_ + uint64_t(count);
 }
 
+bool llama_kv_cache::kv_pager_full_attention(int32_t sequence_id) const noexcept {
+    const auto it = pager_pending_turns_.find(sequence_id);
+    return it != pager_pending_turns_.end() && it->second.full_attention;
+}
+
+bool llama_kv_cache::recheck_full_attention(int32_t sequence_id, int64_t prefix_end) noexcept {
+    auto pending = pager_pending_turns_.find(sequence_id);
+    if (pager_ == nullptr || pending == pager_pending_turns_.end() || !pending->second.full_candidate) return false;
+    if (pending->second.certificate.observed()) return pending->second.full_attention;
+    const auto & geometry = pager_->snapshot();
+    const uint32_t tokens = pending->second.attention_tokens;
+    const uint32_t cap = uint32_t(std::min<uint64_t>(geometry.physical_page_count,
+        tokens ? (uint64_t(tokens) + geometry.geometry.page_tokens - 1) /
+            geometry.geometry.page_tokens : UINT64_MAX));
+    if (llama_kv_attention_full_prefix(pager_->residency(sequence_id), sequence_id, prefix_end, cap)) {
+        pending->second.full_attention = true;
+        pager_query_refresh_enabled_ = false;
+        pager_query_refresh_turn_id_ = 0;
+        pager_query_capture_turn_id_ = 0;
+        return true;
+    }
+    // Cache restoration before the first query graph can change eligibility.
+    // Downgrade before any query state was evaluated, rather than turn a safe
+    // optimization miss into a failed request or skip required Q capture.
+    pending->second.full_attention = false;
+    pager_query_refresh_enabled_ = true;
+    pager_query_refresh_turn_id_ = pending->second.turn_id;
+    pager_query_capture_turn_id_ = pending->second.turn_id;
+    return false;
+}
+
+void llama_kv_cache::note_kv_pager_attention(int32_t sequence_id,
+        const std::vector<uint32_t> & selected, int64_t first, int64_t last) {
+    auto pending = pager_pending_turns_.find(sequence_id);
+    if (pager_ == nullptr || pending == pager_pending_turns_.end() ||
+            pager_->turn_state(sequence_id).phase != llama_kv_pager_turn_phase::query_provisional) return;
+    if (pending->second.certificate.observed() && first < pending->second.query_start)
+        pending->second.certificate.invalidate();
+    if (pending->second.certificate.observed() &&
+            pending->second.proof_representation_epoch != vbr_tier_epoch())
+        pending->second.certificate.invalidate();
+    if (!pending->second.certificate.observed())
+        pending->second.proof_representation_epoch = vbr_tier_epoch();
+    pending->second.certificate.observe(pager_->residency(sequence_id), selected, first, last);
+}
+
 void llama_kv_cache::begin_kv_pager_turn(
         int32_t sequence_id, uint64_t turn_id,
-        int64_t query_start, int64_t query_end) {
+        int64_t query_start, int64_t query_end, int64_t planned_end, uint32_t attention_tokens, bool verify_view) {
     if (pager_ == nullptr || sequence_id < 0 || turn_id == 0 ||
             query_start < 0 || query_end <= query_start) return;
-    pager_pending_turns_[sequence_id] = {turn_id, query_start, query_end};
     auto state = pager_->turn_state(sequence_id);
     if (state.turn_id == turn_id && state.phase == llama_kv_pager_turn_phase::query_provisional &&
             state.query_start == query_start && state.query_end == query_end) return;
     if (state.phase != llama_kv_pager_turn_phase::idle) return;
+    auto & pending = pager_pending_turns_[sequence_id];
+    pending.turn_id = turn_id;
+    pending.query_start = query_start;
+    pending.query_end = query_end;
+    pending.planned_end = planned_end;
+    pending.attention_tokens = attention_tokens;
+    pending.verify_view = verify_view;
+    pending.proof_representation_epoch = vbr_tier_epoch();
+    pending.history_prepared = false;
     const auto inventory = pager_->exact_page_records(sequence_id);
+    const auto & geometry = pager_->snapshot();
+    const uint64_t capacity = std::min<uint64_t>(
+        uint64_t(geometry.physical_page_count) * geometry.geometry.page_tokens,
+        attention_tokens ? attention_tokens : UINT64_MAX);
+    const uint32_t cert_pages = uint32_t(std::min<uint64_t>(geometry.physical_page_count,
+        attention_tokens ? (uint64_t(attention_tokens) + geometry.geometry.page_tokens - 1) /
+            geometry.geometry.page_tokens : UINT64_MAX));
+    pending.certificate.reset(sequence_id, query_start, query_end,
+            geometry.geometry.page_tokens, cert_pages);
+    int64_t live_end = 0;
+    for (const auto & page : inventory) live_end = std::max<int64_t>(live_end, page.id.position_end);
+    pending.full_candidate = verify_view && planned_end >= query_end && planned_end > 0 &&
+        uint64_t(planned_end) <= capacity;
+    pending.full_attention = pending.full_candidate && llama_kv_attention_full_prefix(
+            pager_->residency(sequence_id), sequence_id,
+            std::min(query_start, live_end), geometry.physical_page_count);
     if (inventory.empty()) return;
     auto & committed_history = pager_committed_history_[sequence_id];
     // Keep only frozen selections whose exact identity and content version
@@ -3526,13 +3640,13 @@ void llama_kv_cache::begin_kv_pager_turn(
         // Force this query's selector graph to be rebuilt. A reused graph
         // would otherwise retain the prior turn's accumulated Q/catalogue
         // inputs and leave the new user span invisible to routing.
-        pager_query_refresh_enabled_ = true;
+        pager_query_refresh_enabled_ = !pending.full_attention;
         // A new user query changes the Q domain even when the accepted-token
         // refresh cadence has not elapsed. Keep refresh requested until the
         // final user token reaches a graph; earlier prefill graphs can contain
         // only a prefix of this turn's Q span.
-        pager_query_refresh_turn_id_ = turn_id;
-        pager_query_capture_turn_id_ = turn_id;
+        pager_query_refresh_turn_id_ = pending.full_attention ? 0 : turn_id;
+        pager_query_capture_turn_id_ = pending.full_attention ? 0 : turn_id;
         if (pager_selector_trace_enabled()) {
             pager_->reset_selector_trace();
             auto & trace = pager_->selector_trace_for_update();
@@ -3557,7 +3671,8 @@ bool llama_kv_cache::freeze_kv_pager_history(
         const auto pending = pager_pending_turns_.find(sequence_id);
         if (pending == pager_pending_turns_.end() || pending->second.turn_id != turn_id) return false;
         begin_kv_pager_turn(sequence_id, turn_id,
-                pending->second.query_start, pending->second.query_end);
+                pending->second.query_start, pending->second.query_end,
+                pending->second.planned_end, pending->second.attention_tokens, pending->second.verify_view);
         state = pager_->turn_state(sequence_id);
     }
     if (state.phase == llama_kv_pager_turn_phase::query_provisional) {
@@ -3601,7 +3716,8 @@ bool llama_kv_cache::commit_kv_pager_query(
         if (pending == pager_pending_turns_.end() ||
                 pending->second.turn_id != turn_id) return false;
         begin_kv_pager_turn(sequence_id, turn_id,
-                pending->second.query_start, pending->second.query_end);
+                pending->second.query_start, pending->second.query_end,
+                pending->second.planned_end, pending->second.attention_tokens, pending->second.verify_view);
         state = pager_->turn_state(sequence_id);
     }
     // The final-user boundary can be revisited after publication (for example
@@ -3622,7 +3738,8 @@ bool llama_kv_cache::commit_kv_pager_query(
     // The final-user target fence has retired before this boundary. Drain and
     // decode only this query's submitted selector capture first; in rerank
     // mode the policy rejects these coarse scores, so this cannot select pages.
-    if (pager_->router_mode() == llama_kv_router_mode::probe_rerank) {
+    const bool full_attention = kv_pager_full_attention(sequence_id);
+    if (!full_attention && pager_->router_mode() == llama_kv_router_mode::probe_rerank) {
         const auto inventory = pager_->exact_page_records(sequence_id);
         bool current_span_visible = false;
         bool has_eligible_history = false;
@@ -3799,6 +3916,17 @@ bool llama_kv_cache::commit_kv_pager_query(
     std::vector<llama_kv_pager_selected_history> selected;
     const auto found = pager_committed_history_.find(sequence_id);
     if (found != pager_committed_history_.end()) selected = found->second;
+    if (full_attention) {
+        // All prior history was consumed, not a router subset. Freeze that
+        // exact prefix; the bounded request/output plan guarantees it fits.
+        selected.clear();
+        for (const auto & page : pager_->residency(sequence_id).pages()) {
+            if (page.id.position_begin >= 0 && page.id.position_end <= state.query_start &&
+                    page.physical_slot != UINT32_MAX && page.content_version != 0) {
+                selected.push_back({page.id, page.content_version});
+            }
+        }
+    }
     // Recheck at the freeze boundary as query replay may cross a later pager
     // publication than the one observed when this turn started.
     const auto resident = pager_->residency(sequence_id);
@@ -3814,8 +3942,34 @@ bool llama_kv_cache::commit_kv_pager_query(
     const std::vector<llama_kv_pager_selected_history> empty;
     const auto & before = initial == pager_turn_initial_history_.end()
         ? empty : initial->second;
-    const bool selection_changed =
-        !llama_kv_pager_history_selection_equal(before, selected);
+    bool selection_changed = !llama_kv_pager_history_selection_equal(before, selected);
+    const auto pending = pager_pending_turns_.find(sequence_id);
+    if (pending != pager_pending_turns_.end() && pending->second.verify_view) {
+        if (pending->second.proof_representation_epoch != vbr_tier_epoch())
+            pending->second.certificate.invalidate();
+        const auto limit = pending->second.attention_tokens;
+        const uint64_t cap = std::min<uint64_t>(pager_->snapshot().physical_page_count,
+            limit ? (uint64_t(limit) + pager_->snapshot().geometry.page_tokens - 1) /
+                pager_->snapshot().geometry.page_tokens : UINT64_MAX);
+        std::vector<uint32_t> final_view;
+        const auto append = [&](uint32_t id) {
+            if (std::find(final_view.begin(), final_view.end(), id) != final_view.end()) return true;
+            if (final_view.size() >= cap) return false;
+            final_view.push_back(id); return true;
+        };
+        for (const auto & p : resident.pages())
+            if (p.id.position_begin <= state.query_end - 1 && p.id.position_end >= state.query_end)
+                append(p.id.logical_page);
+        bool represented = true;
+        for (const auto & p : selected) represented = append(p.identity.logical_page) && represented;
+        // Same bounded recent-Q rule as the forward graph. Older Q can roll
+        // out normally without forcing a replay of an otherwise unchanged R.
+        for (auto p = resident.pages().rbegin(); p != resident.pages().rend(); ++p)
+            if (p->id.position_end > state.query_start && p->id.position_begin < state.query_end &&
+                    p->physical_slot != UINT32_MAX) append(p->id.logical_page);
+        selection_changed = !represented ||
+            !pending->second.certificate.matches(resident, final_view);
+    }
     const uint64_t frozen_generation = turn_id;
     if (pager_->transition_turn(sequence_id, turn_id, state.retrieval_epoch,
             llama_kv_pager_turn_phase::retrieval_commit, state.query_start, state.query_end,
@@ -3911,7 +4065,13 @@ bool llama_kv_cache::kv_pager_history_matches(
 void llama_kv_cache::end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) {
     if (pager_ == nullptr || sequence_id < 0 || turn_id == 0) return;
     const auto state = pager_->turn_state(sequence_id);
-    if (state.turn_id != turn_id || state.phase == llama_kv_pager_turn_phase::idle) return;
+    if (state.phase == llama_kv_pager_turn_phase::idle) {
+        const auto pending = pager_pending_turns_.find(sequence_id);
+        if (pending != pager_pending_turns_.end() && pending->second.turn_id == turn_id)
+            pager_pending_turns_.erase(pending);
+        return;
+    }
+    if (state.turn_id != turn_id) return;
     if (pager_router_job_) pager_router_job_->cancel();
     pager_query_executor_.cancel();
     if (pager_router_completion_.sequence_id == sequence_id &&
@@ -3994,6 +4154,7 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
         }
         return;
     }
+    if (kv_pager_full_attention(pager_last_sequence_id_)) return;
     const auto & pager_state = pager_->snapshot();
     if (pager_state.physical_page_count == 0 || pager_last_sequence_id_ < 0) {
         if (progress_trace) {
@@ -6170,13 +6331,13 @@ void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
         // batch has committed pages, so later prompt graphs capture Q over
         // the request's user span instead of remaining in the idle phase.
         try {
-            std::vector<std::pair<int32_t, pager_pending_turn>> pending;
-            pending.reserve(pager_pending_turns_.size());
-            for (const auto & item : pager_pending_turns_) pending.push_back(item);
-            for (const auto & item : pending) {
+            // begin() only updates an existing map node; do not copy the
+            // retained attention certificate on every prefill batch.
+            for (const auto & item : pager_pending_turns_) {
                 if (!pager_->exact_page_records(item.first).empty()) {
                     begin_kv_pager_turn(item.first, item.second.turn_id,
-                            item.second.query_start, item.second.query_end);
+                            item.second.query_start, item.second.query_end,
+                            item.second.planned_end, item.second.attention_tokens, item.second.verify_view);
                 }
             }
         } catch (...) {
@@ -7197,6 +7358,7 @@ bool llama_kv_cache::share_checked_range(
 bool llama_kv_cache::seq_cp_impl(
         llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
         llama_pos p0, llama_pos p1, bool publish_lineage) {
+    invalidate_attention_certificate(seq_id_dst);
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return false;
@@ -7355,6 +7517,7 @@ bool llama_kv_cache::seq_cp_impl(
 }
 
 void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
+    invalidate_attention_certificate();
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return;
@@ -7449,6 +7612,7 @@ void llama_kv_cache::seq_add_impl(
            llama_pos p1,
            llama_pos shift,
                 bool raw_keys) {
+    invalidate_attention_certificate(seq_id);
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return;
@@ -7538,6 +7702,7 @@ void llama_kv_cache::seq_add_impl(
 }
 
 void llama_kv_cache::seq_div(llama_seq_id seq_id, llama_pos p0, llama_pos p1, int d) {
+    invalidate_attention_certificate(seq_id);
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return;
@@ -18180,6 +18345,7 @@ void llama_kv_cache::state_read_sinfo(
   llama_state_seq_flags   flags,
       slot_info_vec_t *   sinfos_out,
 const slot_info_vec_t *   sinfos_in) try {
+    invalidate_attention_certificate(seq_id);
     // Imports are provenance-bearing: recovery is reserved before the first read so a
     // partial-import unwind autorecords and the boundary drain quarantines + invalidates.
     vbr_mutation_op mutation_op(this, vbr_operation_kind::state_import,
@@ -19579,6 +19745,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         return reject(llama_kv_pager_selector_gate::invalid_query_or_ubatch);
     }
     const auto & pager = *kv->get_kv_pager();
+    if (kv->kv_pager_full_attention(ubatch.seq_id[0][0])) return nullptr;
     const auto & snapshot = pager.snapshot();
     const auto sequence = pager.residency(ubatch.seq_id[0][0]);
     const auto inventory = pager.exact_page_records(ubatch.seq_id[0][0]);
@@ -20349,6 +20516,19 @@ bool llama_kv_cache_context::selected_attention_rows(
 
 llama_kv_pager * llama_kv_cache_context::get_kv_pager() const noexcept {
     return kv ? kv->get_kv_pager() : nullptr;
+}
+
+bool llama_kv_cache_context::full_attention(int32_t sequence_id, int64_t prefix_end) const noexcept {
+    return kv && (prefix_end >= 0 ? kv->recheck_full_attention(sequence_id, prefix_end)
+                                 : kv->kv_pager_full_attention(sequence_id));
+}
+
+const std::vector<llama_kv_pager_selected_history> & llama_kv_cache_context::initial_history(
+        int32_t sequence_id) const noexcept {
+    static const std::vector<llama_kv_pager_selected_history> empty;
+    if (kv == nullptr) return empty;
+    const auto found = kv->pager_turn_initial_history_.find(sequence_id);
+    return found == kv->pager_turn_initial_history_.end() ? empty : found->second;
 }
 
 const std::vector<llama_kv_page_id> & llama_kv_cache_context::selected_attention_pages() const noexcept {

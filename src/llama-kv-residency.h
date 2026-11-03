@@ -69,6 +69,9 @@ struct llama_kv_page_record {
     llama_kv_page_state state = llama_kv_page_state::absent;
     bool host_valid = false;
     bool dirty = false;
+    // True only when every row below valid_length is present. An interior
+    // sequence edit must not masquerade as complete dense prefix coverage.
+    bool contiguous_prefix = true;
     uint32_t pin_count = 0;
     uint64_t content_version = 0;
     uint32_t valid_length = 0;

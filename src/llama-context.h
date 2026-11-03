@@ -485,9 +485,11 @@ struct llama_context {
         }
     }
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
-            int64_t query_start, int64_t query_end) noexcept {
+            int64_t query_start, int64_t query_end, int64_t planned_end = -1) noexcept {
         if (memory) memory->begin_kv_pager_turn(
-                sequence_id, turn_id, query_start, query_end);
+                sequence_id, turn_id, query_start, query_end,
+                kv_pager.mode == llama_kv_pager_mode::selective ? planned_end : -1,
+                cparams.kv_attention_tokens, kv_pager.mode == llama_kv_pager_mode::selective);
     }
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) noexcept {

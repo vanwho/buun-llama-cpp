@@ -128,3 +128,42 @@ private:
     explicit llama_kv_attention_view(std::shared_ptr<const state> state) noexcept;
     std::shared_ptr<const state> state_;
 };
+
+// CPU metadata only. Completeness is a coverage proof, never a resident count.
+bool llama_kv_attention_full_prefix(
+        const llama_kv_residency_snapshot & snapshot, int32_t sequence_id,
+        int64_t end, uint32_t page_capacity) noexcept;
+
+// A bounded certificate of the historical rows actually submitted for a user
+// span. Current-message rows use the same causal R+Q rule before/after commit.
+// The commit caller must fence successful graph submissions before trusting it.
+class llama_kv_attention_replay_certificate {
+public:
+    void reset(int32_t sequence_id, int64_t begin, int64_t end,
+               uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+               uint32_t attention_pages = UINT32_MAX) noexcept;
+    void invalidate() noexcept { valid_ = false; }
+    bool observed() const noexcept { return observed_; }
+    void observe(const llama_kv_residency_snapshot & snapshot,
+                 const std::vector<uint32_t> & selected,
+                 int64_t first, int64_t last) noexcept;
+    bool matches(const llama_kv_residency_snapshot & snapshot,
+                 const std::vector<uint32_t> & final_selected) const noexcept;
+private:
+    struct entry {
+        llama_kv_page_id id;
+        uint64_t version = 0;
+        bool append_seam = false;
+    };
+    bool history(const llama_kv_residency_snapshot & snapshot,
+                 const std::vector<uint32_t> & selected,
+                 std::vector<entry> & out) const;
+    static bool equal(const std::vector<entry> & a, const std::vector<entry> & b,
+                      int64_t begin, bool seam_rolled_out = false) noexcept;
+    int64_t query_floor(int64_t end, uint32_t capacity, const std::vector<entry> & history) const noexcept;
+    int32_t sequence_ = -1;
+    int64_t begin_ = -1, end_ = -1, covered_ = -1;
+    bool valid_ = false, observed_ = false;
+    uint32_t page_tokens_ = 0, attention_pages_ = 0;
+    std::vector<entry> history_;
+};

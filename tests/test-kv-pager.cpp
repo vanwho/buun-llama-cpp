@@ -1710,6 +1710,8 @@ static void test_pager_host_mutation() {
     assert(tail_pages.empty());
     const auto tail_before_eviction = tail_pager->residency().pages();
     assert(tail_before_eviction.size() == 1);
+    assert(tail_before_eviction[0].valid_length == 17 &&
+            tail_before_eviction[0].contiguous_prefix);
     const auto tail_content_version = tail_before_eviction[0].content_version;
     assert(tail_pager->begin_write(0, 1, 256, ticket) ==
             llama_kv_pager_write_status::ok);
@@ -1741,12 +1743,22 @@ static void test_pager_host_mutation() {
     hole_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
     hole_pager->set_host_provider({ &fixture, host_page_fixture::prepare });
     llama_kv_pager_write_ticket hole_ticket;
-    for (llama_pos position : { llama_pos(0), llama_pos(2) }) {
+    for (llama_pos position : { llama_pos(0), llama_pos(1), llama_pos(2) }) {
         assert(hole_pager->begin_write(0, 1, position, hole_ticket) ==
                 llama_kv_pager_write_status::ok);
         assert(hole_pager->complete_write(hole_ticket, 32, true) ==
                 llama_kv_pager_write_status::ok);
     }
+    assert(hole_pager->mutate({ llama_kv_pager_mutation_kind::remove,
+            0, -1, 1, 2, 0, 1, hole_pager->residency().epoch(), true }) ==
+            llama_kv_pager_write_status::ok);
+    const auto hole_records = hole_pager->residency().pages();
+    assert(hole_records.size() == 1 && hole_records[0].valid_length == 3 &&
+            !hole_records[0].contiguous_prefix);
+    uint32_t hole_row = UINT32_MAX;
+    assert(hole_pager->physical_row(0, 0, hole_row));
+    assert(!hole_pager->physical_row(0, 1, hole_row));
+    assert(hole_pager->physical_row(0, 2, hole_row));
     assert(hole_pager->seal_ready_pages() == 0);
     assert(hole_pager->host_catalog()->snapshot().live_pages == 0);
 

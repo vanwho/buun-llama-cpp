@@ -3113,12 +3113,15 @@ void llama_kv_pager::bind_representation_identity(
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {
     page.record.content_version = page.content_version;
     uint32_t valid_length = 0;
+    uint32_t valid_count = 0;
     for (uint32_t row = 0; row < page.valid_rows.size(); ++row) {
         if (page.valid_rows[row] != 0) {
             valid_length = row + 1;
+            ++valid_count;
         }
     }
     page.record.valid_length = valid_length;
+    page.record.contiguous_prefix = valid_count == valid_length;
     auto tx = residency_.begin();
     llama_kv_residency_status result = llama_kv_residency_status::not_found;
     for (const auto & existing : tx.pages()) {
@@ -4372,8 +4375,9 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         query_frontier_pin_releases.push_back(page.record.id);
                     }
                     uint32_t end_row = 0;
+                    uint32_t valid_count = 0;
                     for (uint32_t row = 0; row < page.valid_rows.size(); ++row) {
-                        if (page.valid_rows[row]) end_row = row + 1;
+                        if (page.valid_rows[row]) { end_row = row + 1; ++valid_count; }
                     }
                     if (end_row == 0) {
                         next_slots[page.record.physical_slot] = -1;
@@ -4394,6 +4398,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         page.content_version = advance_content_version(page.content_version);
                         page.record.content_version = page.content_version;
                         page.record.valid_length = end_row;
+                        page.record.contiguous_prefix = valid_count == end_row;
                         // The old FIFO entry names the old page identity and
                         // content version.  Keep it lazily discardable, while
                         // allowing the accepted rollback version to enqueue

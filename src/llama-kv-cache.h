@@ -205,7 +205,12 @@ public:
             const llama_ubatch & ubatch) override;
     void note_kv_pager_accepted_tokens(uint32_t count) override;
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
-            int64_t query_start, int64_t query_end) override;
+            int64_t query_start, int64_t query_end,
+            int64_t planned_end = -1, uint32_t attention_tokens = 0, bool verify_view = false) override;
+    bool kv_pager_full_attention(int32_t sequence_id) const noexcept override;
+    bool recheck_full_attention(int32_t sequence_id, int64_t prefix_end) noexcept;
+    void note_kv_pager_attention(int32_t sequence_id, const std::vector<uint32_t> & selected,
+            int64_t first, int64_t last) override;
     bool prepare_router_query_layers(int32_t sequence_id, uint64_t turn_id,
             std::vector<llama_kv_router_layer_plan> & plans,
             llama_kv_router_plan_error & error) noexcept;
@@ -1641,6 +1646,14 @@ private:
         uint64_t turn_id = 0;
         int64_t query_start = -1;
         int64_t query_end = -1;
+        int64_t planned_end = -1;
+        uint32_t attention_tokens = 0;
+        bool full_attention = false;
+        bool full_candidate = false;
+        bool history_prepared = false;
+        bool verify_view = false;
+        uint64_t proof_representation_epoch = 0;
+        llama_kv_attention_replay_certificate certificate;
     };
     std::map<int32_t, pager_pending_turn> pager_pending_turns_;
     int32_t pager_policy_current_sequence_ = -1;
@@ -1854,6 +1867,7 @@ private:
   private:
 
     void invalidate_pager_query_probes(llama_seq_id sequence_id = -1) noexcept;
+    void invalidate_attention_certificate(llama_seq_id sequence_id = -1) noexcept;
 
     // Shared by decode placement and historical-window planning. An occupied
     // SWA cell is reusable only when it is masked for every current owner.
@@ -2217,6 +2231,8 @@ public:
             const std::vector<llama_pos> & positions,
             std::vector<int32_t> & rows) const;
     llama_kv_pager * get_kv_pager() const noexcept;
+    bool full_attention(int32_t sequence_id, int64_t prefix_end = -1) const noexcept;
+    const std::vector<llama_kv_pager_selected_history> & initial_history(int32_t sequence_id) const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages() const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             uint32_t layer) const noexcept;

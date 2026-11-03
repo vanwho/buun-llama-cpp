@@ -7,6 +7,7 @@
 #include "server-task.h"
 
 #include "../src/llama-memory.h"
+#include "../src/llama-graph.h"
 
 #include "llama.h"
 #include "log.h"
@@ -4621,19 +4622,21 @@ void test_query_capture_reuse_prefix() {
         1018, 1000, 1018, 1030, true) == 1000);
     CHECK(server_prompt_query_capture_reuse_prefix(
         1010, 1000, 1018, 1030, true) == 1000);
-    // The first spread probe is at 1004: a cache ending before it can still
-    // be reused, while caching that probe rewinds the whole query span.
     CHECK(server_prompt_query_capture_reuse_prefix(
-        1004, 1000, 1018, 1030, true) == 1004);
+        999, 1000, 1018, 1030, true) == 999);
+    // A valid capture replays from the query boundary so the recurrent
+    // checkpoint and certificate cover the complete query, even when the
+    // cached prefix ends before the first spread probe.
+    CHECK(server_prompt_query_capture_reuse_prefix(
+        1004, 1000, 1018, 1030, true) == 1000);
     CHECK(server_prompt_query_capture_reuse_prefix(
         1005, 1000, 1018, 1030, true) == 1000);
-    // A final-user KV offset shortens the effective span. Its first spread
-    // probe is at 1003, so a cached prefix through 1004 must rewind; using
-    // the raw end at 1018 would incorrectly miss that cached probe.
+    // A final-user KV offset shortens the effective span, but the complete
+    // query still replays from its beginning for a valid capture.
     CHECK(server_prompt_query_capture_reuse_prefix(
         1004, 1000, 1014, 1018, true) == 1000);
     CHECK(server_prompt_query_capture_reuse_prefix(
-        1004, 1000, 1018, 1018, true) == 1004);
+        1004, 1000, 1018, 1018, true) == 1000);
     // An append begins exactly after the reused prefix, so the new query
     // tokens can be captured without replaying earlier conversation tokens.
     CHECK(server_prompt_query_capture_reuse_prefix(
@@ -4649,6 +4652,16 @@ void test_query_capture_reuse_prefix() {
     CHECK(server_prompt_query_capture_reuse_prefix(20, 10, 10, 30, true) == 20);
     CHECK(server_prompt_query_capture_reuse_prefix(20, 10, 31, 30, true) == 20);
     CHECK(server_prompt_query_capture_reuse_prefix(30, 0, 18, 30, false) == 30);
+}
+
+void test_full_attention_graph_reuse_key() {
+    llm_graph_params original{};
+    llm_graph_params matching{};
+    CHECK(original.allow_reuse(matching));
+
+    matching.kv_full_attention = true;
+    CHECK(!original.allow_reuse(matching));
+    CHECK(!matching.allow_reuse(original));
 }
 
 void test_recurrent_selection_survives_displacement_save(bool accounted) {
@@ -5998,6 +6011,7 @@ int main(int argc, char ** argv) {
     test_checkpoint_draft_restore_refuses_without_context();
     test_checkpoint_suffix_trim_rebases_only_preserved_prefixes();
     test_query_capture_reuse_prefix();
+    test_full_attention_graph_reuse_key();
     test_lifecycle_restore_retains_immutable_source();
     test_recurrent_reusable_prefix();
     test_recurrent_selection_survives_displacement_save(false);
