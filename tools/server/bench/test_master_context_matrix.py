@@ -130,15 +130,19 @@ class MasterContextMatrixTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "did not reuse"):
                     matrix.validate_cached_prefix(200000, cached, label="test", tolerance=8)
 
-    def test_filled_series_uses_one_template_mode_per_fresh_prefix(self) -> None:
-        self.assertEqual(matrix.filled_series_reasoning_mode(
-            6144, False, ("off",)), "off")
-        self.assertEqual(matrix.filled_series_reasoning_mode(
-            6144, False, ("low",)), "low")
-        self.assertEqual(matrix.filled_series_reasoning_mode(
-            6144, True, ("off", "low", "medium", "xhigh")), "off")
-        with self.assertRaisesRegex(ValueError, "exactly one reasoning mode"):
-            matrix.filled_series_reasoning_mode(6144, False, ("off", "low"))
+    def test_filled_series_prefills_once_then_varies_reasoning_per_request(self) -> None:
+        all_modes = ("off", "low", "medium", "xhigh")
+        self.assertEqual(matrix.repository_fill_reasoning_mode(), "off")
+        scheduled = matrix.canonical_schedule(all_modes, (0, 1, 2))
+        self.assertEqual({case["reasoning"] for case in scheduled}, set(all_modes))
+        self.assertEqual(len(scheduled), 48)
+        self.assertEqual(matrix.canonical_payload(
+            scheduled[0], [{"role": "user", "content": "base"}])[
+                "reasoning_effort"], "none")
+        low_case = next(case for case in scheduled if case["reasoning"] == "low")
+        self.assertEqual(matrix.canonical_payload(
+            low_case, [{"role": "user", "content": "base"}])[
+                "reasoning_effort"], "low")
 
     def test_process_memory_parser_accepts_two_field_threads_line(self) -> None:
         parsed = cell.parse_process_memory_status(

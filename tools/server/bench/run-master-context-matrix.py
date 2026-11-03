@@ -576,15 +576,9 @@ def validate_cached_prefix(expected_tokens: int, cached_tokens: Any,
         )
 
 
-def filled_series_reasoning_mode(target_tokens: int | None, prefill_only: bool,
-                                 modes: tuple[str, ...]) -> str:
-    """Return the fill-template mode, rejecting mode switches over a live prefix."""
-    if target_tokens is not None and not prefill_only and len(modes) != 1:
-        raise ValueError(
-            "a filled benchmark series must use exactly one reasoning mode; "
-            "run a separate clean fill for each mode so cache_prompt cannot "
-            "reprocess the repository prefix when the chat template changes")
-    return modes[0] if len(modes) == 1 else "off"
+def repository_fill_reasoning_mode() -> str:
+    """Keep the single repository ingestion pass independent of request modes."""
+    return "off"
 
 
 def remaining_source_chunks(chunks: list[Any],
@@ -682,9 +676,9 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                                if isinstance(row.get("append_index"), int)]
     append_index = max(existing_append_indices, default=-1) + 1
     planned = []
-    # Preserve the full assistant content and reasoning in history. Replaying
-    # this exact mode-specific conversation lets the server reuse the entire
-    # saved prefix on the next source chunk and on canonical prompts.
+    # Preserve the complete fill conversation. The fill always uses the fixed
+    # "off" mode; canonical request reasoning modes are applied later without
+    # performing another repository ingestion pass.
     enable_thinking = reasoning_mode != "off"
     parts = list(seed)
     while occupied < target_tokens:
@@ -891,17 +885,12 @@ def main() -> int:
     final = load_final_curve()
     endpoint = args.endpoint.rstrip("/")
     selected_modes = tuple(args.reasoning_modes)
-    # A filled context series has one reasoning mode so its chat-template
-    # identity stays byte-for-byte stable from repository ingestion through
-    # every measured prompt. Qwen's enable_thinking template option can change
-    # the rendered history from its first message; switching modes while
-    # reusing this prefix causes a cache miss and would re-prefill the corpus.
-    # Run each mode as a separate clean series instead of measuring that work.
-    try:
-        fill_mode = filled_series_reasoning_mode(
-            geometry["target_tokens"], args.prefill_only, selected_modes)
-    except ValueError as error:
-        raise SystemExit(str(error))
+    # Fill the repository exactly once for this server/configuration series.
+    # Reasoning mode is set per canonical request alongside its prompt; it is
+    # not a reason to clear or refill the context. The fill itself is fixed to
+    # reasoning off so its content and timing do not depend on the request
+    # schedule.
+    fill_mode = repository_fill_reasoning_mode()
     fill_thinking = fill_mode != "off"
     fill_options = request_options(chat_template_kwargs={"enable_thinking": fill_thinking})
     fill_options["reasoning_effort"] = "none" if fill_mode == "off" else fill_mode
