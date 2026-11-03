@@ -272,4 +272,26 @@ The original GGUF template prepends low/xhigh effort instructions before the ent
 
 The template and original-template SHA-256s are recorded in `qwen38-shared-prefix.provenance.json`. This is benchmark-only prompt plumbing. Existing earlier-template results remain individually valid and are retained; new late-effort results must be identified by protocol/template hash. Do not claim that early-effort and late-effort prompt streams are byte-identical. This manifest fills the previously audited gaps; it does not silently rerun all previously completed low/xhigh rows.
 
-Server environment is explicit per command: candidate-local LD_LIBRARY_PATH, CUDA_VISIBLE_DEVICES=0, OMP_NUM_THREADS=16. The Python launcher also removes inherited GGML_* and LLAMA_ARG_* exports so old diagnostic routes or launcher geometry cannot override the benchmark. Each actual environment/argv is recorded with the result.
+Server environment is explicit per command: candidate-local LD_LIBRARY_PATH, CUDA_VISIBLE_DEVICES=0, OMP_NUM_THREADS=16. The Python launcher also removes inherited GGML_* and LLAMA_* exports so old diagnostic routes or launcher geometry cannot override the benchmark. Each actual environment/argv is recorded with the result.
+
+## Focused hot-capacity boundary investigation
+
+The checkpoint ladder is unchanged. Before the missing matrix, repeat C=62464 and C=78848 with H=65536/L=262144 for ACO MTP off and on. Use reasoning off and the original three prompts, one 40-token warmup plus three 400-token-budget measurements per prompt. Both points use one incremental repository fill per MTP configuration. Only the already collected before/after snapshots are now persisted; no CUDA hot-path diagnostic flags, forced routes or changed batch settings are enabled. Use request epoch timestamps to compare GPU resources during requests rather than including idle periods.
+
+Run only these investigations (48 canonical requests total):
+
+```bash
+python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --run --investigation aco-hot-boundary-mtp-off --investigation aco-hot-boundary-mtp-on
+```
+
+aco-hot-boundary-mtp-off exact server command:
+
+```bash
+env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none
+```
+
+aco-hot-boundary-mtp-on exact server command:
+
+```bash
+env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu
+```

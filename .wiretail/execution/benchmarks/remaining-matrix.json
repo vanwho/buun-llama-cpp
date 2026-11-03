@@ -2338,6 +2338,220 @@
   ],
   "removed_environment_prefixes": [
     "GGML_",
-    "LLAMA_ARG_"
+    "LLAMA_"
+  ],
+  "investigations": [
+    {
+      "id": "aco-hot-boundary-mtp-off",
+      "build": "fork",
+      "placement": "gpu",
+      "mtp": "off",
+      "pager": "selective",
+      "hot_pages": 256,
+      "draft_device": null,
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/slot-state",
+      "remaining": {
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ]
+        },
+        "78848": {
+          "off": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/slot-state",
+            "--ctx-checkpoints",
+            "0",
+            "--cache-ram",
+            "0",
+            "--no-cache-idle-slots",
+            "--kv-pager",
+            "selective",
+            "--kv-page-size",
+            "256",
+            "--kv-hot-pages",
+            "256",
+            "--kv-router",
+            "probe-rerank",
+            "--kv-pin-recent",
+            "0",
+            "--spec-type",
+            "none"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ],
+      "purpose": "Investigate repeated C62464->78848 decode cliff across fixed H65536 without changing performance configuration."
+    },
+    {
+      "id": "aco-hot-boundary-mtp-on",
+      "build": "fork",
+      "placement": "gpu",
+      "mtp": "on",
+      "pager": "selective",
+      "hot_pages": 256,
+      "draft_device": "gpu",
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/slot-state",
+      "remaining": {
+        "62464": {
+          "off": [
+            0,
+            1,
+            2
+          ]
+        },
+        "78848": {
+          "off": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      "allocations": [
+        {
+          "L": 262144,
+          "server_argv": [
+            "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "-m",
+            "/srv/ai/models/text/current.gguf",
+            "--alias",
+            "qwen38-fast-turbo4-mtp",
+            "--jinja",
+            "--chat-template-file",
+            "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja",
+            "-ngl",
+            "999",
+            "--device",
+            "CUDA0",
+            "--fit",
+            "off",
+            "-fa",
+            "on",
+            "-c",
+            "262144",
+            "-np",
+            "1",
+            "-t",
+            "16",
+            "-tb",
+            "16",
+            "-ctk",
+            "turbo4",
+            "-ctv",
+            "turbo4",
+            "-b",
+            "1024",
+            "-ub",
+            "256",
+            "--poll",
+            "0",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+            "--api-key-file",
+            "/srv/ai/config/llama/api-keys",
+            "--metrics",
+            "--reasoning-preserve",
+            "--no-context-shift",
+            "--slot-save-path",
+            "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/slot-state",
+            "--ctx-checkpoints",
+            "0",
+            "--cache-ram",
+            "0",
+            "--no-cache-idle-slots",
+            "--kv-pager",
+            "selective",
+            "--kv-page-size",
+            "256",
+            "--kv-hot-pages",
+            "256",
+            "--kv-router",
+            "probe-rerank",
+            "--kv-pin-recent",
+            "0",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "2",
+            "--spec-draft-type-k",
+            "turbo4",
+            "--spec-draft-type-v",
+            "turbo4",
+            "--spec-draft-kv-device",
+            "gpu"
+          ],
+          "server_command": "env LD_LIBRARY_PATH=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 /srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+          "server_environment": {
+            "LD_LIBRARY_PATH": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "OMP_NUM_THREADS": "16"
+          }
+        }
+      ],
+      "purpose": "Investigate repeated C62464->78848 decode cliff across fixed H65536 without changing performance configuration."
+    }
   ]
 }

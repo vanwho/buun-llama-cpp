@@ -1,0 +1,166 @@
+{
+  "date": "2026-11-03",
+  "decision": "repeatable_selected_dense_to_packed_decode_cliff",
+  "checkpoint_ladder_changed": false,
+  "binary_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+  "runtime_code_changed": false,
+  "reasoning": "off",
+  "canonical_requests": 48,
+  "rows": [
+    {
+      "mtp": "off",
+      "L": 262144,
+      "H": 65536,
+      "requested_C": 62464,
+      "actual_C": 62465,
+      "decode_tok_s": {
+        "1": 42.36344528534499,
+        "2": 42.37222944259585,
+        "3": 42.214708450834465
+      },
+      "mtp_acceptance_percent": null,
+      "routes": [
+        "selected dense"
+      ],
+      "target_valid_rows_range": [
+        62663,
+        62895
+      ],
+      "h2d_bytes_per_measured_request_range": [
+        0,
+        0
+      ],
+      "context_fill_window": {
+        "from_C": 46361,
+        "through_C": 62465,
+        "new_tokens": 16104,
+        "prefill_tok_s": 284.17942238873627,
+        "wall_tok_s": 282.2240807490733
+      },
+      "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/C62464/campaign/row.json",
+      "row_sha256": "627a16fc7c650ae43b899705c9bf252d226f525eba39c8b0f8e839e28b0a8a1a",
+      "case_count": 12,
+      "measured_count": 9
+    },
+    {
+      "mtp": "off",
+      "L": 262144,
+      "H": 65536,
+      "requested_C": 78848,
+      "actual_C": 78849,
+      "decode_tok_s": {
+        "1": 14.908702011460964,
+        "2": 14.99874083151568,
+        "3": 14.999746244894354
+      },
+      "mtp_acceptance_percent": null,
+      "routes": [
+        "selected packed"
+      ],
+      "target_valid_rows_range": [
+        64985,
+        65199
+      ],
+      "h2d_bytes_per_measured_request_range": [
+        0,
+        34603008
+      ],
+      "context_fill_window": {
+        "from_C": 62465,
+        "through_C": 78849,
+        "new_tokens": 16384,
+        "prefill_tok_s": 325.8428070180463,
+        "wall_tok_s": 322.1351439790282
+      },
+      "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-off/L262144/20261103T160625.345381Z/C78848/campaign/row.json",
+      "row_sha256": "746307fdee12074c9ae906cacf27c145eb68469e185b00d5d98fcbc0c1277f39",
+      "case_count": 12,
+      "measured_count": 9
+    },
+    {
+      "mtp": "on",
+      "L": 262144,
+      "H": 65536,
+      "requested_C": 62464,
+      "actual_C": 62465,
+      "decode_tok_s": {
+        "1": 78.8492229978306,
+        "2": 56.25484796243334,
+        "3": 72.25157455013435
+      },
+      "mtp_acceptance_percent": {
+        "1": 91.66666666666667,
+        "2": 51.74418604651163,
+        "3": 81.25
+      },
+      "routes": [
+        "selected dense"
+      ],
+      "target_valid_rows_range": [
+        62670,
+        62895
+      ],
+      "h2d_bytes_per_measured_request_range": [
+        0,
+        0
+      ],
+      "context_fill_window": {
+        "from_C": 46361,
+        "through_C": 62465,
+        "new_tokens": 16104,
+        "prefill_tok_s": 265.9146816112567,
+        "wall_tok_s": 264.0585281398048
+      },
+      "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/C62464/campaign/row.json",
+      "row_sha256": "1920ac5201b8199ef8aacb135055d0c57618c1762937b820a0356e77227de9eb",
+      "case_count": 12,
+      "measured_count": 9
+    },
+    {
+      "mtp": "on",
+      "L": 262144,
+      "H": 65536,
+      "requested_C": 78848,
+      "actual_C": 78849,
+      "decode_tok_s": {
+        "1": 43.09406213401033,
+        "2": 30.97551158918185,
+        "3": 40.08541508748717
+      },
+      "mtp_acceptance_percent": {
+        "1": 90.12345679012346,
+        "2": 49.36708860759494,
+        "3": 80.92105263157895
+      },
+      "routes": [
+        "selected packed"
+      ],
+      "target_valid_rows_range": [
+        64956,
+        65199
+      ],
+      "h2d_bytes_per_measured_request_range": [
+        0,
+        34603008
+      ],
+      "context_fill_window": {
+        "from_C": 62465,
+        "through_C": 78849,
+        "new_tokens": 16384,
+        "prefill_tok_s": 298.4928443336497,
+        "wall_tok_s": 294.6949611300201
+      },
+      "row_path": "/srv/ai/paged-kv/results/forward/final-remaining-20261103/aco-hot-boundary-mtp-on/L262144/20261103T161454.842233Z/C78848/campaign/row.json",
+      "row_sha256": "c56d5f33dac06367af83638157ac971e04df46cf6eeb8d38b0d2f620b96cda4e",
+      "case_count": 12,
+      "measured_count": 9
+    }
+  ],
+  "conclusions": [
+    "Decode falls across the actual selected_dense-to-selected_packed route transition at fixed H65536.",
+    "Slow selected_packed requests include zero H2D-byte deltas; cold-transfer time alone cannot explain the steady-state decode cliff.",
+    "Comparable late-ingest windows do not show a prefill cliff.",
+    "Copy fan-out/graph dispatch are concrete source-level candidates; exact time fractions are unmeasured.",
+    "The low/MTP-on standalone C256000 prefill aggregate discrepancy resolves when comparing the same late interval; retain its data."
+  ]
+}
