@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start one clean server, fill once for one reasoning mode, then stop it."""
+"""Start one clean server, fill incrementally once, run all modes, then stop."""
 
 from __future__ import annotations
 
@@ -169,7 +169,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--reasoning-modes", nargs="+", choices=matrix.MODES,
                         default=list(matrix.MODES),
-                        help="for a filled series, pass exactly one mode; each mode needs a fresh matching chat-template fill")
+                        help="request modes measured against the same single repository fill")
     parser.add_argument("--prompt-indices", nargs="+", type=int, choices=(0, 1, 2),
                         default=[0, 1, 2])
     parser.add_argument("--prefill-only", action="store_true")
@@ -192,11 +192,9 @@ def main() -> int:
         raise SystemExit("--target-sequence values must be strictly increasing")
     for target in targets:
         matrix.row_geometry(args.context_tokens, target, args.placement)
-    try:
-        matrix.filled_series_reasoning_mode(
-            targets[0], args.prefill_only, tuple(args.reasoning_modes))
-    except ValueError as error:
-        raise SystemExit(str(error))
+    # Reasoning mode is applied to each canonical request, not to the
+    # repository fill. Multiple modes share this one filled context at every
+    # checkpoint in the target sequence.
     started_slug = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     startup_log = output / f"server-startup-{started_slug}.log"
     cell_report = output / "cell.json"
