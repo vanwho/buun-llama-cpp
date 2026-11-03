@@ -1175,6 +1175,7 @@ def main() -> int:
         print(f"request start C={base.get('occupied_tokens', 0)} "
               f"mode={case['reasoning']} prompt={case['prompt_index'] + 1} "
               f"{case['kind']} repetition={case['repetition']}", flush=True)
+        started_epoch = time.time()
         start = time.monotonic()
         status, response, error = final._stream_completion(
             endpoint + "/v1/chat/completions", key, payload, raw_path,
@@ -1187,6 +1188,13 @@ def main() -> int:
             total_timeout=CANONICAL_REQUEST_TIMEOUT)
         elapsed = time.monotonic() - start
         after = final.snapshot(endpoint, key)
+        # These snapshots were already collected for MTP deltas. Persist them
+        # outside the timed request so route changes at C>H can be investigated
+        # without instrumenting CUDA kernels or repeating expensive fills.
+        snapshot_before = output / "snapshots" / f"case-{case['case_index']:02d}-{suffix}-before.json"
+        snapshot_after = output / "snapshots" / f"case-{case['case_index']:02d}-{suffix}-after.json"
+        _write_unique(snapshot_before, json.dumps(before).encode())
+        _write_unique(snapshot_after, json.dumps(after).encode())
         observation = final._mtp_observation(before, after, feature_off=not mtp_enabled)
         usage = response.get("usage", {})
         timings = response.get("timings", {})
@@ -1240,6 +1248,8 @@ def main() -> int:
                **rates,
                "mtp": observation.get("mtp"), "mtp_counters": observation.get("counters"),
                "elapsed_seconds": elapsed, "request_path": str(request_path),
+               "started_epoch": started_epoch, "finished_epoch": started_epoch + elapsed,
+               "snapshot_before": str(snapshot_before), "snapshot_after": str(snapshot_after),
                "request_sha256": hashlib.sha256(request_path.read_bytes()).hexdigest(),
                "raw_path": str(raw_path),
                "raw_sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),

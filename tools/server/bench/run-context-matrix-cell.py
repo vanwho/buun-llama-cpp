@@ -32,7 +32,7 @@ def server_environment(server_binary: pathlib.Path) -> dict[str, str]:
     # A shell's old diagnostic/launcher exports must not select a reference
     # route or load another build's shared libraries during a benchmark.
     env = {key: value for key, value in os.environ.items()
-           if not key.startswith(("GGML_", "LLAMA_ARG_"))}
+           if not key.startswith(("GGML_", "LLAMA_"))}
     env.update({"LD_LIBRARY_PATH": str(server_binary.resolve().parent),
                 "CUDA_VISIBLE_DEVICES": "0", "OMP_NUM_THREADS": "16"})
     return env
@@ -262,7 +262,7 @@ def main() -> int:
                        "hot_pages": args.hot_pages})
         report["server_environment"] = {key: server_env[key] for key in
                                        ("LD_LIBRARY_PATH", "CUDA_VISIBLE_DEVICES", "OMP_NUM_THREADS")}
-        report["removed_environment_prefixes"] = ["GGML_", "LLAMA_ARG_"]
+        report["removed_environment_prefixes"] = ["GGML_", "LLAMA_"]
         with startup_log.open("wb") as log:
             proc = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                                     start_new_session=True, env=server_env)

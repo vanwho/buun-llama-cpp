@@ -72,7 +72,7 @@ def validate(plan: dict, *, binary_help: bool = False) -> None:
         expected = plan["reasoning_requests"][mode]
         if any(payload.get(key) != value for key, value in expected.items()):
             raise ValueError(f"{mode}: frozen request configuration and driver disagree")
-    for variant in plan["variants"]:
+    for variant in plan["variants"] + plan.get("investigations", []):
         expected = plan["binaries"][variant["build"]]["path"]
         for allocation in variant["allocations"]:
             argv = allocation["server_argv"]
@@ -268,11 +268,17 @@ def main() -> int:
     parser.add_argument("--validate", action="store_true")
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--variant", action="append")
+    parser.add_argument("--investigation", action="append",
+                        help="run only the named focused investigation, not the full matrix")
     args = parser.parse_args()
     plan = json.loads(args.manifest.read_text())
     validate(plan, binary_help=args.validate or args.run)
-    selected = [v for v in plan["variants"] if not args.variant or v["id"] in args.variant]
-    if args.variant and set(args.variant) - {v["id"] for v in selected}:
+    if args.variant and args.investigation:
+        raise SystemExit("select variants or investigations, not both")
+    entries = plan["variants"] if args.variant else plan.get("investigations", []) + plan["variants"]
+    requested = args.investigation or args.variant
+    selected = [v for v in entries if not requested or v["id"] in requested]
+    if requested and set(requested) - {v["id"] for v in selected}:
         raise SystemExit("unknown variant")
     for variant in selected:
         print(f"{variant['id']}: {len(variant['remaining'])} remaining checkpoints; "

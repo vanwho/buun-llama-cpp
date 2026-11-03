@@ -27,10 +27,13 @@ def passed_records(path, short=False):
 class GapRecoveryTests(unittest.TestCase):
     def test_old_shell_exports_cannot_change_benchmark_routes_or_libraries(self):
         with patch.dict(gaps.cell.os.environ, {"GGML_KV_ROUTE": "reference",
-                "LLAMA_ARG_CTX_SIZE": "1", "LD_LIBRARY_PATH": "/wrong/build"}):
+                "LLAMA_ARG_CTX_SIZE": "1", "LLAMA_KV_ATTENTION_ROUTE": "reference",
+                "LLAMA_HOTPATH_PROFILE": "1", "LD_LIBRARY_PATH": "/wrong/build"}):
             env = gaps.cell.server_environment(Path("/frozen/bin/llama-server"))
         self.assertNotIn("GGML_KV_ROUTE", env)
         self.assertNotIn("LLAMA_ARG_CTX_SIZE", env)
+        self.assertNotIn("LLAMA_KV_ATTENTION_ROUTE", env)
+        self.assertNotIn("LLAMA_HOTPATH_PROFILE", env)
         self.assertEqual(env["LD_LIBRARY_PATH"], "/frozen/bin")
         self.assertEqual(env["CUDA_VISIBLE_DEVICES"], "0")
         self.assertEqual(env["OMP_NUM_THREADS"], "16")
