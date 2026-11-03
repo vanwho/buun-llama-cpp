@@ -138,3 +138,35 @@ The previous profile is backed up under
 `/srv/ai/paged-kv/builds/aco-profile-backups/`. The active `qwen38-fast` profile
 was not switched to ACO. Its managed server and authenticated gateway were
 verified healthy after benchmarking; an earlier port-bind failure was cleared.
+
+## Full-matrix prefix-reuse repair
+
+The first full four-mode run exposed a separate server retention defect: the
+server recognized a shared 6,149-token prefix, but automatic checkpoint FIFO
+eviction left only a later 6,178-token recurrent-state checkpoint. It correctly
+refused to rewind that image and replayed the prefix. The harness stopped on
+`prefix_cache_miss`; those partial runs are excluded from current results.
+
+Commit `1d74e9a315acaf0379eb2af1245202b820cff1e1` keeps the newest successfully
+restored/current-task image at or before `stats.n_prompt_cached` when the
+automatic two-entry ring makes room. The other entry can become the newest
+MTP rollback image. The successful restore already authenticates target, draft
+and speculative state. No extra snapshot, checkpoint capacity, template, batch
+or hot-size change is introduced; configured/lifecycle-authority policy is
+untouched. This fixes genuine recurrent-state reuse rather than relaxing the
+no-replay measurement guard.
+
+The existing prompt-cache suite passed. The model-backed 6K-to-12K proof then
+passed all 96 requests across all four reasoning modes and three prompts on
+one server/incremental fill. Minimum cached tokens per mode off/low/medium/xhigh:
+6K: 6,145/6,148/6,148/6,148; 12K: 12,289/12,292/12,292/12,292.
+Raw proof: `/srv/ai/paged-kv/results/forward/packed-cache-anchor-repair-20261103/live/`.
+
+The current full replacement now pins the combined-fix server SHA-256
+`189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794` in
+`/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin`. All ten ACO
+checkpoints, all modes and all prompts are rerun for both MTP settings, not
+only the post-H points. Current output root is
+`/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2`.
+The first speed-pair proof remains identified above as the ca54933a7 build;
+it is not substituted for any cell in the new full matrix.

@@ -2,61 +2,61 @@
   "api_key_file": "/srv/ai/config/llama/api-keys",
   "binaries": {
     "fork": {
-      "build_commit": "ca54933a7c43c02c1f6c56b39279cea08ece032a",
+      "build_commit": "1d74e9a315acaf0379eb2af1245202b820cff1e1",
       "libraries": {
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-base.so": "a9ed15d26cfcbd39975c0c618e4280c06f53c3320695413a31d67656f9b81ebd",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-base.so.0": "a9ed15d26cfcbd39975c0c618e4280c06f53c3320695413a31d67656f9b81ebd",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-base.so.0.22.0": "316d6d2ee32bff3011b64324478efc02179cfe124ca12fddf5b577ce3b2950c1",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-base.so.0.24.0": "f98260d6df69bd37c936b033e4fd391f0a8f8de8b042afd69323591288d36c14",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-base.so.0.25.3": "4fc85c242ed1a0085c8c4a2598564946b6d78f4ec4332a52dfd2bdb17c59a420",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-base.so.0.26.0": "a9ed15d26cfcbd39975c0c618e4280c06f53c3320695413a31d67656f9b81ebd",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cpu.so": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cpu.so.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cpu.so.0.24.0": "702dffe5358234c23e49d572d41c381a833ef877383e692dbe6f465e3cabe062",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cpu.so.0.25.3": "c12734653ac843921f49ea959e105314cbd6640751cec39fbb989c8f8c608f87",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cuda.so": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cuda.so.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cuda.so.0.22.0": "55b25e1324dd587b5d9659532ebc016e7f174f8bdaa4afb821ee9c42bb5eb4ab",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cuda.so.0.24.0": "600460973ed30070a2b8dac069190a4a0e175669d0cd0c0a952655f038d31114",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml.so": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml.so.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml.so.0.24.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml.so.0.25.3": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-batched-bench-impl.so": "9851e78ebde17fe65cd311be88f89df3ec0c91da3d7973e1b52a6ecaeea4fce9",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-bench-impl.so": "05a1a64514d4068c8a5fdf8f88a94a7579f93f87689f87547bd79cf51a029c69",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-cli-impl.so": "dc4f36163ff27ee0cccc29628b86676fd4e3c764963ab28eec9a9edd28903b08",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-common.so": "4354e8256b92bd7eba9603d2a22a2ab828606d07135d289a1f0ac06c9f56ce49",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-common.so.0": "4354e8256b92bd7eba9603d2a22a2ab828606d07135d289a1f0ac06c9f56ce49",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-common.so.0.3.0": "26f448bcfc81fe89587c78308a60fa32693f8a2363aad6e4235cde35e13eeb34",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-common.so.0.4.1": "3f59c79273a7b5d510a0c2b716e3011156b60db0ec378fc7ae966176a199bf85",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-common.so.0.6.0": "4354e8256b92bd7eba9603d2a22a2ab828606d07135d289a1f0ac06c9f56ce49",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-completion-impl.so": "9280647f363c70347a0921505e101c81fdde487bfde949fda6df19b4c0babee9",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-fit-params-impl.so": "4a3884c4fb8ef0be89d9fd9cdb0b1546c4b8219762b73050a5b7fc23fa139bc2",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-perplexity-impl.so": "7b351db9cf54754a91dec8b34629cb1fe6ab255875f82ec92294473767b4edfc",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-quantize-impl.so": "1947143a733e0970afb8ae7b7876f3d53ac075f5da98a1daa140ed275f083d8f",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama-server-impl.so": "862893821c6cb4031efb708802ad7cf5565526befe04e9feaa5545a8b66f83b9",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama.so": "cab484936e5190c16174166a7b6b2af79eedb14054b8c6a600356c50460a94d8",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama.so.0": "cab484936e5190c16174166a7b6b2af79eedb14054b8c6a600356c50460a94d8",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama.so.0.3.0": "3be6f0e1aba6bb93aa636ae816f3b1c28569185719ef06f29d3a260d3c180c5a",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama.so.0.4.1": "6e46c735f16aa51fd5c2eb41f1a243e81f99957cfeb736c7c1b9f5fcd3d7757c",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libllama.so.0.6.0": "cab484936e5190c16174166a7b6b2af79eedb14054b8c6a600356c50460a94d8",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libmtmd.so": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libmtmd.so.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libmtmd.so.0.4.1": "7b138d699f2abb0af6b7a6b1a61f3bb87047915730c3ed999f0ff12aec7e3384",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libmtmd.so.0.5.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
-        "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-base.so": "b1b4b790aa3f2c9e1946ca7e30c7213d7da4d631f408ac80b79c114583702801",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-base.so.0": "b1b4b790aa3f2c9e1946ca7e30c7213d7da4d631f408ac80b79c114583702801",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-base.so.0.22.0": "316d6d2ee32bff3011b64324478efc02179cfe124ca12fddf5b577ce3b2950c1",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-base.so.0.24.0": "f98260d6df69bd37c936b033e4fd391f0a8f8de8b042afd69323591288d36c14",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-base.so.0.25.3": "4fc85c242ed1a0085c8c4a2598564946b6d78f4ec4332a52dfd2bdb17c59a420",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-base.so.0.26.0": "b1b4b790aa3f2c9e1946ca7e30c7213d7da4d631f408ac80b79c114583702801",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cpu.so": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cpu.so.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cpu.so.0.24.0": "702dffe5358234c23e49d572d41c381a833ef877383e692dbe6f465e3cabe062",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cpu.so.0.25.3": "c12734653ac843921f49ea959e105314cbd6640751cec39fbb989c8f8c608f87",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cuda.so": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cuda.so.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cuda.so.0.22.0": "55b25e1324dd587b5d9659532ebc016e7f174f8bdaa4afb821ee9c42bb5eb4ab",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cuda.so.0.24.0": "600460973ed30070a2b8dac069190a4a0e175669d0cd0c0a952655f038d31114",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cuda.so.0.25.3": "b0a79464d81a0511cd8d115e2520eaf441e209b201528ab82c40bff0a6a07404",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml.so": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml.so.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml.so.0.24.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml.so.0.25.3": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-batched-bench-impl.so": "9851e78ebde17fe65cd311be88f89df3ec0c91da3d7973e1b52a6ecaeea4fce9",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-bench-impl.so": "05a1a64514d4068c8a5fdf8f88a94a7579f93f87689f87547bd79cf51a029c69",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-cli-impl.so": "dc4f36163ff27ee0cccc29628b86676fd4e3c764963ab28eec9a9edd28903b08",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-common.so": "491c91c888cad2f1a2a08a843dd33cfa58d3e26c24336b5c8b17964b25c34653",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-common.so.0": "491c91c888cad2f1a2a08a843dd33cfa58d3e26c24336b5c8b17964b25c34653",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-common.so.0.3.0": "26f448bcfc81fe89587c78308a60fa32693f8a2363aad6e4235cde35e13eeb34",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-common.so.0.4.1": "3f59c79273a7b5d510a0c2b716e3011156b60db0ec378fc7ae966176a199bf85",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-common.so.0.5.0": "2b842607d1d39ed620383936d9bfba37b87a448618523a16f3545e1f16665d7d",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-common.so.0.6.0": "491c91c888cad2f1a2a08a843dd33cfa58d3e26c24336b5c8b17964b25c34653",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-completion-impl.so": "9280647f363c70347a0921505e101c81fdde487bfde949fda6df19b4c0babee9",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-fit-params-impl.so": "4a3884c4fb8ef0be89d9fd9cdb0b1546c4b8219762b73050a5b7fc23fa139bc2",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-perplexity-impl.so": "7b351db9cf54754a91dec8b34629cb1fe6ab255875f82ec92294473767b4edfc",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-quantize-impl.so": "1947143a733e0970afb8ae7b7876f3d53ac075f5da98a1daa140ed275f083d8f",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama-server-impl.so": "aa5f0ef779e251887e786f81fabb33f509aa6958bf19cf753a2df579fdba74ca",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama.so": "a921f7c945b7e685f2c8ee6357595bde0493d36c5fdb71a776e1cf7378f31236",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama.so.0": "a921f7c945b7e685f2c8ee6357595bde0493d36c5fdb71a776e1cf7378f31236",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama.so.0.3.0": "3be6f0e1aba6bb93aa636ae816f3b1c28569185719ef06f29d3a260d3c180c5a",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama.so.0.4.1": "6e46c735f16aa51fd5c2eb41f1a243e81f99957cfeb736c7c1b9f5fcd3d7757c",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama.so.0.5.0": "4edf288fd0d7dc2482a775c879f980c3ff3dcd12721eac46932e0b9781a21073",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libllama.so.0.6.0": "a921f7c945b7e685f2c8ee6357595bde0493d36c5fdb71a776e1cf7378f31236",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libmtmd.so": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libmtmd.so.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libmtmd.so.0.4.1": "7b138d699f2abb0af6b7a6b1a61f3bb87047915730c3ed999f0ff12aec7e3384",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libmtmd.so.0.5.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c",
+        "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
       },
-      "path": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
-      "sha256": "f35732397edd9ba1ee7b18087ef7f17e0b6a774fdc47a0137e695c65787067a7"
+      "path": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
+      "sha256": "189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794"
     },
     "master": {
       "libraries": {
@@ -112,7 +112,7 @@
         {
           "L": 262144,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -156,7 +156,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-hot-boundary-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-hot-boundary-mtp-off/slot-state",
             "--ctx-checkpoints",
             "0",
             "--cache-ram",
@@ -175,7 +175,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-hot-boundary-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-hot-boundary-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -193,7 +193,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -220,7 +220,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -288,14 +288,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-hot-boundary-mtp-off/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-hot-boundary-mtp-off/slot-state"
     },
     {
       "allocations": [
         {
           "L": 262144,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -339,7 +339,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-hot-boundary-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-hot-boundary-mtp-on/slot-state",
             "--ctx-checkpoints",
             "0",
             "--cache-ram",
@@ -366,7 +366,7 @@
             "--spec-draft-kv-device",
             "gpu"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-hot-boundary-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-hot-boundary-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -384,7 +384,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -411,7 +411,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -479,7 +479,7 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-hot-boundary-mtp-on/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-hot-boundary-mtp-on/slot-state"
     }
   ],
   "measured_repetitions": 3,
@@ -499,7 +499,7 @@
     196608,
     256000
   ],
-  "output_root": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103",
+  "output_root": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2",
   "protocol": "shared-prefix-late-effort-v1",
   "reasoning_requests": {
     "low": {
@@ -603,7 +603,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -621,7 +621,7 @@
             "--spec-draft-type-v",
             "turbo4"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -639,7 +639,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -757,7 +757,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -775,7 +775,7 @@
             "--spec-draft-type-v",
             "turbo4"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 200704 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 200704 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -793,7 +793,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -911,7 +911,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -929,7 +929,7 @@
             "--spec-draft-type-v",
             "turbo4"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 133120 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 133120 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -947,7 +947,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -1245,7 +1245,7 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-on/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-on/slot-state"
     },
     {
       "allocations": [
@@ -1297,7 +1297,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-off/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -1309,7 +1309,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -1327,7 +1327,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -1627,7 +1627,7 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-cpu-mtp-off/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-cpu-mtp-off/slot-state"
     },
     {
       "allocations": [
@@ -1678,7 +1678,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-on/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -1696,7 +1696,7 @@
             "--spec-draft-type-v",
             "turbo4"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -1714,7 +1714,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -1838,7 +1838,7 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-on/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-on/slot-state"
     },
     {
       "allocations": [
@@ -1889,7 +1889,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-off/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -1901,7 +1901,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 131072 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 131072 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -1919,7 +1919,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -2036,7 +2036,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-off/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -2048,7 +2048,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 122880 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 122880 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -2066,7 +2066,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -2253,14 +2253,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/master-gpu-mtp-off/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/master-gpu-mtp-off/slot-state"
     },
     {
       "allocations": [
         {
           "L": 262144,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -2305,7 +2305,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-cpu-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-cpu-mtp-on/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -2327,7 +2327,7 @@
             "--spec-draft-kv-device",
             "gpu"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-cpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -2345,7 +2345,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -2372,7 +2372,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -2584,14 +2584,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-cpu-mtp-on/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-cpu-mtp-on/slot-state"
     },
     {
       "allocations": [
         {
           "L": 262144,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -2636,7 +2636,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-cpu-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-cpu-mtp-off/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -2650,7 +2650,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-cpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk q4_0 -ctv q4_0 --no-kv-offload -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-cpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -2668,7 +2668,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -2695,7 +2695,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -2819,14 +2819,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-cpu-mtp-off/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-cpu-mtp-off/slot-state"
     },
     {
       "allocations": [
         {
           "L": 65536,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -2870,7 +2870,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-on/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -2890,7 +2890,7 @@
             "--spec-draft-type-v",
             "turbo4"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 65536 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-on/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -2908,7 +2908,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -2935,7 +2935,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -3054,14 +3054,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-on/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-on/slot-state"
     },
     {
       "allocations": [
         {
           "L": 131072,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -3105,7 +3105,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-off/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -3119,7 +3119,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 131072 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 131072 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -3137,7 +3137,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -3164,7 +3164,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -3210,7 +3210,7 @@
         {
           "L": 122880,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -3254,7 +3254,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-off/slot-state",
             "--cache-ram",
             "12288",
             "--ctx-checkpoints",
@@ -3268,7 +3268,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 122880 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 122880 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-off/slot-state --cache-ram 12288 --ctx-checkpoints 8 --checkpoint-min-step 8192 --cache-idle-slots --kv-unified --kv-pager off --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -3286,7 +3286,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -3313,7 +3313,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -3388,14 +3388,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/fork-gpu-mtp-off/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/fork-gpu-mtp-off/slot-state"
     },
     {
       "allocations": [
         {
           "L": 262144,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -3439,7 +3439,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-mtp-on/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-mtp-on/slot-state",
             "--ctx-checkpoints",
             "0",
             "--cache-ram",
@@ -3466,7 +3466,7 @@
             "--spec-draft-kv-device",
             "gpu"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-mtp-on/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -3484,7 +3484,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -3511,7 +3511,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -3784,14 +3784,14 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-mtp-on/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-mtp-on/slot-state"
     },
     {
       "allocations": [
         {
           "L": 262144,
           "server_argv": [
-            "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server",
+            "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
             "-m",
             "/srv/ai/models/text/current.gguf",
             "--alias",
@@ -3835,7 +3835,7 @@
             "--reasoning-preserve",
             "--no-context-shift",
             "--slot-save-path",
-            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-mtp-off/slot-state",
+            "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-mtp-off/slot-state",
             "--ctx-checkpoints",
             "0",
             "--cache-ram",
@@ -3854,7 +3854,7 @@
             "--spec-type",
             "none"
           ],
-          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none",
+          "server_command": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp --jinja --chat-template-file /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/qwen38-shared-prefix.jinja -ngl 999 --device CUDA0 --fit off -fa on -c 262144 -np 1 -t 16 -tb 16 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --no-context-shift --slot-save-path /srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-mtp-off/slot-state --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --kv-pager selective --kv-page-size 256 --kv-hot-pages 256 --kv-router probe-rerank --kv-pin-recent 0 --spec-type none",
           "server_environment": {
             "BROWSER_USE_ACCESS_EXECUTOR_ID": "[\"3ae61396-e632-4cad-8b42-97c4e23a24f6\",\"native-browser-plugin\"]",
             "BROWSER_USE_ACCESS_PIPE_PATH": "/tmp/codex-app-tools/0527a63d-d987-497d-92f4-a2bc0846ed1d.sock",
@@ -3872,7 +3872,7 @@
             "CODEX_TASK_WORKSPACE_VERIFYING_IDENTITY": "MCowBQYDK2VwAyEAI6H2EKPq65wzT4s8LpjkWE7laxE5n2fwCKzQpzBduHI=",
             "CODEX_TECTONIC_PATH": "/usr/lib/chatgpt/resources/tectonic/tectonic",
             "CODEX_THREAD_ID": "01a1a23e-662f-74c0-bc4c-112de3d8dd8d",
-            "CODEX_TOOL_CALL_ID": "exec-226900f1-0ef5-442b-8061-abcccf5041ef",
+            "CODEX_TOOL_CALL_ID": "exec-f3242b26-6460-4da3-b4a1-1fe3528f85e4",
             "CODEX_VERSION": "0.166.0-alpha.5.1",
             "COLORTERM": "",
             "CUDA_VISIBLE_DEVICES": "0",
@@ -3899,7 +3899,7 @@
             "LANG": "en_US.UTF-8",
             "LC_ALL": "C.UTF-8",
             "LC_CTYPE": "C.UTF-8",
-            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin",
+            "LD_LIBRARY_PATH": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin",
             "LESSCLOSE": "/usr/bin/lesspipe %s %s",
             "LESSOPEN": "| /usr/bin/lesspipe %s",
             "LOGNAME": "ninja",
@@ -4172,7 +4172,7 @@
           ]
         }
       },
-      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103/aco-mtp-off/slot-state"
+      "slot_state": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2/aco-mtp-off/slot-state"
     }
   ],
   "warmup_tokens": 40

@@ -1,0 +1,44 @@
+{
+  "candidate": {
+    "benchmark_source_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+    "binary_path": "/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server",
+    "binary_sha256": "189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794",
+    "build_commit": "1d74e9a315acaf0379eb2af1245202b820cff1e1",
+    "manifest_path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json",
+    "manifest_sha256": "804c0fd4c62fcdea1c52291301160b761c2a1d596501801712a5f0b6b1e738b0",
+    "output_root": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2"
+  },
+  "excluded_old_output_root": "/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103",
+  "full_matrix": {
+    "status": "queued_after_proof",
+    "total_requests": 960,
+    "variants": {
+      "aco-mtp-off": {
+        "contexts": 10,
+        "mode_prompt_pairs": 120,
+        "requests": 480
+      },
+      "aco-mtp-on": {
+        "contexts": 10,
+        "mode_prompt_pairs": 120,
+        "requests": 480
+      }
+    }
+  },
+  "old_root_policy": "archived and excluded from current comparisons; no values inherited",
+  "proof": {
+    "contexts": [
+      6144,
+      12288
+    ],
+    "modes": [
+      "off",
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "required_requests": 96,
+    "status": "pending"
+  },
+  "status": "pending_prefix_anchor_proof"
+}
