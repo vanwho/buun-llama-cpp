@@ -24440,6 +24440,30 @@ private:
                                slot.prompt.checkpoints.size() >=
                                    checkpoint_capacity) {
                             auto victim = slot.prompt.checkpoints.begin();
+                            if (live_rewind_checkpoint && !slot.lifecycle_authority &&
+                                    slot.stats.n_prompt_cached > 0) {
+                                // A restored image is adopted by this task only after
+                                // target, draft and speculative state all succeed. Keep
+                                // the newest such image at/before the reused prefix:
+                                // later user-seam/MTP snapshots must not FIFO-evict the
+                                // sole rewind point for the next sibling request.
+                                // This needs no extra snapshot or larger checkpoint ring.
+                                auto anchor = slot.prompt.checkpoints.end();
+                                for (auto it = slot.prompt.checkpoints.begin();
+                                        it != slot.prompt.checkpoints.end(); ++it) {
+                                    if (!it->empty() && it->id_task == ckpt_id_task &&
+                                            it->n_tokens <= slot.stats.n_prompt_cached &&
+                                            (anchor == slot.prompt.checkpoints.end() ||
+                                             it->n_tokens >= anchor->n_tokens)) {
+                                        anchor = it;
+                                    }
+                                }
+                                if (victim == anchor) ++victim;
+                                if (victim == slot.prompt.checkpoints.end()) {
+                                    checkpoint_publication_allowed = false;
+                                    break;
+                                }
+                            }
                             if (slot.lifecycle_authority) {
                                 common_cache_plan_destruction_reason refusal;
                                 if (!slot.checkpoint_capacity_floor(
