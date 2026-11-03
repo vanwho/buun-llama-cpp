@@ -282,7 +282,10 @@ def main() -> int:
                 command.extend(("--continue-from", str(previous_campaign)))
             if args.hot_pages is not None:
                 command.extend(("--hot-pages", str(args.hot_pages)))
-            if args.draft_device is not None:
+            # Draft placement only applies when an MTP draft model is active.
+            # Do not pass this option to the campaign driver for MTP-off rows;
+            # it rejects a draft-device setting when there is no draft model.
+            if args.mtp == "on" and args.draft_device is not None:
                 command.extend(("--draft-device", args.draft_device))
             if args.resume:
                 command.append("--resume")
