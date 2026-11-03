@@ -33,6 +33,25 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def validate_source_map(plan: dict) -> None:
+    """Check a frozen mapped-ingest plan before touching any running service."""
+    identity = plan.get("source_chunk_map")
+    if not identity:
+        raise ValueError("this historical manifest predates mapped ingestion; freeze a new "
+                         "manifest/output root rather than mixing protocols in saved results")
+    mapped = cell.matrix.repo_prefill_map.MappedCorpus(Path(identity["path"]))
+    if mapped.manifest_sha256 != identity["sha256"]:
+        raise ValueError("frozen source chunk map changed")
+    if (Path(mapped.manifest["source_root"]).resolve() != Path(plan["source_worktree"]).resolve()
+            or mapped.manifest["source_identity"]["commit"] != plan["source_commit"]):
+        raise ValueError("source chunk map does not match the frozen source worktree")
+    current = cell.matrix.repo_context.git_identity(root=Path(plan["source_worktree"]))
+    if mapped.manifest["source_identity"] != current:
+        raise ValueError("source chunk map worktree identity changed (including untracked content)")
+    if mapped.manifest["model"].get("sha256") != plan["model_sha256"]:
+        raise ValueError("source chunk map uses a different model vocabulary")
+
+
 def validate(plan: dict, *, binary_help: bool = False) -> None:
     if len(plan["variants"]) != 10:
         raise ValueError("the plan must define exactly ten benchmark variants")
@@ -110,6 +129,10 @@ def isolate_gpu(output: Path) -> None:
     restart cannot reload another model halfway through a measurement.
     Display-only clients are absent from NVIDIA's compute-process query.
     """
+    policy_path = REPO / ".wiretail/execution/benchmarks/GPU_POLICY.json"
+    policy = json.loads(policy_path.read_text()) if policy_path.is_file() else {}
+    protected_containers = set(policy.get("protected_containers", ["jellyfin"]))
+    protected_services = set(policy.get("protected_services", ["jellyfin.service", "media-stack.service"]))
     events = []
     for line in cell.gpu_compute_apps():
         pid = int(line.split(",", 1)[0])
@@ -122,8 +145,19 @@ def isolate_gpu(output: Path) -> None:
         units = re.findall(r"/([^/]+\.service)(?:/|$)", cgroup, re.MULTILINE)
         units = [unit for unit in units if not unit.startswith("user@")]
         if docker:
+            owner = subprocess.run(["sudo", "-n", "docker", "inspect", "--format", "{{.Name}}",
+                                    docker.group(1)], check=False, capture_output=True, text=True)
+            name = owner.stdout.strip().lstrip("/")
+            if owner.returncode != 0 or not name:
+                raise RuntimeError("GPU owner unknown; cleanup paused without stopping its container")
+            if name in protected_containers:
+                save(output / "gpu-cleanup.json", {"actions": events, "protected_client": line,
+                                                   "protected_container": name, "status": "paused"})
+                raise RuntimeError(f"clean benchmark paused: protected container {name} uses GPU; left running")
             command = ["sudo", "-n", "docker", "stop", docker.group(1)]
         elif units:
+            if any(unit in protected_services for unit in units):
+                raise RuntimeError(f"clean benchmark paused: protected service uses GPU: {units}; left running")
             command = ["sudo", "-n", "systemctl", "stop", units[-1]]
         else:
             command = ["sudo", "-n", "kill", "-TERM", str(pid)]
@@ -214,7 +248,9 @@ def run_variant(plan: dict, variant: dict, output: Path, state: dict) -> dict:
                        "--slot-state", variant["slot_state"], "--model-alias", plan["model_alias"],
                        "--output", str(attempt_root), "--api-key-file", plan["api_key_file"],
                        "--reasoning-modes", *cell.matrix.MODES,
-                       "--checkpoint-selection", str(selection_path)]
+                       "--checkpoint-selection", str(selection_path),
+                       "--source-chunk-map", str(plan.get("source_chunk_map", {}).get(
+                           "path", cell.matrix.SOURCE_CHUNK_MAP))]
             if variant["hot_pages"] is not None:
                 command += ["--hot-pages", str(variant["hot_pages"])]
             if variant["draft_device"] is not None:
@@ -271,7 +307,15 @@ def main() -> int:
     parser.add_argument("--investigation", action="append",
                         help="run only the named focused investigation, not the full matrix")
     args = parser.parse_args()
+    if args.run:
+        policy_path = REPO / ".wiretail/execution/benchmarks/GPU_POLICY.json"
+        policy = json.loads(policy_path.read_text()) if policy_path.exists() else {}
+        if policy.get("final_clean_prefill_retests") == "paused_until_user_releases_hold":
+            raise SystemExit("Final clean prefill retests are paused at the user's request. "
+                             "Sizing/mapping may finish; Jellyfin must remain running.")
     plan = json.loads(args.manifest.read_text())
+    if args.run or plan.get("source_chunk_map"):
+        validate_source_map(plan)
     validate(plan, binary_help=args.validate or args.run)
     if args.variant and args.investigation:
         raise SystemExit("select variants or investigations, not both")

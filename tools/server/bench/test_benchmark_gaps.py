@@ -25,6 +25,110 @@ def passed_records(path, short=False):
 
 
 class GapRecoveryTests(unittest.TestCase):
+    def test_source_map_validation_accepts_matching_frozen_identity(self):
+        source_identity = {"commit": "source-commit", "dirty_fingerprint": "clean-tree-sha"}
+        mapped = type("Mapped", (), {
+            "manifest_sha256": "map-sha",
+            "manifest": {"source_root": "/frozen/source",
+                         "source_identity": source_identity,
+                         "model": {"sha256": "model-sha"}},
+        })()
+        plan = {"source_chunk_map": {"path": "/frozen/map.json", "sha256": "map-sha"},
+                "source_worktree": "/frozen/source", "source_commit": "source-commit",
+                "model_sha256": "model-sha"}
+        with patch.object(gaps.cell.matrix.repo_prefill_map, "MappedCorpus",
+                          return_value=mapped) as load_map, \
+             patch.object(gaps.cell.matrix.repo_context, "git_identity",
+                          return_value=source_identity) as git_identity:
+            gaps.validate_source_map(plan)
+        load_map.assert_called_once_with(Path("/frozen/map.json"))
+        git_identity.assert_called_once_with(root=Path("/frozen/source"))
+
+    def test_source_map_validation_rejects_changed_map_hash(self):
+        mapped = type("Mapped", (), {
+            "manifest_sha256": "actual-map-sha",
+            "manifest": {"source_root": "/frozen/source",
+                         "source_identity": {"commit": "source-commit",
+                                             "dirty_fingerprint": "clean-tree-sha"},
+                         "model": {"sha256": "model-sha"}},
+        })()
+        plan = {"source_chunk_map": {"path": "/frozen/map.json", "sha256": "expected-map-sha"},
+                "source_worktree": "/frozen/source", "source_commit": "source-commit",
+                "model_sha256": "model-sha"}
+        with patch.object(gaps.cell.matrix.repo_prefill_map, "MappedCorpus",
+                          return_value=mapped):
+            with self.assertRaisesRegex(ValueError, "source chunk map changed"):
+                gaps.validate_source_map(plan)
+
+    def test_source_map_validation_rejects_dirty_fingerprint_mismatch(self):
+        mapped = type("Mapped", (), {
+            "manifest_sha256": "map-sha",
+            "manifest": {"source_root": "/frozen/source",
+                         "source_identity": {"commit": "source-commit",
+                                             "dirty_fingerprint": "map-tree-sha"},
+                         "model": {"sha256": "model-sha"}},
+        })()
+        plan = {"source_chunk_map": {"path": "/frozen/map.json", "sha256": "map-sha"},
+                "source_worktree": "/frozen/source", "source_commit": "source-commit",
+                "model_sha256": "model-sha"}
+        with patch.object(gaps.cell.matrix.repo_prefill_map, "MappedCorpus",
+                          return_value=mapped), \
+             patch.object(gaps.cell.matrix.repo_context, "git_identity",
+                          return_value={"commit": "source-commit",
+                                        "dirty_fingerprint": "new-untracked-bytes"}):
+            with self.assertRaisesRegex(ValueError, "identity changed.*untracked content"):
+                gaps.validate_source_map(plan)
+
+    def test_source_map_validation_rejects_historical_manifest_without_map(self):
+        plan = {"source_worktree": "/frozen/source", "source_commit": "source-commit",
+                "model_sha256": "model-sha"}
+        with patch.object(gaps.cell.matrix.repo_prefill_map, "MappedCorpus") as load_map:
+            with self.assertRaisesRegex(ValueError, "predates mapped ingestion.*new manifest/output root"):
+                gaps.validate_source_map(plan)
+        load_map.assert_not_called()
+
+    def test_gpu_isolation_pauses_for_protected_jellyfin_container(self):
+        with tempfile.TemporaryDirectory(prefix="gpu-policy-test-") as tmp:
+            root = Path(tmp)
+            policy = root / ".wiretail/execution/benchmarks/GPU_POLICY.json"
+            policy.parent.mkdir(parents=True)
+            policy.write_text(json.dumps({"protected_containers": ["jellyfin"]}))
+            output = root / "attempt"
+            output.mkdir()
+            pid = 48291
+            container_id = "a" * 64
+            gpu_client = f"{pid}, 0, 123456"
+            original_read_text = Path.read_text
+
+            def fake_read_text(path, *args, **kwargs):
+                if str(path) == f"/proc/{pid}/cgroup":
+                    return f"0::/system.slice/docker-{container_id}.scope\n"
+                return original_read_text(path, *args, **kwargs)
+
+            commands = []
+
+            def fake_run(command, **kwargs):
+                commands.append(list(command))
+                if command[:3] == ["sudo", "-n", "docker"] and command[3] == "inspect":
+                    return subprocess.CompletedProcess(command, 0, stdout="/jellyfin\n", stderr="")
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+            with (patch.object(gaps, "REPO", root),
+                  patch.object(gaps.cell, "gpu_compute_apps", return_value=[gpu_client]),
+                  patch.object(Path, "read_text", autospec=True, side_effect=fake_read_text),
+                  patch.object(gaps.subprocess, "run", side_effect=fake_run)):
+                with self.assertRaisesRegex(RuntimeError, "paused: protected container jellyfin uses GPU; left running"):
+                    gaps.isolate_gpu(output)
+
+            self.assertEqual(len(commands), 1)
+            self.assertEqual(commands[0][:4], ["sudo", "-n", "docker", "inspect"])
+            self.assertFalse(any("stop" in command or "kill" in command for command in commands))
+            cleanup = json.loads((output / "gpu-cleanup.json").read_text())
+            self.assertEqual(cleanup["status"], "paused")
+            self.assertEqual(cleanup["protected_container"], "jellyfin")
+            self.assertEqual(cleanup["protected_client"], gpu_client)
+            self.assertEqual(cleanup["actions"], [])
+
     def test_old_shell_exports_cannot_change_benchmark_routes_or_libraries(self):
         with patch.dict(gaps.cell.os.environ, {"GGML_KV_ROUTE": "reference",
                 "LLAMA_ARG_CTX_SIZE": "1", "LLAMA_KV_ATTENTION_ROUTE": "reference",

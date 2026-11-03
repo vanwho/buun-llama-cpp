@@ -302,9 +302,12 @@ evidence; MTP acceptance comes from completed measured responses.
 The staged v2 plan is `/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json`. Its fixed bundle is
 `/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server` (source/build `1d74e9a315acaf0379eb2af1245202b820cff1e1`,
 SHA-256 `189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794`).
-The 96-request C=6144→12288 prefix-anchor proof is pending; start the 960-request
-full ACO matrix only after proof passes. Both ACO MTP variants then cover all ten
-checkpoints, all four modes, all three prompts (120 pairs and 480 requests each).
+The prefix-anchor proof passed. The MTP-on matrix completed all ten checkpoints,
+all four modes and all three prompts (120 pairs and 480 requests). MTP-off has
+not started. Final clean prefill retests are paused by the operator while the
+mapped-ingest protocol replaces variable-sized per-file turns. Keep the valid
+completed decode/MTP measurements; do not blend new ingestion curves into the
+historical v2 output root.
 The prior ca549 full-matrix attempt root is archived and excluded from current
 comparisons; its hybrid checkpoint-retention failure invalidated it as a complete
 full-matrix result. New output and per-variant slot-state paths use
@@ -316,9 +319,11 @@ Validate/list without starting a server:
 
 `python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --manifest /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json --validate`
 
-Execute the remaining variants serially:
-
-`python3 /srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-benchmark-gaps.py --manifest /srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json --run`
+Execution is held in `.wiretail/execution/benchmarks/GPU_POLICY.json`. The runner
+checks this hold before loading a model or changing a service. Once the operator
+resumes final retests, freeze a new manifest/output root that explicitly records
+the source chunk map path and SHA-256. Historical manifests are readable but
+cannot silently append results using the new ingestion protocol.
 
 Each configuration keeps one freshly loaded server and adds only disjoint
 repository chunks. All selected prompts for one reasoning mode run before the
@@ -336,3 +341,30 @@ rejects empty/two-token acknowledgments as speed measurements, and resumes only
 missing prompt/mode pairs. It never patches a master control binary or calls a
 capacity/runtime failure a successful benchmark. This harness and its site plan
 are development benchmark tooling to exclude from the final runtime upstream PR.
+
+## Fixed multi-file ingestion map
+
+The mapping is `.wiretail/execution/benchmarks/repo-prefill-map.json`:
+262,144 native content tokens from one frozen repository revision, grouped into
+four 65,536-token payloads. Small files share a payload; large files may span
+payloads. Each range records its source path, content hash and byte offsets.
+Payload text stays outside Git under the manifest's `payload_root`.
+
+`build-repo-prefill-map.py` uses a vocabulary-only native tokenizer, without
+model weights, an inference context or a GPU allocation. Each fill consumes the
+next disjoint source range. A checkpoint may split a group; its leftover bytes
+are regrouped with the next group rather than becoming individual-file turns.
+Reports distinguish full groups from checkpoint tails and keep backend prompt
+tok/s, net-new prompt tok/s and net-new wall-time tok/s separate. Checkpoint
+framing, generated output and the context reserve are additional to mapped
+content tokens; never send the entire 262,144-token corpus into L=262,144.
+
+Sizing checks with B1024/U256, L262144/H65536 and Turbo4 GPU MTP admitted
+8K/16K/32K/64K multi-file requests. These are allocation checks from fresh
+servers, not final ingest-speed results or proof of every occupied frontier.
+See `.wiretail/execution/engineering-notes/repo-prefill-chunk-map-20261103.md`.
+
+Jellyfin is protected. Never stop its container, transcodes or media-stack
+service to isolate the GPU. Sizing may run with Jellyfin up. If Jellyfin uses
+the GPU during a future exclusive benchmark, cleanup pauses and leaves it
+running instead of killing it.

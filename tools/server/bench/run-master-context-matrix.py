@@ -20,6 +20,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 BENCHMARK_TEMPLATE = HERE.parents[2] / ".wiretail/execution/benchmarks/qwen38-shared-prefix.jinja"
 sys.path.insert(0, str(HERE))
 import repo_context  # noqa: E402
+import repo_prefill_map  # noqa: E402
+from repo_tokenizer import NativeTokenizer  # noqa: E402
 from prompt_sizing import ServerPromptRenderer, request_options  # noqa: E402
 
 PROMPTS = (
@@ -35,12 +37,10 @@ CANONICAL_REQUEST_TIMEOUT = 600
 # this 512-token margin. A larger arbitrary margin rejected valid runs.
 SAFETY_TOKENS = 512
 MTP_REPLAY_TOKENS = 3
-MAX_FRESH_FILL_TOKENS = 4096
 CANONICAL_SUFFIX_RESERVE_TOKENS = 96
-# Server-side templating can add a few tokens beyond the preflight tokenizer
-# estimate (notably with thinking enabled). Leave 16 tokens of margin so a
-# setup discrepancy cannot turn an otherwise valid fill into a failed row.
-FILL_REQUEST_BUDGET = MAX_FRESH_FILL_TOKENS - 16
+# The selected, measured request size comes from the frozen multi-file map.
+# There is no implicit 4K/per-file fill policy.
+SOURCE_CHUNK_MAP = HERE.parents[2] / ".wiretail/execution/benchmarks/repo-prefill-map.json"
 MODEL = "qwen38-fast-turbo4-mtp"
 SERVER_BIN = pathlib.Path(os.environ.get(
     "MASTER106_SERVER_BIN",
@@ -393,6 +393,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--draft-device", choices=("auto", "gpu", "cpu"))
     parser.add_argument("--server-binary", type=pathlib.Path, default=SERVER_BIN)
     parser.add_argument("--source-worktree", type=pathlib.Path, default=SOURCE_WORKTREE)
+    parser.add_argument("--source-chunk-map", type=pathlib.Path, default=SOURCE_CHUNK_MAP,
+                        help="frozen native-token multi-file corpus map; required for fills")
     parser.add_argument("--slot-state", type=pathlib.Path, default=SLOT_STATE)
     parser.add_argument("--model-alias", default=MODEL)
     parser.add_argument("--reasoning-modes", nargs="+", choices=MODES, default=list(MODES))
@@ -604,10 +606,24 @@ def prefill_measurements(fresh_tokens: int, timings: Mapping[str, Any],
     }
 
 
+def summarize_fill_groups(rows: list[dict[str, Any]], kind: str) -> dict[str, Any]:
+    selected = [row for row in rows if row.get("chunk_kind") == kind]
+    fresh = sum(int(row["fresh_tokens"]) for row in selected)
+    backend = sum(int(row.get("prompt_n") or 0) for row in selected)
+    seconds = sum(float(row.get("timings", {}).get("prompt_ms") or 0) / 1000 for row in selected)
+    wall = sum(float(row.get("elapsed_seconds") or 0) for row in selected)
+    return {"count": len(selected), "net_new_tokens": fresh,
+            "backend_tokens": backend, "prompt_seconds": seconds, "wall_seconds": wall,
+            "net_new_prefill_tok_s": fresh / seconds if seconds else None,
+            "backend_prefill_tok_s": backend / seconds if seconds else None,
+            "wall_prefill_tok_s": fresh / wall if wall else None}
+
+
 def validate_fill_bounds(fresh_tokens: int, prompt_tokens: int,
-                         completion_tokens: int, reserve_limit: int) -> None:
+                         completion_tokens: int, reserve_limit: int, *,
+                         max_fresh_tokens: int | None = None) -> None:
     """Validate new input and context occupancy, not backend internal work."""
-    if (fresh_tokens < 0 or fresh_tokens > MAX_FRESH_FILL_TOKENS or
+    if (fresh_tokens < 0 or (max_fresh_tokens is not None and fresh_tokens > max_fresh_tokens) or
             prompt_tokens + completion_tokens > reserve_limit):
         raise RuntimeError(
             "append violates fresh/context bound: "
@@ -684,171 +700,160 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  reuse_filled_prefix: bool = False,
                  initial_history: list[dict[str, str]] | None = None,
                  initial_manifest: Mapping[str, Any] | None = None,
-                 initial_occupied: int = 0) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    # The measured context is filled only with tracked repository source.
-    # A/B/A retrieval fixtures belong to a separate promotion campaign and
-    # would contaminate this fresh-content prefill workload.
-    seed: list[dict[str, str]] = []
-    inventory = repo_context.tracked_inventory(root=SOURCE_WORKTREE)
-    chunks = repo_context.source_chunks(inventory)
+                 initial_occupied: int = 0,
+                 chunk_map_path: pathlib.Path = SOURCE_CHUNK_MAP) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    mapped = repo_prefill_map.MappedCorpus(chunk_map_path)
+    if pathlib.Path(mapped.manifest["source_root"]).resolve() != SOURCE_WORKTREE.resolve():
+        raise RuntimeError("chunk map source root differs from the frozen benchmark source")
     current_git_identity = repo_context.git_identity(root=SOURCE_WORKTREE)
-    current_inventory = [{"path": f.path, "sha256": f.sha256,
-                          "byte_length": f.byte_length} for f in inventory]
-    current_schedule = repo_context.selection_record(chunks)
+    if mapped.manifest["source_identity"] != current_git_identity:
+        raise RuntimeError("chunk map source identity changed; regenerate before a fresh run")
+    current_inventory = [{"path": row["path"], "sha256": row["sha256"],
+                          "byte_length": row["source_bytes"]}
+                         for row in mapped.manifest["inventory"]]
+    current_schedule = [{key: row[key] for key in
+        ("id", "sha256", "content_tokens", "corpus_start_byte", "corpus_end_byte")}
+        for row in mapped.manifest["chunks"]]
+    map_identity = {"protocol": repo_prefill_map.PROTOCOL,
+                    "path": str(mapped.manifest_path), "sha256": mapped.manifest_sha256,
+                    "chunk_tokens": mapped.chunk_tokens}
     if initial_manifest is None:
         cleared = final.clear_slot(endpoint, key, 0, 180)
         if not cleared.get("ok"):
             raise RuntimeError(f"filled-row initial slot erase failed: {cleared}")
-        source_manifest = {"git_identity": current_git_identity,
-                           "fixture_sha256": None,
-                           "inventory": current_inventory,
-                           "source_schedule": current_schedule,
-                           "selected_ranges": []}
+        source_manifest = {"git_identity": current_git_identity, "fixture_sha256": None,
+                           "inventory": current_inventory, "source_schedule": current_schedule,
+                           "chunk_map": map_identity, "selected_ranges": []}
         history: list[dict[str, str]] = []
         occupied = 0
-        source_texts = [(repo_context.render_chunk(chunk), {
-            "kind": "tracked_source", "path": chunk.path, "sha256": chunk.sha256,
-            "rendered_start_byte": 0,
-            "rendered_end_byte": len(repo_context.render_chunk(chunk).encode("utf-8")),
-            "source_start_byte": chunk.start_byte, "source_end_byte": chunk.end_byte,
-        }) for chunk in chunks]
     else:
         source_manifest = json.loads(json.dumps(initial_manifest))
-        if (source_manifest.get("git_identity") != current_git_identity or
-                source_manifest.get("inventory") != current_inventory or
-                source_manifest.get("source_schedule") != current_schedule):
-            raise RuntimeError("continuation source identity/inventory changed")
+        for key, expected in (("git_identity", current_git_identity),
+                              ("inventory", current_inventory),
+                              ("source_schedule", current_schedule), ("chunk_map", map_identity)):
+            if source_manifest.get(key) != expected:
+                raise RuntimeError(f"continuation source {key} differs; use a fresh mapped run")
         if source_manifest.get("actual_occupancy_tokens") != initial_occupied:
-            raise RuntimeError("continuation source occupancy does not match saved frontier")
+            raise RuntimeError("continuation occupancy does not match saved frontier")
         if initial_history is None or initial_occupied <= 0:
-            raise RuntimeError("continuation requires a nonempty saved history/frontier")
+            raise RuntimeError("continuation requires saved history and a nonempty frontier")
         history = list(initial_history)
         occupied = initial_occupied
-        source_texts = remaining_source_chunks(chunks, source_manifest.get("selected_ranges", []))
+    source_cursor = mapped.resume_cursor(source_manifest["selected_ranges"])
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
     existing_append_indices = [row.get("append_index", -1)
                                for row in source_manifest.get("selected_ranges", [])
                                if isinstance(row.get("append_index"), int)]
     append_index = max(existing_append_indices, default=-1) + 1
-    planned = []
-    # Preserve the complete fill conversation. The fill always uses the fixed
-    # "off" mode; canonical request reasoning modes are applied later without
-    # performing another repository ingestion pass.
+    # Source counts are known offline. A whole group can be sent without
+    # repeatedly tokenizing the entire 256K chat history. Only a checkpoint
+    # boundary is fitted using the real chat renderer; its short tail is
+    # explicitly excluded from uniform full-group throughput comparisons.
     enable_thinking = reasoning_mode != "off"
-    parts = list(seed)
-    while occupied < target_tokens:
-        if 0 < target_tokens - occupied <= 8:
-            break
-        if parts:
-            part = parts.pop(0)
-            text = part["content"]
-            source_range = part.get("source_range", {"kind": "fixture_seed"})
-        elif source_texts:
-            text, source_range = source_texts.pop(0)
-        else:
-            raise RuntimeError(f"tracked source ended at C={occupied}, target={target_tokens}")
-        current_goal = target_tokens
-        if preserve_prefix_tokens is not None and occupied < preserve_prefix_tokens:
-            current_goal = preserve_prefix_tokens
-        remaining_frontier = current_goal - occupied
-        budget = min(FILL_REQUEST_BUDGET, remaining_frontier)
-        reserve_limit = context_tokens - SAFETY_TOKENS - 400 - MTP_REPLAY_TOKENS
-        rewritten_tail = False
-        tail_bridge = False
-        try:
-            selected_text, rendered_tokens = _split_to_budget(
-                renderer, history, text, budget, reserve_limit)
-        except RuntimeError:
-            raise
-        # Preserve any unconsumed source suffix; fixture turns remain immutable.
-        rest = text[len(selected_text):]
-        if rest:
-            if parts:
-                next_range = dict(source_range)
-                if "rendered_start_byte" in next_range:
-                    next_range["rendered_start_byte"] += len(selected_text.encode("utf-8"))
-                parts.insert(0, {"role": "user", "content": rest,
-                                 "source_range": next_range})
-            else:
-                next_range = dict(source_range)
-                if "rendered_start_byte" in next_range:
-                    next_range["rendered_start_byte"] += len(selected_text.encode("utf-8"))
-                source_texts.insert(0, (rest, next_range))
-        messages = history + [{"role": "user", "content": selected_text}]
-        req_path = output / "requests" / f"append-{append_index:04d}.json"
-        raw_path = output / "raw" / f"append-{append_index:04d}.sse"
-        payload = {"model": MODEL, "messages": messages, "max_tokens": 1,
-                   "temperature": 0, "seed": 42, "stream": True,
-                   "cache_prompt": True,
-                   "stream_options": {"include_usage": True},
-                   "chat_template_kwargs": {"enable_thinking": enable_thinking,
-                                            "preserve_thinking": True}}
-        payload["reasoning_effort"] = "none" if reasoning_mode == "off" else reasoning_mode
-        request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
-        if append_reference is not None:
-            reference = append_reference / "requests" / req_path.name
-            if reference.is_file() and request_bytes != reference.read_bytes():
-                raise RuntimeError(f"frozen append request mismatch at {req_path.name}")
-            if not reference.is_file() and context_tokens != 131072:
-                raise RuntimeError(f"frozen append reference missing: {reference}")
-        _write_unique(req_path, request_bytes)
-        start = time.monotonic()
-        response = _append_request(final, endpoint, key, payload, raw_path)
-        elapsed = time.monotonic() - start
-        prior_occupied = occupied
-        usage = response.get("usage", {})
-        prompt_n = int(usage.get("prompt_tokens", rendered_tokens))
-        output_n = int(usage.get("completion_tokens", 0))
-        cache_n = usage.get("prompt_tokens_details", {}).get("cached_tokens")
-        if not isinstance(cache_n, (int, float)):
-            cache_n = response.get("timings", {}).get("cache_n")
-        validate_cached_prefix(occupied, cache_n, label=f"fill append {append_index}")
-        fresh = prompt_n - occupied
-        validate_fill_bounds(fresh, prompt_n, output_n, reserve_limit)
-        assistant_message = {"role": "assistant", "content": response.get("content", "")}
-        reasoning_text = response.get("reasoning_content", "")
-        if reasoning_text:
-            assistant_message["reasoning_content"] = reasoning_text
-        history = messages + [assistant_message]
-        # Occupancy is the server's prompt/KV frontier. A one-token append
-        # response is recorded in the conversation but is not necessarily
-        # installed in the resumable KV snapshot (EOS/length boundary).
-        occupied = prompt_n
-        fill_rates = prefill_measurements(
-            fresh, response.get("timings", {}), elapsed)
-        rec = {"append_index": append_index, "source_text_sha256": hashlib.sha256(
-                   selected_text.encode()).hexdigest(), "fresh_tokens": fresh,
-               "prior_occupied_tokens": prior_occupied,
-               "cumulative_tokens": occupied, "elapsed_seconds": elapsed,
-               **fill_rates,
-               "cache_n": cache_n,
-               "prompt_n": response.get("timings", {}).get("prompt_n"),
-               "timings": response.get("timings", {}),
-               "prompt_tokens": prompt_n, "completion_tokens": output_n,
-               "request_path": str(req_path), "raw_path": str(raw_path),
-               "request_sha256": hashlib.sha256(req_path.read_bytes()).hexdigest(),
-               "raw_sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),
-               "fingerprint": fingerprint}
-        if rewritten_tail:
-            rec["tail_rewrite"] = True
-        append_jsonl(output / "schedule.jsonl", rec)
-        print(f"fill C={occupied} +{fresh} new tokens; "
-              f"prefill={fill_rates['fresh_prefill_tok_s']} "
-              f"backend={fill_rates['backend_prefill_tok_s']} "
-              f"wall={fill_rates['wall_prefill_tok_s']} tok/s", flush=True)
-        selected_range = dict(source_range)
-        selected_range.update({"append_index": append_index,
-            "selected_text_sha256": rec["source_text_sha256"], "fresh_tokens": fresh})
-        if "rendered_start_byte" in selected_range:
-            selected_range["rendered_end_byte"] = selected_range["rendered_start_byte"] + len(selected_text.encode("utf-8"))
-        source_manifest["selected_ranges"].append(selected_range)
-        append_index += 1
-        if occupied == target_tokens:
-            break
-        if occupied > target_tokens:
-            if occupied - target_tokens <= 8:
+    with NativeTokenizer("/srv/ai/models/text/current.gguf") as tokenizer:
+        while occupied < target_tokens:
+            if 0 < target_tokens - occupied <= 8:
                 break
-            raise RuntimeError(f"measured C overshot materially: {occupied} > {target_tokens}")
+            current_goal = target_tokens
+            if preserve_prefix_tokens is not None and occupied < preserve_prefix_tokens:
+                current_goal = preserve_prefix_tokens
+            remaining_frontier = current_goal - occupied
+            reserve_limit = context_tokens - SAFETY_TOKENS - 400 - MTP_REPLAY_TOKENS
+            text = mapped.window(source_cursor)
+            if not text:
+                raise RuntimeError("frozen repository chunk map exhausted before target context")
+            rewritten_tail = False
+            tail_bridge = False
+            if remaining_frontier > mapped.chunk_tokens + CANONICAL_SUFFIX_RESERVE_TOKENS:
+                selected_text, content_tokens = repo_prefill_map.native_prefix(
+                    text, mapped.chunk_tokens, tokenizer)
+                rendered_tokens = occupied + content_tokens + CANONICAL_SUFFIX_RESERVE_TOKENS
+                if rendered_tokens + 1 > reserve_limit:
+                    raise RuntimeError("mapped full group exceeds the context/output reserve")
+                chunk_kind = "full_group"
+            else:
+                selected_text, rendered_tokens = _split_to_budget(
+                    renderer, history, text, remaining_frontier, reserve_limit)
+                content_tokens = len(tokenizer.encode(selected_text))
+                chunk_kind = "checkpoint_tail"
+            messages = history + [{"role": "user", "content": selected_text}]
+            req_path = output / "requests" / f"append-{append_index:04d}.json"
+            raw_path = output / "raw" / f"append-{append_index:04d}.sse"
+            payload = {"model": MODEL, "messages": messages, "max_tokens": 1,
+                       "temperature": 0, "seed": 42, "stream": True,
+                       "cache_prompt": True,
+                       "stream_options": {"include_usage": True},
+                       "chat_template_kwargs": {"enable_thinking": enable_thinking,
+                                                "preserve_thinking": True}}
+            payload["reasoning_effort"] = "none" if reasoning_mode == "off" else reasoning_mode
+            request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+            if append_reference is not None:
+                reference = append_reference / "requests" / req_path.name
+                if reference.is_file() and request_bytes != reference.read_bytes():
+                    raise RuntimeError(f"frozen append request mismatch at {req_path.name}")
+                if not reference.is_file() and context_tokens != 131072:
+                    raise RuntimeError(f"frozen append reference missing: {reference}")
+            _write_unique(req_path, request_bytes)
+            start = time.monotonic()
+            response = _append_request(final, endpoint, key, payload, raw_path)
+            elapsed = time.monotonic() - start
+            prior_occupied = occupied
+            usage = response.get("usage", {})
+            prompt_n = int(usage.get("prompt_tokens", rendered_tokens))
+            output_n = int(usage.get("completion_tokens", 0))
+            cache_n = usage.get("prompt_tokens_details", {}).get("cached_tokens")
+            if not isinstance(cache_n, (int, float)):
+                cache_n = response.get("timings", {}).get("cache_n")
+            validate_cached_prefix(occupied, cache_n, label=f"fill append {append_index}")
+            fresh = prompt_n - occupied
+            validate_fill_bounds(fresh, prompt_n, output_n, reserve_limit,
+                                 max_fresh_tokens=mapped.chunk_tokens + CANONICAL_SUFFIX_RESERVE_TOKENS)
+            assistant_message = {"role": "assistant", "content": response.get("content", "")}
+            reasoning_text = response.get("reasoning_content", "")
+            if reasoning_text:
+                assistant_message["reasoning_content"] = reasoning_text
+            history = messages + [assistant_message]
+            # Occupancy is the server's prompt/KV frontier. A one-token append
+            # response is recorded in the conversation but is not necessarily
+            # installed in the resumable KV snapshot (EOS/length boundary).
+            occupied = prompt_n
+            fill_rates = prefill_measurements(
+                fresh, response.get("timings", {}), elapsed)
+            rec = {"append_index": append_index, "source_text_sha256": hashlib.sha256(
+                       selected_text.encode()).hexdigest(), "fresh_tokens": fresh,
+                   "prior_occupied_tokens": prior_occupied,
+                   "cumulative_tokens": occupied, "elapsed_seconds": elapsed,
+                   **fill_rates,
+                   "cache_n": cache_n,
+                   "prompt_n": response.get("timings", {}).get("prompt_n"),
+                   "timings": response.get("timings", {}),
+                   "prompt_tokens": prompt_n, "completion_tokens": output_n,
+                   "request_path": str(req_path), "raw_path": str(raw_path),
+                   "request_sha256": hashlib.sha256(req_path.read_bytes()).hexdigest(),
+                   "raw_sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),
+                   "fingerprint": fingerprint,
+                   "chunk_kind": chunk_kind, "content_tokens": content_tokens,
+                   "configured_chunk_tokens": mapped.chunk_tokens,
+                   "chunk_map_sha256": mapped.manifest_sha256}
+            if rewritten_tail:
+                rec["tail_rewrite"] = True
+            append_jsonl(output / "schedule.jsonl", rec)
+            print(f"fill C={occupied} +{fresh} new tokens; "
+                  f"prefill={fill_rates['fresh_prefill_tok_s']} "
+                  f"backend={fill_rates['backend_prefill_tok_s']} "
+                  f"wall={fill_rates['wall_prefill_tok_s']} tok/s", flush=True)
+            selected_range = mapped.record(source_cursor, selected_text,
+                    append_index=append_index, fresh_tokens=fresh)
+            selected_range.update({"chunk_kind": chunk_kind, "content_tokens": content_tokens})
+            source_manifest["selected_ranges"].append(selected_range)
+            source_cursor = selected_range["corpus_end_byte"]
+            append_index += 1
+            if occupied == target_tokens:
+                break
+            if occupied > target_tokens:
+                if occupied - target_tokens <= 8:
+                    break
+                raise RuntimeError(f"measured C overshot materially: {occupied} > {target_tokens}")
     occupancy_delta = occupied - target_tokens
     # The apply-template/tokenize preflight can differ from the live chat
     # parser by a couple of boundary tokens. Preserve the server's measured
@@ -982,6 +987,10 @@ def main() -> int:
     _write_unique(capture_path, json.dumps(capture, indent=2).encode())
     source_identity = repo_context.git_identity(root=SOURCE_WORKTREE)
     source_inventory = repo_context.tracked_inventory(root=SOURCE_WORKTREE)
+    # Hash in bounded memory; do not allocate another whole 14+ GB model in
+    # the host process while the inference server already holds its state.
+    with pathlib.Path("/srv/ai/models/text/current.gguf").open("rb") as model_file:
+        model_sha256 = hashlib.file_digest(model_file, "sha256").hexdigest()
     identity = {"geometry": geometry, "argv": expected_argv,
                 "live_runtime": live,
                 "mtp_enabled": mtp_enabled, "pager": args.pager,
@@ -990,12 +999,19 @@ def main() -> int:
                 "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
                                          else "disk_snapshot_restore"),
                 "hot_pages": args.hot_pages,
-                "model_sha256": hashlib.sha256(pathlib.Path("/srv/ai/models/text/current.gguf").read_bytes()).hexdigest(),
+                "model_sha256": model_sha256,
                 "template_id": renderer.template_id, "repo_context_git": source_identity,
                 "repo_context_inventory": [{"path": item.path, "sha256": item.sha256,
                                             "byte_length": item.byte_length}
                                            for item in source_inventory],
                 "binary_sha256": live["executable_sha256"]}
+    if geometry["target_tokens"] is not None:
+        mapped_identity = repo_prefill_map.MappedCorpus(args.source_chunk_map)
+        identity["source_chunk_map"] = {"path": str(mapped_identity.manifest_path),
+            "sha256": mapped_identity.manifest_sha256, "protocol": repo_prefill_map.PROTOCOL,
+            "chunk_tokens": mapped_identity.chunk_tokens}
+        if mapped_identity.manifest["model"].get("sha256") != identity["model_sha256"]:
+            raise RuntimeError("source chunk map uses a different model/tokenizer")
     try:
         fingerprint = validate_resume(output, identity, resume=args.resume)
     except ValueError as error:
@@ -1063,7 +1079,8 @@ def main() -> int:
             reuse_filled_prefix=args.reuse_filled_prefix,
             initial_history=(continuation["history"] if continuation else None),
             initial_manifest=(continuation["manifest"] if continuation else None),
-            initial_occupied=(continuation["occupied"] if continuation else 0))
+            initial_occupied=(continuation["occupied"] if continuation else 0),
+            chunk_map_path=args.source_chunk_map)
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
     elif (output / "base.json").exists():
         base = json.loads((output / "base.json").read_text())
@@ -1273,12 +1290,14 @@ def main() -> int:
                            and isinstance(r.get(metric), (int, float)) for r in measured)
                     else None for i in range(len(PROMPTS))} for mode in MODES}
     fill_rates = []
+    fill_rows = []
     if (output / "schedule.jsonl").exists():
         for line in (output / "schedule.jsonl").read_text().splitlines():
             try:
                 fill_rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            fill_rows.append(fill_rec)
             if isinstance(fill_rec.get("fresh_prefill_tok_s"), (int, float)):
                 fill_rates.append(fill_rec["fresh_prefill_tok_s"])
     repeat_counts = {mode: {str(i): sum(
@@ -1321,6 +1340,9 @@ def main() -> int:
                           and isinstance(r["mtp"].get("acceptance_percent"), (int, float))
                           for r in measured) else None for i in range(len(PROMPTS))}
                    for mode in MODES} if mtp_enabled else None),
+               "source_chunk_map": identity.get("source_chunk_map"),
+               "uniform_fill_groups": summarize_fill_groups(fill_rows, "full_group"),
+               "checkpoint_tail_groups": summarize_fill_groups(fill_rows, "checkpoint_tail"),
                "fresh_prefill_tok_s_median": statistics.median(fill_rates) if fill_rates else None,
                "fresh_prefill_tok_s_medians": table("fresh_prefill_tok_s"),
                "prefill_tok_s_medians": table("prefill_tok_s"),

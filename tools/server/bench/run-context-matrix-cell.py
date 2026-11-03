@@ -173,6 +173,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--draft-device", choices=("auto", "gpu", "cpu"))
     parser.add_argument("--server-binary", type=pathlib.Path, required=True)
     parser.add_argument("--source-worktree", type=pathlib.Path, required=True)
+    parser.add_argument("--source-chunk-map", type=pathlib.Path, default=matrix.SOURCE_CHUNK_MAP)
     parser.add_argument("--slot-state", type=pathlib.Path, required=True)
     parser.add_argument("--model-alias", default="qwen38-fast-turbo4-mtp")
     parser.add_argument("--output", type=pathlib.Path, required=True)
@@ -297,7 +298,7 @@ def main() -> int:
                 # Keep one base frontier in memory. cache_prompt rewinds only
                 # each short prompt/answer suffix; no full-context replay or
                 # snapshot I/O occurs between prompt measurements.
-                "--reuse-filled-prefix"]
+                "--reuse-filled-prefix", "--source-chunk-map", str(args.source_chunk_map.resolve())]
             if previous_campaign is not None:
                 command.extend(("--continue-from", str(previous_campaign)))
             if args.hot_pages is not None:

@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import importlib.util
+import contextlib
+import io
+import os
 import pathlib
 import json
+import subprocess
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 MODULE_PATH = pathlib.Path(__file__).with_name("run-master-context-matrix.py")
 SPEC = importlib.util.spec_from_file_location("master_context_matrix", MODULE_PATH)
@@ -14,6 +20,7 @@ assert SPEC is not None and SPEC.loader is not None
 matrix = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(matrix)
 import repo_context  # noqa: E402
+import repo_prefill_map  # noqa: E402
 CELL_PATH = pathlib.Path(__file__).with_name("run-context-matrix-cell.py")
 CELL_SPEC = importlib.util.spec_from_file_location("context_matrix_cell", CELL_PATH)
 assert CELL_SPEC is not None and CELL_SPEC.loader is not None
@@ -22,6 +29,154 @@ CELL_SPEC.loader.exec_module(cell)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_mapped_multifile_fill_and_checkpoint_resume_use_map_group_bound(self) -> None:
+        class CharacterTokenizer:
+            def encode(self, text: str) -> list[int]:
+                return [ord(char) for char in text]
+
+            def token_byte_offsets(self, text: str) -> tuple[list[int], list[int]]:
+                offsets = [0]
+                for char in text:
+                    offsets.append(offsets[-1] + len(char.encode("utf-8")))
+                return self.encode(text), offsets
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return None
+
+        tokenizer = CharacterTokenizer()
+
+        class FakeRenderer:
+            def __call__(self, messages):
+                users = [row["content"] for row in messages if row.get("role") == "user"]
+                # Account for deterministic per-turn framing while keeping
+                # generated assistant acknowledgments out of fake occupancy.
+                count = sum(len(tokenizer.encode(text)) for text in users) + 12 * len(users)
+                return SimpleNamespace(token_ids=[0] * count)
+
+        class FakeFinal:
+            def __init__(self):
+                self.clear_calls = 0
+
+            def clear_slot(self, endpoint, key, slot, timeout):
+                self.clear_calls += 1
+                return {"ok": True}
+
+        def fake_append(final, endpoint, key, payload, raw_path):
+            raw_path.parent.mkdir(parents=True, exist_ok=True)
+            raw_path.write_text("offline fake SSE\n", encoding="utf-8")
+            messages = payload["messages"]
+            users = [row["content"] for row in messages if row.get("role") == "user"]
+            prompt_n = sum(len(tokenizer.encode(text)) for text in users) + 12 * len(users)
+            prior_users = users[:-1]
+            cache_n = sum(len(tokenizer.encode(text)) for text in prior_users) + 12 * len(prior_users)
+            return {
+                "content": "a", "reasoning_content": "",
+                "usage": {"prompt_tokens": prompt_n, "completion_tokens": 1,
+                          "prompt_tokens_details": {"cached_tokens": cache_n}},
+                "timings": {"prompt_n": prompt_n, "prompt_ms": 10.0,
+                            "prompt_per_second": prompt_n * 100.0, "cache_n": cache_n},
+            }
+
+        with tempfile.TemporaryDirectory(prefix="mapped-fill-integration-") as tmp:
+            base = pathlib.Path(tmp)
+            source = base / "source"
+            (source / "src").mkdir(parents=True)
+            for index in range(220):
+                (source / "src" / f"f{index:03d}.txt").write_text(
+                    f"short-{index:03d} é λ\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q", str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "add", "src"], check=True)
+            env = os.environ.copy()
+            env.update({"GIT_AUTHOR_NAME": "Fill Test", "GIT_AUTHOR_EMAIL": "fill@example.invalid",
+                        "GIT_COMMITTER_NAME": "Fill Test", "GIT_COMMITTER_EMAIL": "fill@example.invalid"})
+            subprocess.run(["git", "-C", str(source), "commit", "-qm", "fixture"],
+                           check=True, env=env)
+
+            map_root = base / "map-payload"
+            mapped_manifest = repo_prefill_map.build_map(
+                source, map_root, tokenizer, chunk_tokens=128, capacity_tokens=1024,
+                model_identity={"test": True})
+            map_path = map_root / "map.json"
+            mapped = repo_prefill_map.MappedCorpus(map_path)
+            final = FakeFinal()
+            output1 = base / "run-1"
+            output1.mkdir()
+            output2 = base / "run-2"
+            output2.mkdir()
+            bounds = []
+            real_validate = matrix.validate_fill_bounds
+
+            def capture_bound(*args, **kwargs):
+                bounds.append(kwargs.get("max_fresh_tokens"))
+                return real_validate(*args, **kwargs)
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                with (patch.object(matrix, "SOURCE_WORKTREE", source),
+                      patch.object(matrix, "NativeTokenizer", lambda *args, **kwargs: tokenizer),
+                      patch.object(matrix, "_append_request", side_effect=fake_append),
+                      patch.object(matrix, "validate_fill_bounds", side_effect=capture_bound)):
+                    history1, info1 = matrix.fill_context(
+                        final, FakeRenderer(), "http://offline", "", output1,
+                        context_tokens=4096, target_tokens=250, fingerprint="a" * 64,
+                        reuse_filled_prefix=True, chunk_map_path=map_path)
+                    manifest1 = json.loads((output1 / "source-manifest.json").read_text())
+                    history2, info2 = matrix.fill_context(
+                        final, FakeRenderer(), "http://offline", "", output2,
+                        context_tokens=4096, target_tokens=500, fingerprint="a" * 64,
+                        reuse_filled_prefix=True, initial_history=history1,
+                        initial_manifest=manifest1, initial_occupied=info1["occupied_tokens"],
+                        chunk_map_path=map_path)
+
+            manifest2 = json.loads((output2 / "source-manifest.json").read_text())
+            rows1 = [json.loads(line) for line in (output1 / "schedule.jsonl").read_text().splitlines()]
+            rows2 = [json.loads(line) for line in (output2 / "schedule.jsonl").read_text().splitlines()]
+            ranges1 = manifest1["selected_ranges"]
+            ranges2 = manifest2["selected_ranges"]
+
+            self.assertEqual(info1["occupied_tokens"], 250)
+            self.assertEqual(info2["occupied_tokens"], 500)
+            self.assertEqual(final.clear_calls, 1, "continuation must not erase the saved prefix")
+            self.assertEqual([row["chunk_kind"] for row in rows1],
+                             ["full_group", "checkpoint_tail"])
+            self.assertEqual([row["content_tokens"] for row in rows1], [128, 98])
+            self.assertEqual(rows1[0]["content_tokens"], mapped_manifest["chunk_tokens"])
+            self.assertGreaterEqual(len({s["path"] for s in ranges1[0]["source_segments"]}), 2,
+                                    "one fixed-size group should combine multiple short files")
+            self.assertTrue(all(row["fresh_tokens"] <= 128 +
+                                matrix.CANONICAL_SUFFIX_RESERVE_TOKENS
+                                for row in rows1 + rows2))
+            self.assertEqual(set(bounds), {128 + matrix.CANONICAL_SUFFIX_RESERVE_TOKENS})
+
+            cursor1 = mapped.resume_cursor(ranges1)
+            self.assertTrue(any(begin < cursor1 < end for begin, end in
+                                zip([0] + mapped.ends[:-1], mapped.ends)),
+                            "checkpoint must stop inside a frozen group")
+            self.assertEqual(ranges2[:len(ranges1)], ranges1)
+            continuation = ranges2[len(ranges1):]
+            self.assertEqual([row["chunk_kind"] for row in rows2],
+                             ["full_group", "checkpoint_tail"])
+            self.assertEqual([row["content_tokens"] for row in rows2], [128, 98])
+            self.assertEqual(continuation[0]["corpus_start_byte"], cursor1)
+            self.assertEqual(continuation[0]["map_chunk_ids"], [1, 2])
+            self.assertEqual(mapped.resume_cursor(ranges2), ranges2[-1]["corpus_end_byte"])
+            cursor = 0
+            for row in ranges2:
+                self.assertEqual(row["corpus_start_byte"], cursor)
+                cursor = row["corpus_end_byte"]
+            self.assertEqual(cursor, ranges2[-1]["corpus_end_byte"])
+
+            # The old global 4K ceiling is gone: a configured 32K group plus
+            # the reserved framing allowance is accepted explicitly.
+            max_group_fresh = 32768 + matrix.CANONICAL_SUFFIX_RESERVE_TOKENS
+            matrix.validate_fill_bounds(max_group_fresh, max_group_fresh, 1, 40000,
+                                        max_fresh_tokens=max_group_fresh)
+            with self.assertRaisesRegex(RuntimeError, "fresh/context bound"):
+                matrix.validate_fill_bounds(max_group_fresh + 1, max_group_fresh + 1,
+                                            1, 40000, max_fresh_tokens=max_group_fresh)
+
     def test_stock_hybrid_rewind_keeps_checkpoints_enabled(self) -> None:
         argv = matrix.argv_for_row(65536, "gpu", mtp=False)
         self.assertEqual(argv[argv.index("--ctx-checkpoints") + 1], "8")
@@ -74,7 +229,7 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertAlmostEqual(rates["fresh_prefill_tok_s"], 3116 / 4.554479)
         self.assertAlmostEqual(rates["wall_prefill_tok_s"], 3116 / 5.0)
         with self.assertRaisesRegex(RuntimeError, "fresh/context bound"):
-            matrix.validate_fill_bounds(4097, 5456, 1, 10000)
+            matrix.validate_fill_bounds(4097, 5456, 1, 10000, max_fresh_tokens=4096)
 
     def test_pager_off_adapts_to_upstream_without_pager_cli(self) -> None:
         upstream_help = "--ctx-size N --no-kv-offload"
