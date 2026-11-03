@@ -142,8 +142,10 @@ optional top-level `aco_mode` string:
 
 - `query` is the default. ACO ranks and promotes history at the user-query
   boundary, then replays the query if the selected history changed.
-- `ingest` explicitly declares a bulk append. ACO evaluates its new tokens
-  once using the bounded GPU-resident causal window. It retains normal page
+- `ingest` explicitly declares a bulk append. Selective ACO evaluates its new
+  tokens once using the bounded GPU-resident causal window. Exact mode retains
+  its normal full-coverage page-wave attention instead of becoming resident-only.
+  Ingestion retains normal page
   writes, asynchronous host sealing, clean eviction, output generation and
   MTP verification, but performs no cold-history retrieval or query replay.
 

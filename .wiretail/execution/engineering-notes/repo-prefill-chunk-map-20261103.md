@@ -117,8 +117,10 @@ or chat-completion request. The default/unmarked `query` mode is unchanged.
 Only selective/exact ACO activates the hint; off/observe remain normal.
 See `docs/aco.md` for the API contract and mixed/file-update examples.
 
-Ingestion consumes the resident causal hot window throughout prefill, decode
-and MTP verification, with no selector/rerank or query replay. Normal writes,
+Selective ingestion consumes the resident causal hot window throughout prefill,
+decode and MTP verification, with no selector/rerank or query replay. Exact mode
+keeps its existing complete page-wave coverage; the hint never weakens it to
+resident-only attention. Normal writes,
 host sealing, eviction, admission checks and request cleanup still apply.
 It allocates no filename registry or file-hash cache. New bytes under the
 same filename are new tokens. Ingestion/query mode is a graph topology bit,
