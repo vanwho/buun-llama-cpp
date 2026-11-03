@@ -576,6 +576,17 @@ def validate_cached_prefix(expected_tokens: int, cached_tokens: Any,
         )
 
 
+def filled_series_reasoning_mode(target_tokens: int | None, prefill_only: bool,
+                                 modes: tuple[str, ...]) -> str:
+    """Return the fill-template mode, rejecting mode switches over a live prefix."""
+    if target_tokens is not None and not prefill_only and len(modes) != 1:
+        raise ValueError(
+            "a filled benchmark series must use exactly one reasoning mode; "
+            "run a separate clean fill for each mode so cache_prompt cannot "
+            "reprocess the repository prefix when the chat template changes")
+    return modes[0] if len(modes) == 1 else "off"
+
+
 def remaining_source_chunks(chunks: list[Any],
                            selected_ranges: list[Mapping[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
     """Return only repository bytes not already ingested by an earlier checkpoint."""
@@ -880,13 +891,18 @@ def main() -> int:
     final = load_final_curve()
     endpoint = args.endpoint.rstrip("/")
     selected_modes = tuple(args.reasoning_modes)
-    # For the legacy single-mode cells, preserve their exact fill-template
-    # identity. When a series includes multiple reasoning modes, use one fixed
-    # reasoning-off fill for the repository turns, then restore that same base
-    # for every canonical prompt/mode. This avoids repeating a large fill for
-    # each mode while keeping existing single-mode measurements unchanged.
-    fill_mode = selected_modes[0] if len(selected_modes) == 1 else "off"
-    fill_thinking = False
+    # A filled context series has one reasoning mode so its chat-template
+    # identity stays byte-for-byte stable from repository ingestion through
+    # every measured prompt. Qwen's enable_thinking template option can change
+    # the rendered history from its first message; switching modes while
+    # reusing this prefix causes a cache miss and would re-prefill the corpus.
+    # Run each mode as a separate clean series instead of measuring that work.
+    try:
+        fill_mode = filled_series_reasoning_mode(
+            geometry["target_tokens"], args.prefill_only, selected_modes)
+    except ValueError as error:
+        raise SystemExit(str(error))
+    fill_thinking = fill_mode != "off"
     fill_options = request_options(chat_template_kwargs={"enable_thinking": fill_thinking})
     fill_options["reasoning_effort"] = "none" if fill_mode == "off" else fill_mode
     sizing_timeout = prompt_sizing_timeout(args.context_tokens)
@@ -1130,8 +1146,8 @@ def main() -> int:
                     cached_tokens,
                     label=f"canonical case {case['case_index']}",
                 )
-            except RuntimeError as error:
-                prefix_cache_error = str(error)
+            except RuntimeError as cache_error:
+                prefix_cache_error = str(cache_error)
         fresh_timed = max(0, int(usage.get("prompt_tokens", rendered)) -
                           int(cached_tokens or 0))
         rates = prefill_measurements(fresh_timed, timings, elapsed)

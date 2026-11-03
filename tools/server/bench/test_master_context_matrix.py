@@ -125,6 +125,16 @@ class MasterContextMatrixTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "did not reuse"):
                     matrix.validate_cached_prefix(200000, cached, label="test", tolerance=8)
 
+    def test_filled_series_uses_one_template_mode_per_fresh_prefix(self) -> None:
+        self.assertEqual(matrix.filled_series_reasoning_mode(
+            6144, False, ("off",)), "off")
+        self.assertEqual(matrix.filled_series_reasoning_mode(
+            6144, False, ("low",)), "low")
+        self.assertEqual(matrix.filled_series_reasoning_mode(
+            6144, True, ("off", "low", "medium", "xhigh")), "off")
+        with self.assertRaisesRegex(ValueError, "exactly one reasoning mode"):
+            matrix.filled_series_reasoning_mode(6144, False, ("off", "low"))
+
     def test_series_continuation_uses_only_unseen_repository_bytes(self) -> None:
         text = "first line\nsecond line\nthird line\n"
         chunk = repo_context.CorpusChunk("src/example.cpp", "a" * 64,

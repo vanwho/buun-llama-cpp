@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start one clean server, fill once, run the requested prompt/mode matrix, then stop it."""
+"""Start one clean server, fill once for one reasoning mode, then stop it."""
 
 from __future__ import annotations
 
@@ -121,9 +121,10 @@ def sample_resources(pid: int, output: pathlib.Path, stop: threading.Event) -> N
                 }
                 stream.write(json.dumps(item, sort_keys=True) + "\n")
                 stream.flush()
-            except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+            except (OSError, subprocess.SubprocessError, ValueError, IndexError) as error:
                 if not stop.is_set():
-                    stream.write(json.dumps({"epoch": time.time(), "sample_error": True}) + "\n")
+                    stream.write(json.dumps({"epoch": time.time(), "sample_error":
+                        f"{type(error).__name__}: {error}"}) + "\n")
                     stream.flush()
             # One sample every five seconds keeps telemetry outside the hot
             # benchmark path while still capturing short VRAM/CPU peaks.
@@ -185,6 +186,11 @@ def main() -> int:
         raise SystemExit("--target-sequence values must be strictly increasing")
     for target in targets:
         matrix.row_geometry(args.context_tokens, target, args.placement)
+    try:
+        matrix.filled_series_reasoning_mode(
+            targets[0], args.prefill_only, tuple(args.reasoning_modes))
+    except ValueError as error:
+        raise SystemExit(str(error))
     started_slug = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     startup_log = output / f"server-startup-{started_slug}.log"
     cell_report = output / "cell.json"
@@ -332,36 +338,41 @@ def main() -> int:
         stop_server(proc)
         report["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         report["compute_apps_after_stop"] = gpu_compute_apps()
+        all_samples = []
         if (output / "resource-samples.jsonl").is_file():
-            samples = []
             for line in (output / "resource-samples.jsonl").read_text().splitlines():
                 try:
                     item = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if "gpu_used_mib" in item:
-                    samples.append(item)
-            if samples:
-                report["resource_peaks"] = {
-                    "gpu_used_mib": max(item["gpu_used_mib"] for item in samples),
-                    "gpu_free_min_mib": min(item["gpu_free_mib"] for item in samples),
-                    "server_vmhwm_max_kib": max(item["server_memory_kib"].get("VmHWM", 0) for item in samples),
-                    "system_memavailable_min_kib": min(item["system_memory_kib"].get("MemAvailable", 0) for item in samples),
-                    "system_swapfree_min_kib": min(item["system_memory_kib"].get("SwapFree", 0) for item in samples),
-                    "server_cpu_cores_max": max(
-                        (item.get("server_cpu_cores") or 0) for item in samples),
-                    "server_threads_max": max(
-                        item["server_memory_kib"].get("Threads", 0) for item in samples),
-                }
-                for target in targets:
-                    target_cell = output / f"C{target}" / "cell.json"
-                    if target_cell.is_file():
-                        try:
-                            item = json.loads(target_cell.read_text())
-                            item["resource_peaks"] = report["resource_peaks"]
-                            target_cell.write_text(json.dumps(item, indent=2, sort_keys=True) + "\n")
-                        except (OSError, json.JSONDecodeError):
-                            pass
+                all_samples.append(item)
+        samples = [item for item in all_samples if "gpu_used_mib" in item]
+        sample_errors = [str(item["sample_error"]) for item in all_samples
+                         if item.get("sample_error")]
+        report["resource_sample_count"] = len(samples)
+        report["resource_sample_error_count"] = len(sample_errors)
+        report["resource_sample_error_examples"] = list(dict.fromkeys(sample_errors))[:3]
+        if samples:
+            report["resource_peaks"] = {
+                "gpu_used_mib": max(item["gpu_used_mib"] for item in samples),
+                "gpu_free_min_mib": min(item["gpu_free_mib"] for item in samples),
+                "server_vmhwm_max_kib": max(item["server_memory_kib"].get("VmHWM", 0) for item in samples),
+                "system_memavailable_min_kib": min(item["system_memory_kib"].get("MemAvailable", 0) for item in samples),
+                "system_swapfree_min_kib": min(item["system_memory_kib"].get("SwapFree", 0) for item in samples),
+                "server_cpu_cores_max": max(
+                    (item.get("server_cpu_cores") or 0) for item in samples),
+                "server_threads_max": max(
+                    item["server_memory_kib"].get("Threads", 0) for item in samples),
+            }
+            for target in targets:
+                target_cell = output / f"C{target}" / "cell.json"
+                if target_cell.is_file():
+                    try:
+                        item = json.loads(target_cell.read_text())
+                        item["resource_peaks"] = report["resource_peaks"]
+                        target_cell.write_text(json.dumps(item, indent=2, sort_keys=True) + "\n")
+                    except (OSError, json.JSONDecodeError):
+                        pass
         curve = []
         for target in targets:
             schedule_path = output / f"C{target}" / "campaign" / "schedule.jsonl"
