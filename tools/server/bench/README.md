@@ -299,21 +299,18 @@ evidence; MTP acceptance comes from completed measured responses.
 
 ## Frozen remaining performance matrix
 
-The post-repair plan is `/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json`.
-The focused packed-repair run passed all 48 requests; results are in
-`.wiretail/execution/engineering-notes/packed-attention-boundary-repair.md`.
-The plan uses the stable fork bundle
-`/srv/ai/paged-kv/builds/aco-packed-repair-ca54933a7/bin` and a fresh output
-root. Both ACO MTP variants remeasure all ten established context checkpoints,
-all four reasoning modes, and all three prompts: 120 mode/prompt pairs and 480
-requests per variant (960 total). All prior full-matrix ACO results are
-superseded for current repaired-build comparisons; their raw artifacts remain
-archived. New ACO rows are pending until this queue finishes. The separate
-48-request focused comparison remains valid for its paired C=62464/C=78848
-before/after boundary measurements. The other eight variants, source,
-model/template, and benchmark settings are unchanged. The companion
-`.wiretail/execution/benchmarks/REMAINING_MATRIX.md` contains exact commands.
-The old `/tmp/run_remaining_benchmark_matrix.py` scheduler is superseded.
+The staged v2 plan is `/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json`. Its fixed bundle is
+`/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server` (source/build `1d74e9a315acaf0379eb2af1245202b820cff1e1`,
+SHA-256 `189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794`).
+The 96-request C=6144→12288 prefix-anchor proof is pending; start the 960-request
+full ACO matrix only after proof passes. Both ACO MTP variants then cover all ten
+checkpoints, all four modes, all three prompts (120 pairs and 480 requests each).
+The prior ca549 full-matrix attempt root is archived and excluded from current
+comparisons; its hybrid checkpoint-retention failure invalidated it as a complete
+full-matrix result. New output and per-variant slot-state paths use
+`/srv/ai/paged-kv/results/forward/final-after-packed-repair-20261103-v2`. The other eight variant selections and the benchmark source,
+model/template, sampling, geometry and context ladder are unchanged. The v2
+command sheet is `.wiretail/execution/benchmarks/REMAINING_MATRIX.md`.
 
 Validate/list without starting a server:
 
