@@ -1,0 +1,428 @@
+{
+  "schema_version": 1,
+  "status": "correctness_validated_no_material_speedup_established",
+  "runtime_source_commit": "8a79008b5",
+  "built_from_base_and_diff": {
+    "captured_utc": "2026-11-04T09:06:47Z",
+    "worktree": "/srv/repos/vanwho/buun-llama-cpp",
+    "base_commit": "ab10f84e52370560c70bcefa3a306f24113e485d",
+    "worktree_dirty": true,
+    "modified_files": [
+      "src/llama-graph.cpp",
+      "src/llama-kv-attention-execution.cpp",
+      "src/llama-kv-attention-execution.h",
+      "tests/test-kv-attention-execution.cpp"
+    ],
+    "diff_path": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/aco-runtime-source.diff",
+    "diff_sha256": "ad693c0b0e61806ff4c25b783690757a44e27f5496f63c2f6eb192ace7198271",
+    "source_files_sha256": {
+      "src/llama-graph.cpp": "076bce59fc3de4ef43bd02d97aa8d04a5048e1756466ca9efff43b9423b34e47",
+      "src/llama-kv-attention-execution.cpp": "fb307be85d5fc98e43867e8e1850c0715f8477f8423be39b4d1c1d07796c9d09",
+      "src/llama-kv-attention-execution.h": "83ebf0becfbbf83ac84828dd2a2074ca35e9be7d8669c3c84cf397ab8dab909d",
+      "tests/test-kv-attention-execution.cpp": "9996e957d69e5b7236523837b20bee2ac01b70001dd3e9b701f523149b0adc16"
+    }
+  },
+  "implementation": {
+    "helper": "llama_kv_attention_fill_contiguous_selected_mask",
+    "path": "src/llama-kv-attention-execution.cpp",
+    "integration": "llm_graph_input_attn_kv::set_input",
+    "batched_queries_min": 32,
+    "types": [
+      "F16",
+      "F32"
+    ],
+    "allocation_bytes_added": 0,
+    "route_or_server_config_changes": false,
+    "behavior": "validate consecutive valid native prefix and blocked suffix once, then fill visible/masked intervals; refuse without writes for unsupported or sparse layouts",
+    "small_decode_and_mtp_path": "unchanged"
+  },
+  "validation": {
+    "incremental_parallel_jobs": 16,
+    "ctest_passed": 2,
+    "ctest_total": 2,
+    "cuda_execution_fixture_exit": 0,
+    "source_hashes_match_committed_code": true,
+    "notes": "F16/F32 differential oracle tests include causal/noncausal, masked padding, unequal metadata lengths, nonzero native origin, holes, gaps, duplicate positions, INT32 boundaries, ALiBi refusal, unsupported layouts and small-batch fallback"
+  },
+  "config": {
+    "L": 65536,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "target_and_draft_kv": "GPU Turbo4",
+    "mtp_n_max": 2,
+    "reasoning": "low",
+    "body_tokens": 32768,
+    "fill_prompt_tokens": 32832,
+    "question_cached_tokens": 32832,
+    "question_new_tokens": 91,
+    "same_native_prompt_hash_all_six": true,
+    "samples_per_build": 3,
+    "fresh_server_each_sample": true
+  },
+  "medians_and_ranges": {
+    "master": {
+      "fill_backend_tok_s": {
+        "median": 1630.562316042132,
+        "min": 1629.2999260681338,
+        "max": 1642.9804321591
+      },
+      "fill_prompt_seconds": {
+        "median": 20.135385,
+        "min": 19.983196,
+        "max": 20.150986
+      },
+      "fill_wall_seconds": {
+        "median": 20.158012237981893,
+        "min": 20.007331953995163,
+        "max": 20.174394711997593
+      },
+      "question_prompt_ms": {
+        "median": 90.058,
+        "min": 89.589,
+        "max": 90.384
+      },
+      "question_ttft_ms": {
+        "median": 117.42525600129738,
+        "min": 114.73185199429281,
+        "max": 121.39011401450261
+      },
+      "decode_tok_s": {
+        "median": 91.74580770792578,
+        "min": 91.37218275002925,
+        "max": 91.90581670795869
+      },
+      "mtp_acceptance_percent": {
+        "median": 86.61417322834646,
+        "min": 86.2796833773087,
+        "max": 87.06666666666666
+      },
+      "output_tokens": {
+        "median": 2066,
+        "min": 2056,
+        "max": 2083
+      },
+      "response_wall_seconds": {
+        "median": 22.718426496023312,
+        "min": 22.47562773601385,
+        "max": 22.815643767011352
+      }
+    },
+    "aco": {
+      "fill_backend_tok_s": {
+        "median": 1096.3572169036163,
+        "min": 1091.6281741278603,
+        "max": 1096.7250571210966
+      },
+      "fill_prompt_seconds": {
+        "median": 29.946444,
+        "min": 29.936400000000003,
+        "max": 30.076175
+      },
+      "fill_wall_seconds": {
+        "median": 29.97229010699084,
+        "min": 29.961525679012993,
+        "max": 30.099874636012828
+      },
+      "question_prompt_ms": {
+        "median": 400.332,
+        "min": 396.007,
+        "max": 402.451
+      },
+      "question_ttft_ms": {
+        "median": 427.0677639869973,
+        "min": 421.06189898913726,
+        "max": 427.2649820195511
+      },
+      "decode_tok_s": {
+        "median": 87.38941916300465,
+        "min": 85.18004909351941,
+        "max": 88.00010091954233
+      },
+      "mtp_acceptance_percent": {
+        "median": 87.03939008894537,
+        "min": 83.90532544378698,
+        "max": 88.25136612021858
+      },
+      "output_tokens": {
+        "median": 2158,
+        "min": 2024,
+        "max": 2264
+      },
+      "response_wall_seconds": {
+        "median": 25.1053045289882,
+        "min": 23.417092565010535,
+        "max": 26.996233101002872
+      }
+    }
+  },
+  "pre_repair_aco": {
+    "ttft_ms": {
+      "median": 434.4225070090033,
+      "min": 433.665389980888,
+      "max": 435.54952199338004
+    },
+    "question_prompt_ms": {
+      "median": 406.662,
+      "min": 405.024,
+      "max": 406.977
+    },
+    "first_visible_content_seconds": {
+      "median": 18.351663637993624,
+      "min": 18.33905808001873,
+      "max": 18.381999633013038
+    },
+    "response_wall_seconds": {
+      "median": 25.15312295698095,
+      "min": 25.14212169201346,
+      "max": 25.214868531009415
+    },
+    "decode_tok_s": {
+      "median": 87.26549623016699,
+      "min": 87.05025899369014,
+      "max": 87.30974156923656
+    },
+    "output_tokens": {
+      "median": 2158,
+      "min": 2158,
+      "max": 2158
+    },
+    "mtp_acceptance_percent": {
+      "median": 87.03939008894537,
+      "min": 87.03939008894537,
+      "max": 87.03939008894537
+    },
+    "initial_fill_backend_tok_s": {
+      "median": 1039.5172323917523,
+      "min": 1037.2933039387226,
+      "max": 1040.52557443702
+    },
+    "initial_fill_wall_seconds": {
+      "median": 31.6088580719952,
+      "min": 31.57835056798649,
+      "max": 31.67605819401797
+    }
+  },
+  "samples": [
+    {
+      "sample": "master-1",
+      "metrics": {
+        "fill_backend_tok_s": 1642.9804321591,
+        "fill_prompt_seconds": 19.983196,
+        "fill_wall_seconds": 20.007331953995163,
+        "question_prompt_ms": 89.589,
+        "question_ttft_ms": 121.39011401450261,
+        "decode_tok_s": 91.74580770792578,
+        "mtp_acceptance_percent": 86.61417322834646,
+        "output_tokens": 2083,
+        "response_wall_seconds": 22.815643767011352
+      },
+      "loaded_project_dsos": {
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b"
+      }
+    },
+    {
+      "sample": "aco-1",
+      "metrics": {
+        "fill_backend_tok_s": 1096.7250571210966,
+        "fill_prompt_seconds": 29.936400000000003,
+        "fill_wall_seconds": 29.961525679012993,
+        "question_prompt_ms": 396.007,
+        "question_ttft_ms": 421.06189898913726,
+        "decode_tok_s": 87.38941916300465,
+        "mtp_acceptance_percent": 87.03939008894537,
+        "output_tokens": 2158,
+        "response_wall_seconds": 25.1053045289882
+      },
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "d9185f88b8380a141b024ccd9e073f2ab9a22f2526fa074507cc8d705bc08d27",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "4d6b2466714f2173ad8154ebbab73fc3a3e52e8076ddf008db973d90eb7d67dd",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "0d1f5a027e20d4d3bb0949f922dc8a085e330090fbc8e42d74cdc6588006f40b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "838a6b26b03b382e7200a2b97fef31c6b5964aba4fd411c563367398d5395aa7",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "095bbe79587874fc6b340806f329285f6927297f1271dc70bbd03511bfb0be9e",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6"
+      }
+    },
+    {
+      "sample": "aco-2",
+      "metrics": {
+        "fill_backend_tok_s": 1096.3572169036163,
+        "fill_prompt_seconds": 29.946444,
+        "fill_wall_seconds": 29.97229010699084,
+        "question_prompt_ms": 402.451,
+        "question_ttft_ms": 427.0677639869973,
+        "decode_tok_s": 88.00010091954233,
+        "mtp_acceptance_percent": 88.25136612021858,
+        "output_tokens": 2024,
+        "response_wall_seconds": 23.417092565010535
+      },
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "d9185f88b8380a141b024ccd9e073f2ab9a22f2526fa074507cc8d705bc08d27",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "4d6b2466714f2173ad8154ebbab73fc3a3e52e8076ddf008db973d90eb7d67dd",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "0d1f5a027e20d4d3bb0949f922dc8a085e330090fbc8e42d74cdc6588006f40b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "838a6b26b03b382e7200a2b97fef31c6b5964aba4fd411c563367398d5395aa7",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "095bbe79587874fc6b340806f329285f6927297f1271dc70bbd03511bfb0be9e",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6"
+      }
+    },
+    {
+      "sample": "master-2",
+      "metrics": {
+        "fill_backend_tok_s": 1630.562316042132,
+        "fill_prompt_seconds": 20.135385,
+        "fill_wall_seconds": 20.158012237981893,
+        "question_prompt_ms": 90.058,
+        "question_ttft_ms": 114.73185199429281,
+        "decode_tok_s": 91.90581670795869,
+        "mtp_acceptance_percent": 87.06666666666666,
+        "output_tokens": 2056,
+        "response_wall_seconds": 22.47562773601385
+      },
+      "loaded_project_dsos": {
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23"
+      }
+    },
+    {
+      "sample": "master-3",
+      "metrics": {
+        "fill_backend_tok_s": 1629.2999260681338,
+        "fill_prompt_seconds": 20.150986,
+        "fill_wall_seconds": 20.174394711997593,
+        "question_prompt_ms": 90.384,
+        "question_ttft_ms": 117.42525600129738,
+        "decode_tok_s": 91.37218275002925,
+        "mtp_acceptance_percent": 86.2796833773087,
+        "output_tokens": 2066,
+        "response_wall_seconds": 22.718426496023312
+      },
+      "loaded_project_dsos": {
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23"
+      }
+    },
+    {
+      "sample": "aco-3",
+      "metrics": {
+        "fill_backend_tok_s": 1091.6281741278603,
+        "fill_prompt_seconds": 30.076175,
+        "fill_wall_seconds": 30.099874636012828,
+        "question_prompt_ms": 400.332,
+        "question_ttft_ms": 427.2649820195511,
+        "decode_tok_s": 85.18004909351941,
+        "mtp_acceptance_percent": 83.90532544378698,
+        "output_tokens": 2264,
+        "response_wall_seconds": 26.996233101002872
+      },
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "d9185f88b8380a141b024ccd9e073f2ab9a22f2526fa074507cc8d705bc08d27",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "4d6b2466714f2173ad8154ebbab73fc3a3e52e8076ddf008db973d90eb7d67dd",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "0d1f5a027e20d4d3bb0949f922dc8a085e330090fbc8e42d74cdc6588006f40b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "838a6b26b03b382e7200a2b97fef31c6b5964aba4fd411c563367398d5395aa7",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "095bbe79587874fc6b340806f329285f6927297f1271dc70bbd03511bfb0be9e",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6"
+      }
+    }
+  ],
+  "limits": [
+    "A small observed difference does not establish meaningful speed improvement or parity with master.",
+    "The remaining9.81-second prompt-time gap is not explained by this repair.",
+    "Output lengths varied; response wall-time differences are not fixed ACO overhead.",
+    "No new production diagnostics or GPU allocation were introduced.",
+    "No final physical inventory snapshot was obtained; existing lifecycle logs remain available."
+  ],
+  "raw_root": "/srv/ai/paged-kv/results/matched32k-latency-20261104T090659598313303Z",
+  "pre_repair_snapshot": "/srv/ai/paged-kv/builds/aco-before-contiguous-mask-6068d4a/",
+  "artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T090659598313303Z/records.json",
+      "sha256": "0fb3c322a2c52557d9d752bc537ade492476b8843f1df98141127be7b7fb61d2"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T090659598313303Z/restoration.txt",
+      "sha256": "35bd80571b3c3206b37e41ff2ad311ce021ee77b173ced782d2bd205a0c4875e"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/build-tests-summary.txt",
+      "sha256": "46a4b75a9fa75977e525fcf45fa022aab7853b0d97455755db20185acb9b584b"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/test-kv-attention-execution-cuda.log",
+      "sha256": "2ec47aec82ee8eeecc92c000008294e68a7333bf4fc12a75748fee1bfb315176"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/aco-runtime-source.diff",
+      "sha256": "ad693c0b0e61806ff4c25b783690757a44e27f5496f63c2f6eb192ace7198271"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/aco-runtime-source-identity.json",
+      "sha256": "dd2e526e2d6909e3e0097465decbf4d45f390e18936ebe2e9e6a68e9b3cda912"
+    }
+  ],
+  "observed_fill_throughput_difference_percent": 5.467921333163939,
+  "observed_fill_wall_difference_percent": 5.177561180086809,
+  "performance_verdict": "No material prefill speedup established; small observational difference in three sessions perbuild, substantial mastergap remains.",
+  "aco_specific_isolation": {
+    "scope": "one profiled pair, same compiled experimental binary/request, pager toggle only",
+    "aco_on_prompt_seconds": 29.949724,
+    "pager_off_prompt_seconds": 26.242937,
+    "observed_difference_seconds": 3.706787,
+    "backend_submit_seconds": {
+      "aco_on": 15.813965,
+      "pager_off": 15.864885
+    },
+    "timing_limit": "Single diagnostic pair, not a statistical benchmark. Compiled fence experiment was later discarded. Do not attribute the whole older-master gap to ACO or sum overlapping phase timers.",
+    "on_raw_root": "/srv/ai/paged-kv/results/allhot32k-hotpath-diagnostic-20261104T095405144309261Z",
+    "off_raw_root": "/srv/ai/paged-kv/results/allhot32k-nopager-diagnostic-20261104T095831971727958Z"
+  },
+  "discarded_fence_experiment": {
+    "status": "source_reverted_not_kept",
+    "archive": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/discarded-fence-experiment/",
+    "result": "96 intermediate fences deferred, wait moved into graph preparation, no material end-to-end speed gain",
+    "actual_issue": "Old coalescing required n_pos==1 and excluded Qwen four-axis M-RoPE text; it also failed ordinary nonzero append seeding. Correcting it changed fence statistics but not elapsed time.",
+    "rejected_inference": "Partial tails are not inherently absent from residency: complete_write publishes filling_gpu pages. No partial-tail proof failure was measured."
+  },
+  "final_build": {
+    "source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
+    "fence_experiment_included": false,
+    "ctest_passed": 2,
+    "ctest_total": 2,
+    "identity_artifact": {
+      "path": "/srv/ai/paged-kv/results/contiguous-mask-build-20261104/final-source-restore/identity-and-test-summary.json",
+      "sha256": "c42a81963738bc3c509190537fcb70ea967e06d199ed0691d5171b1172091d0b"
+    },
+    "note": "Final build restored after diagnostics; only the requested selected-mask implementation remains. No final GPU workload or service changes."
+  },
+  "scope_limit": "Only ACO-specific paths may be optimized. Do not alter global scheduler/kernels, B/U, or add complex cached/async protocols to chase these counters."
+}

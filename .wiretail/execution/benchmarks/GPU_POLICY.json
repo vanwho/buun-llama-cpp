@@ -110,5 +110,24 @@
     "timing_limit": "all-hot short query; no cold selection/promotion; response output lengths differ",
     "full_suite": "still paused",
     "services": "restored; Jellyfin and port8091 preserved; port8092 untouched"
+  },
+  "authorized_contiguous_selected_mask_repair": {
+    "status": "completed",
+    "source_commit": "8a79008b5",
+    "scope": "ACO selected-mask only; no general scheduler/kernel/server-setting changes",
+    "L": 65536,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "reasoning": "low",
+    "mtp": "GPU native MTP2; Turbo4 target/draft",
+    "parity_with_master": false,
+    "result": ".wiretail/execution/evidence/CONTIGUOUS_SELECTED_MASK_20261104.md",
+    "full_suite": "still paused",
+    "services": "restored; Jellyfin and port8091 preserved; port8092 untouched",
+    "observed_prefill_tok_s_difference_percent": 5.467921333163939,
+    "performance_verdict": "no material speedup established",
+    "fence_experiment": "discarded; only moved waits, no material end-to-end gain",
+    "final_build_source": "8a79008b5"
   }
 }
