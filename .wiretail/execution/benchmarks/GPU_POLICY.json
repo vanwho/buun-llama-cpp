@@ -193,8 +193,11 @@
     "completed_checkpoints_off": [
       6144,
       12288,
-      28672
+      28672,
+      62464,
+      78848,
+      88064
     ],
-    "current_checkpoint_off": 62464
+    "current_checkpoint_off": 100352
   }
 }

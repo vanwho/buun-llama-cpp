@@ -1,6 +1,66 @@
 {
   "baseline_index": "/srv/ai/paged-kv/results/aco-fullcurves-20261104-baseline-index.json",
   "cell_comparisons": {
+    "off|100352|100352|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|100352|100352|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|100352|100352|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|100352|100352|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|100352|100352|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
     "off|12288|12288|low|P1": {
       "comparable": false,
       "match_note": "no prior matching cell; new history observation",
@@ -183,33 +243,33 @@
     },
     "off|62464|62465|low|P1": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|low|P2": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|low|P3": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|medium|P1": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|medium|P2": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|medium|P3": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|off|P1": {
       "comparable": false,
@@ -223,23 +283,143 @@
     },
     "off|62464|62465|off|P3": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|xhigh|P1": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|xhigh|P2": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|62464|62465|xhigh|P3": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|78848|78849|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|88064|88065|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "on|100352|100352|low|P1": {
       "comparable": true,
@@ -2257,23 +2437,24 @@
   },
   "compiled_build_label": "8a79008b5 maskrepair",
   "coverage": {
-    "complete_measured_cells": 170,
-    "complete_measured_repeats": 510,
-    "complete_rows": 14,
-    "discovered_measured_cells": 180,
-    "discovered_rows": 15,
+    "complete_measured_cells": 207,
+    "complete_measured_repeats": 621,
+    "complete_rows": 17,
+    "discovered_measured_cells": 216,
+    "discovered_rows": 18,
     "discovered_variant_roots": [
       "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z",
       "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z"
     ],
     "expected_rows": 22,
-    "observed_valid_measured_repeats": 512,
+    "observed_valid_measured_repeats": 622,
     "planned_cells": 264,
     "planned_measured_repeats": 792
   },
   "created_for": "2026-11-04 full ACO MTP on/off curve comparison",
   "decode_output_cap_tokens": 400,
   "planned": {
+    "cases_per_row_derived_from_campaign_files": 48,
     "cells": 264,
     "checkpoints": 11,
     "measured_requests": 792,
@@ -2283,15 +2464,15 @@
   },
   "prefill_weighted_by_mtp": {
     "off": {
-      "append_groups": 5,
-      "backend_prompt_seconds_weighted": 68.37903,
-      "backend_tok_s_token_weighted": 913.3794381113624,
-      "backend_tokens": 62456,
-      "http_wall_seconds_weighted": 68.57787798903883,
-      "http_wall_tok_s_token_weighted": 910.862246422733,
-      "net_new_prompt_seconds_weighted": 68.37903,
-      "net_new_tok_s_backend_time_weighted": 913.511057410437,
-      "net_new_tokens": 62465
+      "append_groups": 8,
+      "backend_prompt_seconds_weighted": 108.124839,
+      "backend_tok_s_token_weighted": 927.9458903980426,
+      "backend_tokens": 100334,
+      "http_wall_seconds_weighted": 108.58054654105217,
+      "http_wall_tok_s_token_weighted": 924.2171198876669,
+      "net_new_prompt_seconds_weighted": 108.124839,
+      "net_new_tok_s_backend_time_weighted": 928.112364634365,
+      "net_new_tokens": 100352
     },
     "on": {
       "append_groups": 15,
@@ -2304,6 +2485,17 @@
       "net_new_tok_s_backend_time_weighted": 781.8766080012231,
       "net_new_tokens": 261121
     }
+  },
+  "request_totals_derived_from_campaign_files": {
+    "expected_benchmark_requests_from_row_or_schedule": 864,
+    "observed_measured_requests": 622,
+    "observed_prefill_append_requests": 23,
+    "observed_request_records": 830,
+    "observed_total_http_requests_including_prefill_appends": 853,
+    "observed_warmup_requests": 208,
+    "passing_measured_requests": 622,
+    "passing_warmup_requests": 208,
+    "planned_benchmark_requests_full_22_rows_derived_from_observed_cases_per_row": 1056
   },
   "runs": [
     {
@@ -3058,6 +3250,17 @@
         "net_new_prompt_seconds_weighted": 4.164372999999999,
         "net_new_tok_s_backend_time_weighted": 1475.3721628682158,
         "net_new_tokens": 6144
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C6144/campaign/records.jsonl"
       },
       "resource_peaks": {
         "peaks": {
@@ -3830,6 +4033,17 @@
         "net_new_tok_s_backend_time_weighted": 1268.4512796204224,
         "net_new_tokens": 6144
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C12288/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
           "gpu_used_mib": 15713.0,
@@ -4600,6 +4814,17 @@
         "net_new_prompt_seconds_weighted": 16.281539000000002,
         "net_new_tok_s_backend_time_weighted": 1006.3544975693021,
         "net_new_tokens": 16385
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C28672/campaign/records.jsonl"
       },
       "resource_peaks": {
         "peaks": {
@@ -5392,6 +5617,17 @@
         "net_new_tok_s_backend_time_weighted": 662.0711188049711,
         "net_new_tokens": 33792
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C62464/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
           "gpu_used_mib": 15713.0,
@@ -6162,6 +6398,17 @@
         "net_new_prompt_seconds_weighted": 18.428774,
         "net_new_tok_s_backend_time_weighted": 889.0444909683085,
         "net_new_tokens": 16384
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C78848/campaign/records.jsonl"
       },
       "resource_peaks": {
         "peaks": {
@@ -6934,6 +7181,17 @@
         "net_new_tok_s_backend_time_weighted": 826.4408708728286,
         "net_new_tokens": 9216
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C88064/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
           "gpu_used_mib": 15713.0,
@@ -7705,6 +7963,17 @@
         "net_new_tok_s_backend_time_weighted": 834.0710453122484,
         "net_new_tokens": 12287
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C100352/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
           "gpu_used_mib": 15713.0,
@@ -8475,6 +8744,17 @@
         "net_new_prompt_seconds_weighted": 34.956883000000005,
         "net_new_tok_s_backend_time_weighted": 849.5322652194131,
         "net_new_tokens": 29697
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C130048/campaign/records.jsonl"
       },
       "resource_peaks": {
         "peaks": {
@@ -9287,6 +9567,17 @@
         "net_new_tok_s_backend_time_weighted": 755.1767457254579,
         "net_new_tokens": 66559
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C196608/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
           "gpu_used_mib": 15713.0,
@@ -10078,6 +10369,17 @@
         "net_new_tok_s_backend_time_weighted": 726.271443979701,
         "net_new_tokens": 59393
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C256000/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
           "gpu_used_mib": 15713.0,
@@ -10848,6 +11150,17 @@
         "net_new_prompt_seconds_weighted": 8.454175,
         "net_new_tok_s_backend_time_weighted": 605.6179343342195,
         "net_new_tokens": 5120
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z/cell/C261120/campaign/records.jsonl"
       },
       "resource_peaks": {
         "peaks": {
@@ -11620,16 +11933,27 @@
         "net_new_tok_s_backend_time_weighted": 1674.9596799256738,
         "net_new_tokens": 6144
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
-          "gpu_used_mib": 14591.0,
+          "gpu_used_mib": 14607.0,
           "server_vm_hwm_kib": 14323532,
-          "server_vm_rss_kib": 3439292,
+          "server_vm_rss_kib": 4464244,
           "server_vm_swap_kib": 0,
-          "system_memory_used_kib": 11462392,
+          "system_memory_used_kib": 12639020,
           "system_swap_used_kib": 3035044
         },
-        "sample_count": 203,
+        "sample_count": 469,
         "scope": "variant wrapper run",
         "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
       },
@@ -12391,16 +12715,27 @@
         "net_new_tok_s_backend_time_weighted": 1405.8463897732,
         "net_new_tokens": 6144
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
-          "gpu_used_mib": 14591.0,
+          "gpu_used_mib": 14607.0,
           "server_vm_hwm_kib": 14323532,
-          "server_vm_rss_kib": 3439292,
+          "server_vm_rss_kib": 4464244,
           "server_vm_swap_kib": 0,
-          "system_memory_used_kib": 11462392,
+          "system_memory_used_kib": 12639020,
           "system_swap_used_kib": 3035044
         },
-        "sample_count": 203,
+        "sample_count": 469,
         "scope": "variant wrapper run",
         "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
       },
@@ -13162,16 +13497,27 @@
         "net_new_tok_s_backend_time_weighted": 1123.245729763873,
         "net_new_tokens": 16385
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
-          "gpu_used_mib": 14591.0,
+          "gpu_used_mib": 14607.0,
           "server_vm_hwm_kib": 14323532,
-          "server_vm_rss_kib": 3439292,
+          "server_vm_rss_kib": 4464244,
           "server_vm_swap_kib": 0,
-          "system_memory_used_kib": 11462392,
+          "system_memory_used_kib": 12639020,
           "system_swap_used_kib": 3035044
         },
-        "sample_count": 203,
+        "sample_count": 469,
         "scope": "variant wrapper run",
         "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
       },
@@ -13186,135 +13532,345 @@
       "cells": {
         "off|62464|62465|low|P1": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
+          "actual_completion_tokens": [
+            302,
+            302,
+            302
+          ],
           "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "decode_tok_s_max": 42.079404815477616,
+          "decode_tok_s_median": 42.05488259981328,
+          "decode_tok_s_repeats": [
+            42.079404815477616,
+            42.03301840222303,
+            42.05488259981328
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P1",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-13-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-13-00.json",
+              "request_sha256": "af0b6220a35b5e3e8913090c71f687d5134e7c291d9948d63609a5ff19b5aab8",
+              "sha256": "1ad4203520e83bcb01a8abc3cd1369d88a4246ff80ab747c3cebd301a417c64c"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-14-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-14-00.json",
+              "request_sha256": "af0b6220a35b5e3e8913090c71f687d5134e7c291d9948d63609a5ff19b5aab8",
+              "sha256": "2c43ea17f026256094f48fbff75e682f9285c4ae548ab0dac1ff783acbd29082"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-15-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-15-00.json",
+              "request_sha256": "af0b6220a35b5e3e8913090c71f687d5134e7c291d9948d63609a5ff19b5aab8",
+              "sha256": "1ce42252a6a12aa9a94af4473cd6dca6549698f54c52d3d75d072dd09504a227"
+            }
+          ],
           "reasoning_mode": "low",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
-          "stop_terminated_repeats": 0,
+          "status": "complete",
+          "stop_terminated_repeats": 3,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|low|P2": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
+          "actual_completion_tokens": [
+            224,
+            224,
+            224
+          ],
           "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "decode_tok_s_max": 41.98469761321701,
+          "decode_tok_s_median": 41.88691734452722,
+          "decode_tok_s_repeats": [
+            41.98469761321701,
+            41.79351529567693,
+            41.88691734452722
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P2",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-17-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-17-00.json",
+              "request_sha256": "0efc4b4be34a2ba5d223047a46a32af643768b3d748fb23bffdf6a289032c44e",
+              "sha256": "22640fdb8d1838d429f63baa6e8a334ed658cdecf2a93ec36fd31a7dc485452c"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-18-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-18-00.json",
+              "request_sha256": "0efc4b4be34a2ba5d223047a46a32af643768b3d748fb23bffdf6a289032c44e",
+              "sha256": "1bf935405cde2759391987dcf73074a81f0004eeca333577e79939a91251f9c7"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-19-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-19-00.json",
+              "request_sha256": "0efc4b4be34a2ba5d223047a46a32af643768b3d748fb23bffdf6a289032c44e",
+              "sha256": "0266f47921bd2359370333cf262d82206ef1f98a5dd589df55951a46ae0d208d"
+            }
+          ],
           "reasoning_mode": "low",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
-          "stop_terminated_repeats": 0,
+          "status": "complete",
+          "stop_terminated_repeats": 3,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|low|P3": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
-          "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 42.12114929297698,
+          "decode_tok_s_median": 42.12104702155109,
+          "decode_tok_s_repeats": [
+            42.12104702155109,
+            42.112995817197934,
+            42.12114929297698
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P3",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-21-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-21-00.json",
+              "request_sha256": "c6ea8732a2e5c28ae2159399c0552bd6f6dd76383607e7b5e974edaf115badde",
+              "sha256": "b84782c69b1c8b95abd707cd91ab7a2a3400e9070942af7a631d6bd84f0dc4f3"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-22-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-22-00.json",
+              "request_sha256": "c6ea8732a2e5c28ae2159399c0552bd6f6dd76383607e7b5e974edaf115badde",
+              "sha256": "683791f40b1d11731368781307833e8ebccb60b3e1a7aef43301f29f00ea73bb"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-23-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-23-00.json",
+              "request_sha256": "c6ea8732a2e5c28ae2159399c0552bd6f6dd76383607e7b5e974edaf115badde",
+              "sha256": "f95e1516afb865bcb269d664cf83a7a772fe0f0cc6b108c82f2ffb18e5bf1db8"
+            }
+          ],
           "reasoning_mode": "low",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
+          "status": "complete",
           "stop_terminated_repeats": 0,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|medium|P1": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
-          "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 42.184818349951925,
+          "decode_tok_s_median": 42.181152509604146,
+          "decode_tok_s_repeats": [
+            42.181152509604146,
+            42.164615095714204,
+            42.184818349951925
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P1",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-25-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-25-00.json",
+              "request_sha256": "9571b86ad8bcfc6864a4b3b14677efe6e887ff846ace5c500b58c47cb45ed4e2",
+              "sha256": "5e843659afd0cb109d2b76d4fa4ae4d2e6fd49f43a442d3dc3b83d3821db03d8"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-26-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-26-00.json",
+              "request_sha256": "9571b86ad8bcfc6864a4b3b14677efe6e887ff846ace5c500b58c47cb45ed4e2",
+              "sha256": "a72c429c7017418d7961052d391caffd9e1b22f1c9f352a6c347bbbd6c2c68aa"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-27-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-27-00.json",
+              "request_sha256": "9571b86ad8bcfc6864a4b3b14677efe6e887ff846ace5c500b58c47cb45ed4e2",
+              "sha256": "236f80cf76697739f265dad86418f5aa4736033cc2aaf5424f280f1372b68fdc"
+            }
+          ],
           "reasoning_mode": "medium",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
+          "status": "complete",
           "stop_terminated_repeats": 0,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|medium|P2": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
-          "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 42.18930563487345,
+          "decode_tok_s_median": 42.17923065083293,
+          "decode_tok_s_repeats": [
+            42.18930563487345,
+            42.17923065083293,
+            42.14934177306119
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P2",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-29-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-29-00.json",
+              "request_sha256": "b4154628df5323812090624ad97835910e54561da4f645c67ea874c072d9b3ee",
+              "sha256": "df69a1281d860729c0be8024e862adbbd0fcdb733696d0c93cc360ce082cdb93"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-30-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-30-00.json",
+              "request_sha256": "b4154628df5323812090624ad97835910e54561da4f645c67ea874c072d9b3ee",
+              "sha256": "cd41d415be1733ba3f36f69f520ff9e6c14c885577974ab24af5878c4693a6d2"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-31-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-31-00.json",
+              "request_sha256": "b4154628df5323812090624ad97835910e54561da4f645c67ea874c072d9b3ee",
+              "sha256": "9b08f62b637fdb2bc600c7537afcd7b6b192bbc4835750b7a5b757d08f8ab773"
+            }
+          ],
           "reasoning_mode": "medium",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
+          "status": "complete",
           "stop_terminated_repeats": 0,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|medium|P3": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
-          "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 42.202152754023636,
+          "decode_tok_s_median": 42.184657788857855,
+          "decode_tok_s_repeats": [
+            42.202152754023636,
+            42.184657788857855,
+            42.156988186428556
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P3",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-33-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-33-00.json",
+              "request_sha256": "d56907f616a3910aa88b1d068140f0bfc384b6e7a46940460358e52ce1b079ce",
+              "sha256": "0e2be7ae95cca72bcb8923f9cc008f6d834a81156a4a0770a1a21d940c3ec5ad"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-34-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-34-00.json",
+              "request_sha256": "d56907f616a3910aa88b1d068140f0bfc384b6e7a46940460358e52ce1b079ce",
+              "sha256": "d219c60b59f0b4108da0867808978ed4b174262606f38a89f59032bbd92bd6a5"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-35-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-35-00.json",
+              "request_sha256": "d56907f616a3910aa88b1d068140f0bfc384b6e7a46940460358e52ce1b079ce",
+              "sha256": "a57f0766a2adbdd515cfd8d2ed309a2b5645d01085e2f1fc68b9e6d754ff9eb7"
+            }
+          ],
           "reasoning_mode": "medium",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
+          "status": "complete",
           "stop_terminated_repeats": 0,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|off|P1": {
           "actual_C": 62465,
@@ -13434,21 +13990,25 @@
           "actual_C": 62465,
           "actual_completion_tokens": [
             400,
+            400,
             400
           ],
-          "cap_terminated_repeats": 2,
+          "cap_terminated_repeats": 3,
           "decode_tok_s_max": 42.211367870484096,
-          "decode_tok_s_median": 42.18911885480003,
+          "decode_tok_s_median": 42.166869839115954,
           "decode_tok_s_repeats": [
             42.211367870484096,
-            42.166869839115954
+            42.166869839115954,
+            42.08515377113566
           ],
           "finish_reasons": [
+            "length",
             "length",
             "length"
           ],
           "mtp": "off",
           "mtp_acceptance_percent_repeats": [
+            0.0,
             0.0,
             0.0
           ],
@@ -13468,87 +14028,198 @@
               "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-10-00.json",
               "request_sha256": "4d474e78e011df101343449408e9c4d2c555d765ebaec6d27c32eef63d5b6cc3",
               "sha256": "511dadaa661e8d408ac50f1a34109b41f65d42b3e5815ba4c85524bab8f24cfa"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-11-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-11-00.json",
+              "request_sha256": "4d474e78e011df101343449408e9c4d2c555d765ebaec6d27c32eef63d5b6cc3",
+              "sha256": "b519aa67c3b43046f9500445fe08f96f4f519b7157ad771e5a0fd06dabf17d6b"
             }
           ],
           "reasoning_mode": "off",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "partial",
+          "status": "complete",
           "stop_terminated_repeats": 0,
           "target_C": 62464,
-          "valid_measured_repeats": 2
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|xhigh|P1": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
+          "actual_completion_tokens": [
+            235,
+            235,
+            235
+          ],
           "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "decode_tok_s_max": 42.003517525339426,
+          "decode_tok_s_median": 41.9914951071833,
+          "decode_tok_s_repeats": [
+            42.003517525339426,
+            41.9914951071833,
+            41.98190472260546
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P1",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-37-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-37-00.json",
+              "request_sha256": "61e77074e72f086e1e770541777fa399b3a847d8a3bd24a7681437053ae62e9f",
+              "sha256": "ee1de83fcdcc021428c18625336dd9dbb0bfb0b052e1259a0139fdbbe67fe3e1"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-38-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-38-00.json",
+              "request_sha256": "61e77074e72f086e1e770541777fa399b3a847d8a3bd24a7681437053ae62e9f",
+              "sha256": "8a6ca220cc48ecb204d60298a375c7e0ee2ab739eeb01a77daf77fba41387a2c"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-39-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-39-00.json",
+              "request_sha256": "61e77074e72f086e1e770541777fa399b3a847d8a3bd24a7681437053ae62e9f",
+              "sha256": "3948de37e0d95ccc1bebfe4071b9bb9cffba00652a39c25208fcaebf9f0df742"
+            }
+          ],
           "reasoning_mode": "xhigh",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
-          "stop_terminated_repeats": 0,
+          "status": "complete",
+          "stop_terminated_repeats": 3,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|xhigh|P2": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
+          "actual_completion_tokens": [
+            293,
+            293,
+            293
+          ],
           "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "decode_tok_s_max": 42.08267140798098,
+          "decode_tok_s_median": 42.064054335233806,
+          "decode_tok_s_repeats": [
+            42.08267140798098,
+            42.043383300166575,
+            42.064054335233806
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P2",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-41-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-41-00.json",
+              "request_sha256": "28155daa5304bae59f204652b35e5a41f3a376c7c84e8c34bb031750c95c37e8",
+              "sha256": "e25a10c23936f1f4a7da9366d26b882ced241e39abae9083c7d05bfe934fa3e0"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-42-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-42-00.json",
+              "request_sha256": "28155daa5304bae59f204652b35e5a41f3a376c7c84e8c34bb031750c95c37e8",
+              "sha256": "a2ac944dcfc09c52ca54dd1d32efb98d5fb44e3a59327816390bf145d801ce85"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-43-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-43-00.json",
+              "request_sha256": "28155daa5304bae59f204652b35e5a41f3a376c7c84e8c34bb031750c95c37e8",
+              "sha256": "35fd4813e30e324dc71c6f4e351a20bcb41f57a50b5ab4f0f39b26f4334d097d"
+            }
+          ],
           "reasoning_mode": "xhigh",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
-          "stop_terminated_repeats": 0,
+          "status": "complete",
+          "stop_terminated_repeats": 3,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         },
         "off|62464|62465|xhigh|P3": {
           "actual_C": 62465,
-          "actual_completion_tokens": [],
-          "cap_terminated_repeats": 0,
-          "decode_tok_s_max": null,
-          "decode_tok_s_median": null,
-          "decode_tok_s_repeats": [],
-          "finish_reasons": [],
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 42.15491710166879,
+          "decode_tok_s_median": 42.1391345508903,
+          "decode_tok_s_repeats": [
+            42.15491710166879,
+            42.1391345508903,
+            42.1160363299896
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
           "mtp": "off",
-          "mtp_acceptance_percent_repeats": [],
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
           "output_cap_tokens": [
             400
           ],
           "prompt": "P3",
-          "raw_refs": [],
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-45-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-45-00.json",
+              "request_sha256": "c3e5e8d6bd84419eaba49a69c4d09ab9b806d45f8e04fecd1b1c033acaf4e2c7",
+              "sha256": "f220e79404ca0a8023a221d9c7f088b3d52cbd2b59b68fe6627fafcaffcddf43"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-46-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-46-00.json",
+              "request_sha256": "c3e5e8d6bd84419eaba49a69c4d09ab9b806d45f8e04fecd1b1c033acaf4e2c7",
+              "sha256": "ac9cf6c4a247aa8888b63167c8f04314ae1b1b8603a6f757c3edf50119b6c06d"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-47-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-47-00.json",
+              "request_sha256": "c3e5e8d6bd84419eaba49a69c4d09ab9b806d45f8e04fecd1b1c033acaf4e2c7",
+              "sha256": "643b3e943c7a7af22a5d1df77b8b68315445c34696e834a27d388c1856491c45"
+            }
+          ],
           "reasoning_mode": "xhigh",
           "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
-          "status": "pending",
+          "status": "complete",
           "stop_terminated_repeats": 0,
           "target_C": 62464,
-          "valid_measured_repeats": 0
+          "valid_measured_repeats": 3
         }
       },
-      "complete_measured_cells": 2,
+      "complete_measured_cells": 12,
       "config_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/run-config.json",
       "config_sha256": "2f3ab7a17bc6355d950eb6dec221d3edee6ac1fe4deab19e1438c819961b65da",
       "expected_measured_cells": 12,
-      "filled_prefix_method": null,
+      "filled_prefix_method": "resident_prefix_reuse",
       "geometry": {
         "H_tokens": 65536,
         "batch": 1024,
@@ -13628,23 +14299,2080 @@
         "net_new_tok_s_backend_time_weighted": 738.5685469726055,
         "net_new_tokens": 33792
       },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/records.jsonl"
+      },
       "resource_peaks": {
         "peaks": {
-          "gpu_used_mib": 14591.0,
+          "gpu_used_mib": 14607.0,
           "server_vm_hwm_kib": 14323532,
-          "server_vm_rss_kib": 3439292,
+          "server_vm_rss_kib": 4464244,
           "server_vm_swap_kib": 0,
-          "system_memory_used_kib": 11462392,
+          "system_memory_used_kib": 12639020,
           "system_swap_used_kib": 3035044
         },
-        "sample_count": 203,
+        "sample_count": 469,
+        "scope": "variant wrapper run",
+        "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
+      },
+      "row_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/row.json",
+      "row_sha256": "7211f596ca81248363972cf3d6fbe8b97e13678889e247581ebc9ffb39481949",
+      "status": "complete",
+      "target_C": 62464
+    },
+    {
+      "actual_C": 78849,
+      "campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+      "cells": {
+        "off|78848|78849|low|P1": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            306,
+            291,
+            326
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.48469579756003,
+          "decode_tok_s_median": 37.45362377062802,
+          "decode_tok_s_repeats": [
+            37.48469579756003,
+            37.43021201504643,
+            37.45362377062802
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-13-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-13-00.json",
+              "request_sha256": "52471e386aad53ed0dfba009861c749c290442efb6ce52c6da473fd0e3bc6401",
+              "sha256": "543de2cbf99d26d10d578798dd6a51ea18155e778fbda9fe7695a0f63da3cf05"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-14-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-14-00.json",
+              "request_sha256": "52471e386aad53ed0dfba009861c749c290442efb6ce52c6da473fd0e3bc6401",
+              "sha256": "4d1996daf23ab05ee6533f926dbeca6cd0c6905206246a9532c3de47dc9c6d92"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-15-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-15-00.json",
+              "request_sha256": "52471e386aad53ed0dfba009861c749c290442efb6ce52c6da473fd0e3bc6401",
+              "sha256": "f40f643e5a94a94592edf1aeec1569d63b0ad99be2a22ee467503a5e4736b4f2"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|low|P2": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            317,
+            263,
+            322
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.499780460146034,
+          "decode_tok_s_median": 37.45827078618959,
+          "decode_tok_s_repeats": [
+            37.499780460146034,
+            37.40285429461143,
+            37.45827078618959
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-17-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-17-00.json",
+              "request_sha256": "32d760cef4e66feeb613755619070f1450b1ec46d690e882d695df003951ec44",
+              "sha256": "7423ca542560f30d1f3424ff4fbbbf354bcac5b392ba0f82233e9742f1874c9b"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-18-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-18-00.json",
+              "request_sha256": "32d760cef4e66feeb613755619070f1450b1ec46d690e882d695df003951ec44",
+              "sha256": "e9d26e2f8da3fb76025f645ae5f5a5f4266bd850e277cda071418c87f460d3b0"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-19-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-19-00.json",
+              "request_sha256": "32d760cef4e66feeb613755619070f1450b1ec46d690e882d695df003951ec44",
+              "sha256": "d9cba836819331c04618a1145bf5664a728f267e4866a54ae8db6394b2df57d6"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|low|P3": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.52270758591595,
+          "decode_tok_s_median": 37.49725818920383,
+          "decode_tok_s_repeats": [
+            37.52270758591595,
+            37.49725818920383,
+            37.473229885304676
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-21-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-21-00.json",
+              "request_sha256": "92e1a8170bcda7b44802fdd8807baa2771d267a6fe0e6bd6b0e3d60f83b41940",
+              "sha256": "a56b630e1b328c63d0208309796609f396d83518c96106d30b05dac34c70c930"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-22-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-22-00.json",
+              "request_sha256": "92e1a8170bcda7b44802fdd8807baa2771d267a6fe0e6bd6b0e3d60f83b41940",
+              "sha256": "e6e5e292973ce45664140f12f83e6e6ff0ba8af292817394525ec1bc4aad7b50"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-23-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-23-00.json",
+              "request_sha256": "92e1a8170bcda7b44802fdd8807baa2771d267a6fe0e6bd6b0e3d60f83b41940",
+              "sha256": "aa346ba578de5384b026c6ced403c93f70471ce49ce0015a87627c94d5c27f3f"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|medium|P1": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.5207739548278,
+          "decode_tok_s_median": 37.504095842045906,
+          "decode_tok_s_repeats": [
+            37.504095842045906,
+            37.5207739548278,
+            37.48604842558597
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-25-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-25-00.json",
+              "request_sha256": "45bc6fb19c4130b0ad2657e789daa67dcbdd823f155ea87f28d7623f47ef6850",
+              "sha256": "2018d0b1ba64aad0473c53a5fd03c19ba6cc6a1ac7e74817f0d5932deb6538a5"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-26-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-26-00.json",
+              "request_sha256": "45bc6fb19c4130b0ad2657e789daa67dcbdd823f155ea87f28d7623f47ef6850",
+              "sha256": "baa44c53b522c12796880749daeac9b30d200ebedaa01b871af04f38f4c54854"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-27-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-27-00.json",
+              "request_sha256": "45bc6fb19c4130b0ad2657e789daa67dcbdd823f155ea87f28d7623f47ef6850",
+              "sha256": "502da086f48193d191692d5a2eca40308260322657ae4f8a09d581036e65a87f"
+            }
+          ],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|medium|P2": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.504723339217534,
+          "decode_tok_s_median": 37.49287494425401,
+          "decode_tok_s_repeats": [
+            37.504723339217534,
+            37.49287494425401,
+            37.4892042366747
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-29-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-29-00.json",
+              "request_sha256": "d2b3ce47773f929d01dbadff745e726d4ea580fd37c9188a19237315b8e430aa",
+              "sha256": "b0df70692324b0b0303d7462867f0525afbd143374e72805c661dcb517860ccf"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-30-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-30-00.json",
+              "request_sha256": "d2b3ce47773f929d01dbadff745e726d4ea580fd37c9188a19237315b8e430aa",
+              "sha256": "c5efb706eaff1cce3179fe99642306eb98ceff919c43dc34d209a46dc6e0feb7"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-31-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-31-00.json",
+              "request_sha256": "d2b3ce47773f929d01dbadff745e726d4ea580fd37c9188a19237315b8e430aa",
+              "sha256": "dacda9956f41ea1b50df14969a773d2e165b326300cf8f1468d1a22413c28894"
+            }
+          ],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|medium|P3": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.538370988992135,
+          "decode_tok_s_median": 37.50814321530332,
+          "decode_tok_s_repeats": [
+            37.50814321530332,
+            37.471287273952576,
+            37.538370988992135
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-33-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-33-00.json",
+              "request_sha256": "6acb57c76f82e21532b8c247af299141d7c5a370d7638556a098ee715106d9db",
+              "sha256": "ca955b9b7038710588f6d45658f79b1f71ba07c3df3c026a9d7de7f560dfc813"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-34-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-34-00.json",
+              "request_sha256": "6acb57c76f82e21532b8c247af299141d7c5a370d7638556a098ee715106d9db",
+              "sha256": "aa583cdec8e10c233a482c79f51e34aa97a7e5802a6b98dca8dae8cfe8646567"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-35-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-35-00.json",
+              "request_sha256": "6acb57c76f82e21532b8c247af299141d7c5a370d7638556a098ee715106d9db",
+              "sha256": "f3daa5b3e4d65ea625629494fddfd033bef9707966789694a2922c9a8c4d37b6"
+            }
+          ],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|off|P1": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.540624318458896,
+          "decode_tok_s_median": 37.505188687758306,
+          "decode_tok_s_repeats": [
+            37.540624318458896,
+            37.49442869438291,
+            37.505188687758306
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-01-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-01-00.json",
+              "request_sha256": "2f06c6f1ac14048fc29d7a6b331adb14b4de62f912e9391223ccba5db422028e",
+              "sha256": "2b87d4943fa10a6f9f04889c833840864321852ba63c68f8f14f644ad2527505"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-02-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-02-00.json",
+              "request_sha256": "2f06c6f1ac14048fc29d7a6b331adb14b4de62f912e9391223ccba5db422028e",
+              "sha256": "9e65201c5bf709209ed9cad0b5c86ac44f470135f673355f81df470538099ccb"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-03-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-03-00.json",
+              "request_sha256": "2f06c6f1ac14048fc29d7a6b331adb14b4de62f912e9391223ccba5db422028e",
+              "sha256": "183a08c84973a9346219e68fa18010f68d87189f57af873fe7d9abd9aae16688"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|off|P2": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            167,
+            171,
+            171
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.561714449218215,
+          "decode_tok_s_median": 37.55340867872528,
+          "decode_tok_s_repeats": [
+            37.50830097112607,
+            37.55340867872528,
+            37.561714449218215
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-05-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-05-00.json",
+              "request_sha256": "c60574cbffb45d698e7d1642dec846b042f8cbef38c2122eb379c0e8808c0caa",
+              "sha256": "19445bb477c0087a1d56bf02505c51c2325a877dba3f72c5f2f92af9bb7905d7"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-06-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-06-00.json",
+              "request_sha256": "c60574cbffb45d698e7d1642dec846b042f8cbef38c2122eb379c0e8808c0caa",
+              "sha256": "6600a30265e3db0f97afd5bed62587aa5832fff0c25baceba8f833926f8d7f29"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-07-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-07-00.json",
+              "request_sha256": "c60574cbffb45d698e7d1642dec846b042f8cbef38c2122eb379c0e8808c0caa",
+              "sha256": "2db54a54c6315c90fc0144c1ac9681757859e1526695ec7825b78846cbf51813"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|off|P3": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.553944971329116,
+          "decode_tok_s_median": 37.501191297242336,
+          "decode_tok_s_repeats": [
+            37.495915623476726,
+            37.501191297242336,
+            37.553944971329116
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-09-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-09-00.json",
+              "request_sha256": "c1f852c6a6a587a20cc775fdf2ae68a85e41271dfad5ee7e017baecf63c7af3a",
+              "sha256": "f535764545cf13cba54002937a7cabb6490d5414f11bf149e3240a059e093cd9"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-10-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-10-00.json",
+              "request_sha256": "c1f852c6a6a587a20cc775fdf2ae68a85e41271dfad5ee7e017baecf63c7af3a",
+              "sha256": "8daeffe75bb5160858db5b3d03953300821a0f55ec7d2cd360a439d456e7de21"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-11-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-11-00.json",
+              "request_sha256": "c1f852c6a6a587a20cc775fdf2ae68a85e41271dfad5ee7e017baecf63c7af3a",
+              "sha256": "51645d8bad05b9e09f22f8743649a789d10aea379f65d7928a8e34211d86d217"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|xhigh|P1": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            355,
+            235,
+            236
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.4855299500913,
+          "decode_tok_s_median": 37.395348718787616,
+          "decode_tok_s_repeats": [
+            37.4855299500913,
+            37.3787944667883,
+            37.395348718787616
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-37-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-37-00.json",
+              "request_sha256": "9215be39be0263ed30e07908681ff8b97ca8ad43502f3a537e03eed09a37ffb5",
+              "sha256": "72e4c7b99a2cba7ea6ebae0980d7962d7250d693e2a1fd3f5d5646a34389d959"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-38-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-38-00.json",
+              "request_sha256": "9215be39be0263ed30e07908681ff8b97ca8ad43502f3a537e03eed09a37ffb5",
+              "sha256": "85265b468050ee5331e132a2deeb7a768fac4a31bcd5962a85031ac46d3e8338"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-39-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-39-00.json",
+              "request_sha256": "9215be39be0263ed30e07908681ff8b97ca8ad43502f3a537e03eed09a37ffb5",
+              "sha256": "0e3daa845ce3767f839d446454058057cfd76c6f98eaa712649cd45f5bc60d6f"
+            }
+          ],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|xhigh|P2": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            237,
+            169,
+            261
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.48915492304012,
+          "decode_tok_s_median": 37.47220571203245,
+          "decode_tok_s_repeats": [
+            37.415116436317966,
+            37.48915492304012,
+            37.47220571203245
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-41-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-41-00.json",
+              "request_sha256": "1448cf53e4bc4f2b3d673b1313a8510e371bd8b4a00d75765fccb1cf3ac07e2f",
+              "sha256": "47e271ad2915ee2b1135dbb960f89b6e1ac98c12b60b0eeedbbfab3e3ad86788"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-42-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-42-00.json",
+              "request_sha256": "1448cf53e4bc4f2b3d673b1313a8510e371bd8b4a00d75765fccb1cf3ac07e2f",
+              "sha256": "add98e58a0a5bacf88e605f7e3a08b66962756443af3bf0b5835c9c1649608a9"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-43-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-43-00.json",
+              "request_sha256": "1448cf53e4bc4f2b3d673b1313a8510e371bd8b4a00d75765fccb1cf3ac07e2f",
+              "sha256": "7aec0e0a1b7296298747b6e25b8844ce1d004ede1d49148efed15675586a4b4a"
+            }
+          ],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        },
+        "off|78848|78849|xhigh|P3": {
+          "actual_C": 78849,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.52206537246574,
+          "decode_tok_s_median": 37.50360936992432,
+          "decode_tok_s_repeats": [
+            37.52206537246574,
+            37.49887926281903,
+            37.50360936992432
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-45-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-45-00.json",
+              "request_sha256": "0a4c57f41cb977691e93b54fccdd520cdb5ee819c666c65d92a6bc6a6a8ab070",
+              "sha256": "d923b371fbc46912b978466645da4a36944b17ccd80a9f847d155f952c5d6fa7"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-46-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-46-00.json",
+              "request_sha256": "0a4c57f41cb977691e93b54fccdd520cdb5ee819c666c65d92a6bc6a6a8ab070",
+              "sha256": "4c9be617ca4fbb1edd3f7b72cae482bc3e52add878c2101bfcf430203a63a75e"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/case-47-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/case-47-00.json",
+              "request_sha256": "0a4c57f41cb977691e93b54fccdd520cdb5ee819c666c65d92a6bc6a6a8ab070",
+              "sha256": "1ee199f5e5f3d8fc3da0ecbe4e7eb753080c700303d72c944cc8856c054598d6"
+            }
+          ],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 78848,
+          "valid_measured_repeats": 3
+        }
+      },
+      "complete_measured_cells": 12,
+      "config_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/run-config.json",
+      "config_sha256": "f7ad9953f055eddfdbce3a08997820dd3651241eb579adb06e858959d6cc83a5",
+      "expected_measured_cells": 12,
+      "filled_prefix_method": "resident_prefix_reuse",
+      "geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "9cf37d751924c4f6dd08335deec430933708ae56d8da65b51459ec55ec710bd9",
+        "ubatch": 256
+      },
+      "mtp": "off",
+      "prefill_appends": [
+        {
+          "actual_C": 78849,
+          "append_index": 5,
+          "backend_prompt_seconds": 16.767444,
+          "backend_tok_s": 976.9527186135227,
+          "backend_tokens": 16381,
+          "chunk_kind": "checkpoint_tail",
+          "elapsed_wall_seconds": 16.843038376013283,
+          "http_wall_tok_s": 972.7461063873717,
+          "net_new_tok_s": 977.131636759902,
+          "net_new_tokens": 16384,
+          "prior_actual_C": 62465,
+          "raw_ref": {
+            "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/raw/append-0005.sse",
+            "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/requests/append-0005.json",
+            "request_sha256": "0e768d78791174b5ee4677985972207fd0c3bf8ee023982442bc5d5c03e25353",
+            "sha256": "6cf5962725ab7b4d3c92e11f349d0d0e0cf7dacecad4a37faafe0e8aea85a9e3"
+          },
+          "wall_seconds": 16.843038376013283
+        }
+      ],
+      "prefill_schedule_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/schedule.jsonl",
+      "prefill_schedule_sha256": "c9f134df206fa9d9291f005fff33dc91c12cd37b09e3851eeaf013f7da554a67",
+      "prefill_weighted_summary": {
+        "append_groups": 1,
+        "backend_prompt_seconds_weighted": 16.767444,
+        "backend_tok_s_token_weighted": 976.9527186135226,
+        "backend_tokens": 16381,
+        "http_wall_seconds_weighted": 16.843038376013283,
+        "http_wall_tok_s_token_weighted": 972.7461063873717,
+        "net_new_prompt_seconds_weighted": 16.767444,
+        "net_new_tok_s_backend_time_weighted": 977.131636759902,
+        "net_new_tokens": 16384
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/records.jsonl"
+      },
+      "resource_peaks": {
+        "peaks": {
+          "gpu_used_mib": 14607.0,
+          "server_vm_hwm_kib": 14323532,
+          "server_vm_rss_kib": 4464244,
+          "server_vm_swap_kib": 0,
+          "system_memory_used_kib": 12639020,
+          "system_swap_used_kib": 3035044
+        },
+        "sample_count": 469,
+        "scope": "variant wrapper run",
+        "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
+      },
+      "row_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C78848/campaign/row.json",
+      "row_sha256": "76acd6f0a88e712f4206da3185a66885d1bc6d733557cf694e27ec7072e25947",
+      "status": "complete",
+      "target_C": 78848
+    },
+    {
+      "actual_C": 88065,
+      "campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+      "cells": {
+        "off|88064|88065|low|P1": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            317,
+            318,
+            327
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.49848997378191,
+          "decode_tok_s_median": 37.45770646817785,
+          "decode_tok_s_repeats": [
+            37.49848997378191,
+            37.45770646817785,
+            37.4569661397069
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-13-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-13-00.json",
+              "request_sha256": "bac9267d3277afff23cac5ae88ecbee1ed2514c0eadc2366949afab23f6b6b4a",
+              "sha256": "11675f9a3108ed3b9e0b4e9180829663c61f88a67a802bd0d294a5ba20858289"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-14-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-14-00.json",
+              "request_sha256": "bac9267d3277afff23cac5ae88ecbee1ed2514c0eadc2366949afab23f6b6b4a",
+              "sha256": "64a29555162af7b150dd12ac7e6a60a1485abd89849c5b64fd294f9444096045"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-15-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-15-00.json",
+              "request_sha256": "bac9267d3277afff23cac5ae88ecbee1ed2514c0eadc2366949afab23f6b6b4a",
+              "sha256": "b3c82a07391ddb8ab800ccb95be1955d09b24405d034e0afdef980e605e85972"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|low|P2": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            291,
+            400
+          ],
+          "cap_terminated_repeats": 2,
+          "decode_tok_s_max": 37.5152317482286,
+          "decode_tok_s_median": 37.489211281490235,
+          "decode_tok_s_repeats": [
+            37.5152317482286,
+            37.43897286048857,
+            37.489211281490235
+          ],
+          "finish_reasons": [
+            "length",
+            "stop",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-17-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-17-00.json",
+              "request_sha256": "2cee284515a4aa4df058b46ad186f857a5b70019e175dc0651cba69dc564b42d",
+              "sha256": "ea6ce75c3d4232e578d8a1257476a065e8fda6769c7640dbda4ae6202838f594"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-18-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-18-00.json",
+              "request_sha256": "2cee284515a4aa4df058b46ad186f857a5b70019e175dc0651cba69dc564b42d",
+              "sha256": "28c6d5f1ce99cefd239963bc85dd302774b508aa52ee7183fcea5e13538fd1c0"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-19-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-19-00.json",
+              "request_sha256": "2cee284515a4aa4df058b46ad186f857a5b70019e175dc0651cba69dc564b42d",
+              "sha256": "327e2c5bb79051f0b77801da6788761fdf9ab8a5f91853ad4c5cd9bf87e2f2c4"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 1,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|low|P3": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.52401678141743,
+          "decode_tok_s_median": 37.50644377624276,
+          "decode_tok_s_repeats": [
+            37.52401678141743,
+            37.50644377624276,
+            37.461644064808084
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-21-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-21-00.json",
+              "request_sha256": "4ed733f3a1ce6ef9326b9881a39d458163693fe2e2ec2e0053df77760654d727",
+              "sha256": "c1222a4595b4bb923225ee94ea011477538f4351f1f46c72a68514f7fb7e673d"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-22-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-22-00.json",
+              "request_sha256": "4ed733f3a1ce6ef9326b9881a39d458163693fe2e2ec2e0053df77760654d727",
+              "sha256": "6b0534fb8351895338603704285da22159e4dd2d2a6db48a9cba77b68aa6a20e"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-23-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-23-00.json",
+              "request_sha256": "4ed733f3a1ce6ef9326b9881a39d458163693fe2e2ec2e0053df77760654d727",
+              "sha256": "8e3edea2d06cc6af224a62823e10c28b9d1c6762359d2c79b9b38846cd81bc69"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|medium|P1": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            277,
+            350
+          ],
+          "cap_terminated_repeats": 1,
+          "decode_tok_s_max": 37.53505152932287,
+          "decode_tok_s_median": 37.469698126289636,
+          "decode_tok_s_repeats": [
+            37.53505152932287,
+            37.40996701823451,
+            37.469698126289636
+          ],
+          "finish_reasons": [
+            "length",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-25-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-25-00.json",
+              "request_sha256": "77b2b2cf54f26dc36e93f9d8ea063c0e6a51f54e05de7a516c544b060ae1cc93",
+              "sha256": "f26f6be9ed364577cf180de345b6ba873a2d5fcd8c317ea1ad987b6829f11054"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-26-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-26-00.json",
+              "request_sha256": "77b2b2cf54f26dc36e93f9d8ea063c0e6a51f54e05de7a516c544b060ae1cc93",
+              "sha256": "df849e288138ead8c95c7ccbf36389f1b6f522dc6296b96fe2c9f9aca272ebbd"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-27-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-27-00.json",
+              "request_sha256": "77b2b2cf54f26dc36e93f9d8ea063c0e6a51f54e05de7a516c544b060ae1cc93",
+              "sha256": "d9b60389aa590ed05d6a03ec53ea107503056ea4a9654fff0b17acfe87ec382c"
+            }
+          ],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 2,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|medium|P2": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.51960963808246,
+          "decode_tok_s_median": 37.500718998747715,
+          "decode_tok_s_repeats": [
+            37.51960963808246,
+            37.47357830972936,
+            37.500718998747715
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-29-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-29-00.json",
+              "request_sha256": "042344bf1131613ee266b35e4ffef28f5053ef159666c03700bda12716348cb3",
+              "sha256": "fc4a220e773ba36ad0cc9b1ca95696876fd5f28072d01aa42c343939a902031e"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-30-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-30-00.json",
+              "request_sha256": "042344bf1131613ee266b35e4ffef28f5053ef159666c03700bda12716348cb3",
+              "sha256": "bb83ab056f23398bf9af0eb2a5dcebb7c61a5d0d54756039919e78fa6388e47a"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-31-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-31-00.json",
+              "request_sha256": "042344bf1131613ee266b35e4ffef28f5053ef159666c03700bda12716348cb3",
+              "sha256": "f83c3165bfe38feedddb54f4fe5f14254a1ac511d360455d51933840bc32e1a9"
+            }
+          ],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|medium|P3": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.53815555943377,
+          "decode_tok_s_median": 37.50817142306002,
+          "decode_tok_s_repeats": [
+            37.53815555943377,
+            37.50817142306002,
+            37.48419956437535
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-33-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-33-00.json",
+              "request_sha256": "9b27a6d79cdb49911cf2f6a97102fbc647e9803999117968c1873ce01d44f1de",
+              "sha256": "602af9d240da7ebfe58062e9ce6c238b095aad094b6d6ebdc8a6984e172c81e3"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-34-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-34-00.json",
+              "request_sha256": "9b27a6d79cdb49911cf2f6a97102fbc647e9803999117968c1873ce01d44f1de",
+              "sha256": "f1540a6e3a456be2c4d2f6ef911c4c042b0146c4481b453b2d868dd1926d8b2f"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-35-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-35-00.json",
+              "request_sha256": "9b27a6d79cdb49911cf2f6a97102fbc647e9803999117968c1873ce01d44f1de",
+              "sha256": "a4b25917c4d14e2bf2a15afbb032da748db7a2faa84a06211fcb5fecc72f98e7"
+            }
+          ],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|off|P1": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.52670956499396,
+          "decode_tok_s_median": 37.490528708536786,
+          "decode_tok_s_repeats": [
+            37.52670956499396,
+            37.48723883655395,
+            37.490528708536786
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-01-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-01-00.json",
+              "request_sha256": "564bc399f5f648a39f503116a87524e915c5b81f15bc125355ece85f3c4ce660",
+              "sha256": "812dff35c60d71d71ff12a818c50bc6c90ce32598c386d8c9b4e4975cc4df507"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-02-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-02-00.json",
+              "request_sha256": "564bc399f5f648a39f503116a87524e915c5b81f15bc125355ece85f3c4ce660",
+              "sha256": "f26686732ffd52945e6de937c506e21481637b4ba9ca414631d913fefe68b57a"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-03-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-03-00.json",
+              "request_sha256": "564bc399f5f648a39f503116a87524e915c5b81f15bc125355ece85f3c4ce660",
+              "sha256": "2f92f5b1ba281cf8316b551cff374496af59e34cc0e8ac54aa923bdd24001db4"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|off|P2": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            157,
+            141,
+            180
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.57581813471959,
+          "decode_tok_s_median": 37.57507634450333,
+          "decode_tok_s_repeats": [
+            37.5639580564697,
+            37.57507634450333,
+            37.57581813471959
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-05-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-05-00.json",
+              "request_sha256": "f8378ee76070487126d5a5def51bc2abeb9f8830622e37f543b47a493223d2f1",
+              "sha256": "7a4636c618f9c34edb2ccd4ddc786723261ff5069c7a1fc2a58ba5d4ccbfeef1"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-06-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-06-00.json",
+              "request_sha256": "f8378ee76070487126d5a5def51bc2abeb9f8830622e37f543b47a493223d2f1",
+              "sha256": "f93475aa1bd2b73032a68f76e7dd186c9e8cfab13fcfa9405a573865064e1a94"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-07-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-07-00.json",
+              "request_sha256": "f8378ee76070487126d5a5def51bc2abeb9f8830622e37f543b47a493223d2f1",
+              "sha256": "cb90cf4ac610d48fba693160e59c95610b63d488336df1d2aae2e2f7e53fe024"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|off|P3": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.51170830669986,
+          "decode_tok_s_median": 37.467814302375594,
+          "decode_tok_s_repeats": [
+            37.51170830669986,
+            37.45774034632356,
+            37.467814302375594
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-09-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-09-00.json",
+              "request_sha256": "6692a695856e74d6bc53d1321eb4e654d07aa1316eecdfd31ab87511b39534ee",
+              "sha256": "38c11d4386ab1b7f4dbcdabc8f268cc86f08cf5d8f38a081952b240bd08fe966"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-10-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-10-00.json",
+              "request_sha256": "6692a695856e74d6bc53d1321eb4e654d07aa1316eecdfd31ab87511b39534ee",
+              "sha256": "587b6c44695aa3b79cd0069082774f2ef5799dfb36a4a7102aa804349927f6c6"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-11-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-11-00.json",
+              "request_sha256": "6692a695856e74d6bc53d1321eb4e654d07aa1316eecdfd31ab87511b39534ee",
+              "sha256": "2abcceedc5903e232a317e1036e3f0c8bdd78e606309ba1c07aa60c24dbecdf4"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|xhigh|P1": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            334,
+            235,
+            242
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.50432482304266,
+          "decode_tok_s_median": 37.38863500299186,
+          "decode_tok_s_repeats": [
+            37.50432482304266,
+            37.35595209625958,
+            37.38863500299186
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-37-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-37-00.json",
+              "request_sha256": "88a8a1f9a311b721d0c7d9ccc09042d1db8deee1df23e81c986c43277cdbbe2f",
+              "sha256": "9d1c208d22979b54f1216a9ce5fac8576d5f9d0aa59a02cf3a5d5ff2c8dd6dac"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-38-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-38-00.json",
+              "request_sha256": "88a8a1f9a311b721d0c7d9ccc09042d1db8deee1df23e81c986c43277cdbbe2f",
+              "sha256": "2120308fac2f5215b7314613bb9283fcb7ac4484a138402ab525a91aaedcb12b"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-39-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-39-00.json",
+              "request_sha256": "88a8a1f9a311b721d0c7d9ccc09042d1db8deee1df23e81c986c43277cdbbe2f",
+              "sha256": "0b4fec04814542af52a44654e69f3e577d0eaed0c3f14cffa699dad49a4932ba"
+            }
+          ],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|xhigh|P2": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            165,
+            322,
+            277
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.57588782772647,
+          "decode_tok_s_median": 37.48526426235481,
+          "decode_tok_s_repeats": [
+            37.57588782772647,
+            37.48526426235481,
+            37.44177193999658
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-41-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-41-00.json",
+              "request_sha256": "58828ec6f0514a0d77d57badae1c89aaf55f4cb48ce358ff566e108eec5fb649",
+              "sha256": "32d7a4f4b71f559989e04e3bc78c270327a320dac2e181023c54bdcb350bfa7f"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-42-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-42-00.json",
+              "request_sha256": "58828ec6f0514a0d77d57badae1c89aaf55f4cb48ce358ff566e108eec5fb649",
+              "sha256": "61cb719805049491feb40b146ac320c7aa8ef3ca4d6b89c140138404a39c65f4"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-43-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-43-00.json",
+              "request_sha256": "58828ec6f0514a0d77d57badae1c89aaf55f4cb48ce358ff566e108eec5fb649",
+              "sha256": "d6645a66e5e82965ef06bc40bce474e5e710edb0d8b188c36770fdb3456933fc"
+            }
+          ],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        },
+        "off|88064|88065|xhigh|P3": {
+          "actual_C": 88065,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.531838569071844,
+          "decode_tok_s_median": 37.50810795566711,
+          "decode_tok_s_repeats": [
+            37.531838569071844,
+            37.50810795566711,
+            37.49016235589308
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-45-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-45-00.json",
+              "request_sha256": "7794287559d17caad97b3a8b11f0b82bae9f7e8a5896bf7cdc93dd4aabc8009e",
+              "sha256": "9f9334a37f5845be687fbbaa24c70ba864c8cfd25977134cfe487ab95d3dc44c"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-46-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-46-00.json",
+              "request_sha256": "7794287559d17caad97b3a8b11f0b82bae9f7e8a5896bf7cdc93dd4aabc8009e",
+              "sha256": "692bd1752c34c4491ba9e5b38e46a66bf3c1bceea06c6371cc0871ade5e97b0f"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/case-47-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/case-47-00.json",
+              "request_sha256": "7794287559d17caad97b3a8b11f0b82bae9f7e8a5896bf7cdc93dd4aabc8009e",
+              "sha256": "15b5682c3fbd0c9288209614e5e04b69b5ab7d30237ef87cbd88346612dcd335"
+            }
+          ],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 88064,
+          "valid_measured_repeats": 3
+        }
+      },
+      "complete_measured_cells": 12,
+      "config_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/run-config.json",
+      "config_sha256": "e97f067e8e903791301cd65a806ba88045f96b8dfabf8ec99cd5a05e6cb508e8",
+      "expected_measured_cells": 12,
+      "filled_prefix_method": "resident_prefix_reuse",
+      "geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "801d1033318e24962b69242f850d4d2c561890a1778b99c3982f3b2306c0fc20",
+        "ubatch": 256
+      },
+      "mtp": "off",
+      "prefill_appends": [
+        {
+          "actual_C": 88065,
+          "append_index": 6,
+          "backend_prompt_seconds": 9.987865,
+          "backend_tok_s": 922.4193558883705,
+          "backend_tokens": 9213,
+          "chunk_kind": "checkpoint_tail",
+          "elapsed_wall_seconds": 10.073033404012676,
+          "http_wall_tok_s": 914.9180420992876,
+          "net_new_tok_s": 922.719720380682,
+          "net_new_tokens": 9216,
+          "prior_actual_C": 78849,
+          "raw_ref": {
+            "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/raw/append-0006.sse",
+            "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/requests/append-0006.json",
+            "request_sha256": "e815fe09ee37bf315bded73f99602e320907cfee9771696f9fa9b0658a641106",
+            "sha256": "80844b94af374e815e220a765fb0d3432942789b3ae43bb24e009466cc5e710d"
+          },
+          "wall_seconds": 10.073033404012676
+        }
+      ],
+      "prefill_schedule_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/schedule.jsonl",
+      "prefill_schedule_sha256": "f0899ce11271a10e85e2d5dd278eb52fcc1f7490a30b42b5fff030a6f3fd5091",
+      "prefill_weighted_summary": {
+        "append_groups": 1,
+        "backend_prompt_seconds_weighted": 9.987865,
+        "backend_tok_s_token_weighted": 922.4193558883705,
+        "backend_tokens": 9213,
+        "http_wall_seconds_weighted": 10.073033404012676,
+        "http_wall_tok_s_token_weighted": 914.9180420992876,
+        "net_new_prompt_seconds_weighted": 9.987865,
+        "net_new_tok_s_backend_time_weighted": 922.719720380682,
+        "net_new_tokens": 9216
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 36,
+        "expected_warmup_requests_from_row": 12,
+        "observed_measured_requests": 36,
+        "observed_request_records": 48,
+        "observed_warmup_requests": 12,
+        "passing_measured_requests": 36,
+        "passing_warmup_requests": 12,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/records.jsonl"
+      },
+      "resource_peaks": {
+        "peaks": {
+          "gpu_used_mib": 14607.0,
+          "server_vm_hwm_kib": 14323532,
+          "server_vm_rss_kib": 4464244,
+          "server_vm_swap_kib": 0,
+          "system_memory_used_kib": 12639020,
+          "system_swap_used_kib": 3035044
+        },
+        "sample_count": 469,
+        "scope": "variant wrapper run",
+        "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
+      },
+      "row_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C88064/campaign/row.json",
+      "row_sha256": "0f8569a726e5cbf4764d67e44a98088f2aef0cd4998deb1dfb35397e2c7d5b08",
+      "status": "complete",
+      "target_C": 88064
+    },
+    {
+      "actual_C": 100352,
+      "campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+      "cells": {
+        "off|100352|100352|low|P1": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [
+            277
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.47581893150737,
+          "decode_tok_s_median": 37.47581893150737,
+          "decode_tok_s_repeats": [
+            37.47581893150737
+          ],
+          "finish_reasons": [
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-13-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-13-00.json",
+              "request_sha256": "90b0104180f41996520758cc5fc0a6fb4ec2ae2ea527a7f8eb83c5536104be56",
+              "sha256": "5b71ab6a2ee1509f0982fc2e5b73d544d36080ffb5009c15b551dca4dd68a863"
+            }
+          ],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "partial",
+          "stop_terminated_repeats": 1,
+          "target_C": 100352,
+          "valid_measured_repeats": 1
+        },
+        "off|100352|100352|low|P2": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|low|P3": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [],
+          "reasoning_mode": "low",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|medium|P1": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|medium|P2": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|medium|P3": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [],
+          "reasoning_mode": "medium",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|off|P1": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.53496678484694,
+          "decode_tok_s_median": 37.502992485020656,
+          "decode_tok_s_repeats": [
+            37.53496678484694,
+            37.46277664711341,
+            37.502992485020656
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-01-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-01-00.json",
+              "request_sha256": "5f9eb8ab00f4161808d27ac0a8c8a58f984ca272bcaf29a61997363fab9f4649",
+              "sha256": "64854481f611f79946d95c8b9c0879033f02e7fcbba07efb7dd193fa3480beac"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-02-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-02-00.json",
+              "request_sha256": "5f9eb8ab00f4161808d27ac0a8c8a58f984ca272bcaf29a61997363fab9f4649",
+              "sha256": "55634f1a8d82066b9816693a4e7b4f3d7ec3dbc541edea7e26a47cb48a0125cb"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-03-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-03-00.json",
+              "request_sha256": "5f9eb8ab00f4161808d27ac0a8c8a58f984ca272bcaf29a61997363fab9f4649",
+              "sha256": "7853a901aaf6ff0470a45a7b375bb318c004e5ab9b9bf1c71ae1bba9b2ec6f05"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 3
+        },
+        "off|100352|100352|off|P2": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [
+            159,
+            172,
+            156
+          ],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": 37.57297599372199,
+          "decode_tok_s_median": 37.56389193910384,
+          "decode_tok_s_repeats": [
+            37.57297599372199,
+            37.53441477811124,
+            37.56389193910384
+          ],
+          "finish_reasons": [
+            "stop",
+            "stop",
+            "stop"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-05-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-05-00.json",
+              "request_sha256": "c93cd8af5ec6f49c464b211c78d4ab6677ae2658023bf734b9eff5cd16e613ce",
+              "sha256": "4f29877095df1f0be8c1af17bf30bcb44df5ecca6115534232f99e999895cf32"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-06-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-06-00.json",
+              "request_sha256": "c93cd8af5ec6f49c464b211c78d4ab6677ae2658023bf734b9eff5cd16e613ce",
+              "sha256": "502c25b3ce54c6f689f409810952f993cb5661290f8eff40933e5fe533d61273"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-07-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-07-00.json",
+              "request_sha256": "c93cd8af5ec6f49c464b211c78d4ab6677ae2658023bf734b9eff5cd16e613ce",
+              "sha256": "a7046cdc71eb141d76083e59b2adff741336668c52e63dd55f33ebaf6b5cf7ee"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 3,
+          "target_C": 100352,
+          "valid_measured_repeats": 3
+        },
+        "off|100352|100352|off|P3": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [
+            400,
+            400,
+            400
+          ],
+          "cap_terminated_repeats": 3,
+          "decode_tok_s_max": 37.53947996059766,
+          "decode_tok_s_median": 37.4851785576887,
+          "decode_tok_s_repeats": [
+            37.53947996059766,
+            37.4851785576887,
+            37.4690598533955
+          ],
+          "finish_reasons": [
+            "length",
+            "length",
+            "length"
+          ],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-09-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-09-00.json",
+              "request_sha256": "fb7f985479812500e8b8f78d03556dd30261dea47fa0beef1ce9bb2ce8173f8d",
+              "sha256": "e161e46cc050ba9e09994601560459616979ec39e396915b4c78aab6163805db"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-10-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-10-00.json",
+              "request_sha256": "fb7f985479812500e8b8f78d03556dd30261dea47fa0beef1ce9bb2ce8173f8d",
+              "sha256": "b22f8a29c14f76f22ed9bc1965458cf5952ae20a12f2ae752f32f90803f4d7a7"
+            },
+            {
+              "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/case-11-00.sse",
+              "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/case-11-00.json",
+              "request_sha256": "fb7f985479812500e8b8f78d03556dd30261dea47fa0beef1ce9bb2ce8173f8d",
+              "sha256": "495d58d5a9bc0a79d45cf6e3d1f503df36cabe3cc8a8f93e603b0b8fd914df59"
+            }
+          ],
+          "reasoning_mode": "off",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "complete",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 3
+        },
+        "off|100352|100352|xhigh|P1": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P1",
+          "raw_refs": [],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|xhigh|P2": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P2",
+          "raw_refs": [],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        },
+        "off|100352|100352|xhigh|P3": {
+          "actual_C": 100352,
+          "actual_completion_tokens": [],
+          "cap_terminated_repeats": 0,
+          "decode_tok_s_max": null,
+          "decode_tok_s_median": null,
+          "decode_tok_s_repeats": [],
+          "finish_reasons": [],
+          "mtp": "off",
+          "mtp_acceptance_percent_repeats": [],
+          "output_cap_tokens": [
+            400
+          ],
+          "prompt": "P3",
+          "raw_refs": [],
+          "reasoning_mode": "xhigh",
+          "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign",
+          "status": "pending",
+          "stop_terminated_repeats": 0,
+          "target_C": 100352,
+          "valid_measured_repeats": 0
+        }
+      },
+      "complete_measured_cells": 3,
+      "config_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/run-config.json",
+      "config_sha256": "1ec7c38ebe371db9328e13862cbaa664ef4310f17e6b46753df8eb23fea92bea",
+      "expected_measured_cells": 12,
+      "filled_prefix_method": null,
+      "geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "515c4f0ca68ffd0e5f5459f539d19a8e08f4479a89c4761586d3c81896fffa85",
+        "ubatch": 256
+      },
+      "mtp": "off",
+      "prefill_appends": [
+        {
+          "actual_C": 100352,
+          "append_index": 7,
+          "backend_prompt_seconds": 12.9905,
+          "backend_tok_s": 945.6141026134483,
+          "backend_tokens": 12284,
+          "chunk_kind": "checkpoint_tail",
+          "elapsed_wall_seconds": 13.086596771987388,
+          "http_wall_tok_s": 938.899563735396,
+          "net_new_tok_s": 945.8450406065971,
+          "net_new_tokens": 12287,
+          "prior_actual_C": 88065,
+          "raw_ref": {
+            "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/raw/append-0007.sse",
+            "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/requests/append-0007.json",
+            "request_sha256": "c2ecc337419dd9a04abe7883ada892772d1a5cb9876bd1eda801a2a39e5496f8",
+            "sha256": "79b264ae3e2af3f95f5f7fffa063dc772feaa75e884d41e2dbe69af5b828de65"
+          },
+          "wall_seconds": 13.086596771987388
+        }
+      ],
+      "prefill_schedule_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/schedule.jsonl",
+      "prefill_schedule_sha256": "adb40968c0b8ff9b4b782078f16eab9600e7bca7d9cf67befa20d4a7ebbc56c6",
+      "prefill_weighted_summary": {
+        "append_groups": 1,
+        "backend_prompt_seconds_weighted": 12.9905,
+        "backend_tok_s_token_weighted": 945.6141026134483,
+        "backend_tokens": 12284,
+        "http_wall_seconds_weighted": 13.086596771987388,
+        "http_wall_tok_s_token_weighted": 938.899563735396,
+        "net_new_prompt_seconds_weighted": 12.9905,
+        "net_new_tok_s_backend_time_weighted": 945.8450406065971,
+        "net_new_tokens": 12287
+      },
+      "request_counts": {
+        "expected_benchmark_requests_from_row_or_schedule": 48,
+        "expected_measured_requests_from_row": 44,
+        "expected_warmup_requests_from_row": 4,
+        "observed_measured_requests": 10,
+        "observed_request_records": 14,
+        "observed_warmup_requests": 4,
+        "passing_measured_requests": 10,
+        "passing_warmup_requests": 4,
+        "records_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C100352/campaign/records.jsonl"
+      },
+      "resource_peaks": {
+        "peaks": {
+          "gpu_used_mib": 14607.0,
+          "server_vm_hwm_kib": 14323532,
+          "server_vm_rss_kib": 4464244,
+          "server_vm_swap_kib": 0,
+          "system_memory_used_kib": 12639020,
+          "system_swap_used_kib": 3035044
+        },
+        "sample_count": 469,
         "scope": "variant wrapper run",
         "source_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/resource-samples.jsonl"
       },
       "row_path": null,
       "row_sha256": null,
       "status": "in_progress",
-      "target_C": 62464
+      "target_C": 100352
     }
   ],
   "schema": "aco-full-curves-current-v1"
