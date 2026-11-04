@@ -86,6 +86,43 @@ def timing_close(derived, declared):
     return finite_pos(derived) and finite_pos(declared) and abs(float(derived)-float(declared)) <= max(0.02, abs(float(declared))*0.01)
 
 
+def resolve_verified_chunk_map(identity_path, expected_sha, source_hashes):
+    """Bind a mapped-prefill point only to an adjacent config/manifest and verified map file."""
+    if not expected_sha or not identity_path:
+        return None
+    anchor=Path(identity_path)
+    candidates=[]
+    for parent in [anchor.parent,*list(anchor.parents)[:5]]:
+        for name in ('row.json','run-config.json','source-manifest.json'):
+            q=parent/name
+            if q.is_file() and q not in candidates:
+                candidates.append(q)
+    for q in candidates:
+        try:
+            meta=jread(q)
+        except Exception:
+            continue
+        sh=source_hashes.get(str(q),{}).get('sha256') or sha(q)
+        source_hashes[str(q)]={"sha256":sh}
+        maps=[]
+        if isinstance(meta,dict):
+            for obj,key in ((meta,'source_chunk_map'),(meta,'chunk_map'),(meta.get('identity',{}),'source_chunk_map')):
+                val=obj.get(key) if isinstance(obj,dict) else None
+                if isinstance(val,dict): maps.append(val)
+        for item in maps:
+            map_path=item.get('path')
+            declared=item.get('sha256')
+            if not map_path or declared!=expected_sha: continue
+            mp=Path(map_path)
+            if not mp.is_absolute(): mp=q.parent/mp
+            if not mp.is_file(): continue
+            actual=sha(mp)
+            source_hashes[str(mp)]={"sha256":actual,"declared_sha256":declared,"hash_verified":True}
+            if actual!=declared: continue
+            return {"sha256":actual,"identity_path":str(q),"identity_sha256":sh,"map_path":str(mp)}
+    return None
+
+
 def read_records(path):
     p=Path(path); st=p.stat(); cache_key=(str(p),st.st_mtime_ns,st.st_size)
     if cache_key in _RECORD_CACHE: return _RECORD_CACHE[cache_key]
@@ -222,7 +259,7 @@ def neighboring_geometry(records_path, source_hashes):
     return {}
 
 
-def append_schedule_groups(schedule_path, family, nominal_c, mtp, protocol, source_hashes, *, identity_path=None):
+def append_schedule_groups(schedule_path, family, nominal_c, mtp, protocol, source_hashes, *, identity_path=None, expected_map_sha=None):
     """Import only successful append schedule entries; never retain request/output text."""
     p=Path(schedule_path)
     if not p.is_file(): return
@@ -271,10 +308,11 @@ def append_schedule_groups(schedule_path, family, nominal_c, mtp, protocol, sour
         source={"schedule_path":str(p),"schedule_sha256":digest,"line":line_no,"raw_path":str(rawpath),"raw_sha256":rawsha}
         if identity_path and Path(identity_path).is_file():
             source["identity_path"]=str(identity_path); source["identity_sha256"]=sha(identity_path); source_hashes[str(identity_path)]={"sha256":source["identity_sha256"]}
-            try:
-                ident=jread(identity_path); cmap=ident.get('source_chunk_map',{})
-                if isinstance(cmap,dict) and cmap.get('sha256'): source['chunk_map_sha256']=cmap['sha256']
-            except Exception: pass
+        map_identity=resolve_verified_chunk_map(identity_path or p,expected_map_sha,source_hashes)
+        if map_identity:
+            source['chunk_map_sha256']=map_identity['sha256']
+            source['chunk_map_identity_path']=map_identity['identity_path']
+            source['chunk_map_path']=map_identity['map_path']
         PREFILL_GROUPS.append({"family":family,"nominal_target_C":int(nominal_c) if nominal_c is not None else None,"actual_C":int(actual_c),"append_index":ix,"chunk_kind":r.get('chunk_kind') or 'legacy_append',"protocol":protocol,"mtp":"on" if mtp else "off","backend_tokens":backend_tokens,"net_new_tokens":net_tokens,"backend_prompt_seconds":backend_seconds,"http_wall_seconds":wall_seconds,"backend_tok_s":backend_rate,"net_new_tok_s":net_rate,"http_wall_tok_s":wall_rate,"chunk_map_sha256":source.get('chunk_map_sha256'),"source":source})
         _PREFILL_SEEN.add(key)
 
@@ -495,7 +533,8 @@ def discover_current_prefill(plan, source_hashes):
                 identity=row.get('filled_prefix_method','current-plan schedule')
                 source_hashes[str(rowp)]={"sha256":sha(rowp)}
                 first=len(PREFILL_GROUPS)
-                append_schedule_groups(schedule,family,nominal,mtp,str(identity),source_hashes)
+                expected=(plan.get('chunk_map') or {}).get('sha256')
+                append_schedule_groups(schedule,family,nominal,mtp,str(identity),source_hashes,identity_path=rowp,expected_map_sha=expected)
                 for group in PREFILL_GROUPS[first:]:
                     group['execution_step_id']=step_id
                     group['source']['execution_step_id']=step_id
@@ -511,6 +550,9 @@ def collect(out, plan_path=None):
     _IDENTITY_ARTIFACTS.clear()
     cells, source_hashes, identities = {}, {}, {}
     empty_context_controls=[]
+    plan_path = Path(plan_path) if plan_path else BENCH / "COMPARISON_COMPLETION_20261104.json"
+    plan = jread(plan_path)
+    source_hashes[str(plan_path)] = {"sha256":sha(plan_path)}
     coverage = jread(BENCH / "COMPARISON_COVERAGE_20261104.json")
     coverage_path = BENCH / "COMPARISON_COVERAGE_20261104.json"
     source_hashes[str(coverage_path)] = {"sha256": sha(coverage_path)}
@@ -655,9 +697,6 @@ def collect(out, plan_path=None):
                  "completion_tokens":x.get("actual_completion_tokens"),"source":source,"source_identity_ref":family}
             cells[(family,nominal_c,mode,pi)] = d
 
-    plan_path = Path(plan_path) if plan_path else BENCH / "COMPARISON_COMPLETION_20261104.json"
-    plan = jread(plan_path)
-    source_hashes[str(plan_path)] = {"sha256": sha(plan_path)}
     identities["current_completion_plan"] = {"path":str(plan_path),"sha256":source_hashes[str(plan_path)]["sha256"],"revision":plan.get("revision"),"status":plan.get("status"),"output_root":plan.get("output_root")}
     # Include only raw cells from the current plan with complete measured triplets and observed C.
     r3rows = discover_current_completion(plan, source_hashes)
@@ -1325,7 +1364,8 @@ def main():
             try:
                 rowmeta=jread(row_path); source_hashes[row_path]={"sha256":run.get('row_sha256') or sha(row_path),"declared_sha256":run.get('row_sha256'),"hash_verified":False}
             except Exception: rowmeta={}
-        cmap=rowmeta.get('source_chunk_map',{}) if isinstance(rowmeta.get('source_chunk_map',{}),dict) else {}
+        map_identity=resolve_verified_chunk_map(row_path,(plan.get('chunk_map') or {}).get('sha256'),hashes)
+        cmap={"sha256":map_identity['sha256']} if map_identity else {}
         for x in run.get('prefill_appends',[]):
             backend_sec=x.get('backend_prompt_seconds'); wall_sec=x.get('elapsed_wall_seconds',x.get('wall_seconds'))
             bcalc=float(x['backend_tokens'])/float(backend_sec) if finite_pos(x.get('backend_tokens')) and finite_pos(backend_sec) else None
@@ -1334,7 +1374,10 @@ def main():
             br=x.get('backend_tok_s') if bcalc is not None and timing_close(bcalc,x.get('backend_tok_s')) else None
             nr=x.get('net_new_tok_s') if ncalc is not None and timing_close(ncalc,x.get('net_new_tok_s')) else None
             wr=x.get('http_wall_tok_s') if wcalc is not None and timing_close(wcalc,x.get('http_wall_tok_s')) else None
-            prefill.append({"family":f"current-aco-mtp-{run.get('mtp')}","nominal_target_C":int(run.get('target_C',x.get('actual_C',0))),"actual_C":x.get('actual_C'),"prior_actual_C":x.get('prior_actual_C'),"append_index":x.get('append_index'),"chunk_kind":x.get('chunk_kind'),"protocol":"persistent_32k_map_with_checkpoint_tails","mtp":run.get('mtp'),"backend_tokens":x.get('backend_tokens'),"net_new_tokens":x.get('net_new_tokens'),"backend_prompt_seconds":backend_sec,"http_wall_seconds":wall_sec,"backend_tok_s":br,"net_new_tok_s":nr,"http_wall_tok_s":wr,"chunk_map_sha256":cmap.get('sha256'),"source":{"path":x.get('raw_ref',{}).get('path'),"sha256":x.get('raw_ref',{}).get('sha256'),"request_path":x.get('raw_ref',{}).get('request_path'),"request_sha256":x.get('raw_ref',{}).get('request_sha256'),"row_path":row_path,"row_sha256":run.get('row_sha256')}})
+            source={"path":x.get('raw_ref',{}).get('path'),"sha256":x.get('raw_ref',{}).get('sha256'),"request_path":x.get('raw_ref',{}).get('request_path'),"request_sha256":x.get('raw_ref',{}).get('request_sha256'),"row_path":row_path,"row_sha256":run.get('row_sha256')}
+            if map_identity:
+                source['chunk_map_identity_path']=map_identity['identity_path']; source['chunk_map_path']=map_identity['map_path']
+            prefill.append({"family":f"current-aco-mtp-{run.get('mtp')}","nominal_target_C":int(run.get('target_C',x.get('actual_C',0))),"actual_C":x.get('actual_C'),"prior_actual_C":x.get('prior_actual_C'),"append_index":x.get('append_index'),"chunk_kind":x.get('chunk_kind'),"protocol":"persistent_32k_map_with_checkpoint_tails","mtp":run.get('mtp'),"backend_tokens":x.get('backend_tokens'),"net_new_tokens":x.get('net_new_tokens'),"backend_prompt_seconds":backend_sec,"http_wall_seconds":wall_sec,"backend_tok_s":br,"net_new_tok_s":nr,"http_wall_tok_s":wr,"chunk_map_sha256":cmap.get('sha256'),"source":source})
     prefill_coverage={}
     for family in FAMILIES:
         group=[r for r in prefill if r['family']==family]
