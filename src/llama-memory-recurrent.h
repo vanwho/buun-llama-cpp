@@ -62,6 +62,10 @@ public:
 
     bool prepare(const std::vector<llama_ubatch> & ubatches);
 
+    // Seed a filtered, one-cell routing owner from the source's currently
+    // selected rollback plane. Canonical tensors/cells are read-only.
+    bool copy_active_prefix_from(const llama_memory_recurrent & source, llama_seq_id seq);
+
     // find a contiguous slot of memory cells and emplace the ubatch there
     bool find_slot(const llama_ubatch & ubatch);
 

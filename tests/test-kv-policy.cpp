@@ -1239,6 +1239,16 @@ static void test_common_history_competition() {
     auto legacy = exact_history_candidate(30, 0, 1.0f, 1.0f, true);
     legacy.provenance = llama_kv_prefetch_candidate::score_kind::legacy_rank;
     assert(llama_kv_prefetch_rank_common_history({ legacy }, 1, ranked) && ranked.empty());
+
+    // A one-layer provider is not all-layer evidence. Its exact key masses
+    // compete only when the caller explicitly selects that provenance.
+    auto early = exact_history_candidate(31, 0, 0.7f, 0.6f, true);
+    early.provenance = llama_kv_prefetch_candidate::score_kind::early_layer_mass;
+    assert(llama_kv_prefetch_rank_common_history({early}, 1, ranked) && ranked.empty());
+    assert(llama_kv_prefetch_rank_common_history({legacy, early}, 1, ranked,
+        llama_kv_prefetch_candidate::score_kind::early_layer_mass));
+    assert(ranked.size() == 1 && ranked[0].representative.identity.logical_page == 31 &&
+        ranked[0].supporting_layers == 1 && ranked[0].nominated_layers == std::vector<uint32_t>{0});
 }
 
 int main(int argc, char ** argv) {

@@ -23810,18 +23810,42 @@ private:
                             n_tokens_start == query_begin &&
                             slot.query_checkpoint.state ==
                                 server_query_checkpoint::phase::empty) {
-                        const bool captured = slot.query_checkpoint.capture(
+                        int routed = 0;
+                        if (!input_tokens.has_media()) {
+                            const int64_t native_end = query_end +
+                                slot.task->params.final_user_kv_position_offset;
+                            const auto & text = input_tokens.get_tokens();
+                            if (native_end > query_begin && native_end <= int64_t(text.size()) &&
+                                    native_end - query_begin <= INT32_MAX) {
+                                size_t routing_state_bytes = 0;
+                                routed = ctx_tgt->route_kv_pager_query_early(
+                                    slot.id, slot.slot_session_generation,
+                                    text.data() + query_begin, int32_t(native_end - query_begin),
+                                    llama_pos(query_begin), &routing_state_bytes);
+                                if (routed < 0) {
+                                    send_error(slot, "Unable to publish early selected KV history");
+                                    slot.release();
+                                    return;
+                                }
+                                if (routed > 0) {
+                                    SLT_INF(slot, "early routing prefix prepared: tokens=%d "
+                                        "state_bytes=%zu target_query_passes=1\n",
+                                        int(native_end - query_begin), routing_state_bytes);
+                                }
+                            }
+                        }
+                        const bool captured = routed == 0 && slot.query_checkpoint.capture(
                             ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
                             slot.slot_session_generation,
                             slot.slot_session_generation,
                             llama_pos(query_begin), n_tokens_start,
                             params_base.speculative.uses_mtp_as_primary_drafter());
-                        if (!captured) {
+                        if (routed == 0 && !captured) {
                             SLT_WRN(slot,
                                 "query replay checkpoint unavailable at user seam; "
                                 "request will retain the full-suffix path (%s)\n",
                                 "boundary or state capture rejected");
-                        } else {
+                        } else if (captured) {
                             SLT_DBG(slot,
                                 "query checkpoint prepared: query_begin=%d "
                                 "target_recurrent_bytes=%zu draft_recurrent_bytes=%zu "

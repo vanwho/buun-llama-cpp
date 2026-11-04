@@ -214,6 +214,8 @@ public:
     bool prepare_router_query_layers(int32_t sequence_id, uint64_t turn_id,
             std::vector<llama_kv_router_layer_plan> & plans,
             llama_kv_router_plan_error & error) noexcept;
+    bool begin_early_router_query(int32_t sequence_id, uint64_t turn_id, uint32_t model_layer);
+    void cancel_early_router_query();
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) override;
     bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
@@ -1801,6 +1803,9 @@ private:
         ggml_tensor * probe_validity = nullptr;
     };
     mutable std::vector<pager_query_accumulator_state> pager_query_accumulators_;
+    // Immutable source for this turn's early query. -1 is the ordinary
+    // all-layer provider; logical page bundles still span every KV layer.
+    int32_t pager_early_source_layer_ = -1;
     struct pager_summary_cache_item {
         uint32_t layer = UINT32_MAX;
         uint32_t head = UINT32_MAX;

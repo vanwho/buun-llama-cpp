@@ -7011,6 +7011,162 @@ static bool reserve_mtp_attention_graph_scratch(ggml_backend_sched_t sched, ggml
     return true;
 }
 
+namespace {
+// Recurrent writes belong exclusively to the tiny prefix owner. Selector
+// access delegates to a read-only KV context and never calls its apply().
+class routing_prefix_context final : public llama_memory_recurrent_context {
+public:
+    routing_prefix_context(llama_memory_recurrent * mem, std::vector<llama_ubatch> batches,
+            const llama_memory_context_i * selector) :
+        llama_memory_recurrent_context(mem, std::move(batches)), selector(selector) {}
+
+    ggml_tensor * build_kv_page_select(ggml_context * ctx, ggml_tensor * q, int layer,
+            const llama_ubatch & batch, uint32_t row, ggml_tensor ** probes) const override {
+        return selector->build_kv_page_select(ctx, q, layer, batch, row, probes);
+    }
+    bool set_kv_page_select_inputs(ggml_tensor * bounds, ggml_tensor * metadata,
+            ggml_tensor * membership, ggml_tensor * query, int layer,
+            const llama_ubatch & batch) const override {
+        return selector->set_kv_page_select_inputs(bounds, metadata, membership, query, layer, batch);
+    }
+    bool set_kv_query_accumulate_inputs(ggml_tensor * tensor, const llama_ubatch & batch) const override {
+        return selector->set_kv_query_accumulate_inputs(tensor, batch);
+    }
+    bool set_kv_query_probe_inputs(ggml_tensor * tensor, const llama_ubatch & batch) const override {
+        return selector->set_kv_query_probe_inputs(tensor, batch);
+    }
+    bool can_reuse_kv_query_capture(const ggml_tensor * tensor, const llama_ubatch & batch,
+            llama_seq_id seq, bool final) const override {
+        return selector->can_reuse_kv_query_capture(tensor, batch, seq, final);
+    }
+    bool can_reuse_kv_page_select(const ggml_tensor * tensor, int layer,
+            const llama_ubatch & batch) const override {
+        return selector->can_reuse_kv_page_select(tensor, layer, batch);
+    }
+    void capture_kv_routing_query(ggml_tensor * tensor, int layer,
+            const llama_ubatch & batch) const override {
+        selector->capture_kv_routing_query(tensor, layer, batch);
+    }
+private:
+    const llama_memory_context_i * selector;
+};
+} // namespace
+
+int llama_context::route_kv_pager_query_early(llama_seq_id seq, uint64_t turn,
+        const llama_token * tokens, int32_t count, llama_pos begin, size_t * state_bytes) {
+    if (state_bytes) *state_bytes = 0;
+    // These restrictions are capabilities, not a client-selectable mode. A
+    // native sparse indexer or non-text/multi-sequence owner keeps its path.
+    if (model.arch != LLM_ARCH_QWEN35 || cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP ||
+            kv_pager.mode != llama_kv_pager_mode::selective || seq != 0 ||
+            cparams.n_seq_max != 1 || !tokens || count <= 0 || begin <= 0) return 0;
+    // Small queries benefit most from all-layer semantic evidence and cost
+    // little to replay. Reserve the first-layer approximation for bulk spans
+    // larger than one configured batch; no API/file-type ingestion mode.
+    if (uint32_t(count) <= cparams.n_batch) return 0;
+    auto * hybrid = dynamic_cast<llama_memory_hybrid *>(memory.get());
+    if (!hybrid) return 0;
+    auto * cache = hybrid->get_mem_attn();
+    auto * recurrent = hybrid->get_mem_recr();
+    if (!cache || !recurrent || cache->kv_pager_full_attention(seq)) return 0;
+    const auto * pager = cache->get_kv_pager();
+    if (!pager || pager->router_mode() != llama_kv_router_mode::probe_rerank) return 0;
+    const auto state = pager->turn_state(seq);
+    if (state.turn_id != turn || state.phase != llama_kv_pager_turn_phase::query_provisional ||
+            state.query_start != begin || state.query_end != int64_t(begin) + count ||
+            recurrent->seq_pos_max(seq) != begin - 1) return 0;
+    uint32_t first = 0;
+    while (first < model.hparams.n_layer() && model.hparams.is_recr(first)) ++first;
+    if (!first || first == model.hparams.n_layer() ||
+            recurrent->r_l[0] == nullptr || recurrent->s_l[0] == nullptr) return 0;
+
+    const int64_t start = ggml_time_us();
+    // Retire the real prefix before reading its active recurrent state.
+    synchronize();
+    if (!routing_prefix_memory) {
+        try {
+            routing_prefix_memory = std::make_unique<llama_memory_recurrent>(model,
+                recurrent->r_l[0]->type, recurrent->s_l[0]->type, cparams.offload_kqv,
+                1, 1, 0, [first](uint32_t layer) { return layer < first; });
+        } catch (const std::exception & e) {
+            LLAMA_LOG_WARN("routing_prefix fallback reason=state_allocation detail=%s\n", e.what());
+            return 0;
+        }
+    }
+    if (!routing_prefix_memory->copy_active_prefix_from(*recurrent, seq)) return 0;
+    if (!cache->begin_early_router_query(seq, turn, first)) return 0;
+
+    bool computed = false;
+    bool publication_started = false;
+    try {
+        // Include host metadata/read-only-context allocations in fallback
+        // cleanup too, once the cache has armed the early source provider.
+        std::vector<llama_pos> positions(count);
+        std::vector<int32_t> n_seq(count, 1);
+        std::vector<llama_seq_id *> seq_ids(count, &seq);
+        std::vector<int8_t> outputs(count, 0);
+        for (int32_t i = 0; i < count; ++i) positions[i] = begin + i;
+        llama_batch batch = { count, const_cast<llama_token *>(tokens), nullptr,
+            positions.data(), n_seq.data(), seq_ids.data(), outputs.data() };
+        llama_batch_allocr allocator(model.hparams.n_pos_per_embd());
+        std::vector<llama_ubatch> batches;
+        auto selector = cache->init_full();
+        if (allocator.init(batch, model.vocab, nullptr, model.hparams.n_embd, 1, false, true)) {
+            while (allocator.get_n_used() < allocator.get_n_tokens()) {
+                auto next = allocator.split_equal(cparams.n_ubatch, true, 0);
+                if (!next.n_tokens) break;
+                batches.push_back(std::move(next));
+            }
+        }
+        if (!batches.empty() && allocator.get_n_used() == allocator.get_n_tokens() &&
+                routing_prefix_memory->prepare(batches)) {
+            routing_prefix_context context(routing_prefix_memory.get(), std::move(batches), selector.get());
+            computed = true;
+            do {
+                ggml_status status = GGML_STATUS_FAILED;
+                if (!process_ubatch(context.get_ubatch(), LLM_GRAPH_TYPE_ROUTING_PREFIX, &context, status)) {
+                    computed = false;
+                    break;
+                }
+            } while (context.next());
+            // Final Q and its compact selector must retire before graph
+            // inputs/context leave scope. No canonical KV write was opened.
+            ggml_backend_sched_synchronize(sched.get());
+            if (computed) {
+                bool changed = false;
+                uint64_t generation = 0;
+                publication_started = true;
+                computed = cache->commit_kv_pager_query(seq, turn, &changed, &generation);
+                if (!computed) {
+                    invalidate_graph_results();
+                    return -1;
+                }
+            }
+            invalidate_graph_results();
+        }
+    } catch (const std::exception & e) {
+        ggml_backend_sched_synchronize(sched.get());
+        invalidate_graph_results();
+        if (publication_started) {
+            LLAMA_LOG_ERROR("routing_prefix publication failed detail=%s\n", e.what());
+            return -1;
+        }
+        cache->cancel_early_router_query();
+        LLAMA_LOG_WARN("routing_prefix fallback reason=graph detail=%s\n", e.what());
+        return 0;
+    }
+    if (!computed) {
+        cache->cancel_early_router_query();
+        return 0;
+    }
+    size_t bytes = 0;
+    for (const auto & item : routing_prefix_memory->memory_breakdown()) bytes += item.second;
+    if (state_bytes) *state_bytes = bytes;
+    LLAMA_LOG_INFO("routing_prefix source_layer=%u source_layers=1 tokens=%d state_bytes=%zu"
+        " elapsed_us=%" PRId64 " full_query_replays=0\n", first, count, bytes, ggml_time_us() - start);
+    return 1;
+}
+
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
     const bool hotpath_profile = llama_context_hotpath_profile_enabled();
     const int64_t ubatch_start_us = hotpath_profile ? ggml_time_us() : 0;
@@ -7037,7 +7193,9 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         memory->capture_kv_routing_query(nullptr, -1, ubatch);
     }
 
-    const auto attention_decision = prepare_kv_attention_graph(ubatch, mctx, gtype);
+    const auto attention_decision = gtype == LLM_GRAPH_TYPE_ROUTING_PREFIX
+        ? llama_kv_attention_execution_decision{}
+        : prepare_kv_attention_graph(ubatch, mctx, gtype);
     if (!attention_decision.accepted()) {
         if (mctx) mctx->finish(false);
         LLAMA_LOG_ERROR("%s: selected attention refused: %s\n",
@@ -7308,7 +7466,8 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
     const int64_t retained_state_start_us = hotpath_profile ? ggml_time_us() : 0;
     if (mctx) mctx->finish(true);
-    if (memory && attention_decision.phase == llama_kv_attention_execution_phase::prefill &&
+    if (gtype != LLM_GRAPH_TYPE_ROUTING_PREFIX && memory &&
+            attention_decision.phase == llama_kv_attention_execution_phase::prefill &&
             kv_pager.mode == llama_kv_pager_mode::selective &&
             ubatch.n_tokens && ubatch.seq_id && ubatch.seq_id[0] && ubatch.n_pos && ubatch.pos) {
         int64_t first = ubatch.pos0(0), last = ubatch.pos0(ubatch.n_tokens - 1);
@@ -9156,10 +9315,17 @@ llm_graph_params llama_context::graph_params(
                       const llama_ubatch & ubatch,
             const llama_memory_context_i * mctx,
                           llm_graph_type   gtype) const {
+    auto graph_cparams = cparams;
+    if (gtype == LLM_GRAPH_TYPE_ROUTING_PREFIX) {
+        // The isolated routing owner has one active state, not the target's
+        // speculative rollback planes. GDN/conv builders use this setting to
+        // choose their write views; retaining target n_rs_seq writes past it.
+        graph_cparams.n_rs_seq = 0;
+    }
     return {
         /*.arch        =*/ model.arch,
         /*.hparams     =*/ model.hparams,
-        /*.cparams     =*/ cparams,
+        /*.cparams     =*/ graph_cparams,
         /*.ubatch      =*/ ubatch,
         /*.gtype       =*/ gtype,
         /*.sched       =*/ sched.get(),

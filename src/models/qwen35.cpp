@@ -175,10 +175,12 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
 
     cb(inpL, "model.input_embed", -1);
 
-    auto * inp = build_inp_mem_hybrid();
+    const bool routing_prefix = gtype == LLM_GRAPH_TYPE_ROUTING_PREFIX;
+    auto * inp = routing_prefix ? nullptr : build_inp_mem_hybrid();
+    auto * inp_recr = routing_prefix ? build_rs_inp() : inp->get_recr();
 
     ggml_tensor * inp_pos     = build_inp_pos();
-    ggml_tensor * inp_out_ids = build_inp_out_ids();
+    ggml_tensor * inp_out_ids = routing_prefix ? nullptr : build_inp_out_ids();
 
     // MTP/NextN layers are loaded as extra decoder blocks but not executed in the main pass.
     for (int il = 0; il < n_layer; ++il) {
@@ -194,10 +196,16 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
         // Determine layer type and build appropriate attention mechanism
         if (hparams.is_recr(il)) {
             // Linear attention layer (gated delta net)
-            cur = build_layer_attn_linear(inp->get_recr(), cur, il);
+            cur = build_layer_attn_linear(inp_recr, cur, il);
         } else {
             // Full attention layer
-            cur = build_layer_attn(inp->get_attn(), cur, inp_pos, sections, il);
+            cur = build_layer_attn(routing_prefix ? nullptr : inp->get_attn(), cur, inp_pos, sections, il);
+            if (routing_prefix) {
+                // cb(Qcur_routing) owns the bounded probe/shortlist outputs.
+                // No prompt-length hidden tape survives this micro-batch.
+                ggml_build_forward_expand(gf, cur);
+                return;
+            }
         }
 
         if (il == n_layer - 1 && crop_before_nextn(inp_out_ids)) {
@@ -393,6 +401,13 @@ ggml_tensor * llama_model_qwen35::graph::build_layer_attn(
             n_rot, sections, rope_type, n_ctx_orig, freq_base, freq_scale,
             ext_factor, attn_factor, beta_fast, beta_slow
             );
+
+    if (gtype == LLM_GRAPH_TYPE_ROUTING_PREFIX) {
+        // Identical projection, Q norm and RoPE to target attention. The
+        // selector applies its own Turbo4 coefficient-domain transform.
+        cb(Qcur, "Qcur_routing", il);
+        return Qcur;
+    }
 
     Kcur = ggml_rope_multi(
             ctx0, Kcur, inp_pos, nullptr,

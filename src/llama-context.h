@@ -21,6 +21,7 @@
 
 struct llama_model;
 class llama_batch_allocr;
+class llama_memory_recurrent;
 
 class llama_io_read_i;
 class llama_io_write_i;
@@ -675,6 +676,12 @@ struct llama_context {
     int encode(const llama_batch & batch_inp, const llama_batch_ext * extended = nullptr);
     int decode(const llama_batch & batch_inp, const llama_batch_ext * extended = nullptr);
 
+    // Internal server seam. 0: ordinary path; 1: history frozen before Q;
+    // -1: publication failed (must fail the request, not use mixed history).
+    int route_kv_pager_query_early(llama_seq_id seq, uint64_t turn,
+            const llama_token * tokens, int32_t count, llama_pos begin,
+            size_t * state_bytes = nullptr);
+
     //
     // state save/load
     //
@@ -1019,6 +1026,7 @@ private:
     std::array<bool, GGML_SCHED_MAX_GRAPH_SLOTS> gf_res_prev_alloc = {};
     llm_graph_result * gf_res_prev_active = nullptr;
     llm_graph_result_ptr gf_res_reserve;
+    std::unique_ptr<llama_memory_recurrent> routing_prefix_memory;
 
     struct embeddings_nextn_device_request {
         llama_context * source = nullptr;

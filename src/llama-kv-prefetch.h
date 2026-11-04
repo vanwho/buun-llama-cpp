@@ -78,7 +78,9 @@ struct llama_kv_prefetch_candidate {
     uint64_t query_position = 0;
     bool cold = false;
     uint64_t rollback_generation = 0;
-    enum class score_kind : uint8_t { legacy_rank = 0, probe_softmax = 1, exact_mass = 2 };
+    enum class score_kind : uint8_t { legacy_rank = 0, probe_softmax = 1, exact_mass = 2,
+        // Exact key mass in the early source layer, not all-layer ranking.
+        early_layer_mass = 3 };
     score_kind provenance = score_kind::legacy_rank;
     float peak_probability = 0.0f;
     float mean_probability = 0.0f;
@@ -117,11 +119,13 @@ struct llama_kv_prefetch_common_history_bundle {
 inline bool llama_kv_prefetch_rank_common_history(
         const std::vector<llama_kv_prefetch_candidate> & candidates,
         uint32_t participating_layers,
-        std::vector<llama_kv_prefetch_common_history_bundle> & output) {
+        std::vector<llama_kv_prefetch_common_history_bundle> & output,
+        llama_kv_prefetch_candidate::score_kind provenance =
+            llama_kv_prefetch_candidate::score_kind::exact_mass) {
     output.clear();
     if (participating_layers == 0) return candidates.empty();
     for (const auto & candidate : candidates) {
-        if (candidate.provenance != llama_kv_prefetch_candidate::score_kind::exact_mass ||
+        if (candidate.provenance != provenance ||
                 !std::isfinite(candidate.peak_probability) ||
                 !std::isfinite(candidate.mean_probability) ||
                 candidate.peak_probability < 0.0f || candidate.mean_probability < 0.0f)

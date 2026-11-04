@@ -2599,6 +2599,8 @@ bool llama_kv_cache::prepare_router_query_layers(int32_t sequence_id, uint64_t t
 
         for (uint32_t compact = 0; compact < geometry.attention_layers; ++compact) {
             const uint32_t model_layer = geometry.model_layer_ids[compact];
+            if (pager_early_source_layer_ >= 0 &&
+                    model_layer != uint32_t(pager_early_source_layer_)) continue;
             auto capture = pager_query_accumulators_.end();
             int64_t probe_identity[9] = {};
             for (auto candidate = pager_query_accumulators_.begin();
@@ -3561,6 +3563,31 @@ void llama_kv_cache::note_kv_pager_attention(int32_t sequence_id,
     pending->second.certificate.observe(pager_->residency(sequence_id), selected, first, last);
 }
 
+bool llama_kv_cache::begin_early_router_query(
+        int32_t sequence_id, uint64_t turn_id, uint32_t model_layer) {
+    if (!pager_ || pager_->router_mode() != llama_kv_router_mode::probe_rerank ||
+            kv_pager_full_attention(sequence_id)) return false;
+    const auto state = pager_->turn_state(sequence_id);
+    const auto & ids = pager_->snapshot().geometry.model_layer_ids;
+    if (state.turn_id != turn_id || state.phase != llama_kv_pager_turn_phase::query_provisional ||
+            !state.has_committed_frontier || ids.empty() || ids.front() != model_layer) return false;
+    pager_early_source_layer_ = int32_t(model_layer);
+    return true;
+}
+
+void llama_kv_cache::cancel_early_router_query() {
+    pager_early_source_layer_ = -1;
+    if (pager_router_job_) pager_router_job_->abort_query();
+    pager_query_executor_.cancel();
+    pager_router_completion_ = {};
+    pager_coarse_shortlists_.clear();
+    pager_exact_rerank_candidates_.clear();
+    pager_routing_outputs_.clear();
+    // Discard partial prefix probes before the all-layer fallback captures Q.
+    pager_query_accumulator_generation_ = pager_query_accumulator_generation_ == UINT64_MAX
+        ? 1 : pager_query_accumulator_generation_ + 1;
+}
+
 void llama_kv_cache::begin_kv_pager_turn(
         int32_t sequence_id, uint64_t turn_id,
         int64_t query_start, int64_t query_end, int64_t planned_end, uint32_t attention_tokens, bool verify_view) {
@@ -3570,6 +3597,7 @@ void llama_kv_cache::begin_kv_pager_turn(
     if (state.turn_id == turn_id && state.phase == llama_kv_pager_turn_phase::query_provisional &&
             state.query_start == query_start && state.query_end == query_end) return;
     if (state.phase != llama_kv_pager_turn_phase::idle) return;
+    pager_early_source_layer_ = -1;
     auto & pending = pager_pending_turns_[sequence_id];
     pending.turn_id = turn_id;
     pending.query_start = query_start;
@@ -3947,7 +3975,8 @@ bool llama_kv_cache::commit_kv_pager_query(
         ? empty : initial->second;
     bool selection_changed = !llama_kv_pager_history_selection_equal(before, selected);
     const auto pending = pager_pending_turns_.find(sequence_id);
-    if (pending != pager_pending_turns_.end() && pending->second.verify_view) {
+    if (pager_early_source_layer_ < 0 &&
+            pending != pager_pending_turns_.end() && pending->second.verify_view) {
         if (pending->second.proof_representation_epoch != vbr_tier_epoch())
             pending->second.certificate.invalidate();
         const auto limit = pending->second.attention_tokens;
@@ -3983,7 +4012,9 @@ bool llama_kv_cache::commit_kv_pager_query(
             llama_kv_pager_turn_phase::query_replay, state.query_start, state.query_end,
             state.committed_frontier, frozen_generation) !=
             llama_kv_pager_turn_status::ok) return false;
-    if (changed != nullptr) *changed = selection_changed;
+    // Early publication precedes target Q evaluation, so there is nothing
+    // to restore/replay. The ordinary seam acknowledges query_replay above.
+    if (changed != nullptr) *changed = pager_early_source_layer_ < 0 && selection_changed;
     if (frozen_history_generation != nullptr) {
         *frozen_history_generation = frozen_generation;
     }
@@ -4075,6 +4106,7 @@ void llama_kv_cache::end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) {
         return;
     }
     if (state.turn_id != turn_id) return;
+    pager_early_source_layer_ = -1;
     if (pager_router_job_) pager_router_job_->cancel();
     pager_query_executor_.cancel();
     if (pager_router_completion_.sequence_id == sequence_id &&
@@ -4288,6 +4320,16 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                 candidates = std::move(pager_exact_rerank_candidates_);
             }
             pager_exact_rerank_candidates_.clear();
+            // The exact owner authenticates compact KV layer indices. The
+            // live policy and graph views are keyed by actual model layers
+            // (3,7,... in this hybrid), so translate at this owner boundary.
+            const auto & source_ids = pager_->snapshot().geometry.model_layer_ids;
+            for (auto & candidate : candidates) {
+                candidate.attention_layer = candidate.attention_layer < source_ids.size()
+                    ? source_ids[candidate.attention_layer] : UINT32_MAX;
+                if (pager_early_source_layer_ >= 0)
+                    candidate.provenance = llama_kv_prefetch_candidate::score_kind::early_layer_mass;
+            }
         }
         if (progress_trace) {
             LLAMA_LOG_INFO("kv-pager-progress stage=selector-readback-complete query=%" PRIu64
@@ -4850,8 +4892,10 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
             // Probe-rerank mode commits only key-only exact-mass records. The
             // coarse probe shortlist and legacy rank output are not final
             // promotion evidence and cannot silently fall back to rank order.
-            if ((rerank_mode && candidate.provenance !=
-                        llama_kv_prefetch_candidate::score_kind::exact_mass) ||
+            const auto expected_mass = pager_early_source_layer_ >= 0
+                ? llama_kv_prefetch_candidate::score_kind::early_layer_mass
+                : llama_kv_prefetch_candidate::score_kind::exact_mass;
+            if ((rerank_mode && candidate.provenance != expected_mass) ||
                     (!rerank_mode && candidate.provenance !=
                         llama_kv_prefetch_candidate::score_kind::legacy_rank)) {
                 continue;
@@ -5048,8 +5092,12 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
             boundary.transaction.max_h2d_pages);
         if (rerank_mode) {
             std::vector<llama_kv_prefetch_common_history_bundle> ranked_history;
+            const uint32_t source_layers = pager_early_source_layer_ >= 0
+                ? 1 : pager_snapshot.geometry.attention_layers;
             if (!llama_kv_prefetch_rank_common_history(exact_history_records,
-                    pager_snapshot.geometry.attention_layers, ranked_history)) {
+                    source_layers, ranked_history, pager_early_source_layer_ >= 0
+                        ? llama_kv_prefetch_candidate::score_kind::early_layer_mass
+                        : llama_kv_prefetch_candidate::score_kind::exact_mass)) {
                 pager_->record_rejection_invalid_candidate();
             }
             std::set<uint32_t> protected_pages;
@@ -5101,7 +5149,7 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                 auto candidate = bundle.representative;
                 candidate.peak_probability = bundle.peak_probability;
                 candidate.mean_probability = bundle.mean_probability_sum /
-                    float(pager_snapshot.geometry.attention_layers);
+                    float(source_layers);
                 const llama_kv_routing_retrieval_entry entry {
                     candidate.identity, llama_kv_routing_retrieval_reason::summary,
                     bundle.peak_probability, true, false, 0,
@@ -5116,7 +5164,11 @@ void llama_kv_cache::apply_pager_live_policy(bool drain_selector_only) noexcept 
                 // Cold exact winners are admitted into the same bounded
                 // per-layer selection as resident winners so query-commit
                 // constructs their atomic H2D publication transaction.
-                for (const uint32_t layer : bundle.nominated_layers) {
+                std::vector<uint32_t> publication_layers = bundle.nominated_layers;
+                if (pager_early_source_layer_ >= 0) {
+                    publication_layers = pager_snapshot.geometry.model_layer_ids;
+                }
+                for (const uint32_t layer : publication_layers) {
                     auto & selected = attention_by_layer[layer];
                     if (selected.size() >= attention_page_limit ||
                             std::find_if(selected.begin(), selected.end(), [&](const auto & old) {

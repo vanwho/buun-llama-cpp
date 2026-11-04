@@ -709,6 +709,72 @@ vbr_companion_adoption_provider vbr_recurrent_companion_adoption_provider(
 // llama_memory_recurrent
 //
 
+bool llama_memory_recurrent::copy_active_prefix_from(
+        const llama_memory_recurrent & source, llama_seq_id seq) {
+    if (size != 1 || n_seq_max != 1 || n_rs_seq != 0 || seq < 0 ||
+            size_t(seq) >= source.cells.size() || size_t(seq) >= source.rs_idx.size()) return false;
+    const int32_t tail = source.cells[seq].tail;
+    if (tail < 0 || size_t(tail) >= source.cells.size() ||
+            source.cells[tail].seq_id.count(seq) == 0) return false;
+    const auto & live = source.cells[tail];
+    const int32_t base = live.src >= 0 ? live.src : tail;
+    const uint64_t row = uint64_t(source.rs_idx[seq]) * source.size + uint32_t(base);
+    if (base < 0 || uint32_t(base) >= source.size) return false;
+
+    struct pair { ggml_tensor * src; ggml_tensor * dst; };
+    std::vector<pair> copies;
+    ggml_backend_dev_t device = nullptr;
+    const auto add = [&](ggml_tensor * src, ggml_tensor * dst) {
+        if (!dst) return true; // filtered-out layer
+        if (!src || !src->buffer || !dst->buffer || src->type != dst->type ||
+                src->ne[0] != dst->ne[0] || row >= uint64_t(src->ne[1]) ||
+                ggml_backend_buffer_is_host(src->buffer) ||
+                ggml_backend_buffer_is_host(dst->buffer)) return false;
+        const auto a = ggml_backend_buft_get_device(ggml_backend_buffer_get_type(src->buffer));
+        const auto b = ggml_backend_buft_get_device(ggml_backend_buffer_get_type(dst->buffer));
+        if (!a || a != b || (device && device != a)) return false;
+        device = a;
+        copies.push_back({src, dst});
+        return true;
+    };
+    for (size_t il = 0; il < r_l.size(); ++il) {
+        if (il >= source.r_l.size() || !add(source.r_l[il], r_l[il]) ||
+                !add(source.s_l[il], s_l[il]) || !add(source.p_l[il], p_l[il])) return false;
+    }
+    if (!device || copies.empty()) return false;
+    auto found = copy_backends_.find(device);
+    if (found == copy_backends_.end()) {
+        found = copy_backends_.emplace(device,
+                ggml_backend_ptr(ggml_backend_dev_init(device, nullptr))).first;
+    }
+    if (!found->second) return false;
+    // One device-local graph and one turn-boundary fence for all leading
+    // states; no per-layer D2H staging or synchronization.
+    ggml_init_params ip = { (copies.size() * 3 + 8) * ggml_tensor_overhead() +
+        ggml_graph_overhead_custom(copies.size() * 4 + 16, false), nullptr, true };
+    ggml_context_ptr ctx(ggml_init(ip));
+    if (!ctx) return false;
+    auto * graph = ggml_new_graph_custom(ctx.get(), copies.size() * 4 + 16, false);
+    for (const auto & copy : copies) {
+        auto * src = ggml_view_1d(ctx.get(), copy.src, copy.src->ne[0], size_t(row) * copy.src->nb[1]);
+        auto * dst = ggml_view_1d(ctx.get(), copy.dst, copy.dst->ne[0], 0);
+        src->buffer = copy.src->buffer;
+        dst->buffer = copy.dst->buffer;
+        ggml_build_forward_expand(graph, ggml_cpy(ctx.get(), src, dst));
+    }
+    if (ggml_backend_graph_compute(found->second.get(), graph) != GGML_STATUS_SUCCESS) return false;
+    cells[0] = {};
+    cells[0].pos = live.pos;
+    cells[0].seq_id.insert(0);
+    cells[0].tail = cells[0].src = cells[0].src0 = 0;
+    head = 0;
+    used = 1;
+    rs_idx[0] = 0;
+    rollback_valid_depth[0] = 0;
+    rs_z = -1;
+    return true;
+}
+
 llama_memory_recurrent::llama_memory_recurrent(
         const llama_model & model,
                 ggml_type   type_r,

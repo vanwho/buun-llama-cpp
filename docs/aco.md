@@ -92,6 +92,25 @@ Physical relocation, table epochs and invisible future pages do not force
 replay. Normal Q-window rollover is allowed; a changed/missing historical page,
 unproven coverage, content edit or representation change retains replay.
 
+For supported single-sequence text Qwen35 hybrid requests larger than one
+configured batch, ACO can prepare history before the real target prefill. An
+internal graph runs only the leading recurrent blocks and first full-attention
+layer's Q projection, using an isolated active recurrent state. Four bounded
+query probes rank compatible keys in that source layer; the existing
+authenticated transaction promotes complete logical page bundles across all
+target attention layers. Target prefill then runs once under the frozen map.
+This is an early-layer ranking approximation, explicitly distinguished from
+all-layer exact-key mass. It does not duplicate model weights, full-context KV,
+MTP state or prompt-length hidden activations. For the documented model its
+persistent leading state is about 9.35 MiB; graph scratch is shared.
+
+Short recall questions keep all-layer query evidence: a matched test found a
+retrieval miss when using the early proxy for those questions. Unsupported
+architectures/owners keep their existing path, including native sparse
+indexers. These decisions are automatic and do not introduce an API ingestion
+mode or depend on file names. A failure before publication discards provisional
+scratch state; a failed publication fails the request rather than mixing maps.
+
 Recurrent state and native-MTP carry remain live when reuse is proven. Required
 replay still uses the existing joint checkpoint/restore path. Cached user-span
 rows that lack a certificate for the new request are evaluated from the existing
@@ -100,7 +119,8 @@ Exact attention retains its existing full-coverage contract, and pager-off and
 observe requests retain their existing behavior.
 
 No tensor readbacks, additional model pass, per-file lookup or generation-token
-trace is used for this decision. Certificate storage is bounded by the hot-page
+trace is used for the all-hot certificate decision. The early path adds only
+its leading-block prepass, not a second full-model pass. Certificate storage is bounded by the hot-page
 capacity and uses host metadata; it does not copy K/V or allocate GPU buffers.
 These changes need model-backed quality/performance validation; the build and
 deterministic tests alone do not establish a speedup or dense-equivalent quality

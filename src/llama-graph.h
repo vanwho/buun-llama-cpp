@@ -81,6 +81,9 @@ enum llm_graph_type {
     LLM_GRAPH_TYPE_ENCODER,
     LLM_GRAPH_TYPE_DECODER,
     LLM_GRAPH_TYPE_DECODER_MTP,
+    // Internal ACO prepass: leading recurrent blocks and first attention Q,
+    // with no target attention, K/V writes, upper blocks or output head.
+    LLM_GRAPH_TYPE_ROUTING_PREFIX,
 };
 
 enum llm_fused_op {
