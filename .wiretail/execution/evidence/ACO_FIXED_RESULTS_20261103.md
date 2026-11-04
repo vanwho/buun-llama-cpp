@@ -1,5 +1,10 @@
 # Fixed-candidate ACO results — 2026-11-03
 
+> This partial snapshot is preserved for historical provenance. The current full-curve
+> observations are in [ACO full curves — 2026-11-04](ACO_FULL_CURVES_20261104.md);
+> cell-wise selected bests and lineage are in
+> [ACO best results — 2026-11-04](ACO_BEST_RESULTS_20261104.md).
+
 Status: partial. Candidate SHA `189473719da99f8c391593c61a4c928769c80f72df8ceb6e527e707f95f35794`; source/build `1d74e9a315acaf0379eb2af1245202b820cff1e1`.
 Progress: 120/240 prompt-mode pairs; 360/720 measured requests and 120/240 warmups (480/960 total).
 Only the v2 fixed-candidate output root is included. Earlier ca549/v1 ACO rows are excluded from current comparisons.

@@ -131,7 +131,7 @@
     "final_build_source": "8a79008b5"
   },
   "authorized_full_aco_curves_20261104": {
-    "status": "authorized_preparing",
+    "status": "running_mtp_on",
     "scope": "ACO MTP on and off full incremental repo-fill curves only; other variants not requested",
     "runtime_source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
     "L": 262144,
@@ -170,6 +170,16 @@
     "replacement_policy": "Promote complete comparable new cells when median and/or max decode improves; retain whole new cell, previous raw lineage, and all slower observations. Do not mix a median from one run and a maximum from another into a fabricated sample.",
     "jellyfin": "preserve",
     "8091": "preserve",
-    "8092": "never touch"
+    "8092": "never touch",
+    "mtp_on_output_root": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z",
+    "mtp_off_status": "queued_automatically_after_on",
+    "completed_checkpoints_on": [
+      6144,
+      12288,
+      28672,
+      62464
+    ],
+    "first_checkpoint_prefix_reuse_validated_all_reasoning_modes": true,
+    "current_checkpoint_on": 78848
   }
 }
