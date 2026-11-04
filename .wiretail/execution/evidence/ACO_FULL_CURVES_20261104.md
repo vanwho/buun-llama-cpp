@@ -4,8 +4,8 @@ Current run observations from the frozen campaign build. Warmups are excluded fr
 
 - Compiled build label: `8a79008b5 maskrepair`; per-row binary and loaded-DSO SHA-256 values are in JSON.
 - Planned: 22 checkpoint rows; 264 mode/prompt cells; 792 measured requests + 264 warmups = 1056 benchmark requests (48 expected cases/row derived from campaign files).
-- File-derived requests: 830 benchmark records (622 measured + 208 warmups), 23 repository append requests, 853 HTTP requests total.
-- Discovered: 18/22 rows (17 complete); 207/216 discovered cells complete; 621/622 observed passing measured repeats complete/observed, out of 792 planned.
+- File-derived requests: 960 benchmark records (720 measured + 240 warmups), 27 repository append requests, 987 HTTP requests total.
+- Discovered: 20/22 rows (20 complete); 240/240 discovered cells complete; 720/720 observed passing measured repeats complete/observed, out of 792 planned.
 - Variant roots discovered: 2 (`/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z`, `/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z`); checkpoints are rows within a variant root.
 - Baseline index: `/srv/ai/paged-kv/results/aco-fullcurves-20261104-baseline-index.json`. Historical comparison requires same model/geometry/MTP/nominal checkpoint/mode/prompt; actual C may differ by up to 8 framing tokens, which is labeled. A complete cell replaces history when median or max decode tok/s is higher; both deltas and the full selected distribution are retained.
 - These are observations; differences are not causal or significance claims.
@@ -240,8 +240,8 @@ Append lineage and full raw/request paths plus hashes are stored with each check
 
 ## MTP OFF
 
-Rows discovered: 7; complete: 6. Frozen build/model identity and exact refs are in JSON.
-Variant-root sampled peaks: GPU 14607.00 MiB; server RAM HWM 13.66 GiB; server swap 0.00 GiB; system swap used 2.89 GiB (sampled wrapper-wide; JSON has fields and source).
+Rows discovered: 9; complete: 9. Frozen build/model identity and exact refs are in JSON.
+Variant-root sampled peaks: GPU 14611.00 MiB; server RAM HWM 13.66 GiB; server swap 0.00 GiB; system swap used 2.89 GiB (sampled wrapper-wide; JSON has fields and source).
 
 ### Decode median (tok/s)
 
@@ -272,9 +272,17 @@ Variant-root sampled peaks: GPU 14607.00 MiB; server RAM HWM 13.66 GiB; server s
 | 88,064 / 88,065 | medium | 37.47 | 37.50 | 37.51 |
 | 88,064 / 88,065 | xhigh | 37.39 | 37.49 | 37.51 |
 | 100,352 / 100,352 | off | 37.50 | 37.56 | 37.49 |
-| 100,352 / 100,352 | low | — (1/3) | — (0/3) | — (0/3) |
-| 100,352 / 100,352 | medium | — (0/3) | — (0/3) | — (0/3) |
-| 100,352 / 100,352 | xhigh | — (0/3) | — (0/3) | — (0/3) |
+| 100,352 / 100,352 | low | 37.41 | 37.50 | 37.49 |
+| 100,352 / 100,352 | medium | 37.48 | 37.49 | 37.50 |
+| 100,352 / 100,352 | xhigh | 37.47 | 37.39 | 37.50 |
+| 130,048 / 130,049 | off | 37.50 | 37.57 | 37.49 |
+| 130,048 / 130,049 | low | 37.43 | 37.50 | 37.49 |
+| 130,048 / 130,049 | medium | 37.47 | 37.47 | 37.48 |
+| 130,048 / 130,049 | xhigh | 37.45 | 37.41 | 37.48 |
+| 196,608 / 196,608 | off | 37.49 | 37.56 | 37.48 |
+| 196,608 / 196,608 | low | 37.39 | 37.48 | 37.49 |
+| 196,608 / 196,608 | medium | 37.48 | 37.49 | 37.47 |
+| 196,608 / 196,608 | xhigh | 37.44 | 37.38 | 37.47 |
 
 ### Decode maximum (tok/s)
 
@@ -305,9 +313,17 @@ Variant-root sampled peaks: GPU 14607.00 MiB; server RAM HWM 13.66 GiB; server s
 | 88,064 / 88,065 | medium | 37.54 | 37.52 | 37.54 |
 | 88,064 / 88,065 | xhigh | 37.50 | 37.58 | 37.53 |
 | 100,352 / 100,352 | off | 37.53 | 37.57 | 37.54 |
-| 100,352 / 100,352 | low | — (1/3) | — (0/3) | — (0/3) |
-| 100,352 / 100,352 | medium | — (0/3) | — (0/3) | — (0/3) |
-| 100,352 / 100,352 | xhigh | — (0/3) | — (0/3) | — (0/3) |
+| 100,352 / 100,352 | low | 37.48 | 37.52 | 37.50 |
+| 100,352 / 100,352 | medium | 37.53 | 37.50 | 37.51 |
+| 100,352 / 100,352 | xhigh | 37.48 | 37.46 | 37.51 |
+| 130,048 / 130,049 | off | 37.50 | 37.57 | 37.52 |
+| 130,048 / 130,049 | low | 37.47 | 37.53 | 37.50 |
+| 130,048 / 130,049 | medium | 37.49 | 37.50 | 37.52 |
+| 130,048 / 130,049 | xhigh | 37.47 | 37.44 | 37.50 |
+| 196,608 / 196,608 | off | 37.52 | 37.58 | 37.51 |
+| 196,608 / 196,608 | low | 37.42 | 37.48 | 37.50 |
+| 196,608 / 196,608 | medium | 37.50 | 37.50 | 37.50 |
+| 196,608 / 196,608 | xhigh | 37.48 | 37.45 | 37.47 |
 
 ### MTP acceptance median (%) — N/A
 
@@ -341,6 +357,14 @@ Variant-root sampled peaks: GPU 14607.00 MiB; server RAM HWM 13.66 GiB; server s
 | 100,352 / 100,352 | low | N/A | N/A | N/A |
 | 100,352 / 100,352 | medium | N/A | N/A | N/A |
 | 100,352 / 100,352 | xhigh | N/A | N/A | N/A |
+| 130,048 / 130,049 | off | N/A | N/A | N/A |
+| 130,048 / 130,049 | low | N/A | N/A | N/A |
+| 130,048 / 130,049 | medium | N/A | N/A | N/A |
+| 130,048 / 130,049 | xhigh | N/A | N/A | N/A |
+| 196,608 / 196,608 | off | N/A | N/A | N/A |
+| 196,608 / 196,608 | low | N/A | N/A | N/A |
+| 196,608 / 196,608 | medium | N/A | N/A | N/A |
+| 196,608 / 196,608 | xhigh | N/A | N/A | N/A |
 
 ### Actual completion tokens and terminal reason (400-token cap)
 
@@ -373,9 +397,17 @@ Each cell shows the three measured usage completion-token counts in repetition o
 | 88,064 / 88,065 | medium | 400/277/350 (length/stop/stop) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
 | 88,064 / 88,065 | xhigh | 334/235/242 (stop/stop/stop) | 165/322/277 (stop/stop/stop) | 400/400/400 (length/length/length) |
 | 100,352 / 100,352 | off | 400/400/400 (length/length/length) | 159/172/156 (stop/stop/stop) | 400/400/400 (length/length/length) |
-| 100,352 / 100,352 | low | 277 (stop) | — | — |
-| 100,352 / 100,352 | medium | — | — | — |
-| 100,352 / 100,352 | xhigh | — | — | — |
+| 100,352 / 100,352 | low | 277/277/277 (stop/stop/stop) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
+| 100,352 / 100,352 | medium | 400/365/400 (length/stop/length) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
+| 100,352 / 100,352 | xhigh | 330/242/329 (stop/stop/stop) | 274/226/236 (stop/stop/stop) | 400/400/400 (length/length/length) |
+| 130,048 / 130,049 | off | 400/400/400 (length/length/length) | 145/161/165 (stop/stop/stop) | 400/400/400 (length/length/length) |
+| 130,048 / 130,049 | low | 328/292/292 (stop/stop/stop) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
+| 130,048 / 130,049 | medium | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
+| 130,048 / 130,049 | xhigh | 325/243/325 (stop/stop/stop) | 270/279/275 (stop/stop/stop) | 400/400/400 (length/length/length) |
+| 196,608 / 196,608 | off | 400/400/400 (length/length/length) | 132/127/149 (stop/stop/stop) | 400/400/400 (length/length/length) |
+| 196,608 / 196,608 | low | 301/301/301 (stop/stop/stop) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
+| 196,608 / 196,608 | medium | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) | 400/400/400 (length/length/length) |
+| 196,608 / 196,608 | xhigh | 353/352/321 (stop/stop/stop) | 274/261/254 (stop/stop/stop) | 400/400/400 (length/length/length) |
 
 ### Incremental prefill append curve
 
@@ -391,8 +423,12 @@ Only repository-context append requests from each campaign `schedule.jsonl` are 
 | 78,848 / 78849 | 5 | checkpoint_tail | 16384 | 976.95 | 977.13 | 972.75 | `append-0005.sse` |
 | 88,064 / 88065 | 6 | checkpoint_tail | 9216 | 922.42 | 922.72 | 914.92 | `append-0006.sse` |
 | 100,352 / 100352 | 7 | checkpoint_tail | 12287 | 945.61 | 945.85 | 938.90 | `append-0007.sse` |
+| 130,048 / 130049 | 8 | checkpoint_tail | 29697 | 995.27 | 995.37 | 991.59 | `append-0008.sse` |
+| 196,608 / 162832 | 9 | full_group | 32783 | 988.28 | 988.37 | 984.00 | `append-0009.sse` |
+| 196,608 / 195615 | 10 | full_group | 32783 | 970.67 | 970.67 | 965.77 | `append-0010.sse` |
+| 196,608 / 196608 | 11 | checkpoint_tail | 993 | 422.28 | 212.42 | 204.72 | `append-0011.sse` |
 
-Token weighted across these 8 append groups: backend 927.95 tok/s; net-new 928.11 tok/s (backend prompt time); HTTP wall 924.22 tok/s. Totals: 100352 net-new / 100334 backend tokens.
+Token weighted across these 12 append groups: backend 942.69 tok/s; net-new 938.12 tok/s (backend prompt time); HTTP wall 933.38 tok/s. Totals: 196608 net-new / 197565 backend tokens.
 Append lineage and full raw/request paths plus hashes are stored with each checkpoint in JSON.
 
 ## Historical selection
