@@ -54,6 +54,18 @@ kernel starts at -1 and retains it if no value exceeds `-FLT_MAX`, including an
 all-NaN/all-negative-infinity row. Nonfinite/corrupted logits or an uninitialized
 argmax result are plausible; the exact producing kernel is not yet identified.
 
+There is also a concrete source difference already fixed in the ACO binary's
+ancestry: commit `a5a1110ca620db4f1c04669d0a2f569852ec1ec7`
+(`fix(server): keep speculative target verification aligned`) removes native
+`DRAFT_MTP` from the DFlash raw-argmax shortcut and indexes argmax through the
+mapped `verify_rows[i]`, rather than the raw `slot.spec_i_batch[i]`. Pristine
+master `d2407c33f959` still has both older behaviors. The benchmarked fork
+source `8a79008b5473` includes that fix. This is a verified route/indexing
+invariant difference relevant to the master error, not proof that every
+negative argmax comes from one particular producing CUDA kernel. Do not
+silently patch the pristine-master binary or pool its results with a rebuilt
+control.
+
 Some failures are close to output budgets (38/40, 396/398 of 400 emitted
 frames), but the server already caps drafts at `n_remaining - 1`. Proximity to
 the cap does not prove a budget-overflow defect. Do not increase the cap to hide
@@ -73,8 +85,8 @@ rewind a previous generated suffix. A fully cumulative conversation instead
 retains previous questions and answers and adds roughly 15K–20K occupied tokens
 per full benchmark block. These produce different actual-C coordinates and
 reserve requirements. Record the selected protocol explicitly; never claim
-both exact held C and a fully cumulative conversation. A narrow clarification
-is pending between those two ordinary request schedules.
+both exact held C and a fully cumulative conversation. The user explicitly selected normal server prefix caching, with no benchmark
+disk save/restore and the same context-size comparisons. R6 uses that schedule.
 
 Independent MTP-off controls and append-only ingest measurements continue. The
 completed ACO-on/off curves remain valid and use their resident-prefix path;
