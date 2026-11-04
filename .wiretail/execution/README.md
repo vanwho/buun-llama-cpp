@@ -3,6 +3,15 @@
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
 [PREFILL101](forward/PREFILL101.md) and [TESTING](forward/TESTING.md).
 Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
+**Active comparison work:** use the numbered
+[gap-only run plan](benchmarks/COMPARISON_COMPLETION_20261104.md) and its frozen
+[machine configuration](benchmarks/COMPARISON_COMPLETION_20261104.json).
+Existing valid historical graphs count at their actual occupancies and reasoning
+settings; do not replace them with blanket control reruns or force their x values
+onto the latest ACO grid. This separately authorized Luna High queue preserves
+the repository base across prompts/modes and fills every prefill checkpoint even
+when no decode is selected. Do not launch concurrent model tests through Wiretail.
+
 **Current ACO results (2026-11-04):** the requested full-curve campaign is
 complete: 22/22 rows, 264/264 prompt/reasoning cells, 792 measured requests,
 and 264 warmups across fresh MTP-on and MTP-off variants. Read the
@@ -10,7 +19,7 @@ and 264 warmups across fresh MTP-on and MTP-off variants. Read the
 [cell-wise best-results report](evidence/ACO_BEST_RESULTS_20261104.md) for
 coverage, speeds, caveats, and provenance. The consolidated report has a current
 digest above its archived older measurements. Do not restart the completed campaign
-automatically. The broader implementation benchmark suite remains paused after
+automatically. Other benchmark work remains paused outside the gap-only plan after
 the earlier chunk-sizing/file-mapping work; see the
 [mapped-ingest handoff](engineering-notes/repo-prefill-chunk-map-20261103.md)
 and `benchmarks/GPU_POLICY.json`. Preserve Jellyfin and do not change the job
@@ -138,6 +147,10 @@ external benchmark tooling) during final cleanup:
   portable attention/MTP/kernel/residency changes when selecting upstream code.
 - `fe77316bb` updates only the local benchmark README and archived
   `release_evidence/README.md` / `RESULTS.md`. Keep that documentation commit
+  separate from portable ACO implementation changes during upstream cleanup.
+- `f130f74a4` contains only local comparison-driver changes: sparse decode
+  selections retain prefill checkpoints, server ownership is recorded before
+  readiness, and loaded-library hashes are streamed once per file. Keep it
   separate from portable ACO implementation changes during upstream cleanup.
 
 Also remove or rewrite references to these assets/helpers in phase-102

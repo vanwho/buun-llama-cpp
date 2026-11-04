@@ -7,7 +7,7 @@
     "media-stack.service"
   ],
   "sizing_checks_allow_jellyfin_running": true,
-  "final_clean_prefill_retests": "authorized_aco_mtp_on_off_full_curves_20261104",
+  "final_clean_prefill_retests": "authorized_comparison_completion_20261104",
   "note": "Never stop Jellyfin or its transcode processes for benchmark cleanup. Record its resource use during sizing. A clean benchmark must pause instead of killing a protected GPU client.",
   "authorized_current_run": {
     "purpose": "one fresh prefill-only 256K allocation /64K hot/GPU MTP2 curve",
@@ -214,5 +214,26 @@
     "current_run_report": ".wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md",
     "selected_historical_bests": ".wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md"
   },
-  "benchmark_state": "completed_aco_mtp_on_off_full_curves_20261104"
+  "benchmark_state": "authorized_comparison_completion_20261104",
+  "authorized_comparison_completion_20261104": {
+    "status": "ready",
+    "plan": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.json",
+    "numbered_plan": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.md",
+    "output_root": "/srv/ai/paged-kv/results/comparison-completion-20261104",
+    "step_order": [
+      "master-gpu-mtp-off",
+      "fork-cpu-mtp-off",
+      "fork-cpu-mtp-on",
+      "master-cpu-mtp-on",
+      "master-cpu-mtp-off",
+      "fork-gpu-mtp-off"
+    ],
+    "run_model": "gpt-6-luna",
+    "run_reasoning": "high",
+    "reuse_historical_complete_decode": true,
+    "one_persistent_fill_per_series": true,
+    "prefill_all_checkpoints_when_decode_is_sparse": true,
+    "no_aco_enabled_reruns": true,
+    "protected_clients_unchanged": true
+  }
 }
