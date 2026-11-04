@@ -102,7 +102,8 @@ def run_one(plan, step, profile_index, attempt, full_decode):
     generated = matrix.argv_for_row(profile['context_tokens'], step['placement'],
         mtp=step['mtp'] == 'on', pager=profile['pager'], draft_device=profile['draft_device'],
         server_bin=Path(build['path']), slot_state=slot,
-        checkpoint_free_control=profile.get('checkpoint_free_control', False))
+        checkpoint_free_control=profile.get('checkpoint_free_control', False),
+        context_checkpoints=profile.get('context_checkpoints', 8))
     if argv != generated:
         raise RuntimeError('frozen command differs from driver command; fix before touching services')
     selections = profile['checkpoint_selection']
@@ -117,7 +118,7 @@ def run_one(plan, step, profile_index, attempt, full_decode):
         '--source-chunk-map', plan['chunk_map']['path'], '--slot-state', str(slot),
         '--output', str(run_root / 'cell'), '--api-key-file', '/srv/ai/config/llama/api-keys',
         '--reasoning-modes', *matrix.MODES, '--prompt-indices', '0', '1', '2',
-        '--snapshot-format', profile.get('snapshot_format', 'resume'),
+        '--context-checkpoints', str(profile.get('context_checkpoints', 8)),
         '--checkpoint-selection', str(run_root / 'checkpoint-selection.json')]
     if profile['draft_device'] is not None:
         command.extend(['--draft-device', profile['draft_device']])

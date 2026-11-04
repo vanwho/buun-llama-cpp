@@ -226,6 +226,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-selection", type=pathlib.Path,
                         help="JSON mapping occupied checkpoints to remaining mode/prompt pairs")
     parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume")
+    parser.add_argument("--context-checkpoints", type=int, default=8,
+                        help="native server checkpoint count, passed unchanged to request identity checks")
     parser.add_argument("--checkpoint-free-controls", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--skip-runtime-fault-case", type=int, action="append", default=[])
@@ -292,7 +294,8 @@ def main() -> int:
             draft_device=args.draft_device,
             server_bin=args.server_binary.resolve(), slot_state=args.slot_state.resolve(),
             model_alias=args.model_alias,
-            checkpoint_free_control=args.checkpoint_free_controls)
+            checkpoint_free_control=args.checkpoint_free_controls,
+            context_checkpoints=args.context_checkpoints)
         options = [argv[i] for i in range(1, len(argv)) if argv[i].startswith("--")]
         missing = [option for option in options if option not in help_text]
         if missing:
@@ -348,7 +351,7 @@ def main() -> int:
                 "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,
                 "--output", str(campaign_output), "--api-key-file", str(args.api_key_file),
                 "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
-                "--snapshot-format", args.snapshot_format,
+                "--context-checkpoints", str(args.context_checkpoints),
                 "--source-chunk-map", str(args.source_chunk_map.resolve())]
             if resident_prefix:
                 command.append("--reuse-filled-prefix")

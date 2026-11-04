@@ -29,6 +29,16 @@ CELL_SPEC.loader.exec_module(cell)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_long_context_checkpoint_budget_is_explicit_without_changing_compute(self) -> None:
+        argv = matrix.argv_for_row(262144, "cpu", mtp=False, context_checkpoints=32)
+        for name, value in (("--ctx-checkpoints", "32"), ("--checkpoint-min-step", "8192"),
+                            ("-b", "1024"), ("-ub", "256"), ("-ctk", "q4_0"),
+                            ("-ctv", "q4_0"), ("--spec-type", "none")):
+            self.assertEqual(argv[argv.index(name) + 1], value)
+        self.assertEqual(argv.count("--ctx-checkpoints"), 1)
+        with self.assertRaises(ValueError):
+            matrix.argv_for_row(262144, "cpu", context_checkpoints=-1)
+
     def test_mtp_controls_never_restore_target_without_their_draft_history(self) -> None:
         self.assertTrue(cell.resident_prefix_required("none", "on"))
         self.assertTrue(cell.resident_prefix_required("off", "on"))

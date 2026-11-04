@@ -93,7 +93,10 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
                  server_bin: pathlib.Path = SERVER_BIN,
                  slot_state: pathlib.Path = SLOT_STATE,
                  model_alias: str = MODEL,
-                 checkpoint_free_control: bool = False) -> list[str]:
+                 checkpoint_free_control: bool = False,
+                 context_checkpoints: int = 8) -> list[str]:
+    if context_checkpoints < 0:
+        raise ValueError("context checkpoint count cannot be negative")
     if placement not in {"gpu", "cpu"}:
         raise ValueError("placement must be gpu or cpu")
     if pager not in {"none", "off", "selective"}:
@@ -138,8 +141,10 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
         # Qwen's hybrid/recurrent state must rewind between the independent
         # benchmark questions. The stock master cannot do that with zero
         # checkpoints: its next request reports cache_n=0 and re-prefills L.
-        # Use the exact ordinary-control profile already measured successfully.
-        argv.extend(("--cache-ram", "12288", "--ctx-checkpoints", "8",
+        # Freeze the native cache count in the series plan. A count carried
+        # over from a short profile can leave no recent checkpoint at a much
+        # larger frontier, causing a repeat to reprocess old context.
+        argv.extend(("--cache-ram", "12288", "--ctx-checkpoints", str(context_checkpoints),
                      "--checkpoint-min-step", "8192", "--cache-idle-slots",
                      "--kv-unified"))
     if pager != "none":
@@ -422,6 +427,8 @@ def parse_args() -> argparse.Namespace:
                         help="keep the filled KV prefix resident and reuse it with cache_prompt; skip disk snapshots")
     parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume",
                         help="native held-base file format for controls; restore is outside request timing")
+    parser.add_argument("--context-checkpoints", type=int, default=8,
+                        help="native server checkpoint count for occupied controls; frozen per series")
     parser.add_argument("--checkpoint-free-controls", action="store_true",
                         help="MTP-off only: restore full target files without optional rewind checkpoints")
     parser.add_argument("--output", type=pathlib.Path, required=True)
@@ -992,7 +999,8 @@ def main() -> int:
         mtp=mtp_enabled, pager=args.pager, hot_pages=args.hot_pages,
         draft_device=args.draft_device, server_bin=SERVER_BIN,
         slot_state=SLOT_STATE, model_alias=MODEL,
-        checkpoint_free_control=args.checkpoint_free_controls)
+        checkpoint_free_control=args.checkpoint_free_controls,
+        context_checkpoints=args.context_checkpoints)
     live = capture_live_identity(expected_argv, args.startup_log,
         mtp_enabled=mtp_enabled, placement=args.placement,
         pager=args.pager, hot_pages=args.hot_pages)
