@@ -116,6 +116,7 @@ def run_one(plan, step, profile_index, attempt, full_decode):
         '--source-chunk-map', plan['chunk_map']['path'], '--slot-state', str(slot),
         '--output', str(run_root / 'cell'), '--api-key-file', '/srv/ai/config/llama/api-keys',
         '--reasoning-modes', *matrix.MODES, '--prompt-indices', '0', '1', '2',
+        '--snapshot-format', profile.get('snapshot_format', 'resume'),
         '--checkpoint-selection', str(run_root / 'checkpoint-selection.json')]
     if profile['draft_device'] is not None:
         command.extend(['--draft-device', profile['draft_device']])

@@ -155,6 +155,8 @@ external benchmark tooling) during final cleanup:
 - `367a32050` restores the proven native K/V snapshot method for independent
   control questions and distinguishes truncated streams from cache misses.
   It changes benchmark tooling only, not either measured inference binary.
+- `98b9c8b23` exposes the server's existing native snapshot formats to local
+  benchmark drivers. Keep it outside the portable inference-code PR too.
 
 Also remove or rewrite references to these assets/helpers in phase-102
 packets, clusters, overview, testing plan, and evidence before preparing the
