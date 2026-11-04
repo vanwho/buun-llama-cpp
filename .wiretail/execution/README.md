@@ -3,12 +3,18 @@
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
 [PREFILL101](forward/PREFILL101.md) and [TESTING](forward/TESTING.md).
 Every build on this host uses CMake `--parallel 16`, for CPU and CUDA alike.
-Operator update (2026-11-03): Jellyfin must remain running, including during
-benchmark preparation. Final clean prefill retests are paused after chunk sizing
-and file mapping; see [the mapped-ingest handoff](engineering-notes/repo-prefill-chunk-map-20261103.md)
-and `benchmarks/GPU_POLICY.json`. Do not restart the final matrix automatically.
-Do not change the job count without operator direction; diagnose slowness or
-resource failures first. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
+**Current ACO results (2026-11-04):** the requested full-curve campaign is
+complete: 22/22 rows, 264/264 prompt/reasoning cells, 792 measured requests,
+and 264 warmups across fresh MTP-on and MTP-off variants. Read the
+[full-curve report](evidence/ACO_FULL_CURVES_20261104.md) and
+[cell-wise best-results report](evidence/ACO_BEST_RESULTS_20261104.md) for
+coverage, speeds, caveats, and provenance. The consolidated report has a current
+digest above its archived older measurements. Do not restart the completed campaign
+automatically. The broader implementation benchmark suite remains paused after
+the earlier chunk-sizing/file-mapping work; see the
+[mapped-ingest handoff](engineering-notes/repo-prefill-chunk-map-20261103.md)
+and `benchmarks/GPU_POLICY.json`. Preserve Jellyfin and do not change the job
+count without operator direction. See [CONTEXT_POLICY](CONTEXT_POLICY.md) and
 [TESTING](forward/TESTING.md).
 Continue the first unfinished task in WORK_STATE, never a historical phase ID.
 Phase105 and phase106 reports are complete historical evidence. 106-00 did not
@@ -130,6 +136,9 @@ external benchmark tooling) during final cleanup:
   subsequent query/page attribution repair: `run-pager-promotion.py` and
   `test_pager_promotion.py`. Keep these local campaign fixes separate from
   portable attention/MTP/kernel/residency changes when selecting upstream code.
+- `fe77316bb` updates only the local benchmark README and archived
+  `release_evidence/README.md` / `RESULTS.md`. Keep that documentation commit
+  separate from portable ACO implementation changes during upstream cleanup.
 
 Also remove or rewrite references to these assets/helpers in phase-102
 packets, clusters, overview, testing plan, and evidence before preparing the

@@ -123,9 +123,61 @@ No tensor readbacks, additional model pass, per-file lookup or generation-token
 trace is used for the all-hot certificate decision. The early path adds only
 its leading-block prepass, not a second full-model pass. Certificate storage is bounded by the hot-page
 capacity and uses host metadata; it does not copy K/V or allocate GPU buffers.
-These changes need model-backed quality/performance validation; the build and
-deterministic tests alone do not establish a speedup or dense-equivalent quality
-for selective requests whose history exceeds the hot window.
+
+## Measured results
+
+The 2026-11-04 full-curve run used two fresh persistent variants and completed
+22/22 context rows and 264/264 prompt/reasoning cells, with 792 passing
+measured requests, 264 warmups, and 1,056 benchmark requests total. Each
+variant retained one process across the context ladder; there was no
+per-prompt or per-reasoning-mode fill/reset. The shared geometry was
+L=262,144, H=65,536,
+B/U=1024/256 and GPU Turbo4 target KV. MTP-on also used GPU Turbo4 draft KV
+and native MTP n-max=2; MTP-off had no draft allocation.
+Each of three canonical prompts ran in reasoning off, low, medium, and xhigh;
+each cell used one 40-token warmup and three measured requests capped at 400
+tokens. The final configured checkpoint was 261,120; actual occupancy was
+C=261,121, leaving 1,023 tokens of reserve. Target checkpoints were 6,144,
+12,288, 28,672, 62,464, 78,848, 88,064, 100,352, 130,048, 196,608, 256,000,
+and 261,120; these are ladder targets, and actual occupancy is reported
+separately. The full run and historical
+cell-wise selection, including exact checkpoint values and identities, are in
+the [full-curve report](../.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md)
+and [best-results report](../.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md).
+
+At the final filled checkpoint (C=261,121) in low reasoning, the three-repeat
+decode results were:
+
+| Variant | P1 min / median / max | P2 min / median / max | P3 min / median / max |
+|---|---:|---:|---:|
+| MTP on | 57.86 / 58.22 / 58.79 tok/s | 45.52 / 45.78 / 45.82 tok/s | 54.71 / 55.30 / 56.73 tok/s |
+| MTP off | 37.37 / 37.38 / 37.43 tok/s | 37.43 / 37.43 / 37.45 tok/s | 37.42 / 37.44 / 37.45 tok/s |
+
+These are filled near-capacity results; the full run includes all four
+reasoning modes and is linked above. MTP-on MTP acceptance medians were
+90.00/61.34/82.39% for prompts 1/2/3. Across the 15 repository-content
+appends, aggregate ingest rates (total tokens / total elapsed time) were
+781.88 net-new tok/s with MTP on and 938.44 tok/s with MTP off; HTTP-wall rates
+were 777.90 and 932.60 tok/s. These rates
+include observed run effects and are not a controlled attribution to one
+change. In particular, the `maskrepair` build label and a single-pair 5.5%
+observation do not establish a material speedup caused by mask repair.
+
+The MTP-on process recorded 530.4 MiB peak `VmSwap` at C=100,352; MTP-off
+recorded zero in 958 samples. The samples do not identify which allocations
+were swapped or measure swap-in I/O, so the MTP-on run is not certified
+RAM-only. A bounded natural file-recall check separately demonstrated a cold
+source-page promotion and correct answer. This is functional evidence for that
+case, not a general retrieval-quality or dense-equivalence certification.
+Short recall continues to use the stronger all-layer route; early routing is
+for bulk spans and does not imply that all query replay has been removed.
+
+The build's overall comparison remains observational. Whole-cell historical
+selection promoted 95 comparable cells (86 improved in both median and maximum,
+5 median-only, 4 maximum-only), retained 28 prior bests, and selected 141 new
+cells. Each cell keeps all three repeats from one build; the selected-best
+table can contain cells from different builds and is not a frozen cohort. Do
+not infer causality or statistical significance from these cells.
 
 ## Build
 
@@ -199,15 +251,23 @@ you have separately configured network access and authentication.
 ## Evidence and comparisons
 
 Treat routing counters, residency snapshots, attention execution, quality, and
-latency as distinct measurements. The current 107-02 natural A/B/A cohort does
-not provide cold-promotion timing; 107-01 cold-promotion timing was invalidated.
-Two correct near-256K promotions from the earlier 105-21 cohort remain valid
-for that older cohort only. Do not present those results as current-cohort
-timings or as a general 256K guarantee.
+latency as distinct measurements. The 2026-11-04 growing-conversation check
+found the source page host-backed and nonresident before recall, then
+authenticated, promoted, published, and used that page for the target and MTP
+verification. It returned a correct answer for that bounded case. Its
+first-token timing is not an isolated promotion surcharge: both the cold and
+hot turns promoted other pages. This is separate functional evidence from the
+full-curve speed matrix, not a general retrieval guarantee. Earlier invalidated
+107-01 measurements and the valid 105-21 observations remain historical and
+should not be blended into this cohort.
 
-CPU-target F16 versus CUDA-target Turbo4 changes both placement and KV
-representation, so it is a confounded comparison and cannot isolate the
-offloading effect. Report the exact model, quantization, context, occupied
+The older CPU-target F16 and Q4_0 controls remain separately identified in the
+[consolidated archive](../.wiretail/execution/evidence/PERFORMANCE_RESULTS_CONSOLIDATED_2026-10-23.md).
+Either compared with CUDA-target Turbo4 changes both placement and KV
+representation and cannot isolate the offloading effect. The November 4 curves
+remeasure ACO MTP on/off, not master controls; an empty-context master result
+does not establish overhead at a filled ACO frontier.
+Report the exact model, quantization, context, occupied
 tokens, hot-page count, KV types, native-MTP placement, device, and executed
 attention route with any comparison. Do not infer fully occupied context from
 an allocation or configuration that only started successfully.

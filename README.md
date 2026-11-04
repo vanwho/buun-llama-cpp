@@ -14,6 +14,15 @@ it is supported only for the documented Qwen3.8 CUDA geometry and is not a
 dense-equivalence or general performance claim. See the
 [architecture, limits, build, and launch guide](docs/aco.md).
 
+The latest 256K ACO measurement covers 11 context checkpoints for each of
+MTP-on and MTP-off (22 rows total) and four reasoning modes. Its full run results
+and cell-wise historical selections are documented in the
+[2026-11-04 full curves](.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md)
+and [best-results report](.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md).
+The full curves use one frozen build and host; the historical selections keep
+each cell's build lineage. These observations do not establish dense-equivalent
+quality or isolate the effect of any one code change.
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## VBR — Variable Bit-Rate KV Cache

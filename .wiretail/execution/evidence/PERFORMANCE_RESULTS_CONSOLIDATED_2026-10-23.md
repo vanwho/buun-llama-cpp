@@ -9,6 +9,90 @@ shows one frozen build's observations and coverage; the best report selects whol
 three-repeat cells when a comparable median or maximum decode rate improves.
 Ordinary GPU/CPU controls are separately identified.
 
+## Current ACO 256K decode digest — 2026-11-04
+
+This short digest is the current ACO result. The remainder of this file is the
+2026-10-23 consolidation preserved as historical evidence. The newer campaign
+used two fresh persistent variants (MTP on and off), each with 11 target
+checkpoints, L=262,144, H=65,536, B/U=1024/256, and Turbo4 target KV. The MTP-on
+variant also used GPU Turbo4 draft KV; MTP-off had no draft. Three canonical
+prompts ran in four reasoning modes. Each prompt/mode cell used one
+40-token warmup and three measured requests capped at 400 tokens. Each variant
+kept one process across the ladder, with no per-prompt or per-mode fill/reset.
+There were 22 rows, 264 complete cells, 792 measured requests, and 264 warmups.
+Full protocol, all modes, build identity, and actual occupancy are in the
+[full-curve report](ACO_FULL_CURVES_20261104.md); whole-cell historical
+selections are in the [best-results report](ACO_BEST_RESULTS_20261104.md).
+
+The following low-reasoning table reports **min / median / max** decode tok/s
+from the three repeats in each current cell. The first number is the target C;
+the second is actual occupancy. These are per-cell repeat ranges, not minima or
+maxima taken across the context curve.
+
+### MTP on
+
+| Target C / actual C | P1 min / median / max | P2 min / median / max | P3 min / median / max |
+|---:|---:|---:|---:|
+| 6,144 / 6,144 | 99.93 / 100.11 / 100.63 | 75.45 / 75.56 / 75.74 | 92.55 / 92.64 / 92.87 |
+| 12,288 / 12,288 | 95.05 / 95.20 / 95.36 | 79.84 / 80.11 / 80.19 | 88.81 / 88.83 / 89.20 |
+| 28,672 / 28,673 | 91.89 / 92.01 / 92.43 | 68.50 / 68.64 / 68.82 | 85.33 / 85.44 / 85.60 |
+| 62,464 / 62,465 | 75.83 / 75.86 / 75.94 | 58.31 / 58.43 / 58.44 | 73.79 / 73.95 / 74.18 |
+| 78,848 / 78,849 | 70.35 / 70.39 / 70.52 | 52.53 / 53.05 / 58.17 | 68.05 / 68.47 / 68.83 |
+| 88,064 / 88,065 | 68.64 / 71.02 / 71.19 | 53.57 / 56.39 / 59.37 | 66.61 / 67.34 / 67.89 |
+| 100,352 / 100,352 | 70.71 / 70.95 / 71.29 | 54.80 / 55.82 / 56.90 | 61.54 / 62.33 / 62.47 |
+| 130,048 / 130,049 | 65.47 / 67.16 / 67.53 | 52.24 / 53.09 / 53.96 | 61.46 / 62.43 / 62.80 |
+| 196,608 / 196,608 | 62.23 / 62.40 / 63.05 | 48.70 / 48.79 / 51.82 | 56.04 / 56.46 / 57.00 |
+| 256,000 / 256,001 | 58.13 / 59.09 / 60.61 | 41.60 / 41.94 / 43.08 | 52.17 / 53.16 / 53.25 |
+| 261,120 / 261,121 | 57.86 / 58.22 / 58.79 | 45.52 / 45.78 / 45.82 | 54.71 / 55.30 / 56.73 |
+
+### MTP off
+
+| Target C / actual C | P1 min / median / max | P2 min / median / max | P3 min / median / max |
+|---:|---:|---:|---:|
+| 6,144 / 6,144 | 48.95 / 48.95 / 48.98 | 48.99 / 49.00 / 49.02 | 48.98 / 49.00 / 49.05 |
+| 12,288 / 12,288 | 47.98 / 47.98 / 48.01 | 48.00 / 48.00 / 48.04 | 48.01 / 48.03 / 48.06 |
+| 28,672 / 28,673 | 45.95 / 45.96 / 46.02 | 45.92 / 45.98 / 46.03 | 45.99 / 46.04 / 46.09 |
+| 62,464 / 62,465 | 42.03 / 42.05 / 42.08 | 41.79 / 41.89 / 41.98 | 42.11 / 42.12 / 42.12 |
+| 78,848 / 78,849 | 37.43 / 37.45 / 37.48 | 37.40 / 37.46 / 37.50 | 37.47 / 37.50 / 37.52 |
+| 88,064 / 88,065 | 37.46 / 37.46 / 37.50 | 37.44 / 37.49 / 37.52 | 37.46 / 37.51 / 37.52 |
+| 100,352 / 100,352 | 37.41 / 37.41 / 37.48 | 37.47 / 37.50 / 37.52 | 37.42 / 37.49 / 37.50 |
+| 130,048 / 130,049 | 37.42 / 37.43 / 37.47 | 37.46 / 37.50 / 37.53 | 37.47 / 37.49 / 37.50 |
+| 196,608 / 196,608 | 37.36 / 37.39 / 37.42 | 37.46 / 37.48 / 37.48 | 37.46 / 37.49 / 37.50 |
+| 256,000 / 256,001 | 37.40 / 37.42 / 37.45 | 37.25 / 37.32 / 37.36 | 37.42 / 37.46 / 37.47 |
+| 261,120 / 261,121 | 37.37 / 37.38 / 37.43 | 37.43 / 37.43 / 37.45 | 37.42 / 37.44 / 37.45 |
+
+### Repository-ingest curve
+
+Net-new tok/s below summarize the checkpoint's repository append groups. Each group was measured once; `n` is the number of unequal-size appends, not repeated trials at one context. A one-group point therefore has equal min/median/max. Canonical benchmark-question prompt timing is excluded. Backend and HTTP-wall curves, append sizes, and individual measurements are in the full-curve report.
+
+| Target C / actual C | MTP on n | MTP on min / median / max | MTP off n | MTP off min / median / max |
+|---:|---:|---:|---:|---:|
+| 6,144 / 6,144 | 1 | 1,475.37 / 1,475.37 / 1,475.37 | 1 | 1,674.96 / 1,674.96 / 1,674.96 |
+| 12,288 / 12,288 | 1 | 1,268.45 / 1,268.45 / 1,268.45 | 1 | 1,405.85 / 1,405.85 / 1,405.85 |
+| 28,672 / 28,673 | 1 | 1,006.35 / 1,006.35 / 1,006.35 | 1 | 1,123.25 / 1,123.25 / 1,123.25 |
+| 62,464 / 62,465 | 2 | 455.50 / 563.47 / 671.44 | 2 | 507.71 / 628.38 / 749.05 |
+| 78,848 / 78,849 | 1 | 889.04 / 889.04 / 889.04 | 1 | 977.13 / 977.13 / 977.13 |
+| 88,064 / 88,065 | 1 | 826.44 / 826.44 / 826.44 | 1 | 922.72 / 922.72 / 922.72 |
+| 100,352 / 100,352 | 1 | 834.07 / 834.07 / 834.07 | 1 | 945.85 / 945.85 / 945.85 |
+| 130,048 / 130,049 | 1 | 849.53 / 849.53 / 849.53 | 1 | 995.37 / 995.37 / 995.37 |
+| 196,608 / 196,608 | 3 | 174.06 / 775.82 / 815.98 | 3 | 212.42 / 970.67 / 988.37 |
+| 256,000 / 256,001 | 2 | 706.83 / 724.84 / 742.86 | 2 | 940.31 / 952.85 / 965.40 |
+| 261,120 / 261,121 | 1 | 605.62 / 605.62 / 605.62 | 1 | 797.85 / 797.85 / 797.85 |
+
+Across the 15 repository-content append groups, the aggregate rates
+(total tokens / total elapsed time) were:
+
+| Variant | Backend prompt | Net-new prefill | HTTP wall |
+|---|---:|---:|---:|
+| MTP on | 784.72 tok/s | 781.88 tok/s | 777.90 tok/s |
+| MTP off | 941.85 tok/s | 938.44 tok/s | 932.60 tok/s |
+
+The MTP-on process had peak `VmSwap` of 530.4 MiB at target C=100,352
+(actual C=100,352); MTP-off recorded zero across 958 samples. The samples do
+not identify which allocations were swapped or measure swap-in I/O, so MTP-on
+is not certified RAM-only. These are observed rates with any such effects
+included, not causal or statistical claims.
+
 Compiled 2026-10-23 from benchmark artifacts in this repository and /srv/ai/paged-kv/results.
 This is a results consolidation and missing-cell completion. It includes the
 standardized 105-series three-prompt matrix, fresh-chunk context-ingest curves, the
@@ -17,9 +101,10 @@ clean October 23 runs for the previously missing configuration cells.
 Raw request streams remain in their original result roots; source paths and binary
 identities below make the numbers auditable.
 
-## Reading these results
+## Reading the archived 2026-10-23 results
 
-These datasets use different protocols and must not be blended:
+The historical datasets below use different protocols and must not be blended
+with one another or the 2026-11-04 ACO full-curve campaign:
 
 1. Canonical three-prompt decode benchmark (105 series): one warmup and three measured
    repetitions per prompt, 400-token output budget, four reasoning modes, and response-local
@@ -38,8 +123,9 @@ These datasets use different protocols and must not be blended:
    fresh repository ingestion. Two other October 21 cumulative-prompt runs are explicitly
    excluded by the project method note because they resent prior source content.
 
-Measurement rule: the disjoint fresh-chunk protocol is the only prefill-speed/context-loading
-measurement accepted in this report. All other fields labeled “prefill,” “source fill,” or
+Historical measurement rule: for the October datasets below, the disjoint
+fresh-chunk protocol is the only prefill-speed/context-loading measurement
+accepted. All other fields labeled “prefill,” “source fill,” or
 “prompt processing” are retained only as incidental diagnostics from their original runs;
 they are not prefill benchmarks and must not be compared as such. The original three prompts
 remain the decode-speed benchmark (and provide the normal-length MTP acceptance measurements).

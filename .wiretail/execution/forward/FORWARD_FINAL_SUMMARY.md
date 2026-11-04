@@ -1,5 +1,11 @@
 # Forward measured summary — refreshed for 105-04
 
+> **Archived snapshot:** this report documents the older 105-03b candidate and
+> remains unchanged as historical evidence. Its missing CPU-KV comparison and
+> C=L caveat are specific to that candidate and campaign. Current ACO 256K
+> curves are in [the 2026-11-04 full-curve report](../evidence/ACO_FULL_CURVES_20261104.md);
+> whole-cell historical selections are in [ACO best results](../evidence/ACO_BEST_RESULTS_20261104.md).
+
 Overall goal status is **not assessed**. The completed evidence includes a candidate-matched 105-03b occupied-base canonical matrix and correct semantic recalls, while the matched CPU-KV speed comparison is still missing. That gap does not establish a production defect. The 105-03b numeric trajectory ended 707 tokens below its requested C=250000 frontier; execution completed and its checker passed. Exact C=L remains unproven.
 
 ## Current 105-03b candidate and geometry
