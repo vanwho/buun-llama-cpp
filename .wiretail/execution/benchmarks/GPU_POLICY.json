@@ -131,7 +131,7 @@
     "final_build_source": "8a79008b5"
   },
   "authorized_full_aco_curves_20261104": {
-    "status": "running_mtp_on",
+    "status": "running_mtp_off",
     "scope": "ACO MTP on and off full incremental repo-fill curves only; other variants not requested",
     "runtime_source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
     "L": 262144,
@@ -172,7 +172,7 @@
     "8091": "preserve",
     "8092": "never touch",
     "mtp_on_output_root": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z",
-    "mtp_off_status": "queued_automatically_after_on",
+    "mtp_off_status": "running",
     "completed_checkpoints_on": [
       6144,
       12288,
@@ -182,9 +182,15 @@
       88064,
       100352,
       130048,
-      196608
+      196608,
+      256000,
+      261120
     ],
     "first_checkpoint_prefix_reuse_validated_all_reasoning_modes": true,
-    "current_checkpoint_on": 256000
+    "current_checkpoint_on": null,
+    "mtp_on_status": "complete",
+    "mtp_off_output_root": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z",
+    "completed_checkpoints_off": [],
+    "current_checkpoint_off": 6144
   }
 }

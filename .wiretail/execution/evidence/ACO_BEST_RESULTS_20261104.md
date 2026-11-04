@@ -42,10 +42,21 @@ Cell-wise selection across history. Each cell preserves its complete repeat dist
 | 196,608 / 196608 | low | 62.40/63.05 [new] | 48.79/51.82 [new] | 56.46/57.00 [new] |
 | 196,608 / 196608 | medium | 62.72/62.81 [new] | 51.53/52.23 [new] | 58.55/58.64 [new] |
 | 196,608 / 196609 | xhigh | 61.99/62.35 [new] | 45.09/46.68 [new] | 48.95/55.15 [prior] |
-| 256,000 / 256001 | off | 55.78/58.28 [prior] | 41.48/42.27 [prior] | 53.59/53.76 [prior] |
-| 256,000 / 256001 | low | 54.87/55.17 [prior] | 39.98/40.29 [prior] | 51.04/51.11 [prior] |
-| 256,000 / 256001 | medium | 55.70/56.17 [prior] | 40.09/43.12 [prior] | 50.54/50.86 [prior] |
-| 256,000 / 256001 | xhigh | 54.90/55.63 [prior] | 41.23/42.78 [prior] | 45.95/46.09 [prior] |
-| 261,120 / 261121 | low | 59.06/60.84 [prior] | 44.45/47.67 [prior] | 55.49/57.47 [prior] |
+| 256,000 / 256001 | off | 60.81/61.13 [new] | 48.41/48.83 [new] | 55.30/55.35 [new] |
+| 256,000 / 256001 | low | 59.09/60.61 [new] | 41.94/43.08 [new] | 53.16/53.25 [new] |
+| 256,000 / 256001 | medium | 58.53/59.30 [new] | 47.86/48.28 [new] | 53.45/55.07 [new] |
+| 256,000 / 256001 | xhigh | 57.86/59.06 [new] | 42.98/43.26 [new] | 45.41/47.08 [new] |
+| 261,120 / 261121 | off | 60.83/61.23 [new] | 46.04/46.46 [new] | 54.26/54.29 [new] |
+| 261,120 / 261121 | low | 59.06/60.84 [prior] | 45.78/45.82 [new] | 55.49/57.47 [prior] |
+| 261,120 / 261121 | medium | 57.60/58.03 [new] | 45.27/45.65 [new] | 50.54/51.39 [new] |
+| 261,120 / 261121 | xhigh | 57.75/58.03 [new] | 44.03/44.65 [new] | 44.83/49.30 [new] |
+
+## MTP OFF
+
+| Context / actual C | Mode | P1 median/max [source] | P2 median/max [source] | P3 median/max [source] |
+|---:|---|---:|---:|---:|
+| 6,144 / 6144 | off | 49.04/49.05 [new] | 49.16/49.17 [new] | 49.01/49.06 [new] |
+| 6,144 / 6144 | low | 48.95/48.98 [new] | 49.00/49.02 [new] | 49.00/49.05 [new] |
+| 6,144 / 6144 | medium | 49.00/49.04 [new] | 49.00/49.03 [new] | — |
 
 Source tags are compact; lineage, raw file paths, request hashes, and all repeat values are in the JSON. Promoted cells retain both old and new comparison values in `comparison_to_prior`.
