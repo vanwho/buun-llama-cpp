@@ -57,6 +57,16 @@ Cell-wise selection across history. Each cell preserves its complete repeat dist
 |---:|---|---:|---:|---:|
 | 6,144 / 6144 | off | 49.04/49.05 [new] | 49.16/49.17 [new] | 49.01/49.06 [new] |
 | 6,144 / 6144 | low | 48.95/48.98 [new] | 49.00/49.02 [new] | 49.00/49.05 [new] |
-| 6,144 / 6144 | medium | 49.00/49.04 [new] | 49.00/49.03 [new] | — |
+| 6,144 / 6144 | medium | 49.00/49.04 [new] | 49.00/49.03 [new] | 48.98/49.01 [new] |
+| 6,144 / 6144 | xhigh | 48.97/49.00 [new] | 48.90/48.90 [new] | 48.96/48.98 [new] |
+| 12,288 / 12288 | off | 48.04/48.10 [new] | 48.18/48.20 [new] | 48.06/48.06 [new] |
+| 12,288 / 12288 | low | 47.98/48.01 [new] | 48.00/48.04 [new] | 48.03/48.06 [new] |
+| 12,288 / 12288 | medium | 48.01/48.04 [new] | 48.04/48.07 [new] | 48.03/48.08 [new] |
+| 12,288 / 12288 | xhigh | 47.96/47.97 [new] | 47.98/47.99 [new] | 48.03/48.05 [new] |
+| 28,672 / 28673 | off | 46.09/46.11 [new] | 46.23/46.25 [new] | 46.10/46.14 [new] |
+| 28,672 / 28673 | low | 45.96/46.02 [new] | 45.98/46.03 [new] | 46.04/46.09 [new] |
+| 28,672 / 28673 | medium | 46.08/46.10 [new] | 46.08/46.11 [new] | 46.09/46.11 [new] |
+| 28,672 / 28673 | xhigh | 45.95/46.00 [new] | 46.00/46.05 [new] | 46.03/46.07 [new] |
+| 62,464 / 62465 | off | 42.33/42.33 [new] | 42.32/42.34 [new] | — |
 
 Source tags are compact; lineage, raw file paths, request hashes, and all repeat values are in the JSON. Promoted cells retain both old and new comparison values in `comparison_to_prior`.

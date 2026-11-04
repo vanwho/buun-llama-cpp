@@ -1,5 +1,1973 @@
 {
   "cells": {
+    "off|12288|12288|low|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        295,
+        295,
+        295
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 48.00697570749056,
+      "decode_tok_s_median": 47.97862307553092,
+      "decode_tok_s_repeats": [
+        48.00697570749056,
+        47.97862307553092,
+        47.97552269250382
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-13-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-13-00.json",
+          "request_sha256": "e4117686f3fc4c7e631a7dc2ca4cc9c18ee6c38ec1f1a6f4e8df87d5917580a6",
+          "sha256": "6d11f9d958ac11a6cee0372d13366bd5b49ff20583541adb710b137f2038d881"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-14-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-14-00.json",
+          "request_sha256": "e4117686f3fc4c7e631a7dc2ca4cc9c18ee6c38ec1f1a6f4e8df87d5917580a6",
+          "sha256": "3bab91ff3bdc2c7a5c0f3a9481b9394cb8e45ab45b06bd8c1cc07f87cb74e68d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-15-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-15-00.json",
+          "request_sha256": "e4117686f3fc4c7e631a7dc2ca4cc9c18ee6c38ec1f1a6f4e8df87d5917580a6",
+          "sha256": "c55804bc26ca4f26acd84ea831c723cc5fe88c92d5a7fb240405c5052ca874c5"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|low|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.03655690333479,
+      "decode_tok_s_median": 48.0045449115002,
+      "decode_tok_s_repeats": [
+        48.03655690333479,
+        48.000906603589385,
+        48.0045449115002
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-17-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-17-00.json",
+          "request_sha256": "849656fee3b41e002195b07df9b42faad832cb850c691e77a6de7b97bddf89e2",
+          "sha256": "6d623aa55a2807fb741fcd485fca8909a4fa6fc8d23ad09be36e0fcfd97e30c9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-18-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-18-00.json",
+          "request_sha256": "849656fee3b41e002195b07df9b42faad832cb850c691e77a6de7b97bddf89e2",
+          "sha256": "046aa2506ed5c181d00968c741fa9254d2446ad858c6fc4b422ebb696a52899f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-19-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-19-00.json",
+          "request_sha256": "849656fee3b41e002195b07df9b42faad832cb850c691e77a6de7b97bddf89e2",
+          "sha256": "18517361ca9d5d3f3e2fb1d01101fab072afafcdef9ae8c1b036c0d17c7adb1a"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|low|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.05813227308341,
+      "decode_tok_s_median": 48.033538244327225,
+      "decode_tok_s_repeats": [
+        48.05813227308341,
+        48.033538244327225,
+        48.01435954259524
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-21-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-21-00.json",
+          "request_sha256": "71d44cc51106fe91be46369658ad284dc9b387d1cc55374a81187b3f5a7ace57",
+          "sha256": "96fc19c8c6734b5baea49e334042fe692c987277e14806a0903d13148b75742d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-22-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-22-00.json",
+          "request_sha256": "71d44cc51106fe91be46369658ad284dc9b387d1cc55374a81187b3f5a7ace57",
+          "sha256": "c16f8fbc8621cc5c2208f59f6577e8f084ca4f9d243679f5869b25c7abae2311"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-23-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-23-00.json",
+          "request_sha256": "71d44cc51106fe91be46369658ad284dc9b387d1cc55374a81187b3f5a7ace57",
+          "sha256": "ed7a7b40f88c9fc407f03850cb1aadac3bc8ac6fcac806898bb05073b694ac32"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|medium|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        331,
+        331,
+        331
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 48.039878339735985,
+      "decode_tok_s_median": 48.00694093080512,
+      "decode_tok_s_repeats": [
+        48.039878339735985,
+        48.00694093080512,
+        48.00249962107118
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-25-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-25-00.json",
+          "request_sha256": "9c284edc1a1c20d8dce672ac5ac2dab01dbd994727b856854cbb50c623ba55f7",
+          "sha256": "8729c3ff8d44ff153895150239212e7e8d8bf8efc87a40a97dd7a34aaeea235a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-26-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-26-00.json",
+          "request_sha256": "9c284edc1a1c20d8dce672ac5ac2dab01dbd994727b856854cbb50c623ba55f7",
+          "sha256": "39fa787b6f6926ff811b9defdcf6cc54bfaded43a28ff81cfdcad6b3706ccc3c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-27-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-27-00.json",
+          "request_sha256": "9c284edc1a1c20d8dce672ac5ac2dab01dbd994727b856854cbb50c623ba55f7",
+          "sha256": "2de295510a59006daa0dfd39103c437a139a800b3bd6dce135ae220e66a95d8e"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|medium|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.06575684653941,
+      "decode_tok_s_median": 48.04176816343064,
+      "decode_tok_s_repeats": [
+        48.06575684653941,
+        47.97184305296175,
+        48.04176816343064
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-29-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-29-00.json",
+          "request_sha256": "0a871bbfbc624d954781a0b3035a1e8234bc10ed4678bbfea4180bdd262ce24e",
+          "sha256": "b853dfb782c7598f1be71a76f391b85b6596849691d8363db86273e5e05b7d32"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-30-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-30-00.json",
+          "request_sha256": "0a871bbfbc624d954781a0b3035a1e8234bc10ed4678bbfea4180bdd262ce24e",
+          "sha256": "25faaabe76395ab1a579ce2f34747b79421c762256d9977c684538cd783d2859"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-31-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-31-00.json",
+          "request_sha256": "0a871bbfbc624d954781a0b3035a1e8234bc10ed4678bbfea4180bdd262ce24e",
+          "sha256": "0218b72dfa321d61841a83d02e19eb86219a7cf0918853ba3ed0091ff9c5f28a"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|medium|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.07718955450157,
+      "decode_tok_s_median": 48.02762924788732,
+      "decode_tok_s_repeats": [
+        48.07718955450157,
+        48.02762924788732,
+        48.02038663993412
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-33-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-33-00.json",
+          "request_sha256": "557096fa1a13f36cccbe3b595784fec84f1ef18626b2d12d36aad0f2fde578b5",
+          "sha256": "fe23a6dac506b10e3a4d75a3e614fbe4e512670f441d38af59004dc934775a16"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-34-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-34-00.json",
+          "request_sha256": "557096fa1a13f36cccbe3b595784fec84f1ef18626b2d12d36aad0f2fde578b5",
+          "sha256": "5332ef9180f792c212b260512f117385992298b626faae0a183859f0d5cb89c9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-35-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-35-00.json",
+          "request_sha256": "557096fa1a13f36cccbe3b595784fec84f1ef18626b2d12d36aad0f2fde578b5",
+          "sha256": "a2f5de15a8aa22caba51b058802256dadc7249c3b8839a328231181412b7e13b"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|off|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.099850950737554,
+      "decode_tok_s_median": 48.04280360944741,
+      "decode_tok_s_repeats": [
+        48.099850950737554,
+        48.04280360944741,
+        48.03279809467493
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-01-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-01-00.json",
+          "request_sha256": "4fd5a47a975b44d782ac24ac6e0cfab8bbeb0e421075847740ec05a883f552c9",
+          "sha256": "c8ca386b22d0df99a81d2f71b60ae298d8154d7f23efd0c8bbc4aee44e1482f3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-02-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-02-00.json",
+          "request_sha256": "4fd5a47a975b44d782ac24ac6e0cfab8bbeb0e421075847740ec05a883f552c9",
+          "sha256": "6a2674d40b519447cca0c2b62ef0ef102694bf7c3f1e0a5490b5dbe9431135df"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-03-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-03-00.json",
+          "request_sha256": "4fd5a47a975b44d782ac24ac6e0cfab8bbeb0e421075847740ec05a883f552c9",
+          "sha256": "03940fbe1316a6a6637b2320cc4e3500395696e849cf5c97cc34a9b6aec01019"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|off|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        119,
+        119,
+        119
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 48.19570396564871,
+      "decode_tok_s_median": 48.17935130994757,
+      "decode_tok_s_repeats": [
+        48.116033036957596,
+        48.17935130994757,
+        48.19570396564871
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-05-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-05-00.json",
+          "request_sha256": "dbc700feddea728bf5013b81fc71c900d8f7ba79c055e479ec8237b4a70d3523",
+          "sha256": "49e7bbc3ae1a2bd803288883df50046e83c26610efa1bac751093dbabced94a2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-06-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-06-00.json",
+          "request_sha256": "dbc700feddea728bf5013b81fc71c900d8f7ba79c055e479ec8237b4a70d3523",
+          "sha256": "06610c1ac6806cb46bc1f8db84808112df59a04fd26a88f68b7e376a82c45046"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-07-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-07-00.json",
+          "request_sha256": "dbc700feddea728bf5013b81fc71c900d8f7ba79c055e479ec8237b4a70d3523",
+          "sha256": "ca001ef2f131812b0defed0113106699b54d160d990a372d6fdef53b020d4ff6"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|off|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.05733927108459,
+      "decode_tok_s_median": 48.05520929308258,
+      "decode_tok_s_repeats": [
+        48.05520929308258,
+        48.04872791293908,
+        48.05733927108459
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-09-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-09-00.json",
+          "request_sha256": "82aa37de2d41bf44a914161e2ebfef4068efb6b385b73f7271ae242836e51f05",
+          "sha256": "dd207a5194b59ace390e5b454060e7057b6e1c724012bb84f4489b3e7c58f96b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-10-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-10-00.json",
+          "request_sha256": "82aa37de2d41bf44a914161e2ebfef4068efb6b385b73f7271ae242836e51f05",
+          "sha256": "dc1ec5ad831dd01eaf2ca788013666462c6266480da5ebb644cd438cfe472ab6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-11-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-11-00.json",
+          "request_sha256": "82aa37de2d41bf44a914161e2ebfef4068efb6b385b73f7271ae242836e51f05",
+          "sha256": "aad29d4c66b98ff1d4270400f1486aa810409c78176dd0433ca04793297d8512"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|xhigh|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        286,
+        286,
+        286
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 47.965028949840196,
+      "decode_tok_s_median": 47.96343873284971,
+      "decode_tok_s_repeats": [
+        47.96343873284971,
+        47.965028949840196,
+        47.941904504772744
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-37-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-37-00.json",
+          "request_sha256": "a6ecfac792012b6b8dc3fcfa2357e9cc34b6b0cf279672bee96681c275cdf5a0",
+          "sha256": "e79ff065817a2e8f187fb6a30995936ad9ca9216dcb4b777895f6e6dbf37ce09"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-38-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-38-00.json",
+          "request_sha256": "a6ecfac792012b6b8dc3fcfa2357e9cc34b6b0cf279672bee96681c275cdf5a0",
+          "sha256": "8008b8255cef4acec13622d9d7247d01fc3d744b1c954e59f47660487ac33fcc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-39-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-39-00.json",
+          "request_sha256": "a6ecfac792012b6b8dc3fcfa2357e9cc34b6b0cf279672bee96681c275cdf5a0",
+          "sha256": "7e07b8b159088d3d8ff9e07dc92920e09c4cabcf3590a989dc7f77373e1bc4a6"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|xhigh|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        307,
+        307,
+        307
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 47.99253198561102,
+      "decode_tok_s_median": 47.979235339560496,
+      "decode_tok_s_repeats": [
+        47.99253198561102,
+        47.979235339560496,
+        47.95863896517169
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-41-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-41-00.json",
+          "request_sha256": "f18c5b9144e7d06c915eb4e6dad7ad140dcb325f09883dc3d6933b8a0745e4c0",
+          "sha256": "c7ffa6acfd4c89c52646c0f4e71b40e5731e51615fd914a292ba53c8a10b88f8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-42-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-42-00.json",
+          "request_sha256": "f18c5b9144e7d06c915eb4e6dad7ad140dcb325f09883dc3d6933b8a0745e4c0",
+          "sha256": "447f88e5f76a1c9c9ffd136a0d97106bec2f8488093d0a1ddd8208341d4fcf0f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-43-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-43-00.json",
+          "request_sha256": "f18c5b9144e7d06c915eb4e6dad7ad140dcb325f09883dc3d6933b8a0745e4c0",
+          "sha256": "1851319ff6ad1439f3a6680fee7cc5a79a2404c5a6029f6ad9ef2b5410553188"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|12288|12288|xhigh|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "ee54e8b9b4ae6606c1c0c2cf0649f306e6fc9c19a7a947175b9bcce921963e51",
+        "ubatch": 256
+      },
+      "actual_C": 12288,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.05375083010145,
+      "decode_tok_s_median": 48.03260149625767,
+      "decode_tok_s_repeats": [
+        48.05375083010145,
+        48.03260149625767,
+        48.006780145550785
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-45-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-45-00.json",
+          "request_sha256": "6c92077c8312f3d557df9814671ef0e30fbf2218f0adb882e590369f591436d5",
+          "sha256": "b52a69b4c07c8a67b2acc7b6c134d2ee0258c609a040fedb5d8f05bdb3a6329d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-46-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-46-00.json",
+          "request_sha256": "6c92077c8312f3d557df9814671ef0e30fbf2218f0adb882e590369f591436d5",
+          "sha256": "2f0aa302c2805103e24ba965bf7af5bc4894f1e3a289bfcf8d9b7f7d493ffd07"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/raw/case-47-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign/requests/case-47-00.json",
+          "request_sha256": "6c92077c8312f3d557df9814671ef0e30fbf2218f0adb882e590369f591436d5",
+          "sha256": "5f53abb27c658809762ddcffd95505961f4b80a3aba6ac334ba9506b28ca3354"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C12288/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 12288,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|low|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        296,
+        296,
+        296
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 46.02314761511169,
+      "decode_tok_s_median": 45.96167481850202,
+      "decode_tok_s_repeats": [
+        46.02314761511169,
+        45.96167481850202,
+        45.94867424056576
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-13-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-13-00.json",
+          "request_sha256": "8a015124af13cfbb99f4d70d22bde3366efea896799bdf8fb586288481450477",
+          "sha256": "5e74ecdb437b1398c22759696de0b435a1c57df5959974cd6c474aeb51f1e6af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-14-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-14-00.json",
+          "request_sha256": "8a015124af13cfbb99f4d70d22bde3366efea896799bdf8fb586288481450477",
+          "sha256": "e4b33900be5f20b491ff7ac40a45b98f59dc1933315fb4e09fb0de697e4be73e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-15-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-15-00.json",
+          "request_sha256": "8a015124af13cfbb99f4d70d22bde3366efea896799bdf8fb586288481450477",
+          "sha256": "1ebd504bf7baac99520cd5d1a4befc83e8d844f2376463f3657cffb9d3af5760"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|low|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        294,
+        294,
+        294
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 46.02946388399444,
+      "decode_tok_s_median": 45.98255299528467,
+      "decode_tok_s_repeats": [
+        46.02946388399444,
+        45.917718895486104,
+        45.98255299528467
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-17-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-17-00.json",
+          "request_sha256": "3ef4e65a45897470f0acf45643b35dfa7c8151c9625ecfd32ea7724b7d3fca61",
+          "sha256": "6d8029f3ce4b29c399da9ca030222404ea18639419ce896722933b626cc5f70e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-18-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-18-00.json",
+          "request_sha256": "3ef4e65a45897470f0acf45643b35dfa7c8151c9625ecfd32ea7724b7d3fca61",
+          "sha256": "480bfad7869c1c492d345cf02db2de2a15c9d4aba75b27ccb4f068917743baf0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-19-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-19-00.json",
+          "request_sha256": "3ef4e65a45897470f0acf45643b35dfa7c8151c9625ecfd32ea7724b7d3fca61",
+          "sha256": "b84a95376e53fb5dcd507a121ac6a8a98365594a7625c8ef300b1c8f42715c0e"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|low|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 46.08547226520839,
+      "decode_tok_s_median": 46.04179602699688,
+      "decode_tok_s_repeats": [
+        46.08547226520839,
+        45.99430523642284,
+        46.04179602699688
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-21-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-21-00.json",
+          "request_sha256": "ffad4badd1e23005a21592a14f1e530fcea373f7f5bf44ed37c7b2e5bf867aed",
+          "sha256": "f565c295560928056552c59286928d285fc261c0a6ed1f403a28f39c0fabb040"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-22-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-22-00.json",
+          "request_sha256": "ffad4badd1e23005a21592a14f1e530fcea373f7f5bf44ed37c7b2e5bf867aed",
+          "sha256": "cfbb8b13aa92d9223227a3a774b37d446eae589afa5830913a2719a7c3a9a95b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-23-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-23-00.json",
+          "request_sha256": "ffad4badd1e23005a21592a14f1e530fcea373f7f5bf44ed37c7b2e5bf867aed",
+          "sha256": "5a1217032dd8485fcf987c1307052f256469ca5c5392f228c1b2c160eb180ff8"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|medium|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 46.10445652147538,
+      "decode_tok_s_median": 46.084663185792344,
+      "decode_tok_s_repeats": [
+        46.10445652147538,
+        46.08189017519088,
+        46.084663185792344
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-25-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-25-00.json",
+          "request_sha256": "c6874851de7f80b2eb7215a4a5d8e4820aaa053538b1b9de9cb5c2e2011ba365",
+          "sha256": "726370843c3eab8ba235080a024110a5e53a8fb1e6bc60c5e3fa1a9d8d236be8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-26-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-26-00.json",
+          "request_sha256": "c6874851de7f80b2eb7215a4a5d8e4820aaa053538b1b9de9cb5c2e2011ba365",
+          "sha256": "b6442643f6d53611e069ca09178fbcbc6cc702f5d2c7196aee055ff6d86d7167"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-27-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-27-00.json",
+          "request_sha256": "c6874851de7f80b2eb7215a4a5d8e4820aaa053538b1b9de9cb5c2e2011ba365",
+          "sha256": "4991e9c3a10a4d73ed045f88f0ccf3eb5b9f0b5a0c0419e492bc323e86c1759c"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|medium|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 46.11437822042188,
+      "decode_tok_s_median": 46.08455140731709,
+      "decode_tok_s_repeats": [
+        46.11437822042188,
+        46.08179969870125,
+        46.08455140731709
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-29-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-29-00.json",
+          "request_sha256": "e4edfa0b10509a7621dcc57c4984a6ce104cb8c983023c744ad85f7b2fb3bc7c",
+          "sha256": "196978eaa119a42f66cc9af051140fb6ca05715c86ab9e1978964b6659f3a665"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-30-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-30-00.json",
+          "request_sha256": "e4edfa0b10509a7621dcc57c4984a6ce104cb8c983023c744ad85f7b2fb3bc7c",
+          "sha256": "d4d0d98cb70a6362af23914ba63381b3cb4a1b4aa0c7c8a85e3e7dc5d445061f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-31-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-31-00.json",
+          "request_sha256": "e4edfa0b10509a7621dcc57c4984a6ce104cb8c983023c744ad85f7b2fb3bc7c",
+          "sha256": "6216631dc1c5f20bd079aa01595a606cc5409cda90e3f87c25f991438698a0a2"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|medium|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 46.11076499145911,
+      "decode_tok_s_median": 46.089528736301354,
+      "decode_tok_s_repeats": [
+        46.11076499145911,
+        46.06363176986748,
+        46.089528736301354
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-33-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-33-00.json",
+          "request_sha256": "0686236193b92c592c33f6fb9a68a3a9b96bc520cf1193c37ec5b0d5fa747526",
+          "sha256": "2d3af8ed12500b02f19068348a93df090a51a0c390a2e789d5012de278db6280"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-34-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-34-00.json",
+          "request_sha256": "0686236193b92c592c33f6fb9a68a3a9b96bc520cf1193c37ec5b0d5fa747526",
+          "sha256": "2851ad2c7afb57cfe95b1c5d589d90384747c29f7b16e0df24d1470e66782b0a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-35-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-35-00.json",
+          "request_sha256": "0686236193b92c592c33f6fb9a68a3a9b96bc520cf1193c37ec5b0d5fa747526",
+          "sha256": "5e761bc4d48a47f87be2e341cc2cecfb120c4f0168db0e151cadee17a6f24ff7"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|off|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        365,
+        365,
+        365
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 46.11376849443993,
+      "decode_tok_s_median": 46.08855079363471,
+      "decode_tok_s_repeats": [
+        46.11376849443993,
+        46.01341189828457,
+        46.08855079363471
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-01-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-01-00.json",
+          "request_sha256": "3155f1c46b850682f27bc37cc44058e3c24e0d81ab5b6c3e2b9d33f35b7f0edb",
+          "sha256": "394f2f55204b872b58ed1b368ea779d7dc58ecc0fb54142108aa436d61e08ab3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-02-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-02-00.json",
+          "request_sha256": "3155f1c46b850682f27bc37cc44058e3c24e0d81ab5b6c3e2b9d33f35b7f0edb",
+          "sha256": "6b98807235a37022f200aba030cf8418c1fcd175d7825a5463e2395a66d0acc5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-03-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-03-00.json",
+          "request_sha256": "3155f1c46b850682f27bc37cc44058e3c24e0d81ab5b6c3e2b9d33f35b7f0edb",
+          "sha256": "58abe90b25ba0b24e5f1c297325a83c5992b339a3596889c27946d8e3156eac6"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|off|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        163,
+        163,
+        163
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 46.2455599266808,
+      "decode_tok_s_median": 46.23464481803813,
+      "decode_tok_s_repeats": [
+        46.214741646756764,
+        46.23464481803813,
+        46.2455599266808
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-05-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-05-00.json",
+          "request_sha256": "cf348e2370534e85d1ac2677b3a18267b7542cd674a8a930f3828c2091ab36ff",
+          "sha256": "b3d6440200a6f6445c5ee4928732e191bfe8036411467cdeb33b85098ce69f16"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-06-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-06-00.json",
+          "request_sha256": "cf348e2370534e85d1ac2677b3a18267b7542cd674a8a930f3828c2091ab36ff",
+          "sha256": "3e0b163584539feff5d03866d3837b2a3952c77f5c52c148285241cfaff28810"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-07-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-07-00.json",
+          "request_sha256": "cf348e2370534e85d1ac2677b3a18267b7542cd674a8a930f3828c2091ab36ff",
+          "sha256": "ad3910aeb6f65cc8fc85063d70b715cbebbaac9954e801a6eb544e563e861b06"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|off|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 46.14233859086155,
+      "decode_tok_s_median": 46.09696745496333,
+      "decode_tok_s_repeats": [
+        46.14233859086155,
+        46.09696745496333,
+        46.09183943405229
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-09-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-09-00.json",
+          "request_sha256": "33d0982ef387f11aed54bc4190737077811bbf191f22318ca827248bb2c8d42f",
+          "sha256": "fe8af487d59ade3b8ceb5243cbd99ab5cee6071d5220c9a7f3f4159e2618a014"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-10-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-10-00.json",
+          "request_sha256": "33d0982ef387f11aed54bc4190737077811bbf191f22318ca827248bb2c8d42f",
+          "sha256": "32a4964c31ff0d471bda8659a8732cdeb65090bad2101d4be1441e92d50c570a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-11-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-11-00.json",
+          "request_sha256": "33d0982ef387f11aed54bc4190737077811bbf191f22318ca827248bb2c8d42f",
+          "sha256": "a94b7ced44d00c02a8dabee66b1ab8a09b39e6840bdff7fb0677f8f6b081aedf"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|xhigh|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        240,
+        240,
+        240
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 45.99887716548375,
+      "decode_tok_s_median": 45.95338173628027,
+      "decode_tok_s_repeats": [
+        45.99887716548375,
+        45.95338173628027,
+        45.94324951413572
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-37-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-37-00.json",
+          "request_sha256": "ddfb055eb3072d968e093d619f539f0024c8c2fd9b3be635038d51d572bb9059",
+          "sha256": "26b928246d9c9b8627584fc1b533c56c94f4d63b478cd8b3f90e833bba501e5f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-38-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-38-00.json",
+          "request_sha256": "ddfb055eb3072d968e093d619f539f0024c8c2fd9b3be635038d51d572bb9059",
+          "sha256": "f1465c36bc1290ecbbb9ce459733ba1dbe0d6308b3ac49f2c59c368995fafd96"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-39-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-39-00.json",
+          "request_sha256": "ddfb055eb3072d968e093d619f539f0024c8c2fd9b3be635038d51d572bb9059",
+          "sha256": "850824d5572f7d61c21a3b9d3e3ba9c305fcc263feb120ec220b00fd314d869e"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|xhigh|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        293,
+        293,
+        293
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 46.04579380346615,
+      "decode_tok_s_median": 45.99797892441918,
+      "decode_tok_s_repeats": [
+        46.04579380346615,
+        45.895215250917154,
+        45.99797892441918
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-41-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-41-00.json",
+          "request_sha256": "19709bfb4c590f4015c636921fdb4e1ffe652eb5b3f04a02fc2677eaa0656168",
+          "sha256": "970e00f3524d677c01a76f4e9c4d0e8479ddd81c77fe81b3be8479f04030a75f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-42-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-42-00.json",
+          "request_sha256": "19709bfb4c590f4015c636921fdb4e1ffe652eb5b3f04a02fc2677eaa0656168",
+          "sha256": "e60cbca317802d418d90c5965702ac1b5cfe6dc3a096b92c957e058098759e9a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-43-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-43-00.json",
+          "request_sha256": "19709bfb4c590f4015c636921fdb4e1ffe652eb5b3f04a02fc2677eaa0656168",
+          "sha256": "2c983ca5c68fc7251dd01b5489291b69d34f8d02497e56749acd5dede6ed0416"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
+    "off|28672|28673|xhigh|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "26594cd7ea775ab15579eb6e7b28dc5ec82a84e3f889b813339614bcb55bb8fd",
+        "ubatch": 256
+      },
+      "actual_C": 28673,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 46.06844500870913,
+      "decode_tok_s_median": 46.03425825657303,
+      "decode_tok_s_repeats": [
+        46.0222847053876,
+        46.03425825657303,
+        46.06844500870913
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-45-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-45-00.json",
+          "request_sha256": "d721ada0e656a35df6ddecd14756aa3860bb14ec142215c736f564d357eff7f6",
+          "sha256": "8cd7ea17b5b4fcb943ce21bd6b8894c33e9e6c50096b12fb2805a6922027cf17"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-46-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-46-00.json",
+          "request_sha256": "d721ada0e656a35df6ddecd14756aa3860bb14ec142215c736f564d357eff7f6",
+          "sha256": "87fa91183695f17428621a9fb4a60958b28338e4f1d930704f4c948ab16919fb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/raw/case-47-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign/requests/case-47-00.json",
+          "request_sha256": "d721ada0e656a35df6ddecd14756aa3860bb14ec142215c736f564d357eff7f6",
+          "sha256": "9bd979e447bbe10201d55b2ab71fa249155fc88c1d4cde45a3e298dab379d007"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C28672/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 28672,
+      "valid_measured_repeats": 3
+    },
     "off|6144|6144|low|P1": {
       "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
       "_geometry": {
@@ -410,6 +2378,88 @@
       "target_C": 6144,
       "valid_measured_repeats": 3
     },
+    "off|6144|6144|medium|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "350a247d1df1cdd49440878193dbf12f8e6314d14fe3644c7df189ed28cc03c9",
+        "ubatch": 256
+      },
+      "actual_C": 6144,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 49.01479644916668,
+      "decode_tok_s_median": 48.979122863700056,
+      "decode_tok_s_repeats": [
+        49.01479644916668,
+        48.9491933136138,
+        48.979122863700056
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-33-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-33-00.json",
+          "request_sha256": "7650556a84fbfd963764736d9a20bf476f63a590613fc5aca754b52389a8d726",
+          "sha256": "e620d99c18c6e4a81f152d36f719faa2d91b9667dd61b8fc45d3108675b91a9e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-34-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-34-00.json",
+          "request_sha256": "7650556a84fbfd963764736d9a20bf476f63a590613fc5aca754b52389a8d726",
+          "sha256": "c10e88b6f8172a710c32c05413e58d9d1fed38ff524eb6dde3a6f421919b26ab"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-35-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-35-00.json",
+          "request_sha256": "7650556a84fbfd963764736d9a20bf476f63a590613fc5aca754b52389a8d726",
+          "sha256": "3b7edc88ef89dc05fa3f1cbc9e30d490324bb1562a5867fb21c5f7ff74847de1"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 6144,
+      "valid_measured_repeats": 3
+    },
     "off|6144|6144|off|P1": {
       "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
       "_geometry": {
@@ -654,6 +2704,416 @@
       "status": "complete",
       "stop_terminated_repeats": 0,
       "target_C": 6144,
+      "valid_measured_repeats": 3
+    },
+    "off|6144|6144|xhigh|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "350a247d1df1cdd49440878193dbf12f8e6314d14fe3644c7df189ed28cc03c9",
+        "ubatch": 256
+      },
+      "actual_C": 6144,
+      "actual_completion_tokens": [
+        345,
+        345,
+        345
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 49.001864777359884,
+      "decode_tok_s_median": 48.966758688112215,
+      "decode_tok_s_repeats": [
+        49.001864777359884,
+        48.966758688112215,
+        48.960270306236524
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-37-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-37-00.json",
+          "request_sha256": "f8341dabf64a319d48b42b814439ed18ba127ee0fa9a586430df6574d48c4d27",
+          "sha256": "747550af423dacd5b310c5ec69eab5be8abb1312a1dbda4a6ae527a36eec4614"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-38-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-38-00.json",
+          "request_sha256": "f8341dabf64a319d48b42b814439ed18ba127ee0fa9a586430df6574d48c4d27",
+          "sha256": "3ae5fbc15c64db150233723c01d3e01abf39861b9f07550af1fb8be05edb91d3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-39-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-39-00.json",
+          "request_sha256": "f8341dabf64a319d48b42b814439ed18ba127ee0fa9a586430df6574d48c4d27",
+          "sha256": "598aa8638db1c3c727b81dbf076c0e0f3f3f1934cce603de25e2a66885b06beb"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 6144,
+      "valid_measured_repeats": 3
+    },
+    "off|6144|6144|xhigh|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "350a247d1df1cdd49440878193dbf12f8e6314d14fe3644c7df189ed28cc03c9",
+        "ubatch": 256
+      },
+      "actual_C": 6144,
+      "actual_completion_tokens": [
+        279,
+        279,
+        279
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 48.90429745634324,
+      "decode_tok_s_median": 48.89993613105465,
+      "decode_tok_s_repeats": [
+        48.89993613105465,
+        48.90429745634324,
+        48.732567589266495
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-41-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-41-00.json",
+          "request_sha256": "6671b3bab1739d005406791adfa9da2834b365180aced77b7a2724f49b3ab42a",
+          "sha256": "1553cbf64190d19ac82e2a135a1bb6b54ee4614b2227216aad692e873ab580d5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-42-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-42-00.json",
+          "request_sha256": "6671b3bab1739d005406791adfa9da2834b365180aced77b7a2724f49b3ab42a",
+          "sha256": "74549281a49165af4ba581afb437346f772cb72e5b1b91a4bd357759273ed9ed"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-43-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-43-00.json",
+          "request_sha256": "6671b3bab1739d005406791adfa9da2834b365180aced77b7a2724f49b3ab42a",
+          "sha256": "28c9cc70de33b7bea22281ff27c6fcf97253380ab067d6606edc619d5b952d21"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 6144,
+      "valid_measured_repeats": 3
+    },
+    "off|6144|6144|xhigh|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "350a247d1df1cdd49440878193dbf12f8e6314d14fe3644c7df189ed28cc03c9",
+        "ubatch": 256
+      },
+      "actual_C": 6144,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 48.98043961847306,
+      "decode_tok_s_median": 48.95981859098796,
+      "decode_tok_s_repeats": [
+        48.95759585075173,
+        48.98043961847306,
+        48.95981859098796
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-45-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-45-00.json",
+          "request_sha256": "02e566af705a0099788b22223b98bca0abb003aac1100ecab78052dcc57f9063",
+          "sha256": "98e090e8cf6b20fa984ca68d19cf0413ba8c47c8ed46089d54dcd1ebf1b943a2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-46-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-46-00.json",
+          "request_sha256": "02e566af705a0099788b22223b98bca0abb003aac1100ecab78052dcc57f9063",
+          "sha256": "f397a1de2f0dd5c89382f82cefbff2223cecaaa42556565078e128f86f659a1b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/raw/case-47-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign/requests/case-47-00.json",
+          "request_sha256": "02e566af705a0099788b22223b98bca0abb003aac1100ecab78052dcc57f9063",
+          "sha256": "b0b0d54a3653424dcd03599ddd111f55c538216206d67c68b0a0f42073c44c22"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C6144/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 6144,
+      "valid_measured_repeats": 3
+    },
+    "off|62464|62465|off|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "30c571d555af16d6bcd02682e4811428379d680b0fa2a7738ad503c105b6524a",
+        "ubatch": 256
+      },
+      "actual_C": 62465,
+      "actual_completion_tokens": [
+        186,
+        186,
+        186
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 42.32965004362242,
+      "decode_tok_s_median": 42.3254663637231,
+      "decode_tok_s_repeats": [
+        42.32965004362242,
+        42.28561763287398,
+        42.3254663637231
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-01-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-01-00.json",
+          "request_sha256": "1357e23f48653d0fb2b122c61485e49dc884f6f3e5e971e3ef36305b8bc0780f",
+          "sha256": "7360ce0f9d05329f2a103c91de40f306e178d45efe46f7fcad111f7e471a9522"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-02-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-02-00.json",
+          "request_sha256": "1357e23f48653d0fb2b122c61485e49dc884f6f3e5e971e3ef36305b8bc0780f",
+          "sha256": "dbe7303d8d79b425179dab96c48513106897725695382ddc0561a0fd6bc7a0c4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-03-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-03-00.json",
+          "request_sha256": "1357e23f48653d0fb2b122c61485e49dc884f6f3e5e971e3ef36305b8bc0780f",
+          "sha256": "5fbe81f0526edea910974861002d2ee5df45db52ec67e741afa7a1aa391aab85"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 62464,
+      "valid_measured_repeats": 3
+    },
+    "off|62464|62465|off|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "30c571d555af16d6bcd02682e4811428379d680b0fa2a7738ad503c105b6524a",
+        "ubatch": 256
+      },
+      "actual_C": 62465,
+      "actual_completion_tokens": [
+        164,
+        164,
+        164
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 42.335221189843075,
+      "decode_tok_s_median": 42.32296472627558,
+      "decode_tok_s_repeats": [
+        42.32296472627558,
+        42.305521130050536,
+        42.335221189843075
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-05-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-05-00.json",
+          "request_sha256": "2aeae20c0619b17186c9138eb363a34d09dee51651def2ca08f28a636497fc66",
+          "sha256": "ef25c191ba82807e222ebf8be44d18b54af1b8539b9c9b852bf5ab17d5e30344"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-06-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-06-00.json",
+          "request_sha256": "2aeae20c0619b17186c9138eb363a34d09dee51651def2ca08f28a636497fc66",
+          "sha256": "f45c89a8ea4627f9c62beb2f76e2494cecfdc90385511037643fa013feef9a38"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/raw/case-07-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign/requests/case-07-00.json",
+          "request_sha256": "2aeae20c0619b17186c9138eb363a34d09dee51651def2ca08f28a636497fc66",
+          "sha256": "1693c34a79869ec5bfa517546bc716baa4384e33b05e9fbd6b993790ba2a0b95"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C62464/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 62464,
       "valid_measured_repeats": 3
     },
     "on|100352|100352|low|P1": {
@@ -12402,6 +14862,126 @@
     }
   },
   "comparison_notes": {
+    "off|12288|12288|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|12288|12288|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|28672|28673|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
     "off|6144|6144|low|P1": {
       "comparable": false,
       "match_note": "no prior matching cell; new history observation",
@@ -12429,8 +15009,8 @@
     },
     "off|6144|6144|medium|P3": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|6144|6144|off|P1": {
       "comparable": false,
@@ -12449,15 +15029,75 @@
     },
     "off|6144|6144|xhigh|P1": {
       "comparable": false,
-      "match_note": "no prior matching cell; current cell incomplete",
-      "replacement_eligible": false
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
     },
     "off|6144|6144|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|6144|6144|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|62464|62465|low|P1": {
       "comparable": false,
       "match_note": "no prior matching cell; current cell incomplete",
       "replacement_eligible": false
     },
-    "off|6144|6144|xhigh|P3": {
+    "off|62464|62465|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|62464|62465|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|62464|62465|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; current cell incomplete",
+      "replacement_eligible": false
+    },
+    "off|62464|62465|xhigh|P3": {
       "comparable": false,
       "match_note": "no prior matching cell; current cell incomplete",
       "replacement_eligible": false

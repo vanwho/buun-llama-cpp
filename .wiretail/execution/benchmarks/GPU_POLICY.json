@@ -190,7 +190,11 @@
     "current_checkpoint_on": null,
     "mtp_on_status": "complete",
     "mtp_off_output_root": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z",
-    "completed_checkpoints_off": [],
-    "current_checkpoint_off": 6144
+    "completed_checkpoints_off": [
+      6144,
+      12288,
+      28672
+    ],
+    "current_checkpoint_off": 62464
   }
 }
