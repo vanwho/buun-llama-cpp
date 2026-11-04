@@ -104,3 +104,23 @@ unless a new explicitly labeled protocol is selected. Diagnostic timings are
 not primary benchmark results. Record complete-stream triplets, actual context,
 and exact source identities; never convert runtime failures into successful
 performance cells.
+
+## Verified native checkpoint configuration recovery (R7)
+
+R6 used8 checkpoints; only8 were created, newest61441, and no newer image was
+captured through the126977-token frontier. A repeated question restored61441
+and reprocessed65597 prompt tokens. R7 changes only the explicit native cache
+count to32 for these ordinary controls, the server's default, while retaining
+B1024/U256,t16/tb16, source/model/binaries/quants and sampling. No benchmark
+slot files are created or restored.
+
+The repeated128K benchmark now passes: warmup cached126977/backend61; first
+measured request cached127034 of127038 input tokens, backend4. The full
+36-request C126976 block completed with zero failed cases. The next C192512
+block also shows recent cached prefixes and four-token repeated prompt work.
+This verifies the configuration recovery without proving which unlogged
+retention-floor predicate stopped the eight-checkpoint version.
+
+Source receipts for the completed128K block:
+- `/srv/ai/paged-kv/results/comparison-completion-20261104-r7/master-cpu-mtp-off/attempt-001-L262144/cell/C126976/campaign/row.json` SHA256 `5f5b575a887eb4e99600c5ed059884f1fe062844bfbed021251eed927d0b3259`
+- `/srv/ai/paged-kv/results/comparison-completion-20261104-r7/master-cpu-mtp-off/attempt-001-L262144/cell/C126976/campaign/records.jsonl` SHA256 `bc27d462ce5879c52c10286be4cf7db973c016aa8187900c55cba806c6823400`

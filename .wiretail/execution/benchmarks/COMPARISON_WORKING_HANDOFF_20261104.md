@@ -28,8 +28,10 @@ decode results even if their legacy fill protocol was inefficient; label it.
   gaps; master CPU-on gaps; three independent C28K/off/Bash rechecks; fork
   GPU-off L122880 ingest-only. Predeclared CPU startup fallbacks filter cells
   beyond their L; never shrink batches or quietly relabel the requested C.
-- First repeated C126976 question must keep the recent prefix. Monitor native
-  checkpoint creates and cached/backend token counts before letting cases repeat.
+- VERIFIED R7 C126977 cache repair: low/P1 warmup cached126977, first measured
+  cached127034 of prompt127038; backend processed61 then4, bothpass. Contrast
+  R6 backend65597 old re-evaluation. C126976 completed36/36pass; C192512 is active with recent prefix reuse and
+  no failures reported. Queue continues unchanged; no export during CPU timing.
 
 ## Why R6 paused
 
