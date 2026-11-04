@@ -55,3 +55,35 @@ labeled bounded CUDA timeline. Compare identical tensor shapes/content and
 record scratch/VRAM alongside throughput. Do not silently disable fused MMA or
 replace primary control values with a modified diagnostic run. Any adaptive
 choice must retain bounded scratch at the larger ACO context allocations.
+
+## Later GPU-only fill failures: real pressure, conservative reservation
+
+In the same R6 matrix with MTP off and L131072, fork completed actual C100352
+then failed the C120832 append. Master completed C120832 then failed the
+C130048 append. Both sampled a minimum of 9 MiB device-free memory, with
+server process GPU usage reaching 15886 MiB; host MemAvailable remained about
+50.7 GiB. These extrema are not an instantaneous allocator measurement. The
+runs establish resource exhaustion under these exact allocations, not an
+intrinsic context limit for every configuration.
+
+The fork log reserved 234.5 MiB each for F16 K and V scratch, then failed a
+4 MiB physical increase even after flushing deferred unmaps. This is a real
+allocation failure: `vbr_scratch_reserve()` calls the backend reserve;
+`kv_dequant_scratch_try()` attempts VMM allocation/map and cudaMalloc fallback.
+It is not a ledger-only rejection of a hypothetical buffer.
+
+However, this scratch is requested by a conservative **pre-graph target**
+watermark, not proof that a materializing attention kernel executed:
+`llama_kv_cache::apply_batch()` (around 8228–8263) takes the pager-off path when
+`graph_scratch_admission` is false. It sizes K/V scratch from occupied/padded
+rows and static tensor codecs. `ggml_vbr_kv_dequant_sides()` treats both Turbo4
+sides as needing F16 materialization. Native MTP enables graph-time admission
+in `llama-model.cpp` (around 3274), but ordinary target caches retain the
+watermark policy. Thus the main target can reserve scratch before the actual
+fused-attention shape is available, even if a later fused dispatch would not
+consume that scratch. Confirm real dispatch before changing this behavior.
+
+The predefined L122880 GPU-only profiles will collect separate lower-ceiling
+mapped curves after the primary queue. B/U, quants and binaries stay fixed.
+A separate Nsight trace of the frozen GPU/MTP-on profiles will identify actual
+attention kernels; profiler timings will not replace the primary measurements.

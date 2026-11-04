@@ -83,3 +83,25 @@ The systematic GPU-MTP-on ingest difference is documented in
 `engineering-notes/dense-turbo4-prefill-cohort-difference-20261104.md`: differing
 CUDA attention dispatch predicates are a source-grounded candidate, not confirmed
 per-kernel timing attribution. Do not change measured binaries to investigate it.
+
+## Latest runtime handoff
+
+R6 steps1/2 completed all mapped fills; GPU-off steps3/4 hit real fill-time GPU
+exhaustion at L131072 (not startup OOM). Their L122880 profiles exist but queue
+fallback is startup-only. After the primary queue, execute step3/4 profile1 as
+fresh ingest-only series, attempt2, one model at a time. They are predeclared
+commands, not a batch/quant reduction. Keep the 127K endpoint as unmeasured.
+
+Steps5/6 CPU-MTP-on mapped fills completed through C256000/C196608. Step7
+CPU-MTP-off is active at C126976 after C61440 passed36/36. Last completed query
+reused61441 cached tokens and processed71 prompt tokens; no full-C replay.
+Do not export/plot during timed CPU work. No quiet window was available.
+
+After primary+fallback runs, runtime owner executes the separate tracked
+`profile-comparison-dispatch.py --execute` diagnostic (default is dry-run).
+It profiles only the two frozen GPU/MTP-on configurations, mapped fill through
+C28672, no canonical decode; raw traces remain external. Script SHA256:
+`118259d142fa7e9da10424d6d32ff7a8e12d1212a72d5418e663afc51980c012`.
+Trace absence is unmeasured, not zero work; timings cannot replace primary data.
+Docs agent is idle; explicitly followup once timings are idle to export/render
+final preview and inspect the graphs. Final publication/export still pending.
