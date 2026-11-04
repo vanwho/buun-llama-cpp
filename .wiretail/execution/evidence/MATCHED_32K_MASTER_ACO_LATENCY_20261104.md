@@ -38,6 +38,47 @@ The ACO3 server log reports `query replay: unchanged history; replay_count=0`, a
 
 The earlier 133K natural recall test remains the evidence for an unchanged cold source page becoming resident and used. It measured approximately 775 ms key-rerank time and 5.1 ms page-transfer time, with overlapping component scopes. Do not subtract this 32K all-hot master timing from that 133K cold turn and call the remainder a matched promotion surcharge. See [natural promotion timings](NATURAL_FILE_PROMOTION_20261104.md).
 
+## Why the all-hot fill is still slower
+
+The earlier repairs removed redundant full-query replay; they did not establish
+parity with the ordinary master GPU prefill path. This matched input exposes
+a remaining cost: median backend prompt time is 31.584 seconds for ACO versus
+20.119 seconds for master. ACO is about 36% lower in throughput, or 57% longer
+in elapsed time. This is not an old-prefix reload or a cold-transfer result.
+
+ACO's 36 `llama_decode` calls total 30.190–30.285 seconds across the three
+sessions. Server prompt preparation totals only 187–188 ms, and its two
+checkpoint captures total 119–121 ms. The decode boundary includes graph-input
+CPU work as well as GPU execution; it must not be called pure GPU kernel time.
+
+Source inspection identifies a strong optimization candidate:
+
+- `src/llama-graph.cpp:1084` fills every selected query-by-KV mask cell through
+  `llama_kv_attention_selected_mask_value`, including native-position, validity
+  and causality checks. The selected-dense path uses this generic setter too.
+- The ordinary cache path uses `set_input_kq_mask_contiguous` in
+  `src/llama-kv-cache-mask.h:184`: validate contiguous native positions once,
+  then fill visible/masked intervals with `std::fill`. This helper is present
+  unchanged in the pristine master control. ACO's selected setter bypasses it.
+- A growing 32K prefill at U=256 entails roughly half a billion mask-cell
+  visits. Repeated scalar checks/function calls on that path are avoidable
+  for certified contiguous positions. A bounded selected-mask fast path should
+  preserve native-position validity, padding, causality, type and ALiBi rules;
+  irregular/sparse layouts must retain the correct general implementation.
+- `prepare_kv_attention_graph` also rebuilds residency/page-view metadata and
+  performs repeated page searches for each micro-batch. This is additional CPU
+  work even without promotions and is a secondary optimization candidate.
+
+For complete contiguous history the planner prefers `selected_dense`
+(`src/llama-kv-attention-execution.cpp:1030`), whose K/V inputs are no-copy views
+over the existing Turbo4 slab. Thus packed-copy or direct-kernel overhead is
+not established as the cause here. The actual route and mask-fill duration
+were not recorded in this clean comparison. The scalar-mask path is a
+source-backed candidate, not a measured attribution of all 11.46 seconds.
+Both builds report zero reused graphs, so that counter alone does not explain
+their difference. No further test or runtime modification was made for this
+read-only assessment.
+
 ## Artifacts and lifecycle
 
 - Raw records, SSE, launch argv, per-process loaded DSO hashes and ordinary server logs: `/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z`.
