@@ -73,5 +73,24 @@
     "result": ".wiretail/execution/evidence/EARLY_ROUTING_PREFIX_LOW_DECODE_20261104.md",
     "full_reasoning_suite": "still paused",
     "services": "restored; Jellyfin and port 8091 preserved; port 8092 untouched"
+  },
+  "authorized_natural_file_promotion": {
+    "status": "completed",
+    "runtime_commit": "6068d4a003c6ad0e117a4808097f34f0056e0e85",
+    "scope": "one natural 32K + 96K file recall sequence and one identical-input target-warm repeat",
+    "L": 262144,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "mtp": "GPU native MTP2; Turbo4 target/draft",
+    "reasoning": "low throughout; native model chat template",
+    "source_file": "src/llama-kv-fixed-window.cpp",
+    "source_page": 64,
+    "same_page_identity_cold_to_resident": true,
+    "target_and_mtp_verification_used_promoted_page": true,
+    "result": ".wiretail/execution/evidence/NATURAL_FILE_PROMOTION_20261104.md",
+    "timing_limit": "target-warm repeat promoted other pages; not an all-hot control or isolated full ACO surcharge",
+    "full_suite": "still paused",
+    "services": "restored; Jellyfin and port 8091 preserved; port 8092 untouched"
   }
 }

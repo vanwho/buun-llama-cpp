@@ -152,3 +152,25 @@ sampled GPU peak was 15,585 MiB, and services were restored. The two builds
 and exact occupied content differ, so this establishes no observed decode
 regression in the comparison rather than isolating one change's effect.
 See [the low-mode comparison](../evidence/EARLY_ROUTING_PREFIX_LOW_DECODE_20261104.md).
+
+A subsequent natural growing-conversation test also passed: 32K of repository
+content including `src/llama-kv-fixed-window.cpp`, an optimization/code-generation
+question, 96K of different files, an unrelated question, then a paraphrase of
+the first question without resending the file. The critical source page64 was
+cold/host-backed before recall and was naturally authenticated, promoted,
+published and used by target/MTP verification with its identity unchanged.
+Both generated replacement functions compiled unchanged and passed ten
+behavior checks; recall MTP acceptance was 91.29%.
+
+For this growing conversation use the **native model template and constant low
+reasoning/preserve-thinking settings**. The isolated-benchmark effort template
+moves a steering message when the last user changes; that edit caused full old
+prefix recomputation in the excluded diagnostic attempt. The corrected native
+run preserved the file/history cache through all pressure appends.
+
+The recall's first generated token arrived at 2.779s, versus 2.625s for an
+identical request with that source page already hot. Both turns promoted other
+pages, so this is not an all-hot control or an isolated promotion surcharge.
+Measured key rerank jobs were about 775/786ms; page-transfer counter deltas were
+5.1/5.2ms. Timers overlap and do not establish a single additive ACO-versus-off
+cost. See [the source-promotion and latency evidence](../evidence/NATURAL_FILE_PROMOTION_20261104.md).
