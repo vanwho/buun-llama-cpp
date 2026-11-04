@@ -93,7 +93,11 @@ diagnostic CUDA synchronization belongs in the normal path.
 ## Validation order and decisions
 
 Build incrementally with `cmake --build build-cuda --parallel 16` and focused
-targets only. First compare immutable baseline and candidate at L=16,384,
+targets only. Run the existing repository benchmark drivers in place and put
+results outside Git. Do not copy a driver by itself to a temporary tree: its
+chat template, tokenizer helper and `include/llama.h` paths are repository-relative.
+Freeze binaries and DSOs for controls, rather than constructing an incomplete
+copy of the benchmark repository. First compare immutable baseline and candidate at L=16,384,
 H=8,192 (or H=4,096 to make cold history unambiguous), B=1024/U=256, Turbo4
 target/draft, GPU native MTP n-max=2, reasoning off. Use disjoint repository
 content, retained prior context, and one bounded recall sequence; record
@@ -138,3 +142,13 @@ functional/performance results, not a full retrieval-quality or reasoning-mode
 matrix certification. See [the compact validation report](../evidence/EARLY_ROUTING_PREFIX_20261104.md)
 for exact curves, identities and raw pointers. The full benchmark suite remains
 paused pending operator direction.
+
+The subsequent user-requested low-reasoning decode check also completed:
+one fresh fill to C261121, one 40-token warmup and three measured requests
+capped at 400 tokens for each original prompt. Decode medians were
+59.06/44.45/55.49 tok/s versus historical ACO 33.82/27.73/31.35 at C256001;
+median MTP acceptance was 90.00%/56.12%/81.25%. All 12 requests passed,
+sampled GPU peak was 15,585 MiB, and services were restored. The two builds
+and exact occupied content differ, so this establishes no observed decode
+regression in the comparison rather than isolating one change's effect.
+See [the low-mode comparison](../evidence/EARLY_ROUTING_PREFIX_LOW_DECODE_20261104.md).

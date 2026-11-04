@@ -1,0 +1,198 @@
+{
+  "title": "Early routing prefix low-reasoning decode comparison",
+  "run_id": "candidate-full256k-lowdecode-20261104T011740487741661Z",
+  "completed_utc": "2026-11-04T01:24:53Z",
+  "result": "complete",
+  "successful_cases": 12,
+  "expected_cases": 12,
+  "warmups": 3,
+  "measured_cases": 9,
+  "all_statuses_pass": true,
+  "configuration": {
+    "context_tokens": 262144,
+    "requested_target_tokens": 261120,
+    "actual_occupied_tokens": 261121,
+    "hot_pages": 256,
+    "page_size_tokens": 256,
+    "hot_capacity_tokens": 65536,
+    "batch": 1024,
+    "ubatch": 256,
+    "threads": 16,
+    "placement": "GPU",
+    "target_kv": "Turbo4",
+    "draft_kv": "Turbo4",
+    "native_mtp": true,
+    "mtp_draft_max": 2,
+    "reasoning_mode": "low",
+    "prompt_indices": [
+      0,
+      1,
+      2
+    ],
+    "schedule": "one 40-token warmup + three measured requests max 400 each per prompt",
+    "prefix_reuse": "resident_prefix_reuse",
+    "fresh_fill_once": true,
+    "source_chunk_tokens": 32768,
+    "source_chunk_map_sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f",
+    "prefix_state_bytes": 9805824,
+    "route_log_evidence": "early routing prefix prepared; tokens=32768 (final append tokens=31630), state_bytes=9805824, target_query_passes=1"
+  },
+  "candidate": {
+    "source_equivalent_commit": "6068d4a003c6ad0e117a4808097f34f0056e0e85",
+    "repo_head_at_report": "ce1d8bab01122b93684e9b1a576e95c4cf227648",
+    "server_sha256": "f0f44fdefb920245811908f9a75e96ec5fce782f962836e024bc59f10d837cd0",
+    "loaded_project_dsos": {
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "c4f457ff15345cdab963865d4a302a7e6760a7e06710b53e2a8f7fe77e1492de",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "a0558d38ce3ca7759cc48c3515ac3814f5e979542db3a85602838a03cf7b470b",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "9b2a5c9840f943938f6dcb33be3345aa39ff144edba3dbd79c330fa1fa4a81cc",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "059c83b3c166750090778857f10d48f67df94d76daf793e4040330b09e37f06a"
+    }
+  },
+  "per_prompt": [
+    {
+      "prompt_index": 0,
+      "prompt": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "measured_cases": 3,
+      "generated_tokens": [
+        291,
+        295,
+        274
+      ],
+      "decode_tok_s": [
+        59.06219819725878,
+        59.0257617334782,
+        60.842650653534754
+      ],
+      "decode_median_tok_s": 59.06219819725878,
+      "decode_sample_stdev_tok_s": 1.0386227990931276,
+      "baseline_aco_median_tok_s": 33.818,
+      "speedup_vs_baseline": 1.746472239554639,
+      "mtp_acceptance_percent_each": [
+        89.42307692307692,
+        90.0,
+        93.6842105263158
+      ],
+      "mtp_acceptance_percent_median": 90.0,
+      "mtp_accepted_tokens_total": 553,
+      "mtp_draft_tokens_total": 608,
+      "mtp_acceptance_weighted_percent": 90.95394736842105,
+      "baseline_aco_mtp_acceptance_percent_median": 78.14,
+      "mtp_acceptance_delta_percentage_points": 11.86,
+      "decode_change_percent": 74.6472239554639
+    },
+    {
+      "prompt_index": 1,
+      "prompt": "explain the difference between mmap and read for loading large files, one paragraph.",
+      "measured_cases": 3,
+      "generated_tokens": [
+        400,
+        400,
+        400
+      ],
+      "decode_tok_s": [
+        43.86975191600317,
+        44.44755862037007,
+        47.67439748642414
+      ],
+      "decode_median_tok_s": 44.44755862037007,
+      "decode_sample_stdev_tok_s": 2.0502714280314374,
+      "baseline_aco_median_tok_s": 27.728,
+      "speedup_vs_baseline": 1.6029846588419672,
+      "mtp_acceptance_percent_each": [
+        55.145118733509236,
+        56.11702127659574,
+        64.36781609195403
+      ],
+      "mtp_acceptance_percent_median": 56.11702127659574,
+      "mtp_accepted_tokens_total": 644,
+      "mtp_draft_tokens_total": 1103,
+      "mtp_acceptance_weighted_percent": 58.38621940163191,
+      "baseline_aco_mtp_acceptance_percent_median": 55.29,
+      "mtp_acceptance_delta_percentage_points": 0.8270212765957439,
+      "decode_change_percent": 60.298465884196716
+    },
+    {
+      "prompt_index": 2,
+      "prompt": "write a bash script that watches a directory and prints new files as they appear.",
+      "measured_cases": 3,
+      "generated_tokens": [
+        400,
+        400,
+        400
+      ],
+      "decode_tok_s": [
+        57.468085768309415,
+        55.48945032901489,
+        54.56811728507342
+      ],
+      "decode_median_tok_s": 55.48945032901489,
+      "decode_sample_stdev_tok_s": 1.4817596511835043,
+      "baseline_aco_median_tok_s": 31.353,
+      "speedup_vs_baseline": 1.7698290539666026,
+      "mtp_acceptance_percent_each": [
+        85.71428571428571,
+        81.25,
+        79.54545454545455
+      ],
+      "mtp_acceptance_percent_median": 81.25,
+      "mtp_accepted_tokens_total": 744,
+      "mtp_draft_tokens_total": 906,
+      "mtp_acceptance_weighted_percent": 82.11920529801324,
+      "baseline_aco_mtp_acceptance_percent_median": 67.06,
+      "mtp_acceptance_delta_percentage_points": 14.189999999999998,
+      "decode_change_percent": 76.98290539666026
+    }
+  ],
+  "resources": {
+    "gpu_wide_peak_used_mib": 15585.0,
+    "gpu_wide_min_free_mib": 361.0,
+    "gpu_process_sampled_peak_mib": 15534,
+    "server_vmhwm_peak_kib": 14322600,
+    "process_vmswap_sampled_max_kib": 0,
+    "system_memavailable_min_kib": 44146568,
+    "system_swapfree_min_kib": 6130724
+  },
+  "restoration": {
+    "exit_code": 0,
+    "gateway": "active",
+    "managed_llama": "active",
+    "jellyfin_pid": 1000914,
+    "port_8091_pid": 76881,
+    "port_8092": "untouched, unbound"
+  },
+  "evidence": {
+    "row_json": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/cell/C261120/campaign/row.json",
+    "records_jsonl": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/cell/C261120/campaign/records.jsonl",
+    "canonical_schedule": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/cell/C261120/campaign/canonical-schedule.json",
+    "startup_log": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/cell/server-startup-20261104T011741Z.log",
+    "runtime_capture": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/cell/C261120/campaign/runtime-captures/runtime-20261104T011746-2029558.json",
+    "resource_samples": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/cell/resource-samples.jsonl",
+    "restoration": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/restoration.txt"
+  },
+  "comparison_baseline": {
+    "description": "previous ACO low-reasoning decode campaign",
+    "actual_occupied_tokens": 256001,
+    "per_prompt_decode_median_tok_s": [
+      33.818,
+      27.728,
+      31.353
+    ],
+    "per_prompt_mtp_acceptance_percent_median": [
+      78.14,
+      55.29,
+      67.06
+    ],
+    "comparison_context_note": "Previous ACO baseline was measured at C=256001; candidate at C=261121."
+  },
+  "previous_aco_source": {
+    "row": "/srv/ai/paged-kv/results/forward/benchmark-reruns-corrected-20261103/aco-mtp-on-H65536-L262144-reasoning-low-C256000-external-interference-rerun/C256000/campaign/row.json",
+    "occupied_tokens": 256001,
+    "server_sha256": "00aba66bd1d8e4db5d833bfb8321f6b8f515a287dfab5bebd9a23df69a34ca31",
+    "libllama_sha256": "f8b90fe9a7ca9f71540d93227ed97bc177c41c358c04a5d4ad6a1c7674c5c8ce",
+    "comparison_limit": "Same model, L/H, B/U, Turbo4 GPU MTP2 and reasoning mode; historical source/build and occupied content differ. New run is 5120 tokens (~2%) fuller. Not a single-change causal isolation."
+  }
+}

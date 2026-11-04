@@ -53,5 +53,25 @@
     "result": ".wiretail/execution/evidence/EARLY_ROUTING_PREFIX_20261104.md",
     "no_full_decode_suite": true,
     "next_action": "Full suite remains paused. Bulk spans use early-layer routing; short recall questions retain all-layer evidence. See current report for the bounded validation and approximation limits."
+  },
+  "authorized_low_decode_followup": {
+    "status": "completed",
+    "runtime_commit": "6068d4a003c6ad0e117a4808097f34f0056e0e85",
+    "scope": "three original prompts, low reasoning, same single filled base",
+    "L": 262144,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "mtp": "GPU native MTP2, Turbo4 target/draft",
+    "occupied_tokens": 261121,
+    "warmups_per_prompt": 1,
+    "warmup_output_cap": 40,
+    "measured_per_prompt": 3,
+    "measured_output_cap": 400,
+    "passed_cases": 12,
+    "measured_cases": 9,
+    "result": ".wiretail/execution/evidence/EARLY_ROUTING_PREFIX_LOW_DECODE_20261104.md",
+    "full_reasoning_suite": "still paused",
+    "services": "restored; Jellyfin and port 8091 preserved; port 8092 untouched"
   }
 }
