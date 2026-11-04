@@ -323,10 +323,15 @@ def main() -> int:
                 "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,
                 "--output", str(campaign_output), "--api-key-file", str(args.api_key_file),
                 "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
-                # Keep one base frontier in memory. cache_prompt rewinds only
-                # each short prompt/answer suffix; no full-context replay or
-                # snapshot I/O occurs between prompt measurements.
-                "--reuse-filled-prefix", "--source-chunk-map", str(args.source_chunk_map.resolve())]
+                "--source-chunk-map", str(args.source_chunk_map.resolve())]
+            if effective_pager == "selective":
+                command.append("--reuse-filled-prefix")
+            # Ordinary controls use the proven native base-snapshot restore
+            # before independent questions. The pristine master can crash in
+            # CHECKPOINT_ATTN_ONLY_TRIM when cache_prompt rewinds generated
+            # tails in place (even with MTP off). Restoring already-computed
+            # K/V is outside the timed request and never re-prefills source
+            # content. Continuation still appends only the next new repo slice.
             if previous_campaign is not None:
                 command.extend(("--continue-from", str(previous_campaign)))
             if args.hot_pages is not None:

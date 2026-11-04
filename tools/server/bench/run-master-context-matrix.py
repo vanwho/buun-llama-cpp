@@ -1170,6 +1170,7 @@ def main() -> int:
             completed[case["case_index"]] = skipped
             append_jsonl(output / "records.jsonl", skipped)
             continue
+        base_restore_seconds = 0.0
         if geometry["target_tokens"] is None:
             cleared = final.clear_slot(endpoint, key, 0, 180)
             if not cleared.get("ok"):
@@ -1180,9 +1181,11 @@ def main() -> int:
                 filename = pathlib.Path(base["base_file"]).name
                 # The server's slot-file restore paths clear/replace an occupied
                 # slot themselves (resume_install_sequence/chunks).
+                restore_started = time.monotonic()
                 restore_status, restored = _post(endpoint, key, "/slots/0?action=restore",
                                                  {"filename": filename},
                                                  timeout=SLOT_SNAPSHOT_TIMEOUT)
+                base_restore_seconds = time.monotonic() - restore_started
                 if (restore_status != 200 or
                         restored.get("n_restored") != int(base["occupied_tokens"])):
                     raise RuntimeError(f"canonical snapshot restore failed: {restored}")
@@ -1225,8 +1228,13 @@ def main() -> int:
         cached_tokens = usage_details.get("cached_tokens")
         if not isinstance(cached_tokens, (int, float)):
             cached_tokens = timings.get("cache_n")
+        complete_sse = b"data: [DONE]" in raw_path.read_bytes()
         prefix_cache_error = None
-        if geometry["target_tokens"] is not None:
+        # A crashed server can close an HTTP-200 stream after emitting tokens
+        # but before its final usage/DONE records. Missing cache_n then says
+        # nothing about prefix reuse; preserve the real runtime failure instead
+        # of misreporting it as a cache configuration fault.
+        if geometry["target_tokens"] is not None and complete_sse and usage:
             try:
                 validate_cached_prefix(
                     int(base.get("occupied_tokens", geometry["target_tokens"])),
@@ -1238,13 +1246,13 @@ def main() -> int:
         fresh_timed = max(0, int(usage.get("prompt_tokens", rendered)) -
                           int(cached_tokens or 0))
         rates = prefill_measurements(fresh_timed, timings, elapsed)
-        complete_sse = b"data: [DONE]" in raw_path.read_bytes()
         mtp_result = observation.get("mtp")
         mtp_not_measured = (mtp_enabled and
                             (not isinstance(mtp_result, Mapping) or
                              mtp_result.get("status") != "measured"))
         output_error = canonical_output_error(response) if case["kind"] == "measured" else None
-        row_status = ("prefix_cache_miss" if prefix_cache_error else
+        row_status = ("runtime_fault" if status != 200 or error is not None or not usage or not complete_sse else
+                      "prefix_cache_miss" if prefix_cache_error else
                       "mtp_unmeasured" if mtp_not_measured else
                       "output_invalid" if output_error else
                       "pass" if status == 200 and error is None and usage and complete_sse
@@ -1271,6 +1279,7 @@ def main() -> int:
                **rates,
                "mtp": observation.get("mtp"), "mtp_counters": observation.get("counters"),
                "elapsed_seconds": elapsed, "request_path": str(request_path),
+               "base_restore_seconds": base_restore_seconds,
                "started_epoch": started_epoch, "finished_epoch": started_epoch + elapsed,
                "snapshot_before": str(snapshot_before), "snapshot_after": str(snapshot_after),
                "request_sha256": hashlib.sha256(request_path.read_bytes()).hexdigest(),

@@ -309,6 +309,15 @@ that ingest point. Only a newly observed sparse-result anomaly permits one fresh
 full-curve escalation. Older graphs with reasoning off do not supply unmeasured
 low/medium/xhigh values.
 
+Ordinary pager-off/master controls restore the held native K/V snapshot before
+each independent question, outside the timed request; they do not prefill the
+repository again. Record this setup time as `base_restore_seconds`. The pristine
+master can crash while rewinding generated tails in place through
+`CHECKPOINT_ATTN_ONLY_TRIM`; the previously successful controls used snapshot
+restore. Selective ACO keeps its resident-prefix path. An HTTP-200 SSE stream
+that closes without final usage and `[DONE]` is a runtime fault, not evidence of
+a prefix-cache miss.
+
 ## Current completed ACO full-curve benchmark (2026-11-04)
 
 The completed campaign has two fresh persistent server variants, MTP on and
