@@ -147,7 +147,9 @@ def read_records(path):
                     "reasoning":r.get('reasoning',r.get('mode')),
                     "completion_tokens":r.get('completion_tokens',usage.get('completion_tokens')),
                     "decode_tok_s":r.get('decode_tok_s'),"mtp":mtp,
-                    "actual_C":r.get('actual_C',r.get('actual_occupancy_tokens')),
+                    "actual_C":r.get('actual_C_before',r.get('actual_C',r.get('actual_occupancy_tokens'))),
+                    "actual_C_after":r.get('actual_C_after'),
+                    "conversation_protocol":r.get('conversation_protocol'),
                     "context_tokens":r.get('context_tokens'),"target_tokens":r.get('target_tokens')})
     _RECORD_CACHE[cache_key] = out
     return out
@@ -368,6 +370,8 @@ def cell(family, c, mode, pi, triplet, source, identity, variant, mtp, nominal_c
     return {
         "family": family, "variant": variant, "mtp": "on" if mtp else "off", "placement": "GPU" if "gpu" in family else ("CPU Q4_0 target" if "cpu" in family else "GPU target; ACO"),
         "actual_C": actual_median, "actual_C_repeats": actual_values,
+        "actual_C_after_repeats": [r.get("actual_C_after") for r in triplet],
+        "conversation_protocols": sorted({r.get("conversation_protocol") for r in triplet if r.get("conversation_protocol")}),
         "actual_C_min": min(actual_values) if actual_values else None,
         "actual_C_median": actual_median if actual_values else int(c),
         "actual_C_max": max(actual_values) if actual_values else None,
@@ -763,7 +767,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
         family_index={family:i for i,family in enumerate(FAMILIES)}
         for pi, (ax,prompt) in enumerate(zip(axes,PROMPTS)):
             for fi,fam in enumerate(subset_families):
-                pts=sorted([(d['actual_C'],d) for (f,c,m,p),d in cells.items() if f==fam and m==mode and p==pi and d.get(metric)],key=lambda z:z[0])
+                pts=sorted([(d['nominal_target_C'],d) for (f,c,m,p),d in cells.items() if f==fam and m==mode and p==pi and d.get(metric)],key=lambda z:z[0])
                 if not pts: continue
                 xs=[c for c,d in pts]; ys=[d[metric]['median'] for c,d in pts]
                 err=[[d[metric]['median']-d[metric]['min'] for c,d in pts],[d[metric]['max']-d[metric]['median'] for c,d in pts]]
@@ -772,7 +776,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
                 ax.errorbar(xs,ys,yerr=err,fmt='o',linestyle='none',markersize=3.5,capsize=2,linewidth=1.25,color=palette(family_index[fam]%10),label=fam)
             if any(f.startswith('current-aco') for f in subset_families):
                 ax.axvline(65536,color='#666666',linestyle='--',linewidth=1.0,label='ACO H = 65,536 tokens' if pi==0 else None)
-            ax.set_title(prompt); ax.set_xlabel('Actual occupied context C (tokens)'); ax.grid(True,alpha=.25)
+            ax.set_title(prompt); ax.set_xlabel('Requested context checkpoint C (tokens; actual counts in data)'); ax.grid(True,alpha=.25)
             ax.ticklabel_format(axis='x',style='plain',useOffset=False)
         axes[0].set_ylabel('Decode rate (tokens/s)' if metric=='decode_tok_s' else 'MTP acceptance (%)')
         fig.suptitle(title); handles,labels=axes[0].get_legend_handles_labels()
@@ -799,7 +803,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
     for fam in subset_families:
         for (f,c,m,pi),d in cells.items():
             if f==fam and m==mode and metric in d and d[metric]:
-                selected.append((fam,d['actual_C'],pi,d)); maxy=max(maxy,float(d[metric]["max"]))
+                selected.append((fam,d['nominal_target_C'],pi,d)); maxy=max(maxy,float(d[metric]["max"]))
     maxy=max(10, math.ceil(maxy/10)*10)
     for pi,prompt in enumerate(PROMPTS):
         x0=left+pi*(panel_w+gap); x1=x0+panel_w-35; y0=plot_top+plot_h; y1=plot_top+25
@@ -1190,7 +1194,7 @@ def write_prefill_checkpoint_chart(out, rows, metric, label):
     """Primary map-matched ingest comparison, weighted over all chunks to each C."""
     plt = plotting_pyplot()
     from matplotlib.lines import Line2D
-    data=[r for r in rows if r.get('chunk_map_sha256') and finite_pos(r.get(metric)) and r.get('actual_C') is not None]
+    data=[r for r in rows if r.get('chunk_map_sha256') and finite_pos(r.get(metric)) and r.get('nominal_target_C') is not None]
     if not data: return None
     palette=plt.get_cmap('tab10'); family_index={family:i for i,family in enumerate(FAMILIES)}
     fig,ax=plt.subplots(figsize=(12,7))
@@ -1198,9 +1202,9 @@ def write_prefill_checkpoint_chart(out, rows, metric, label):
     for family in sorted({r['family'] for r in data},key=lambda f:family_index_map.get(f,99)):
         pts=[r for r in data if r['family']==family]
         color=palette(family_index_map.get(family,0)%10)
-        ax.scatter([r['actual_C'] for r in pts],[r[metric] for r in pts],marker='o',s=28,color=color,label=family)
+        ax.scatter([r['nominal_target_C'] for r in pts],[r[metric] for r in pts],marker='o',s=28,color=color,label=family)
     ax.axvline(65536,color='#555555',linestyle='--',linewidth=1.2)
-    ax.set_xlabel('Actual occupied context C (tokens)'); ax.set_ylabel(label); ax.grid(True,alpha=.25)
+    ax.set_xlabel('Requested context checkpoint C (tokens; actual counts in data)'); ax.set_ylabel(label); ax.grid(True,alpha=.25)
     ax.ticklabel_format(axis='x',style='plain',useOffset=False)
     ax.set_title(f'Mapped-fill interval rate by checkpoint · {label}\nNew input since the previous checkpoint; observed points only; tails included')
     from matplotlib.lines import Line2D
@@ -1423,7 +1427,7 @@ def main():
     report['tables_appendix_path']=str(out/'comparison-tables-20261104.md')
     write_tables_appendix(out/'comparison-tables-20261104.md',celllist,prefill,bulk_cohorts,checkpoint_ingest,memory_rows,aco,matched)
     (out/'comparison-final-20261104.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
-    md=["# Comparison report digest — 2026-11-04","",f"Validated complete cells: **{len(celllist)}**; measured repeats: **{3*len(celllist)}**.",f"Queue status at generation: **{report['queue_status'] or 'not available'}**. This is not a completeness claim while the completion queue is running or awaiting assessment.","","Each plotted point is an observed actual context occupancy C, with the min/median/max of three valid measured HTTP 200 complete-stream repetitions. Nominal requested C and observed actual C are both retained; coverage matching uses nominal C, plots use actual C. No interpolation or missing checkpoint substitution is used. If multiple sources cover the same family/nominal-C/mode/prompt, the complete cell from the later source replaces the prior cell as a whole.","","## Family coverage","","| Family | Complete cells | Nominal target C | Observed actual C | Missing required nominal C |","|---|---:|---|---|---|"]
+    md=["# Comparison report digest — 2026-11-04","",f"Validated complete cells: **{len(celllist)}**; measured repeats: **{3*len(celllist)}**.",f"Queue status at generation: **{report['queue_status'] or 'not available'}**. This is not a completeness claim while the completion queue is running or awaiting assessment.","","Each primary plotted point groups the original requested context checkpoint, with min/median/max of three valid measured HTTP 200 complete-stream repetitions. New normal-conversation runs retain earlier questions and answers, so actual occupancy may grow; per-repetition actual counts and ranges remain in the data. Append-level prefill diagnostics still use actual occupancy. Nominal requested C and observed actual C are both retained; coverage matching and primary plots use nominal C; actual counts are retained separately, and append diagnostics use actual C. No interpolation or missing checkpoint substitution is used. If multiple sources cover the same family/nominal-C/mode/prompt, the complete cell from the later source replaces the prior cell as a whole.","","## Family coverage","","| Family | Complete cells | Nominal target C | Observed actual C | Missing required nominal C |","|---|---:|---|---|---|"]
     for f in FAMILIES:
         c=counts[f]; md.append(f"| {f} | {c['complete_cells']} | {', '.join(map(str,c['observed_nominal_target_C'])) or '—'} | {', '.join(map(str,c['observed_actual_C'])) or '—'} | {', '.join(map(str,c['missing_required_checkpoints'])) or '—'} |")
     if report.get("excluded_series"):
