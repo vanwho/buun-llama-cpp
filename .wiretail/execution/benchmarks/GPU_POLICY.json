@@ -219,14 +219,15 @@
     "status": "ready",
     "plan": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.json",
     "numbered_plan": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.md",
-    "output_root": "/srv/ai/paged-kv/results/comparison-completion-20261104-r4",
+    "output_root": "/srv/ai/paged-kv/results/comparison-completion-20261104-r5",
     "step_order": [
-      "master-gpu-mtp-off",
-      "fork-cpu-mtp-off",
       "fork-cpu-mtp-on",
       "master-cpu-mtp-on",
       "master-cpu-mtp-off",
-      "fork-gpu-mtp-off"
+      "fork-gpu-mtp-off",
+      "master-gpu-mtp-off",
+      "master-gpu-mtp-on",
+      "fork-gpu-mtp-on"
     ],
     "run_model": "gpt-6-luna",
     "run_reasoning": "high",

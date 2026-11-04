@@ -101,7 +101,8 @@ def run_one(plan, step, profile_index, attempt, full_decode):
     argv = [part.replace('{run_root}', str(run_root)) for part in profile['server_argv_template']]
     generated = matrix.argv_for_row(profile['context_tokens'], step['placement'],
         mtp=step['mtp'] == 'on', pager=profile['pager'], draft_device=profile['draft_device'],
-        server_bin=Path(build['path']), slot_state=slot)
+        server_bin=Path(build['path']), slot_state=slot,
+        checkpoint_free_control=profile.get('checkpoint_free_control', False))
     if argv != generated:
         raise RuntimeError('frozen command differs from driver command; fix before touching services')
     selections = profile['checkpoint_selection']
@@ -120,6 +121,8 @@ def run_one(plan, step, profile_index, attempt, full_decode):
         '--checkpoint-selection', str(run_root / 'checkpoint-selection.json')]
     if profile['draft_device'] is not None:
         command.extend(['--draft-device', profile['draft_device']])
+    if profile.get('checkpoint_free_control', False):
+        command.append('--checkpoint-free-controls')
     result = {'step': step['number'], 'id': step['id'], 'profile': profile['id'],
               'attempt': attempt, 'run_root': str(run_root), 'full_decode': full_decode,
               'started_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'status': 'starting'}
@@ -287,12 +290,19 @@ def run_queue(plan, plan_path, resume=False, assessed_step=None,
             if assessed_step == step['number']:
                 item.setdefault('assessments', []).append({'action': assessment_action,
                     'note': assessment_note, 'epoch': time.time()})
+                if assessment_action == 'continue':
+                    if last['status'] not in {'complete', 'capacity_limit'}:
+                        raise RuntimeError('cannot accept incomplete measurements as an explained anomaly')
+                    item['status'] = last['status']
+                    item['measurement_gaps_remain'] = last['status'] != 'complete'
+                    save(progress_path, progress)
+                    continue
                 if assessment_action == 'record-finding':
                     item['status'] = 'finding_recorded'
                     item['measurement_gaps_remain'] = last['status'] not in {'complete', 'capacity_limit'}
                     save(progress_path, progress)
                     continue
-                retry_full = bool(last.get('full_decode'))
+                retry_full = assessment_action == 'full-curve' or bool(last.get('full_decode'))
             elif last.get('full_decode'):
                 progress.update(status='needs_assessment', next_step=step['number'],
                     note='Full-curve escalation already attempted. Use an explicit assessed retry or record-finding action; do not edit progress JSON or blindly repeat it.')
@@ -315,12 +325,11 @@ def run_queue(plan, plan_path, resume=False, assessed_step=None,
                 flags = sparse_anomalies(Path(result['run_root']), step['id'], baselines)
                 if flags:
                     save(Path(result['run_root']) / 'anomaly-assessment.json', flags)
-                    rerun = execute_attempt(step, index, True)
-                    item['attempts'].append(rerun)
-                    if rerun['status'] not in {'complete', 'capacity_limit'}:
-                        progress.update(status='needs_assessment', next_step=step['number'])
-                        save(progress_path, progress)
-                        return 1
+                    item['status'] = 'needs_assessment'
+                    progress.update(status='needs_assessment', next_step=step['number'],
+                        note='Classify the flags before rerunning: continue for an evidenced explanation, full-curve for an unexplained anomaly, or record-finding for a real limitation.')
+                    save(progress_path, progress)
+                    return 1
             item['status'] = item['attempts'][-1]['status']
             save(progress_path, progress)
             break
@@ -342,7 +351,7 @@ def main():
     parser.add_argument('--resume-queue', action='store_true',
                         help='resume an assessed stopped queue without overwriting completed attempts')
     parser.add_argument('--assessed-step', type=int)
-    parser.add_argument('--assessment-action', choices=('retry', 'record-finding'))
+    parser.add_argument('--assessment-action', choices=('retry', 'record-finding', 'continue', 'full-curve'))
     parser.add_argument('--assessment-note')
     args = parser.parse_args()
     plan = json.loads(args.plan.read_text())

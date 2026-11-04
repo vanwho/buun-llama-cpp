@@ -6,19 +6,25 @@ cells; never repeat whole families just to align old/new checkpoint coordinates.
 
 ## Active run
 
-- Branch: `plan/attention-aware-kv-paging`; latest plan commit `7c4954c06`.
-- Frozen plan: `COMPARISON_COMPLETION_20261104.json`, revision 4.
-- Output: `/srv/ai/paged-kv/results/comparison-completion-20261104-r4`.
+- Branch: `plan/attention-aware-kv-paging`; newest tool fix `7e360cf9b`.
+- Frozen plan: `COMPARISON_COMPLETION_20261104.json`, revision 5, pending launch.
+- Output: `/srv/ai/paged-kv/results/comparison-completion-20261104-r5`.
 - Luna High runtime owner: `/root/comparison_runtime_prep`. It started the
   detached queue with `nohup setsid`. One model, one lifecycle lock.
-- Step 1 (pristine master GPU/MTP-off) is `finding_recorded`, **not complete**.
-  Its missing cells remain gaps. Other five steps continue.
-- Step 2 (fork CPU-Q4/MTP-off) completed all seven points through C256000.
+- R4 was stopped safely; no test-owned model/queue remains. R5 must never clone
+  target-only slot files before an MTP-on question. It keeps paired resident
+  checkpoints, unchanged model/binaries/quants/B/U/threads, and the same map.
+- The R4 fork CPU-Q4/MTP-off series completed all seven points through C256000.
   C196608/off/prompt3 now has three full 400-token responses: min/median/max
   3.6813 / 3.7312 / 3.7395 tok/s. Its 13 append groups capture the fresh curve.
-- Step 3 (fork CPU-Q4/MTP-on) completed its C12288 checkpoint with all 36
-  selected low/medium/xhigh requests passing. It is continuing toward C28672.
-  Do not restart or interrupt it.
+- R4 fork/master CPU-MTP-on used target-only files that reset native draft
+  history; both are quarantined from the normal resident-MTP comparison. Their
+  raw observations remain external as diagnostic data; do not republish the
+  R4 8.136 tok/s value as the normal full-prefix MTP control.
+- R5 order: fork CPU MTP-on, master CPU MTP-on, master CPU MTP-off, fork GPU
+  MTP-off conditional endpoint, master GPU MTP-off checkpoint-free recovery.
+- The queue now pauses for assessment before a whole-family rerun; use continue
+  for evidenced statistical causes, full-curve for an unexplained anomaly.
 - B1024/U256, t16/tb16, GPU model weights, target Turbo4 on GPU and Q4_0 on CPU,
   one persistent new-repo-chunk fill per configuration; no refill per mode/prompt.
 - Protect Jellyfin/ffmpeg, 8091, and 8092. Restore managed gateway/model services.
@@ -53,6 +59,24 @@ Source justification in pristine worktree
 - `src/llama-context.cpp:7039`: full sequence-state read remains available.
 - There is no public switch to purge only the CUDA graph cache. Do not disable
   CUDA graphs and silently publish that as the full-speed control.
+
+## Additional master MTP / supervisor findings
+
+Master CPU-Q4/MTP-on emits `DFlash target argmax row lookup failed` in some
+requests; the message belongs to a shared native-MTP sampling shortcut, not a
+wrong loaded draft architecture. Failed SSE streams often end at 38 of a
+40-token warmup or 396/398 of the 400-token measured budget. Keep the original
+budget; do not raise it to conceal a runtime error. `logprobs:true` with
+`top_logprobs:1` bypasses the shortcut (`common/sampling.cpp` requires n_probs=0)
+but adds sampling/transfer overhead, so those would be separate diagnostic
+results, not a silent replacement of the requested baseline.
+
+Both supervisor issues were fixed for R5:
+
+- `run-context-matrix-cell.py` aggregates every stage, not only the last one.
+- `run-comparison-series.py` pauses on flags before an assessed full rerun.
+- Audit existing queue receipts against per-stage/per-cell results; repair any
+  false `complete` projection from evidence, retaining original status/history.
 
 ## Reports and outliers
 

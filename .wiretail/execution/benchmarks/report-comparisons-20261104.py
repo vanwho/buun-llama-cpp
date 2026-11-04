@@ -14,6 +14,7 @@ import json
 import math
 import statistics
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -347,7 +348,7 @@ def add_raw_family(cells, family, rows, identity, variant, mtp, source_hashes):
                 geo=rowmeta.get('geometry',{}) if isinstance(rowmeta.get('geometry',{}),dict) else {}
                 actual=rowmeta.get('base',{}).get('occupied_tokens',geo.get('actual_C',c))
                 nominal=geo.get('target_tokens',c)
-                protocol=rowmeta.get('filled_prefix_method',rowmeta.get('mtp_acceptance_scope','historical schedule'))
+                protocol=rowmeta.get('filled_prefix_method','historical schedule')
                 source_hashes[str(rowp)]={"sha256":sha(rowp)}
                 append_schedule_groups(schedule,family,nominal,mtp,str(protocol),source_hashes,identity_path=rowp)
             except Exception: pass
@@ -370,6 +371,33 @@ def add_raw_family(cells, family, rows, identity, variant, mtp, source_hashes):
 
 def discover_current_completion(plan, source_hashes):
     rows = defaultdict(list)
+    # Explicitly approved retained series are the only imports outside the active
+    # plan root. Keep this allowlist narrow so quarantined R4 variants cannot leak
+    # into primary coverage through broad directory discovery.
+    for spec in plan.get("retained_completed_series", []):
+        if not isinstance(spec, dict) or spec.get("family") != "fork-cpu-mtp-off":
+            continue
+        series = Path(spec.get("path", ""))
+        if not series.is_dir() or series.parent.name != spec["family"]:
+            continue
+        for p in sorted(series.glob("cell/C*/campaign/records.jsonl")):
+            try:
+                cfgp = p.parent / "run-config.json"
+                cfg = jread(cfgp) if cfgp.exists() else {}
+                rowp = p.parent / "row.json"
+                rowmeta = jread(rowp) if rowp.exists() else {}
+                if not row_is_complete(rowmeta): continue
+                geo = rowmeta.get("geometry", {}) if isinstance(rowmeta.get("geometry", {}), dict) else {}
+                base = cfg.get("base", rowmeta.get("base", {}))
+                if not isinstance(base, dict): base = {}
+                actual = rowmeta.get("actual_occupancy_tokens", rowmeta.get("actual_C", geo.get("actual_C", base.get("occupied_tokens"))))
+                nominal = geo.get("target_tokens", cfg.get("requested_target_tokens"))
+                if actual is None or nominal is None: continue
+                rows[spec["family"]].append((int(actual), str(p), None,
+                    {"approved_retained_series":str(series),"retention_reason":spec.get("reason"),"run_config":str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None},
+                    None, False, False, int(nominal)))
+            except Exception:
+                continue
     root = Path(plan.get("output_root", ""))
     if not root.is_dir():
         return rows
@@ -403,13 +431,24 @@ def discover_current_completion(plan, source_hashes):
 
 
 def discover_current_prefill(plan, source_hashes):
+    roots=[]
     root=Path(plan.get('output_root',''))
-    if not root.is_dir(): return
+    if root.is_dir(): roots.append((root, None))
+    for spec in plan.get("retained_completed_series", []):
+        if isinstance(spec,dict) and spec.get("family")=="fork-cpu-mtp-off":
+            series=Path(spec.get("path",""))
+            if series.is_dir() and series.parent.name==spec["family"]:
+                roots.append((series,spec))
     steps={s.get('id'):s for s in plan.get('steps',[])}
-    for family in FAMILIES[:8]:
+    for root_entry in roots:
+      root,spec=root_entry
+      families=[spec["family"]] if spec else FAMILIES[:8]
+      for family in families:
         step=steps.get(family,{})
         mtp=step.get('mtp')=='on'
-        for schedule in root.glob(f'{family}/**/schedule.jsonl'):
+        if spec: mtp=False
+        schedules=root.glob('cell/C*/campaign/schedule.jsonl') if spec else root.glob(f'{family}/**/schedule.jsonl')
+        for schedule in schedules:
             rowp=schedule.parent/'row.json'
             if not rowp.is_file(): continue
             try:
@@ -421,7 +460,7 @@ def discover_current_prefill(plan, source_hashes):
                 nominal=geo.get('target_tokens')
                 actual=base.get('occupied_tokens',row.get('actual_occupancy_tokens'))
                 if nominal is None or actual is None: continue
-                identity=row.get('filled_prefix_method',row.get('mtp_acceptance_scope','current-plan schedule'))
+                identity=row.get('filled_prefix_method','current-plan schedule')
                 source_hashes[str(rowp)]={"sha256":sha(rowp)}
                 append_schedule_groups(schedule,family,nominal,mtp,str(identity),source_hashes)
             except Exception: continue
@@ -615,13 +654,14 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
         title = title or f"{mode} · {metric.replace('_',' ')} · min / median / max"
         fig, axes = plt.subplots(1, 3, figsize=(15, 5.7), sharey=True)
         palette=plt.get_cmap('tab10')
+        family_index={family:i for i,family in enumerate(FAMILIES)}
         for pi, (ax,prompt) in enumerate(zip(axes,PROMPTS)):
             for fi,fam in enumerate(subset_families):
                 pts=sorted([(d['actual_C'],d) for (f,c,m,p),d in cells.items() if f==fam and m==mode and p==pi and d.get(metric)],key=lambda z:z[0])
                 if not pts: continue
                 xs=[c for c,d in pts]; ys=[d[metric]['median'] for c,d in pts]
                 err=[[d[metric]['median']-d[metric]['min'] for c,d in pts],[d[metric]['max']-d[metric]['median'] for c,d in pts]]
-                ax.errorbar(xs,ys,yerr=err,fmt='o-',markersize=3.5,capsize=2,linewidth=1.25,color=palette(fi%10),label=fam)
+                ax.errorbar(xs,ys,yerr=err,fmt='o-',markersize=3.5,capsize=2,linewidth=1.25,color=palette(family_index[fam]%10),label=fam)
             if any(f.startswith('current-aco') for f in subset_families):
                 ax.axvline(65536,color='#666666',linestyle='--',linewidth=1.0,label='ACO H = 65,536 tokens' if pi==0 else None)
             ax.set_title(prompt); ax.set_xlabel('Actual occupied context C (tokens)'); ax.grid(True,alpha=.25)
@@ -644,7 +684,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
     font=ImageFont.load_default()
     title = title or (f"{mode} · {metric.replace('_',' ')} · min / median / max" )
     dr.text((45,25),title,fill="#152238",font=font)
-    colors=["#0072B2","#D55E00","#009E73","#CC79A7","#E69F00","#56B4E9","#000000","#882255","#44AA99","#AA4499"]
+    colors=["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"]
     plot_top=70; plot_h=970; panel_w=525; gap=32; left=45
     maxy=0.0
     selected=[]
@@ -671,7 +711,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
                 x=x0+(c-xmin)/(xmax-xmin)*(x1-x0)
                 mid=d[metric]["median"]; lo=d[metric]["min"]; hi=d[metric]["max"]
                 y=y0-mid/maxy*(y0-y1); yl=y0-hi/maxy*(y0-y1); yh=y0-lo/maxy*(y0-y1)
-                color=colors[fi%len(colors)]
+                color=colors[FAMILIES.index(fam)%len(colors)]
                 dr.line((x,yl,x,yh),fill=color,width=2); dr.ellipse((x-4,y-4,x+4,y+4),fill=color)
                 if prev: dr.line((prev[0],prev[1],x,y),fill=color,width=2)
                 prev=(x,y)
@@ -680,7 +720,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
     lx=45; ly=1070
     for i,f in enumerate(subset_families):
         x=lx+(i%5)*320; y=ly+(i//5)*18
-        dr.line((x,y+5,x+18,y+5),fill=colors[i%len(colors)],width=3); dr.text((x+23,y),f,fill="#222",font=font)
+        dr.line((x,y+5,x+18,y+5),fill=colors[FAMILIES.index(f)%len(colors)],width=3); dr.text((x+23,y),f,fill="#222",font=font)
     png=pathbase.with_suffix(".png"); svg=pathbase.with_suffix(".svg")
     im.save(png)
     # SVG mirrors the PNG via embedded pixels only when Pillow supplied it. Also provide a
@@ -696,7 +736,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
         cs=sorted({c for f,c,p,d in selected if p==pi})
         xmin,xmax=(min(cs),max(cs)) if len(cs)>1 else ((cs[0]-1,cs[0]+1) if cs else (0,1))
         for fi,fam in enumerate(subset_families):
-            fp=sorted([(c,d) for ff,c,p,d in selected if ff==fam and p==pi],key=lambda z:z[0]); color=colors[fi%len(colors)]
+            fp=sorted([(c,d) for ff,c,p,d in selected if ff==fam and p==pi],key=lambda z:z[0]); color=colors[FAMILIES.index(fam)%len(colors)]
             coords=[]
             for c,d in fp:
                 x=x0+(c-xmin)/(xmax-xmin)*(x1-x0); mid=d[metric]['median']; lo=d[metric]['min']; hi=d[metric]['max']; y=y0-mid/maxy*(y0-y1); yl=y0-hi/maxy*(y0-y1); yh=y0-lo/maxy*(y0-y1)
@@ -710,51 +750,67 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
 
 
 def write_prefill_chart(out, rows, metric, label):
-    """Plot current-protocol append classes; historical fill protocols stay separate."""
+    """Plot mapped regular fills, mapped tails, and historical appends separately."""
     try:
         import matplotlib.pyplot as plt
     except ImportError:
-        if not ALLOW_PILLOW_DRAFT:
-            raise RuntimeError("Matplotlib is required for final charts; use --allow-pillow-draft only for an interim preview")
-    else:
-        data=[r for r in rows if finite_pos(r.get(metric)) and r.get('actual_C') is not None]
-        if not data: return None
-        fig,ax=plt.subplots(figsize=(12,7)); palette=plt.get_cmap('tab10'); colors={f:palette(i%10) for i,f in enumerate(FAMILIES)}; markers={'checkpoint_tail':'s','full_group':'o','legacy_append':'^'}
-        groups=sorted({(r['family'],r.get('protocol','unknown'),r.get('chunk_kind','unknown')) for r in data})
-        for fam,protocol,kind in groups:
-            pts=[r for r in data if (r['family'],r.get('protocol','unknown'),r.get('chunk_kind','unknown'))==(fam,protocol,kind)]
-            ax.scatter([r['actual_C'] for r in pts],[r[metric] for r in pts],color=colors.get(fam,'#333333'),marker=markers.get(kind,'x'),label=f'{fam} · {protocol} · {kind}')
-        ax.set_xlabel('Actual occupied context C (tokens)'); ax.set_ylabel(label); ax.grid(True,alpha=.25); ax.ticklabel_format(axis='x',style='plain',useOffset=False); ax.axvline(65536,color='#666666',linestyle='--',linewidth=1.0,label='ACO H = 65,536 tokens')
-        ax.set_title('Prefill append groups · source protocols retained as separate labeled cohorts')
-        ax.legend(frameon=False,ncol=2,fontsize='small'); fig.tight_layout()
-        base=out/f'prefill-{metric}'; fig.savefig(base.with_suffix('.png'),dpi=180,bbox_inches='tight'); fig.savefig(base.with_suffix('.svg'),bbox_inches='tight'); plt.close(fig)
-        return str(base.with_suffix('.svg'))
-    from PIL import Image, ImageDraw, ImageFont
-    W,H=1200,640; im=Image.new('RGB',(W,H),'white'); dr=ImageDraw.Draw(im); font=ImageFont.load_default()
-    dr.text((40,25),f"Current ACO persistent-map prefill: {label}",fill="#152238",font=font)
+        raise RuntimeError("Matplotlib is required for final prefill charts")
     data=[r for r in rows if finite_pos(r.get(metric)) and r.get('actual_C') is not None]
-    if not data: return None
-    xmin=min(int(r['actual_C']) for r in data); xmax=max(int(r['actual_C']) for r in data); ymax=max(float(r[metric]) for r in data)*1.1
-    x0,x1,y0,y1=75,1160,560,65
-    dr.line((x0,y0,x1,y0),fill="#555",width=2); dr.line((x0,y0,x0,y1),fill="#555",width=2)
-    for i in range(6):
-        y=y0-(y0-y1)*i/5; val=ymax*i/5; dr.line((x0,y,x1,y),fill="#e4e8ed"); dr.text((25,y-5),f"{val:.0f}",fill="#555",font=font)
-    colors={"on":"#0072B2","off":"#D55E00"}
-    for r in data:
-        x=x0+(int(r['actual_C'])-xmin)/max(1,xmax-xmin)*(x1-x0); y=y0-float(r[metric])/ymax*(y0-y1); color=colors.get(r['family'].rsplit('-',1)[-1],"#000"); rad=5
-        if r.get('chunk_kind')=='checkpoint_tail': dr.rectangle((x-rad,y-rad,x+rad,y+rad),fill=color)
-        else: dr.ellipse((x-rad,y-rad,x+rad,y+rad),fill=color)
-    for i,(label2,color) in enumerate([("MTP on",colors['on']),("MTP off",colors['off']),("regular append",'#333'),("checkpoint tail",'#333')]):
-        x=80+i*250; dr.ellipse((x,590,x+8,598),fill=color); dr.text((x+14,588),label2,fill="#222",font=font)
-    base=out/f"prefill-{metric}"; im.save(base.with_suffix('.png'))
-    bits=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}"><rect width="100%" height="100%" fill="white"/><text x="40" y="35" font-family="sans-serif" font-size="20">Current ACO persistent-map prefill: {label}</text><path d="M{x0},{y0}H{x1} M{x0},{y0}V{y1}" stroke="#555"/>']
-    for i in range(6):
-        y=y0-(y0-y1)*i/5; val=ymax*i/5; bits.append(f'<path d="M{x0},{y:.1f}H{x1}" stroke="#e4e8ed"/><text x="25" y="{y+4:.1f}" font-size="12">{val:.0f}</text>')
-    for r in data:
-        x=x0+(int(r['actual_C'])-xmin)/max(1,xmax-xmin)*(x1-x0); y=y0-float(r[metric])/ymax*(y0-y1); color=colors.get(r['family'].rsplit('-',1)[-1],"#000")
-        if r.get('chunk_kind')=='checkpoint_tail': bits.append(f'<rect x="{x-4:.1f}" y="{y-4:.1f}" width="8" height="8" fill="{color}"/>')
-        else: bits.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}"/>')
-    bits.append('</svg>'); base.with_suffix('.svg').write_text('\n'.join(bits)); return str(base.with_suffix('.svg'))
+    if not data: return []
+    palette=plt.get_cmap('tab10')
+    family_index={family:i for i,family in enumerate(FAMILIES)}
+    markers={'checkpoint_tail':'s','mapped_bulk':'o','legacy_append':'^','fresh_full_prompt':'v'}
+    marker_labels={'checkpoint_tail':'checkpoint tail','mapped_bulk':'regular mapped bulk','legacy_append':'historical append','fresh_full_prompt':'historical full prompt'}
+    cohorts=(
+        ('mapped-bulk',lambda r:bool(r.get('chunk_map_sha256')) and r.get('chunk_kind')!='checkpoint_tail',
+         'Mapped chunk-map fills · regular bulk groups'),
+        ('mapped-tails',lambda r:bool(r.get('chunk_map_sha256')) and r.get('chunk_kind')=='checkpoint_tail',
+         'Mapped chunk-map fills · checkpoint tails'),
+        ('historical-variable',lambda r:not r.get('chunk_map_sha256'),
+         'Unmapped / historical variable append protocols'),
+    )
+    outputs=[]
+    for cohort,include,title in cohorts:
+        subset=[r for r in data if include(r)]
+        if not subset: continue
+        fig,ax=plt.subplots(figsize=(13,7.2))
+        # Lines follow distinct source series only; no line joins independent fills.
+        series_groups=defaultdict(list)
+        for r in subset:
+            series_groups[(r['family'],prefill_series_id(r))].append(r)
+        for (family,_series),pts in sorted(series_groups.items()):
+            pts.sort(key=lambda r:(int(r['actual_C']),int(r.get('append_index') or 0)))
+            color=palette(family_index.get(family,0)%10)
+            if len(pts)>1:
+                ax.plot([r['actual_C'] for r in pts],[r[metric] for r in pts],color=color,linewidth=.9,alpha=.62,zorder=1)
+        families=sorted({r['family'] for r in subset},key=lambda f:family_index.get(f,99))
+        def marker_key(r):
+            if r.get('chunk_kind')=='checkpoint_tail': return 'checkpoint_tail'
+            if r.get('chunk_map_sha256'): return 'mapped_bulk'
+            return r.get('chunk_kind','legacy_append')
+        kinds=sorted({marker_key(r) for r in subset})
+        for family in families:
+            color=palette(family_index.get(family,0)%10)
+            for kind in kinds:
+                pts=[r for r in subset if r['family']==family and marker_key(r)==kind]
+                if not pts: continue
+                ax.scatter([r['actual_C'] for r in pts],[r[metric] for r in pts],color=color,marker=markers.get(kind,'^'),s=22,alpha=.72,zorder=2)
+        ax.set_xlabel('Actual occupied context C (tokens)'); ax.set_ylabel(label); ax.grid(True,alpha=.25)
+        ax.ticklabel_format(axis='x',style='plain',useOffset=False)
+        ax.axvline(65536,color='#555555',linestyle='--',linewidth=1.2,label='ACO H = 65,536 tokens')
+        ax.set_title(f'{title}\n{label}; source series remain separate; protocol details are in the data table')
+        from matplotlib.lines import Line2D
+        family_handles=[Line2D([0],[0],color=palette(family_index[f]%10),marker='o',linewidth=1.2,markersize=4,label=f) for f in families]
+        marker_handles=[Line2D([0],[0],color='#333333',marker=markers.get(k,'^'),linestyle='None',markersize=5,label=marker_labels.get(k,k)) for k in kinds]
+        if marker_handles:
+            ax.legend(handles=marker_handles,loc='upper left',frameon=False,title='Append kind',fontsize='small')
+        fig.legend(handles=family_handles,loc='lower center',ncol=min(5,len(family_handles)),frameon=False,bbox_to_anchor=(.5,.01),fontsize='small',title='Family (colors match decode plots)')
+        fig.tight_layout(rect=(0,.12,1,.94))
+        base=out/f'prefill-{metric}-{cohort}'
+        fig.savefig(base.with_suffix('.png'),dpi=180,bbox_inches='tight')
+        fig.savefig(base.with_suffix('.svg'),bbox_inches='tight')
+        plt.close(fig); outputs.append(str(base.with_suffix('.svg')))
+    return outputs
 
 
 def source_reference(d):
@@ -919,6 +975,8 @@ def main():
             ac=d.get('mtp_acceptance_percent') or {}
             w.writerow({'family':d['family'],'variant':d['variant'],'placement':d['placement'],'mtp':d['mtp'],'nominal_target_C':d['nominal_target_C'],'actual_C':d['actual_C'],'reasoning_mode':d['reasoning_mode'],'prompt':d['prompt'],'decode_min':d['decode_tok_s']['min'],'decode_median':d['decode_tok_s']['median'],'decode_max':d['decode_tok_s']['max'],'decode_repeats':json.dumps(d['decode_tok_s']['repeats']),'acceptance_min':ac.get('min'),'acceptance_median':ac.get('median'),'acceptance_max':ac.get('max'),'source_path':path,'source_sha256':sh})
     report={"schema":"comparison-final-digest-v1","generated":"2026-11-04","data_only_export":DATA_ONLY,"charts_rendered":not DATA_ONLY,"queue_status":None,"queue_progress_path":str(Path(plan.get('output_root',''))/'queue-progress.json'),"queue_progress":None,"families":FAMILIES,"source_identities":ids,"source_identity_artifacts":_IDENTITY_ARTIFACTS,"source_files":hashes,"coverage":counts,"cell_count":len(celllist),"measured_repeat_count":3*len(celllist),"cells":celllist,"empty_context_controls_separate_cohort":empty_context_controls,"diagnostic_flags_review_only":flags,"limitations":["Only observed actual C values are plotted; no interpolation or manufactured grid points.","At a matching family/nominal target C/mode/prompt, later valid complete evidence replaces the whole earlier cell; repetitions are never cherry-picked.","MTP-on acceptance is shown only when measured for all three valid repetitions; MTP-off is N/A.","Historical fresh-prefill and current persistent 32K-map prefill are separate protocols and are not pooled.","Rate summaries do not establish causality or statistical significance.","A nonzero VmSwap observation exists for current ACO MTP-on; memory residency and page-in I/O are not certified."]}
+    report["excluded_series"]=[{k:s.get(k) for k in ("family","path","reason")} for s in plan.get("quarantined_series",[]) if isinstance(s,dict)]
+    report['generated_at_utc'] = datetime.now(timezone.utc).isoformat()
     qp=Path(plan.get('output_root',''))/'queue-progress.json'
     if qp.exists():
         try:
@@ -994,6 +1052,10 @@ def main():
     md=["# Comparison report digest — 2026-11-04","",f"Validated complete cells: **{len(celllist)}**; measured repeats: **{3*len(celllist)}**.",f"Queue status at generation: **{report['queue_status'] or 'not available'}**. This is not a completeness claim while the completion queue is running or awaiting assessment.","","Each plotted point is an observed actual context occupancy C, with the min/median/max of three valid measured HTTP 200 complete-stream repetitions. Nominal requested C and observed actual C are both retained; coverage matching uses nominal C, plots use actual C. No interpolation or missing checkpoint substitution is used. If multiple sources cover the same family/nominal-C/mode/prompt, the complete cell from the later source replaces the prior cell as a whole.","","## Family coverage","","| Family | Complete cells | Nominal target C | Observed actual C | Missing required nominal C |","|---|---:|---|---|---|"]
     for f in FAMILIES:
         c=counts[f]; md.append(f"| {f} | {c['complete_cells']} | {', '.join(map(str,c['observed_nominal_target_C'])) or '—'} | {', '.join(map(str,c['observed_actual_C'])) or '—'} | {', '.join(map(str,c['missing_required_checkpoints'])) or '—'} |")
+    if report.get("excluded_series"):
+        md += ["", "## Excluded series", "", "These R4 attempts are quarantined because their target-only slot restore did not preserve the native MTP draft history. They are excluded from primary cells and prefill summaries.", "", "| Family | Series path | Reason |", "|---|---|---|"]
+        for s in report["excluded_series"]:
+            md.append(f"| {s.get('family','—')} | `{s.get('path','—')}` | {s.get('reason','—')} |")
     md += ["","## Separate empty-prefix baselines","","These original unfilled-context controls retain their configured L and source table. They are not points in the stepped filled-context curves.","","| Family | Configured L | Control | Source table |","|---|---:|---|---|"]
     for e in empty_context_controls:
         md.append(f"| {e['family']} | {e.get('configured_L_tokens','—')} | {e.get('label','empty-prefix baseline')} | `{e.get('report_path')}` |")
@@ -1002,7 +1064,7 @@ def main():
     if DATA_ONLY: md.append("Charts were intentionally skipped in this data-only readiness export.")
     else:
         for p in sorted(out.glob('*.svg')): md.append(f"- [{p.name}]({p.name})")
-    md += ["","## Prefill","","Backend prompt rate, net-new backend rate, and net-new HTTP wall rate are charted separately. Ten-family source availability and per-group provenance are in JSON and the companion CSV. Historical fresh-prefill/replay, current ACO persistent-map, and current-plan append groups keep separate protocol labels; a missing family curve is reported explicitly.","","## Provenance and caveats","","Full sanitized cell data, source paths, SHA-256 digests, family identities, queue state, and review flags are in `comparison-final-20261104.json`; decode cells are in `comparison-cells-20261104.csv`, prefill groups in `comparison-prefill-append-groups-20261104.csv`. Raw request/output payloads remain external and are not copied.","","Repeat-spread and neighboring-point flags are review cues only; they do not automatically invalidate otherwise complete evidence. Rates are observations, not causal claims or significance tests. Current ACO MTP-on includes a documented VmSwap peak; the report does not certify RAM-only residency or page-in I/O.",""]
+    md += ["","## Prefill","","Backend prompt rate, net-new backend rate, and net-new HTTP wall rate are charted separately. Mapped chunk-map regular bulk groups and checkpoint tails have separate charts; unmapped historical variable append groups are shown in their own chart. Family colors match the decode charts, while markers identify append kind. Protocol values are retained per group in JSON and the companion CSV; MTP acceptance scope is not used as a prefill protocol. No prefill rows are removed from the data exports.","","## Provenance and caveats","","Full sanitized cell data, source paths, SHA-256 digests, family identities, queue state, and review flags are in `comparison-final-20261104.json`; decode cells are in `comparison-cells-20261104.csv`, prefill groups in `comparison-prefill-append-groups-20261104.csv`. Raw request/output payloads remain external and are not copied.","","Repeat-spread and neighboring-point flags are review cues only; they do not automatically invalidate otherwise complete evidence. Rates are observations, not causal claims or significance tests. Current ACO MTP-on includes a documented VmSwap peak; the report does not certify RAM-only residency or page-in I/O.",""]
     (out/'comparison-final-20261104.md').write_text('\n'.join(md))
     print(json.dumps({"out":str(out),"cells":len(celllist),"repeats":3*len(celllist),"queue_status":report['queue_status'],"families":{k:v['complete_cells'] for k,v in counts.items()},"files":sorted(p.name for p in out.iterdir())},indent=2))
 

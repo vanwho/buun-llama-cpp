@@ -11,6 +11,10 @@ settings; do not replace them with blanket control reruns or force their x value
 onto the latest ACO grid. This separately authorized Luna High queue preserves
 the repository base across prompts/modes and fills every prefill checkpoint even
 when no decode is selected. Do not launch concurrent model tests through Wiretail.
+MTP-on controls must keep the resident target **and native draft** prefix through
+paired checkpoints. A target-only slot-file restore changes native MTP history;
+the R4 CPU/MTP-on cohorts are diagnostic, not primary comparison data. The plan
+retains the valid R4 CPU/MTP-off curve and explicitly lists quarantined series.
 
 **Current ACO results (2026-11-04):** the requested full-curve campaign is
 complete: 22/22 rows, 264/264 prompt/reasoning cells, 792 measured requests,
@@ -157,6 +161,9 @@ external benchmark tooling) during final cleanup:
   It changes benchmark tooling only, not either measured inference binary.
 - `98b9c8b23` exposes the server's existing native snapshot formats to local
   benchmark drivers. Keep it outside the portable inference-code PR too.
+- `7e360cf9b` fixes local benchmark prefix selection and aggregate completion:
+  MTP retains paired resident state; a successful final stage cannot hide an
+  earlier failure. It does not change either measured inference binary.
 
 Also remove or rewrite references to these assets/helpers in phase-102
 packets, clusters, overview, testing plan, and evidence before preparing the

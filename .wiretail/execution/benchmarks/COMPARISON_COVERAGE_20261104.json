@@ -3461,6 +3461,17 @@
       "records_path": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-off/C256000/matrix-20261102T154158Z/Hdefault/reasoning-xhigh/campaign/records.jsonl",
       "records_sha256": "bebed17dab11950b8012388b180f314e8aacc580929516fe1535664f6ff18a7d",
       "legacy_request_mode_verified": false
+    },
+    {
+      "target_tokens": 196608,
+      "reasoning": "off",
+      "prompt_index": 2,
+      "decode_min": 3.6813194158792357,
+      "decode_median": 3.7312327758369705,
+      "decode_max": 3.73945151337196,
+      "records_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r4/fork-cpu-mtp-off/attempt-001-L262144/cell/C196608/campaign/records.jsonl",
+      "records_sha256": "fad75e17938e93fce22a7cbc39fa8c33606baa0f980ff35aa1f02af7b09a955e",
+      "legacy_request_mode_verified": false
     }
   ],
   "master-cpu-mtp-off": [
