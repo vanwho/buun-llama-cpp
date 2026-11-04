@@ -32,6 +32,15 @@ ALLOW_PILLOW_DRAFT = False
 DATA_ONLY = False
 PREFILL_GROUPS = []
 _PREFILL_SEEN = set()
+
+
+def plotting_pyplot():
+    # These are exported artifacts, never GUI windows. Avoid environment-
+    # dependent Tk selection when running unattended on the benchmark host.
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+    import matplotlib.pyplot as plt
+    return plt
 FAMILIES = (
     "master-gpu-mtp-off", "master-gpu-mtp-on", "fork-gpu-mtp-off", "fork-gpu-mtp-on",
     "master-cpu-mtp-off", "master-cpu-mtp-on", "fork-cpu-mtp-off", "fork-cpu-mtp-on",
@@ -312,7 +321,7 @@ def cell(family, c, mode, pi, triplet, source, identity, variant, mtp, nominal_c
                 return None
             accept.append(float(a))
     return {
-        "family": family, "variant": variant, "mtp": mtp, "placement": "GPU" if "gpu" in family else ("CPU Q4_0 target" if "cpu" in family else "GPU target; ACO"),
+        "family": family, "variant": variant, "mtp": "on" if mtp else "off", "placement": "GPU" if "gpu" in family else ("CPU Q4_0 target" if "cpu" in family else "GPU target; ACO"),
         "actual_C": int(c), "nominal_target_C": int(nominal_c if nominal_c is not None else c), "reasoning_mode": mode, "prompt": f"P{pi+1}",
         "decode_tok_s": summary(rates),
         "mtp_acceptance_percent": summary(accept) if mtp else None,
@@ -636,8 +645,12 @@ def collect(out):
         required_cells = set()
         for prof in step.get("profiles", []):
             for c in prof.get("targets", []):
+                selection=prof.get("checkpoint_selection", {}).get(str(c), {})
+                # Prefill-only targets intentionally carry empty decode selections.
+                if not any(isinstance(pis,list) and pis for pis in selection.values()):
+                    continue
                 points.add(int(c))
-                for mode,pis in prof.get("checkpoint_selection", {}).get(str(c), {}).items():
+                for mode,pis in selection.items():
                     for pi in pis: required_cells.add((int(c),mode,int(pi)))
         required[fam] = {"checkpoints":sorted(points),"cells":sorted(required_cells)}
     return cells, source_hashes, identities, aco, plan, required, empty_context_controls
@@ -646,7 +659,7 @@ def collect(out):
 def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s", title=None):
     """Three prompt panels using measured medians and asymmetric min/max error bars."""
     try:
-        import matplotlib.pyplot as plt
+        plt = plotting_pyplot()
     except ImportError:
         if not ALLOW_PILLOW_DRAFT:
             raise RuntimeError("Matplotlib is required for final charts; use --allow-pillow-draft only for an interim preview")
@@ -661,7 +674,9 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
                 if not pts: continue
                 xs=[c for c,d in pts]; ys=[d[metric]['median'] for c,d in pts]
                 err=[[d[metric]['median']-d[metric]['min'] for c,d in pts],[d[metric]['max']-d[metric]['median'] for c,d in pts]]
-                ax.errorbar(xs,ys,yerr=err,fmt='o-',markersize=3.5,capsize=2,linewidth=1.25,color=palette(family_index[fam]%10),label=fam)
+                # Plot only observed points: connecting across sparse/missing
+                # checkpoints can imply an unmeasured continuous curve.
+                ax.errorbar(xs,ys,yerr=err,fmt='o',linestyle='none',markersize=3.5,capsize=2,linewidth=1.25,color=palette(family_index[fam]%10),label=fam)
             if any(f.startswith('current-aco') for f in subset_families):
                 ax.axvline(65536,color='#666666',linestyle='--',linewidth=1.0,label='ACO H = 65,536 tokens' if pi==0 else None)
             ax.set_title(prompt); ax.set_xlabel('Actual occupied context C (tokens)'); ax.grid(True,alpha=.25)
@@ -706,15 +721,12 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
         else: xmin,xmax=(cs[0]-1,cs[0]+1) if cs else (0,1)
         for fi,fam in enumerate(subset_families):
             fp=sorted([(c,d) for ff,c,p,d in selected if ff==fam and p==pi],key=lambda z:z[0])
-            prev=None
             for c,d in fp:
                 x=x0+(c-xmin)/(xmax-xmin)*(x1-x0)
                 mid=d[metric]["median"]; lo=d[metric]["min"]; hi=d[metric]["max"]
                 y=y0-mid/maxy*(y0-y1); yl=y0-hi/maxy*(y0-y1); yh=y0-lo/maxy*(y0-y1)
                 color=colors[FAMILIES.index(fam)%len(colors)]
                 dr.line((x,yl,x,yh),fill=color,width=2); dr.ellipse((x-4,y-4,x+4,y+4),fill=color)
-                if prev: dr.line((prev[0],prev[1],x,y),fill=color,width=2)
-                prev=(x,y)
         dr.text((x0,y0+7),f"C checkpoints: {min(cs) if cs else 'none'} … {max(cs) if cs else 'none'} (actual observed points only)",fill="#555",font=font)
     # Legend in two columns
     lx=45; ly=1070
@@ -737,11 +749,9 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
         xmin,xmax=(min(cs),max(cs)) if len(cs)>1 else ((cs[0]-1,cs[0]+1) if cs else (0,1))
         for fi,fam in enumerate(subset_families):
             fp=sorted([(c,d) for ff,c,p,d in selected if ff==fam and p==pi],key=lambda z:z[0]); color=colors[FAMILIES.index(fam)%len(colors)]
-            coords=[]
             for c,d in fp:
                 x=x0+(c-xmin)/(xmax-xmin)*(x1-x0); mid=d[metric]['median']; lo=d[metric]['min']; hi=d[metric]['max']; y=y0-mid/maxy*(y0-y1); yl=y0-hi/maxy*(y0-y1); yh=y0-lo/maxy*(y0-y1)
-                rows.append(f'<path d="M{x:.1f},{yl:.1f}V{yh:.1f}" stroke="{color}" stroke-width="2"/><circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="{color}"/>'); coords.append(f'{x:.1f},{y:.1f}')
-            if coords: rows.append(f'<polyline points="{" ".join(coords)}" fill="none" stroke="{color}" stroke-width="2"/>')
+                rows.append(f'<path d="M{x:.1f},{yl:.1f}V{yh:.1f}" stroke="{color}" stroke-width="2"/><circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="{color}"/>')
     for i,f in enumerate(subset_families):
         x=45+(i%5)*320; y=1080+(i//5)*18; color=colors[i%len(colors)]
         rows.append(f'<path d="M{x},{y-4}h18" stroke="{color}" stroke-width="3"/><text x="{x+23}" y="{y}" font-size="12">{f}</text>')
@@ -752,7 +762,7 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
 def write_prefill_chart(out, rows, metric, label):
     """Plot mapped regular fills, mapped tails, and historical appends separately."""
     try:
-        import matplotlib.pyplot as plt
+        plt = plotting_pyplot()
     except ImportError:
         raise RuntimeError("Matplotlib is required for final prefill charts")
     data=[r for r in rows if finite_pos(r.get(metric)) and r.get('actual_C') is not None]
@@ -774,15 +784,7 @@ def write_prefill_chart(out, rows, metric, label):
         subset=[r for r in data if include(r)]
         if not subset: continue
         fig,ax=plt.subplots(figsize=(13,7.2))
-        # Lines follow distinct source series only; no line joins independent fills.
-        series_groups=defaultdict(list)
-        for r in subset:
-            series_groups[(r['family'],prefill_series_id(r))].append(r)
-        for (family,_series),pts in sorted(series_groups.items()):
-            pts.sort(key=lambda r:(int(r['actual_C']),int(r.get('append_index') or 0)))
-            color=palette(family_index.get(family,0)%10)
-            if len(pts)>1:
-                ax.plot([r['actual_C'] for r in pts],[r[metric] for r in pts],color=color,linewidth=.9,alpha=.62,zorder=1)
+        # Plot independent observed groups only; never draw through absent points.
         families=sorted({r['family'] for r in subset},key=lambda f:family_index.get(f,99))
         def marker_key(r):
             if r.get('chunk_kind')=='checkpoint_tail': return 'checkpoint_tail'
@@ -798,7 +800,7 @@ def write_prefill_chart(out, rows, metric, label):
         ax.set_xlabel('Actual occupied context C (tokens)'); ax.set_ylabel(label); ax.grid(True,alpha=.25)
         ax.ticklabel_format(axis='x',style='plain',useOffset=False)
         ax.axvline(65536,color='#555555',linestyle='--',linewidth=1.2,label='ACO H = 65,536 tokens')
-        ax.set_title(f'{title}\n{label}; source series remain separate; protocol details are in the data table')
+        ax.set_title(f'{title}\n{label}; observed append groups only; protocol details are in the data table')
         from matplotlib.lines import Line2D
         family_handles=[Line2D([0],[0],color=palette(family_index[f]%10),marker='o',linewidth=1.2,markersize=4,label=f) for f in families]
         marker_handles=[Line2D([0],[0],color='#333333',marker=markers.get(k,'^'),linestyle='None',markersize=5,label=marker_labels.get(k,k)) for k in kinds]
@@ -838,6 +840,195 @@ def prefill_series_id(r):
     return f"{r.get('family')}|{r.get('protocol','unknown')}|unknown-source"
 
 
+def resource_series_id(path, family):
+    p=Path(path) if path else None
+    if p is None: return f"{family}|source cohort"
+    parts=p.parts
+    for i,part in enumerate(parts):
+        if (part.startswith('attempt-') or part.startswith('session-')) and 'cell' in parts[i+1:]:
+            return str(Path(*parts[:i+1]))
+    if 'cell' in parts:
+        return str(Path(*parts[:parts.index('cell')]))
+    if 'campaign' in parts:
+        return str(Path(*parts[:parts.index('campaign')+1]))
+    return str(p.parent)
+
+
+def _resource_scope(metric):
+    key=metric.lower().replace('-','_').replace('.','_')
+    if 'vmhwm' in key: return 'server_process_VmHWM'
+    if 'vmrss' in key: return 'server_process_VmRSS'
+    if 'vmswap' in key or ('swap' in key and 'host' not in key): return 'server_process_VmSwap'
+    if 'memavailable' in key or 'host_memory_available' in key: return 'whole_host_MemAvailable'
+    if ('gpu' in key or 'cuda' in key or 'vram' in key) and ('process' in key or 'vram' in key or 'allocated' in key or 'reserved' in key): return 'process_VRAM'
+    if 'gpu' in key and any(x in key for x in ('used','free','total')): return 'GPU_global_used_free'
+    if 'memory' in key or 'mem' in key: return 'other_memory_measure'
+    return None
+
+
+def extract_resource_measurements(obj, prefix=''):
+    """Extract only scalar values from explicitly named resource sections."""
+    found=[]
+    resource_names={'resource_peaks','captured_resources','resources','resource_summary','memory_peaks','memory_observations','captured_resource_peaks'}
+    def visit(value,path,inside=False):
+        if isinstance(value,dict):
+            for k,v in value.items():
+                next_path=f'{path}.{k}' if path else str(k)
+                next_inside=inside or k.lower() in resource_names
+                if next_inside:
+                    visit(v,next_path,next_inside)
+        elif isinstance(value,list):
+            for i,v in enumerate(value): visit(v,f'{path}[{i}]',inside)
+        elif inside and isinstance(value,(int,float)) and math.isfinite(float(value)):
+            scope=_resource_scope(path)
+            if scope:
+                unit='bytes' if any(t in path.lower() for t in ('_bytes','_byte','rss','hwm','swap','memavailable')) else ('MiB' if 'mib' in path.lower() or '_mb' in path.lower() else 'reported')
+                found.append({'metric':path,'scope':scope,'value':value,'unit':unit})
+    visit(obj,prefix,False)
+    return found
+
+
+def retained_resource_receipt(path, source_hashes):
+    p=Path(path) if path else None
+    if p is None or not p.exists(): return {'source_files':[],'L':None,'H':None,'actual_C':None,'measurements':[]}
+    files=[p] if p.is_file() else sorted([*p.glob('**/row.json'),*p.glob('**/cell.json')])
+    lvals=[]; hvals=[]; cvals=[]; measurements=[]; refs=[]
+    for q in files:
+        try: data=jread(q)
+        except Exception: continue
+        digest=sha(q); source_hashes[str(q)]={'sha256':digest}; refs.append({'path':str(q),'sha256':digest})
+        geo=data.get('geometry',{}) if isinstance(data.get('geometry',{}),dict) else {}
+        base=data.get('base',{}) if isinstance(data.get('base',{}),dict) else {}
+        lv=geo.get('L_tokens',data.get('L_tokens',data.get('context_tokens')))
+        hv=geo.get('H_tokens',data.get('H_tokens'))
+        cv=geo.get('actual_C',data.get('actual_C',data.get('actual_occupancy_tokens',base.get('occupied_tokens'))))
+        if lv is not None: lvals.append(lv)
+        if hv is not None: hvals.append(hv)
+        if cv is not None: cvals.append(cv)
+        measurements.extend(extract_resource_measurements(data))
+    return {'source_files':refs,'L':max(lvals) if lvals else None,'H':max(hvals) if hvals else None,'actual_C':max(cvals) if cvals else None,'measurements':measurements}
+
+
+def summarize_resource_measurements(measurements):
+    grouped=defaultdict(lambda:defaultdict(list))
+    for m in measurements:
+        grouped[m['scope']][(m['metric'],m['unit'])].append(m['value'])
+    return [{'scope':scope,'measurements':[{'metric':metric,'unit':unit,'peak':max(values),'samples':len(values)} for (metric,unit),values in sorted(metrics.items())]} for scope,metrics in sorted(grouped.items())]
+
+
+def collect_memory_and_failure_rows(celllist, plan, aco_report, source_hashes):
+    """Reuse retained resource/failure metadata; this function launches no telemetry."""
+    grouped={}
+    resource_file_cache={}
+    for d in celllist:
+        src=d.get('source',{}) if isinstance(d.get('source'),dict) else {}
+        record_path=src.get('path')
+        series=resource_series_id(record_path,d['family'])
+        key=(d['family'],series)
+        row=grouped.setdefault(key,{'family':d['family'],'series_id':series,'configured_L_tokens':None,'H_reference_tokens':65536 if d['family'].startswith('current-aco') else None,'actual_final_C':None,'series_status':'valid complete cells retained','measurement_scopes':defaultdict(dict),'source_files':set(),'resource_source_files':set()})
+        if d.get('actual_C') is not None:
+            row['actual_final_C']=max(row['actual_final_C'] or 0,int(d['actual_C']))
+        if record_path and src.get('sha256'): row['source_files'].add((record_path,src['sha256']))
+        candidates=[]
+        if record_path:
+            rp=Path(record_path)
+            for parent in list(rp.parents)[:7]:
+                for name in ('cell.json','row.json','resources.json','resource-peaks.json'):
+                    q=parent/name
+                    if q.is_file(): candidates.append(q)
+        for q in candidates:
+            cached=resource_file_cache.get(str(q))
+            if cached is None:
+                try: data=jread(q)
+                except Exception: continue
+                digest=sha(q)
+                geo=data.get('geometry',{}) if isinstance(data.get('geometry',{}),dict) else {}
+                cached={'sha256':digest,'L':geo.get('L_tokens',data.get('L_tokens',data.get('context_tokens'))),'H':geo.get('H_tokens',data.get('H_tokens')),'measurements':extract_resource_measurements(data)}
+                resource_file_cache[str(q)]=cached
+            digest=cached['sha256']; source_hashes[str(q)]={'sha256':digest}; row['source_files'].add((str(q),digest))
+            if row['configured_L_tokens'] is None:
+                row['configured_L_tokens']=cached.get('L')
+            if row['H_reference_tokens'] is None:
+                row['H_reference_tokens']=cached.get('H')
+            for metric in cached['measurements']:
+                scope=row['measurement_scopes'][metric['scope']]
+                values=scope.setdefault((metric['metric'],metric['unit']),[])
+                values.append(metric['value'])
+                row['resource_source_files'].add((str(q),digest))
+        if record_path:
+            # Read adjacent run configuration only for L/H geometry; never copy argv/env.
+            rp=Path(record_path)
+            for parent in list(rp.parents)[:6]:
+                q=parent/'run-config.json'
+                if not q.is_file(): continue
+                try: cfg=jread(q)
+                except Exception: break
+                digest=sha(q); source_hashes[str(q)]={'sha256':digest}; row['source_files'].add((str(q),digest))
+                base=cfg.get('base',{}) if isinstance(cfg.get('base',{}),dict) else {}
+                geo=cfg.get('geometry',{}) if isinstance(cfg.get('geometry',{}),dict) else {}
+                if row['configured_L_tokens'] is None:
+                    row['configured_L_tokens']=geo.get('L_tokens',base.get('context_tokens',cfg.get('context_tokens')))
+                break
+    # ACO run summaries can hold memory peaks even when a neighboring cell receipt does not.
+    for run in aco_report.get('runs',[]):
+        family=f"current-aco-mtp-{'on' if run.get('mtp')=='on' else 'off'}"
+        path=run.get('row_path') or str(run.get('source_root') or '')
+        series=resource_series_id(path,family)
+        key=(family,series)
+        geo=run.get('geometry',{}) if isinstance(run.get('geometry',{}),dict) else {}
+        row=grouped.setdefault(key,{'family':family,'series_id':series,'configured_L_tokens':geo.get('L_tokens'),'H_reference_tokens':geo.get('H_tokens',65536),'actual_final_C':run.get('actual_final_C'),'series_status':run.get('status','ACO source report'),'measurement_scopes':defaultdict(dict),'source_files':set(),'resource_source_files':set()})
+        if row.get('configured_L_tokens') is None: row['configured_L_tokens']=geo.get('L_tokens')
+        if row.get('H_reference_tokens') is None: row['H_reference_tokens']=geo.get('H_tokens',65536)
+        if row.get('actual_final_C') is None and run.get('actual_final_C') is not None: row['actual_final_C']=run['actual_final_C']
+        if run.get('row_path'):
+            rp=run['row_path']; sh=run.get('row_sha256') or source_hashes.get(rp,{}).get('sha256')
+            if sh: row['source_files'].add((rp,sh))
+        run_metrics=extract_resource_measurements(run)
+        cellrows=run.get('cells',{})
+        if isinstance(cellrows,dict):
+            for cellrow in cellrows.values():
+                run_metrics.extend(extract_resource_measurements(cellrow))
+        for metric in run_metrics:
+            vals=row['measurement_scopes'][metric['scope']].setdefault((metric['metric'],metric['unit']),[]); vals.append(metric['value'])
+        if run_metrics and run.get('row_path'):
+            sh=run.get('row_sha256') or source_hashes.get(run['row_path'],{}).get('sha256')
+            if sh: row['resource_source_files'].add((run['row_path'],sh))
+        elif run_metrics:
+            for report_path,meta in source_hashes.items():
+                if Path(report_path).name=='ACO_FULL_CURVES_20261104.json':
+                    row['resource_source_files'].add((report_path,meta.get('sha256')))
+    result=[]
+    for row in grouped.values():
+        measurements=[]
+        for scope,metrics in row['measurement_scopes'].items():
+            for (metric,unit),samples in metrics.items():
+                measurements.extend({'scope':scope,'metric':metric,'unit':unit,'value':v} for v in samples)
+        scopes=summarize_resource_measurements(measurements)
+        row['measurement_scopes']=scopes or 'No resource telemetry found in retained source files'
+        sources=row['resource_source_files'] or set(sorted(row['source_files'])[:2])
+        row['source_files']=[{'path':p,'sha256':h} for p,h in sorted(sources)]
+        row.pop('resource_source_files',None)
+        result.append(row)
+    # Recorded plan limits/failures are explicit outcomes, not missing measurements.
+    known=plan.get('known_capacity_result_reused')
+    if isinstance(known,dict):
+        path=known.get('receipt_path'); sh=sha(path) if path and Path(path).is_file() else None
+        if path and sh: source_hashes[path]={'sha256':sh}
+        receipt=retained_resource_receipt(path,source_hashes)
+        result.append({'family':known.get('family'),'series_id':'known capacity result','configured_L_tokens':known.get('allocation_tokens',receipt['L']),'H_reference_tokens':receipt['H'],'actual_final_C':receipt['actual_C'],'series_status':f"known {known.get('status')} (not a missing mandatory decode cell)",'measurement_scopes':summarize_resource_measurements(receipt['measurements']) or 'No resource telemetry found in retained failure receipt','source_files':receipt['source_files']})
+    limit=plan.get('master_gpu_131072_runtime_limit')
+    if isinstance(limit,dict):
+        path=limit.get('path'); sh=sha(path) if path and Path(path).is_file() else None
+        if path and sh: source_hashes[path]={'sha256':sh}
+        receipt=retained_resource_receipt(path,source_hashes)
+        result.append({'family':'master-gpu-mtp-off','series_id':'known runtime-limit result','configured_L_tokens':131072,'H_reference_tokens':receipt['H'],'actual_final_C':receipt['actual_C'],'series_status':f"known {limit.get('status')}; not classified as allocation OOM",'measurement_scopes':summarize_resource_measurements(receipt['measurements']) or 'No resource telemetry found in retained failure receipt','source_files':receipt['source_files']})
+    for item in plan.get('quarantined_series',[]):
+        if not isinstance(item,dict): continue
+        receipt=retained_resource_receipt(item.get('path'),source_hashes)
+        result.append({'family':item.get('family'),'series_id':item.get('path'),'configured_L_tokens':receipt['L'],'H_reference_tokens':receipt['H'],'actual_final_C':receipt['actual_C'],'series_status':'quarantined; excluded from primary comparison','measurement_scopes':summarize_resource_measurements(receipt['measurements']) or item.get('reason'),'source_files':receipt['source_files']})
+    return result
+
+
 def prefill_cohort_summaries(rows, plan, aco_report):
     groups=defaultdict(list)
     for r in rows: groups[(r['family'],prefill_series_id(r),r.get('protocol','unknown'))].append(r)
@@ -868,6 +1059,56 @@ def prefill_cohort_summaries(rows, plan, aco_report):
     return result
 
 
+def prefill_checkpoint_summaries(rows):
+    """Interval-weight each complete fill checkpoint over every recorded append."""
+    groups=defaultdict(list)
+    for r in rows:
+        if not r.get('chunk_map_sha256'): continue
+        if r.get('nominal_target_C') is None: continue
+        groups[(r['family'],prefill_series_id(r),r.get('protocol','unknown'),r.get('chunk_map_sha256'),int(r['nominal_target_C']))].append(r)
+    result=[]
+    for (family,series,protocol,chunk_map,target),xs in sorted(groups.items(),key=lambda x:(x[0][0],x[0][1],x[0][4])):
+        def validpair(r,t,s): return finite_pos(r.get(t)) and finite_pos(r.get(s))
+        b=[r for r in xs if validpair(r,'backend_tokens','backend_prompt_seconds')]
+        n=[r for r in xs if validpair(r,'net_new_tokens','backend_prompt_seconds')]
+        w=[r for r in xs if validpair(r,'net_new_tokens','http_wall_seconds')]
+        bt=sum(float(r['backend_tokens']) for r in b); bs=sum(float(r['backend_prompt_seconds']) for r in b)
+        nt=sum(float(r['net_new_tokens']) for r in n); ns=sum(float(r['backend_prompt_seconds']) for r in n)
+        wt=sum(float(r['net_new_tokens']) for r in w); ws=sum(float(r['http_wall_seconds']) for r in w)
+        starts=[int(r['actual_C'])-int(r['net_new_tokens']) for r in xs if r.get('actual_C') is not None and finite_nonnegative(r.get('net_new_tokens'))]
+        sources=sorted({r.get('source',{}).get('schedule_path') or r.get('source',{}).get('report') or r.get('source',{}).get('path') or '' for r in xs})
+        result.append({"family":family,"series_id":series,"protocol":protocol,"nominal_target_C":target,"actual_C_start":min(starts) if starts else None,"actual_C":max(int(r['actual_C']) for r in xs if r.get('actual_C') is not None) if any(r.get('actual_C') is not None for r in xs) else None,"chunk_map_sha256":chunk_map,"cohort":"mapped chunk-map","append_groups":len(xs),"backend_tokens":bt if b else None,"backend_seconds":bs if b else None,"backend_tok_s":bt/bs if b and bs else None,"backend_eligible_groups":len(b),"net_new_tokens":nt if n else None,"net_new_backend_seconds":ns if n else None,"net_new_tok_s":nt/ns if n and ns else None,"net_new_eligible_groups":len(n),"http_wall_seconds":ws if w else None,"http_wall_tok_s":wt/ws if w and ws else None,"http_wall_eligible_groups":len(w),"source_files":sources})
+    return result
+
+
+def write_prefill_checkpoint_chart(out, rows, metric, label):
+    """Primary map-matched ingest comparison, weighted over all chunks to each C."""
+    plt = plotting_pyplot()
+    from matplotlib.lines import Line2D
+    data=[r for r in rows if r.get('chunk_map_sha256') and finite_pos(r.get(metric)) and r.get('actual_C') is not None]
+    if not data: return None
+    palette=plt.get_cmap('tab10'); family_index={family:i for i,family in enumerate(FAMILIES)}
+    fig,ax=plt.subplots(figsize=(12,7))
+    family_index_map={family:i for i,family in enumerate(FAMILIES)}
+    for family in sorted({r['family'] for r in data},key=lambda f:family_index_map.get(f,99)):
+        pts=[r for r in data if r['family']==family]
+        color=palette(family_index_map.get(family,0)%10)
+        ax.scatter([r['actual_C'] for r in pts],[r[metric] for r in pts],marker='o',s=28,color=color,label=family)
+    ax.axvline(65536,color='#555555',linestyle='--',linewidth=1.2)
+    ax.set_xlabel('Actual occupied context C (tokens)'); ax.set_ylabel(label); ax.grid(True,alpha=.25)
+    ax.ticklabel_format(axis='x',style='plain',useOffset=False)
+    ax.set_title(f'Mapped-fill interval rate by checkpoint · {label}\nNew input since the previous checkpoint; observed points only; tails included')
+    from matplotlib.lines import Line2D
+    families=sorted({r['family'] for r in data},key=lambda f:family_index_map.get(f,99))
+    handles=[Line2D([0],[0],color=palette(family_index_map[f]%10),marker='o',linestyle='None',markersize=4,label=f) for f in families]
+    handles.append(Line2D([0],[0],color='#555555',linestyle='--',label='ACO H = 65,536 tokens'))
+    ax.legend(handles=handles,frameon=False,ncol=2,fontsize='small',loc='upper left')
+    fig.tight_layout()
+    base=out/f'prefill-{metric}-mapped-checkpoints'
+    fig.savefig(base.with_suffix('.png'),dpi=180,bbox_inches='tight'); fig.savefig(base.with_suffix('.svg'),bbox_inches='tight'); plt.close(fig)
+    return str(base.with_suffix('.svg'))
+
+
 def matched_decode_comparisons(celllist):
     idx={(d['family'],d['nominal_target_C'],d['reasoning_mode'],d['prompt']):d for d in celllist}
     result=[]
@@ -884,7 +1125,7 @@ def matched_decode_comparisons(celllist):
     return result
 
 
-def write_tables_appendix(path, celllist, prefill, cohorts, aco_report, matched):
+def write_tables_appendix(path, celllist, prefill, cohorts, checkpoint_ingest, memory_rows, aco_report, matched):
     lines=["# Comparison result tables — 2026-11-04","","This appendix lists each validated cell as min / median / max across three measured repeats. Nominal target C is the requested checkpoint; actual C is the observed occupied context. Decode and MTP acceptance are separate tables. MTP-off acceptance is explicitly N/A.","","## Decode and MTP acceptance by variant","","Source paths and SHA-256 values are retained in the corresponding JSON/CSV rows; source references below point to the measurement report or raw record set.",""]
     for family in FAMILIES:
         rows=sorted((d for d in celllist if d['family']==family),key=lambda d:(d['nominal_target_C'],MODES.index(d['reasoning_mode']),PROMPTS.index(d['prompt'])))
@@ -894,7 +1135,7 @@ def write_tables_appendix(path, celllist, prefill, cohorts, aco_report, matched)
             lines.append(f"| {d['nominal_target_C']} | {d['actual_C']} | {d['reasoning_mode']} | {d['prompt']} | {v['min']:.2f} / {v['median']:.2f} / {v['max']:.2f} | `{src}` |")
         lines += ["","#### MTP acceptance (%)","","| Nominal target C | Actual C | Reasoning | Prompt | Min / median / max | Source |","|---:|---:|---|---|---:|---|"]
         for d in rows:
-            v=d.get('mtp_acceptance_percent'); val="N/A (MTP off)" if not d['mtp'] else (f"{v['min']:.2f} / {v['median']:.2f} / {v['max']:.2f}" if v else "N/A (not measured)")
+            v=d.get('mtp_acceptance_percent'); val="N/A (MTP off)" if d['mtp'] == 'off' else (f"{v['min']:.2f} / {v['median']:.2f} / {v['max']:.2f}" if v else "N/A (not measured)")
             lines.append(f"| {d['nominal_target_C']} | {d['actual_C']} | {d['reasoning_mode']} | {d['prompt']} | {val} | `{source_reference(d)}` |")
         lines.append("")
     lines += ["## Exact nominal-C ACO/control comparisons","","Decode median delta is `(ACO / control - 1) × 100` for the same nominal C, MTP state, reasoning mode, and prompt. Actual C and source refs are shown for both cells. No interpolation is used; differing targets such as 61440 and 62464 are not paired.","","| MTP | Nominal C | Mode | Prompt | ACO family (actual C) | ACO median | Control family (actual C) | Control median | Delta % | ACO source | Control source |","|---|---:|---|---|---|---:|---|---:|---:|---|---|"]
@@ -902,7 +1143,11 @@ def write_tables_appendix(path, celllist, prefill, cohorts, aco_report, matched)
         for x in matched:
             lines.append(f"| {x['mtp']} | {x['nominal_target_C']} | {x['mode']} | {x['prompt']} | {x['aco_family']} ({x['aco_actual_C']}) | {x['aco_median_tok_s']:.2f} | {x['control_family']} ({x['control_actual_C']}) | {x['control_median_tok_s']:.2f} | {x['percent_delta_aco_over_control']:+.2f} | `{source_reference({'source':x['aco_source']})}` | `{source_reference({'source':x['control_source']})}` |")
     else: lines.append("| N/A | N/A | N/A | N/A | No exact nominal-C/mode/prompt matches are available | N/A | N/A | N/A | N/A | N/A | N/A |")
-    lines += ["","## Shared context-chunking / bulk-ingest groups","","These rows are context-fill append measurements, not question-prefill measurements. Current ACO uses one persistent-map fill shared across prompts and reasoning modes; historical fill cohorts remain source/protocol-labeled, including per-mode schedules where applicable. Backend, net-new, and HTTP-wall rates are separate; no rate is repeated as a per-prompt value. N/A means that the corresponding timer or token count is not recorded/validated.","","| Family | Protocol cohort | Nominal target C | Actual append C | Append | Chunk | Backend tok/s | Net-new tok/s | HTTP-wall tok/s | Source |","|---|---|---:|---:|---:|---|---:|---:|---:|---|"]
+    lines += ["","## Mapped-fill interval rates by checkpoint","","Each checkpoint rate sums valid append chunks carrying new input since the previous checkpoint, including a final checkpoint tail when present. The actual-C interval start is estimated as the minimum `(actual C after append − net-new tokens)` across available groups; the end is the largest observed actual C. Rates divide the interval's summed tokens by summed matching seconds. They are not cumulative-from-zero averages or the rate of the final small tail. Historical/unmapped rates remain available in append-level diagnostics and weighted cohort tables.","","| Family | Fill series | Nominal target C | Actual C interval (start → end) | Append groups | Backend tok/s | Net-new tok/s | HTTP-wall tok/s | Chunk map | Sources |","|---|---|---:|---:|---:|---:|---:|---:|---|---|"]
+    for r in checkpoint_ingest:
+        fmt=lambda x:f"{float(x):.2f}" if finite_pos(x) else "N/A"
+        lines.append(f"| {r['family']} | `{r['series_id']}` | {r['nominal_target_C']} | {r.get('actual_C_start','N/A')} → {r.get('actual_C','N/A')} | {r['append_groups']} | {fmt(r.get('backend_tok_s'))} | {fmt(r.get('net_new_tok_s'))} | {fmt(r.get('http_wall_tok_s'))} | `{r.get('chunk_map_sha256')}` | `{'; '.join(r.get('source_files',[]))}` |")
+    lines += ["","## Shared context-chunking / bulk-ingest append diagnostics","","These rows are context-fill append measurements, not question-prefill measurements. Current ACO uses one persistent-map fill shared across prompts and reasoning modes; historical fill cohorts remain source/protocol-labeled, including per-mode schedules where applicable. Backend, net-new, and HTTP-wall rates are separate; no rate is repeated as a per-prompt value. N/A means that the corresponding timer or token count is not recorded/validated.","","| Family | Protocol cohort | Nominal target C | Actual append C | Append | Chunk | Backend tok/s | Net-new tok/s | HTTP-wall tok/s | Source |","|---|---|---:|---:|---:|---|---:|---:|---:|---|"]
     for r in sorted(prefill,key=lambda x:(x['family'],str(x.get('protocol')),x.get('nominal_target_C') or -1,x.get('actual_C') or -1,x.get('append_index') or -1)):
         fmt=lambda x:f"{float(x):.2f}" if finite_pos(x) else "N/A"
         src=r.get('source',{}); paths=[]
@@ -929,6 +1174,14 @@ def write_tables_appendix(path, celllist, prefill, cohorts, aco_report, matched)
     for c in cohorts:
         fmt=lambda x:f"{float(x):.2f}" if finite_pos(x) else "N/A"
         lines.append(f"| {c['family']} | `{c['series_id']}` | {c['protocol']} | {c['status']} | {c['append_groups']} | {', '.join(map(str,c['observed_nominal_targets_C'])) or 'N/A'} | {c.get('final_actual_C','N/A')} | {c.get('total_net_new_tokens','N/A')} | `{', '.join(c.get('chunk_map_sha256') or []) or 'N/A'}` | {fmt(c.get('aggregate_backend_tok_s'))} | {fmt(c.get('aggregate_net_new_tok_s'))} | {fmt(c.get('aggregate_http_wall_tok_s'))} |")
+    lines += ["","## Retained memory observations and known resource outcomes","","This table reuses resource peaks/captures already present in cell receipts, row metadata, and the ACO report. It does not infer memory at each C when the source is only cohort-level. GPU-global used/free values are separate from process VRAM; server VmHWM/VmRSS and VmSwap are separate from whole-host MemAvailable. VmSwap is reported as observed and does not establish which allocations were swapped or page-in I/O. Known startup failures and quarantined target-only MTP restore cohorts are explicit statuses; they are not presented as general master-default failures.","","| Family / cohort | Configured L | H reference | Actual final C | Series status | Retained memory/resource metrics | Source path @ SHA-256 |","|---|---:|---:|---:|---|---|---|"]
+    for r in memory_rows:
+        scopes=r.get('measurement_scopes')
+        if isinstance(scopes,list):
+            metrics='; '.join(f"{s['scope']}: "+', '.join(f"{m['metric']} peak {m['peak']} {m['unit']} (n={m['samples']})" for m in s['measurements']) for s in scopes)
+        else: metrics=str(scopes or 'No resource telemetry found')
+        sources='; '.join(f"{x.get('path')}@{x.get('sha256') or 'SHA unavailable'}" for x in r.get('source_files',[]))
+        lines.append(f"| {r.get('family','N/A')} | {r.get('configured_L_tokens','N/A')} | {r.get('H_reference_tokens','N/A')} | {r.get('actual_final_C','N/A')} | {r.get('series_status','N/A')} | {metrics} | `{sources}` |")
     weighted=aco_report.get('prefill_weighted_by_mtp',{})
     lines += ["","### Current ACO weighted ingest summary","","One persistent-map context fill per MTP variant is shared across all prompts and reasoning modes. Rates are token totals divided by their corresponding summed durations.","","| MTP | Append groups | Backend tokens | Net-new tokens | Backend seconds | HTTP-wall seconds | Backend tok/s | Net-new tok/s | HTTP-wall tok/s |","|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for mtp in ('on','off'):
@@ -1032,7 +1285,16 @@ def main():
                 if key.endswith('_sha256'): nested.pop(key,None)
     report['prefill_comparison']={"definition":"backend=backend prompt tokens/backend prompt seconds; net-new=net-new tokens/backend prompt seconds; HTTP wall=net-new tokens/HTTP wall seconds","protocol_policy":"Historical fresh-prefill/replay, current ACO persistent-map, and current-plan append groups remain separately labeled; rates are not pooled across protocols. Source paths resolve to SHA-256 entries in source_files.","family_coverage":prefill_coverage,"rows":len(prefill),"append_groups":prefill}
     bulk_cohorts=prefill_cohort_summaries(prefill,plan,aco)
+    checkpoint_ingest=prefill_checkpoint_summaries(prefill)
+    memory_rows=collect_memory_and_failure_rows(celllist,plan,aco,hashes)
+    checkpoint_csv=out/'comparison-prefill-mapped-checkpoints-20261104.csv'
+    with checkpoint_csv.open('w',newline='') as f:
+        fields=['family','series_id','protocol','nominal_target_C','actual_C_start','actual_C','append_groups','backend_tokens','backend_seconds','backend_tok_s','net_new_tokens','net_new_backend_seconds','net_new_tok_s','http_wall_seconds','http_wall_tok_s','chunk_map_sha256','source_files']
+        w=csv.DictWriter(f,fieldnames=fields);w.writeheader()
+        for r in checkpoint_ingest: w.writerow({k:(json.dumps(r.get(k),sort_keys=True) if k=='source_files' else r.get(k)) for k in fields})
     report['bulk_ingest_cohorts']={"aggregation":"sum tokens / sum matching durations, grouped by independent fill series/cohort","cohorts":bulk_cohorts}
+    report['mapped_prefill_interval_by_checkpoint']={"aggregation":"within each family/source series/requested target, sum all append tokens / sum matching durations; includes tails; mapped chunk-map groups only","rows":checkpoint_ingest}
+    report['memory_and_failure_summary']={"scope":"existing retained cell/row/ACO resource observations and declared plan outcomes only; no new telemetry","rows":memory_rows,"scope_notes":["GPU-global used/free and process VRAM are distinct scopes.","Server VmHWM/VmRSS/VmSwap and whole-host MemAvailable are distinct scopes.","VmSwap does not identify swapped allocations or page-in I/O.","A series-level resource peak is not assigned to an individual context checkpoint."]}
     prefill_csv=out/'comparison-prefill-append-groups-20261104.csv'
     with prefill_csv.open('w',newline='') as f:
         fields=['family','protocol','mtp','nominal_target_C','actual_C','append_index','chunk_kind','backend_tokens','net_new_tokens','backend_prompt_seconds','http_wall_seconds','backend_tok_s','net_new_tok_s','http_wall_tok_s','source']
@@ -1040,6 +1302,7 @@ def main():
         for r in prefill: w.writerow({k:(json.dumps(r.get(k),sort_keys=True) if k=='source' else r.get(k)) for k in fields})
     if not DATA_ONLY:
         for metric,label in [("backend_tok_s","backend prompt tokens / backend prompt seconds"),("net_new_tok_s","net-new tokens / backend prompt seconds"),("http_wall_tok_s","net-new tokens / HTTP wall seconds")]:
+            write_prefill_checkpoint_chart(out,checkpoint_ingest,metric,label)
             write_prefill_chart(out,prefill,metric,label)
     audit_path=Path('/srv/ai/paged-kv/results/comparison-outlier-audit-20261104.json')
     if audit_path.exists():
@@ -1047,7 +1310,7 @@ def main():
     matched=matched_decode_comparisons(celllist)
     report['matched_nominal_context_decode_comparisons']={"formula":"100 * (ACO median / control median - 1)","matching":"same nominal target C, MTP state, reasoning mode, and prompt; no interpolation","rows":matched,"matched_pair_count":len(matched)}
     report['tables_appendix_path']=str(out/'comparison-tables-20261104.md')
-    write_tables_appendix(out/'comparison-tables-20261104.md',celllist,prefill,bulk_cohorts,aco,matched)
+    write_tables_appendix(out/'comparison-tables-20261104.md',celllist,prefill,bulk_cohorts,checkpoint_ingest,memory_rows,aco,matched)
     (out/'comparison-final-20261104.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     md=["# Comparison report digest — 2026-11-04","",f"Validated complete cells: **{len(celllist)}**; measured repeats: **{3*len(celllist)}**.",f"Queue status at generation: **{report['queue_status'] or 'not available'}**. This is not a completeness claim while the completion queue is running or awaiting assessment.","","Each plotted point is an observed actual context occupancy C, with the min/median/max of three valid measured HTTP 200 complete-stream repetitions. Nominal requested C and observed actual C are both retained; coverage matching uses nominal C, plots use actual C. No interpolation or missing checkpoint substitution is used. If multiple sources cover the same family/nominal-C/mode/prompt, the complete cell from the later source replaces the prior cell as a whole.","","## Family coverage","","| Family | Complete cells | Nominal target C | Observed actual C | Missing required nominal C |","|---|---:|---|---|---|"]
     for f in FAMILIES:
@@ -1060,11 +1323,11 @@ def main():
     for e in empty_context_controls:
         md.append(f"| {e['family']} | {e.get('configured_L_tokens','—')} | {e.get('label','empty-prefix baseline')} | `{e.get('report_path')}` |")
     md += ["","## Charts","","Charts are separated by placement group and reasoning mode. Each has three prompt panels; bars show the full three-repeat min-to-max range around the median. GPU and CPU target families are separated; current ACO variants are included in both comparison groupings as the shared candidate.",""]
-    md += ["Full per-variant decode and acceptance tables, exact nominal-C ACO/control median deltas, and shared context-chunking append tables are in the [comparison tables appendix](comparison-tables-20261104.md). The main tables retain actual C separately from the requested nominal target.",""]
+    md += ["Full per-variant decode and acceptance tables, exact nominal-C ACO/control median deltas, shared context-chunking tables, and retained memory/resource outcomes are in the [comparison tables appendix](comparison-tables-20261104.md). The main tables retain actual C separately from the requested nominal target.",""]
     if DATA_ONLY: md.append("Charts were intentionally skipped in this data-only readiness export.")
     else:
         for p in sorted(out.glob('*.svg')): md.append(f"- [{p.name}]({p.name})")
-    md += ["","## Prefill","","Backend prompt rate, net-new backend rate, and net-new HTTP wall rate are charted separately. Mapped chunk-map regular bulk groups and checkpoint tails have separate charts; unmapped historical variable append groups are shown in their own chart. Family colors match the decode charts, while markers identify append kind. Protocol values are retained per group in JSON and the companion CSV; MTP acceptance scope is not used as a prefill protocol. No prefill rows are removed from the data exports.","","## Provenance and caveats","","Full sanitized cell data, source paths, SHA-256 digests, family identities, queue state, and review flags are in `comparison-final-20261104.json`; decode cells are in `comparison-cells-20261104.csv`, prefill groups in `comparison-prefill-append-groups-20261104.csv`. Raw request/output payloads remain external and are not copied.","","Repeat-spread and neighboring-point flags are review cues only; they do not automatically invalidate otherwise complete evidence. Rates are observations, not causal claims or significance tests. Current ACO MTP-on includes a documented VmSwap peak; the report does not certify RAM-only residency or page-in I/O.",""]
+    md += ["","## Prefill","","Mapped-fill interval charts sum chunks containing new input since the previous checkpoint; they do not plot cumulative-from-zero averages. Per-checkpoint rates divide the interval's summed tokens by summed matching durations, including any checkpoint tail. Actual-C interval start and end are provided where derivable. Separate append-level diagnostics show mapped regular groups, mapped checkpoint tails, and unmapped historical variable groups. Family colors match the decode charts, and markers identify append kind. Protocol values remain in the JSON/CSV data; MTP acceptance scope is not treated as a prefill protocol. No prefill rows are removed from the data exports.","","## Provenance and caveats","","Full sanitized cell data, source paths, SHA-256 digests, family identities, queue state, and review flags are in `comparison-final-20261104.json`; decode cells are in `comparison-cells-20261104.csv`, append diagnostics in `comparison-prefill-append-groups-20261104.csv`, and mapped checkpoint ingest summaries in `comparison-prefill-mapped-checkpoints-20261104.csv`. Raw request/output payloads remain external and are not copied.","","Repeat-spread and neighboring-point flags are review cues only; they do not automatically invalidate otherwise complete evidence. Rates are observations, not causal claims or significance tests. Current ACO MTP-on includes a documented VmSwap peak; the report does not certify RAM-only residency or page-in I/O.",""]
     (out/'comparison-final-20261104.md').write_text('\n'.join(md))
     print(json.dumps({"out":str(out),"cells":len(celllist),"repeats":3*len(celllist),"queue_status":report['queue_status'],"families":{k:v['complete_cells'] for k,v in counts.items()},"files":sorted(p.name for p in out.iterdir())},indent=2))
 

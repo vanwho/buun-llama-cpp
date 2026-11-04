@@ -7,11 +7,11 @@ cells; never repeat whole families just to align old/new checkpoint coordinates.
 ## Active run
 
 - Branch: `plan/attention-aware-kv-paging`; newest tool fix `7e360cf9b`.
-- Frozen plan: `COMPARISON_COMPLETION_20261104.json`, revision 5, pending launch.
+- Frozen plan: `COMPARISON_COMPLETION_20261104.json`, revision 5, running.
 - Output: `/srv/ai/paged-kv/results/comparison-completion-20261104-r5`.
 - Luna High runtime owner: `/root/comparison_runtime_prep`. It started the
   detached queue with `nohup setsid`. One model, one lifecycle lock.
-- R4 was stopped safely; no test-owned model/queue remains. R5 must never clone
+- R4 was stopped safely. R5 must never clone
   target-only slot files before an MTP-on question. It keeps paired resident
   checkpoints, unchanged model/binaries/quants/B/U/threads, and the same map.
 - The R4 fork CPU-Q4/MTP-off series completed all seven points through C256000.
@@ -22,7 +22,18 @@ cells; never repeat whole families just to align old/new checkpoint coordinates.
   raw observations remain external as diagnostic data; do not republish the
   R4 8.136 tok/s value as the normal full-prefix MTP control.
 - R5 order: fork CPU MTP-on, master CPU MTP-on, master CPU MTP-off, fork GPU
-  MTP-off conditional endpoint, master GPU MTP-off checkpoint-free recovery.
+  MTP-off conditional endpoint, master GPU MTP-off checkpoint-free recovery,
+  then two GPU-MTP-on ingest-only curves (no existing decode cells repeated).
+- R5 fork resident MTP-on crashed at C12288 after 31 passing records; master
+  resident MTP-on emitted invalid target-argmax results already at C6144.
+  Both are recorded as findings, not complete; primary MTP gaps remain.
+- The user rejected benchmark-owned snapshots: fill context and run tests.
+  Remove benchmark disk save/restore paths from the replacement campaign.
+  A narrow clarification distinguishes normal server prefix reuse at a held
+  frontier from cumulative append-only questions, whose answers grow C.
+  The runtime owner is holding at the next safe completed stage; preserve all
+  completed cells and never kill an in-flight generation to change protocol.
+- R5 master CPU/MTP-off is active; its C6144 checkpoint passed all 36 requests.
 - The queue now pauses for assessment before a whole-family rerun; use continue
   for evidenced statistical causes, full-curve for an unexplained anomaly.
 - B1024/U256, t16/tb16, GPU model weights, target Turbo4 on GPU and Q4_0 on CPU,
@@ -43,8 +54,9 @@ Next narrowly justified master recovery: disable optional checkpoint creation
 and prompt-cache retention with `--ctx-checkpoints 0 --cache-ram 0
 --no-cache-idle-slots`, retain full legacy base-state restore between independent
 questions, and leave CUDA graphs, FA, quants, B/U, threads, model and binary
-unchanged. Do not mutate the active queue's hashed driver files; prepare this
-after the current queue is finished or deliberately paused safely.
+unchanged. This profile is already predeclared for R5 step 5. Do not mutate active
+hashed driver files. The no-disk-snapshot replacement supersedes this explicit
+file-restore recovery; preserve its findings as diagnostics.
 
 Source justification in pristine worktree
 `/srv/ai/paged-kv/worktrees/master106-d2407c33f959`:
@@ -89,13 +101,19 @@ Both supervisor issues were fixed for R5:
   cells. Small prefill dips at C62465 and C196608 are 1009/993-token checkpoint
   tails, not comparable 32K bulk groups; label them.
 - Master CPU/MTP-on C28672/off/prompt3 has a 41% repeat spread correlated with
-  MTP acceptance 63% versus 30%. R4 explicitly rechecks this one historical cell.
+  MTP acceptance 63% versus 30%. A normal-prefix recheck remains required for this historical cell.
 - Fork CPU MTP-on/off C196608/off/prompt3 previously produced only two tokens;
-  each variant has a targeted four-request recheck already in R4.
-- Report generator (new, not yet committed):
+  the MTP-off cell was repaired in R4; MTP-on remains a measurement gap.
+- Report generator:
   `report-comparisons-20261104.py`, owned by `/root/aco_docs_refresh_20261104`.
   Draft outputs: `/srv/ai/paged-kv/results/comparison-final-20261104`.
   Do not render plots/install plotting dependencies during CPU timing runs.
+- Plotting environment is ready: `/srv/ai/paged-kv/venvs/comparison-report`,
+  Matplotlib 3.11.2. The exporter forces Agg for headless artifacts; limit
+  OMP/OpenBLAS/MKL threads to 1. A quiet preview exists at
+  `/srv/ai/paged-kv/results/comparison-final-20261104-preview-r5`, 732 cells,
+  with CPU-on quarantines excluded. Its prefill plots preceded later layout
+  and interval-weighting fixes and are not final publication assets.
 - Expected historical cells before fresh additions: 731 total across ten
   families; GPU MTP-on master=72, fork=60. Earlier 12/15 counts were a parser
   bug that lost modes. CPU legacy null mode is verified off in saved requests.
