@@ -1,5 +1,13 @@
 # Release benchmark results
 
+**Historical release-evidence cohort.** This report preserves the earlier
+fixed-candidate protocol and its measurements for provenance. Its 256K fill
+curve includes cached-prefix replay after the cache count plateaued; its late
+backend prompt rate is not a unique-source ingestion rate or the current ACO
+speed result. The completed 2026-11-04 full curves supersede it for current ACO
+summary: [full run](../../../../.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md),
+[cell-wise historical bests](../../../../.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md).
+
 This is the fixed-candidate cohort. It supersedes neither nor mixes with the
 archived pre-fix diagnostic cohort. The small placement comparison and focused
 natural recall completed; the 256K fill reached its planned C=258,048 frontier.

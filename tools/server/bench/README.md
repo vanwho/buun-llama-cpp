@@ -297,7 +297,41 @@ Do not start another model, silently adopt its geometry, or send a generation
 have zero drafts. Setup is established by identity, health and allocator
 evidence; MTP acceptance comes from completed measured responses.
 
-## Frozen remaining performance matrix
+## Current completed ACO full-curve benchmark (2026-11-04)
+
+The completed campaign has two fresh persistent server variants, MTP on and
+off. Each variant ran the same target-context ladder with L=262,144,
+H=65,536, B/U=1024/256, GPU Turbo4 target KV, and one GPU. MTP-on also used
+GPU Turbo4 draft KV; MTP-off had no draft allocation. Three canonical
+prompts were measured at each checkpoint in reasoning off, low, medium, and
+xhigh; each prompt/mode cell had one 40-token warmup and three measured
+requests capped at 400 tokens. Each variant kept one process across the fill
+ladder; it did not refill/reset for individual prompts or reasoning modes.
+The run completed 11 checkpoints per variant (22 rows), 264/264 cells, 792
+measured requests, and 264 warmups. Configured targets were 6,144, 12,288,
+28,672, 62,464, 78,848, 88,064, 100,352, 130,048, 196,608, 256,000, and
+261,120. Actual occupancy is reported separately; the final target 261,120
+reached C=261,121 and left 1,023 tokens of reserve.
+
+Independent benchmark questions start from the same filled repository base.
+Restoring that base discards the preceding question/answer tail; it does not
+reload the model or re-prefill repository content. The benchmark-only shared-prefix
+template places the current reasoning-effort instruction immediately before the
+current question, so switching modes retains the base. This isolates benchmark
+questions; ordinary growing-conversation tests use the native model template.
+
+See the [full curves and protocol report](../../../.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md),
+[whole-cell best results](../../../.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md),
+and [ACO implementation guide](../../../docs/aco.md). MTP-on process `VmSwap`
+peaked at 530.4 MiB at target C=100,352, while MTP-off recorded zero across
+958 samples. These samples do not identify swapped allocations or swap-in I/O;
+MTP-on is not certified RAM-only.
+
+## Archived staged performance matrix v2 (2026-11-03)
+
+The following v2 manifest and sequencing notes are retained for provenance.
+They are not current run instructions; the 2026-11-04 campaign above is
+complete and reported in the linked full-curve report.
 
 The staged v2 plan is `/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/benchmarks/remaining-matrix.json`. Its fixed bundle is
 `/srv/ai/paged-kv/builds/aco-packed-repair-1d74e9a31/bin/llama-server` (source/build `1d74e9a315acaf0379eb2af1245202b820cff1e1`,
@@ -325,14 +359,13 @@ resumes final retests, freeze a new manifest/output root that explicitly records
 the source chunk map path and SHA-256. Historical manifests are readable but
 cannot silently append results using the new ingestion protocol.
 
-Each configuration keeps one freshly loaded server and adds only disjoint
-repository chunks. All selected prompts for one reasoning mode run before the
-next mode, using the same filled base. Native Qwen hybrid controls require the
-recorded checkpoint profile to rewind between independent questions. The model's
-original template puts low/xhigh effort instructions before all history; the
-benchmark-only template moves the identical system instruction directly before
-the final query so changing effort does not invalidate the filled KV prefix.
-The template hash and protocol difference from historical runs are recorded.
+The staged v2 manifest's shared-prefix mechanics were carried forward into the
+completed campaign: each configuration keeps one server and adds disjoint
+repository chunks. All prompts for one reasoning mode run before the next mode
+on the same filled base, restoring only the independent question/answer tail.
+The benchmark-only template places low/xhigh effort instructions immediately
+before the final query. The archived build, queue, and remaining-work status
+above are historical; this prefix-reuse mechanism remains applicable.
 
 The runner hash-checks binaries, adjacent libraries, model and benchmark template;
 enforces 1024/256, explicit 16-thread CPU settings and exclusive GPU use; and

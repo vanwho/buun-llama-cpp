@@ -6,6 +6,12 @@ operator's external results directory. Publish only the JSON and CSV produced
 by `export_public_results.py`; those files use an allowlist and omit local
 paths, command lines, request bodies, credentials, and raw responses.
 
+The fixed-candidate protocol and [RESULTS.md](RESULTS.md) describe the earlier
+release-evidence cohort and remain useful for reproducing that cohort. They
+are not the current ACO 256K speed summary. For the completed MTP-on/off
+full-curve campaign, use the [current full curves](../../../../.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md)
+and [cell-wise historical bests](../../../../.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md).
+
 ## Protocol
 
 Use the same cleaned upstream-integrated release binary for every placement.
@@ -49,6 +55,8 @@ preparation sits outside each generation's HTTP wall time. The long row uses
 canonical questions reuse it; their incremental question-token work is not
 bulk-prefill throughput.
 
+The following long-row procedure is retained for reproducing the historical
+release-evidence cohort; do not use it as the current ACO speed protocol.
 Then run one 256K logical allocation with 64K hot KV. Fill toward the
 approximately 256K target while preserving the append-by-append occupancy
 and prefill curve, targeting C=258,048 tokens or 260,000 only when the frozen
