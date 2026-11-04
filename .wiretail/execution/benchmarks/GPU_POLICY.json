@@ -37,5 +37,21 @@
     "no_decode_suite": true,
     "temporary_diagnostics": "removed",
     "next_action": "Full suite remains paused. All-hot replay is fixed; examine remaining beyond-H replay and large-Q zero-budget publication separately before final suite."
+  },
+  "authorized_early_routing_prefix": {
+    "status": "completed",
+    "runtime_commit": "6068d4a003c6ad0e117a4808097f34f0056e0e85",
+    "scope": "focused matched small quality/MTP/performance tests, then fresh prefill-only through 256K allocation",
+    "L": 262144,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "mtp": "GPU native MTP2, Turbo4 target/draft",
+    "group_tokens": 32768,
+    "final_occupied_tokens": 261121,
+    "prefix_state_bytes": 9805824,
+    "result": ".wiretail/execution/evidence/EARLY_ROUTING_PREFIX_20261104.md",
+    "no_full_decode_suite": true,
+    "next_action": "Full suite remains paused. Bulk spans use early-layer routing; short recall questions retain all-layer evidence. See current report for the bounded validation and approximation limits."
   }
 }

@@ -1,0 +1,750 @@
+{
+  "schema_version": 1,
+  "run": {
+    "run_dir": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z",
+    "status": "complete",
+    "started_local": "2026-11-04T01:54:37+01:00",
+    "finished_utc": "2026-11-04T01:02:12Z",
+    "source_equivalent_commit": "6068d4a003c6ad0e117a4808097f34f0056e0e85",
+    "source_note": "Build-06 source differs from Build-05 small-cell binary by cleanup-only allocation-guard placement; runtime path/config is unchanged.",
+    "candidate_server_sha256": "f0f44fdefb920245811908f9a75e96ec5fce782f962836e024bc59f10d837cd0",
+    "loaded_dsos": {
+      "libllama-server-impl.so": "059c83b3c166750090778857f10d48f67df94d76daf793e4040330b09e37f06a",
+      "libllama-common.so.0": "9b2a5c9840f943938f6dcb33be3345aa39ff144edba3dbd79c330fa1fa4a81cc",
+      "libmtmd.so.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+      "libllama.so.0": "a0558d38ce3ca7759cc48c3515ac3814f5e979542db3a85602838a03cf7b470b",
+      "libggml.so.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+      "libggml-base.so.0": "c4f457ff15345cdab963865d4a302a7e6760a7e06710b53e2a8f7fe77e1492de",
+      "libggml-cpu.so.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+      "libggml-cuda.so.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc"
+    },
+    "baseline_source_commit": "3dfcd0248d934a80a55bc21609f31d9295cfa8ab"
+  },
+  "config": {
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "source_worktree": "/srv/ai/paged-kv/worktrees/benchmark-source-a5a1110",
+    "source_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+    "map": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-32k-v1/map.json",
+    "map_sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f",
+    "map_chunk_tokens": 32768,
+    "context_tokens": 262144,
+    "hot_tokens": 65536,
+    "page_size": 256,
+    "hot_pages": 256,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "turbo4",
+    "draft_kv": "turbo4",
+    "native_mtp_max": 2,
+    "placement": "gpu",
+    "reasoning": "off",
+    "prefill_only": true,
+    "targets": [
+      6144,
+      12288,
+      28672,
+      62464,
+      78848,
+      88064,
+      100352,
+      130048,
+      196608,
+      256000,
+      261120
+    ],
+    "actual_last_occupancy": 261121,
+    "single_server_session": true,
+    "admitted_hot_pages": 256,
+    "hot_pages_evidence": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/cell/C261120/campaign/runtime-captures"
+  },
+  "small_cell_config": {
+    "context_tokens": 16384,
+    "small_targets": [
+      6144,
+      12288
+    ],
+    "hot_tokens": 8192,
+    "page_size": 256,
+    "hot_pages": 32,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "turbo4",
+    "draft_kv": "turbo4",
+    "native_mtp_max": 2,
+    "reasoning": "off"
+  },
+  "small_cell": {
+    "baseline_dir": "/srv/ai/paged-kv/results/baseline-c12288-16384-h8192-20261104T004154229129772Z",
+    "adaptive_candidate_build05_dir": "/srv/ai/paged-kv/results/candidate-c12288-16384-h8192-20261104T005053171183226Z",
+    "baseline": {
+      "6144": {
+        "actual_occupied_tokens": 6144,
+        "fill_new_tokens": 6144,
+        "fill_backend_tokens": 6144,
+        "fill_wall_seconds": 4.184,
+        "fill_prompt_seconds": 4.166,
+        "fill_net_wall_tok_s": 1468.5263335187142,
+        "filled_prefix_method": "resident_prefix_reuse"
+      },
+      "12288": {
+        "actual_occupied_tokens": 12288,
+        "fill_new_tokens": 6144,
+        "fill_backend_tokens": 12273,
+        "fill_wall_seconds": 8.166,
+        "fill_prompt_seconds": 8.144,
+        "fill_net_wall_tok_s": 752.3566288378864,
+        "filled_prefix_method": "resident_prefix_reuse"
+      },
+      "prompt1_400_C12288": {
+        "completion_tokens": 400,
+        "elapsed_seconds": 4.731,
+        "decode_tok_s": 101.469,
+        "backend_prefill_tok_s": 65.829,
+        "prompt_tokens": 12321,
+        "cached_prompt_tokens": 12291,
+        "mtp_accepted": 261,
+        "mtp_draft": 276,
+        "mtp_acceptance_percent": 94.57,
+        "answer_summary": "400-token merge_sorted_lists implementation."
+      },
+      "cold_recall_C12288": {
+        "completion_tokens": 293,
+        "elapsed_seconds": 3.834,
+        "decode_tok_s": 95.481,
+        "backend_prefill_tok_s": 143.718,
+        "prompt_tokens": 12349,
+        "cached_prompt_tokens": 12291,
+        "mtp_accepted": 185,
+        "mtp_draft": 214,
+        "mtp_acceptance_percent": 86.45,
+        "answer_excerpt": "To determine the percentage reduction in median KL-divergence for the 3-bit setting, we compare the `turbo3_tcq` (Trelli"
+      }
+    },
+    "adaptive_candidate": {
+      "6144": {
+        "actual_occupied_tokens": 6144,
+        "fill_new_tokens": 6144,
+        "fill_backend_tokens": 6144,
+        "fill_wall_seconds": 4.181,
+        "fill_prompt_seconds": 4.164,
+        "fill_net_wall_tok_s": 1469.4240124168543,
+        "filled_prefix_method": "resident_prefix_reuse"
+      },
+      "12288": {
+        "actual_occupied_tokens": 12288,
+        "fill_new_tokens": 6144,
+        "fill_backend_tokens": 6141,
+        "fill_wall_seconds": 3.998,
+        "fill_prompt_seconds": 3.978,
+        "fill_net_wall_tok_s": 1536.5841186210687,
+        "filled_prefix_method": "resident_prefix_reuse"
+      },
+      "prompt1_400_C12288": {
+        "completion_tokens": 400,
+        "elapsed_seconds": 4.693,
+        "decode_tok_s": 101.269,
+        "backend_prefill_tok_s": 69.996,
+        "prompt_tokens": 12321,
+        "cached_prompt_tokens": 12291,
+        "mtp_accepted": 259,
+        "mtp_draft": 278,
+        "mtp_acceptance_percent": 93.17,
+        "answer_summary": "400-token merge_sorted_lists implementation."
+      },
+      "cold_recall_C12288": {
+        "completion_tokens": 24,
+        "elapsed_seconds": 0.872,
+        "decode_tok_s": 81.041,
+        "backend_prefill_tok_s": 103.245,
+        "prompt_tokens": 12349,
+        "cached_prompt_tokens": 12291,
+        "mtp_accepted": 14,
+        "mtp_draft": 20,
+        "mtp_acceptance_percent": 70.0,
+        "answer_excerpt": "39.4% (0.00163 vs 0.00279)"
+      }
+    },
+    "progression_note": "First unrestricted proxy used prefix-only for all short queries and missed the known fact. Adaptive policy routes short \u2264B queries to all-layer selection; Build-05 recovered the fact (39.4% vs the source approximate 40%). Build-06 small-output runtime is cleanup-only from Build-05.",
+    "quality_fact": "~40% median KLD reduction; mapped source shows KLD 0.00163 vs 0.00279."
+  },
+  "full_run": {
+    "append_count": 15,
+    "completed_checkpoints": 11,
+    "failed_cases": 0,
+    "truncated_requests": 0,
+    "totals": {
+      "new_tokens": 261121,
+      "backend_tokens": 262102,
+      "backend_seconds": 339.982,
+      "wall_seconds": 341.681,
+      "net_tok_s_per_backend_second": 768.04,
+      "backend_tok_s_per_backend_second": 770.93,
+      "net_tok_s_per_wall_second": 764.22
+    },
+    "baseline": {
+      "dir": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k",
+      "new_tokens": 261121,
+      "backend_tokens": 459657,
+      "backend_seconds": 580.34,
+      "wall_seconds": 582.067,
+      "net_tok_s_per_backend_second": 449.94,
+      "backend_tok_s_per_backend_second": 792.05,
+      "net_tok_s_per_wall_second": 448.61
+    },
+    "milestones": [
+      {
+        "requested_checkpoint": 6144,
+        "actual_occupied_tokens": 6144,
+        "append_indices": [
+          0
+        ],
+        "new_tokens": 6144,
+        "backend_tokens": 6144,
+        "backend_seconds": 4.235005,
+        "wall_seconds": 4.252574,
+        "net_tokens_per_backend_second": 1450.766,
+        "backend_tokens_per_backend_second": 1450.766,
+        "net_tokens_per_wall_second": 1444.772
+      },
+      {
+        "requested_checkpoint": 12288,
+        "actual_occupied_tokens": 12288,
+        "append_indices": [
+          1
+        ],
+        "new_tokens": 6144,
+        "backend_tokens": 6144,
+        "backend_seconds": 5.110801,
+        "wall_seconds": 5.134384,
+        "net_tokens_per_backend_second": 1202.16,
+        "backend_tokens_per_backend_second": 1202.16,
+        "net_tokens_per_wall_second": 1196.638
+      },
+      {
+        "requested_checkpoint": 28672,
+        "actual_occupied_tokens": 28673,
+        "append_indices": [
+          2
+        ],
+        "new_tokens": 16385,
+        "backend_tokens": 16385,
+        "backend_seconds": 17.295312,
+        "wall_seconds": 17.330201,
+        "net_tokens_per_backend_second": 947.367,
+        "backend_tokens_per_backend_second": 947.367,
+        "net_tokens_per_wall_second": 945.459
+      },
+      {
+        "requested_checkpoint": 62464,
+        "actual_occupied_tokens": 62465,
+        "append_indices": [
+          3,
+          4
+        ],
+        "new_tokens": 33792,
+        "backend_tokens": 33792,
+        "backend_seconds": 55.501197,
+        "wall_seconds": 55.627791,
+        "net_tokens_per_backend_second": 608.852,
+        "backend_tokens_per_backend_second": 608.852,
+        "net_tokens_per_wall_second": 607.466
+      },
+      {
+        "requested_checkpoint": 78848,
+        "actual_occupied_tokens": 78849,
+        "append_indices": [
+          5
+        ],
+        "new_tokens": 16384,
+        "backend_tokens": 16384,
+        "backend_seconds": 18.464895,
+        "wall_seconds": 18.540721,
+        "net_tokens_per_backend_second": 887.305,
+        "backend_tokens_per_backend_second": 887.305,
+        "net_tokens_per_wall_second": 883.677
+      },
+      {
+        "requested_checkpoint": 88064,
+        "actual_occupied_tokens": 88065,
+        "append_indices": [
+          6
+        ],
+        "new_tokens": 9216,
+        "backend_tokens": 9216,
+        "backend_seconds": 11.325311,
+        "wall_seconds": 11.405964,
+        "net_tokens_per_backend_second": 813.752,
+        "backend_tokens_per_backend_second": 813.752,
+        "net_tokens_per_wall_second": 807.998
+      },
+      {
+        "requested_checkpoint": 100352,
+        "actual_occupied_tokens": 100352,
+        "append_indices": [
+          7
+        ],
+        "new_tokens": 12287,
+        "backend_tokens": 12287,
+        "backend_seconds": 14.886474,
+        "wall_seconds": 14.979215,
+        "net_tokens_per_backend_second": 825.38,
+        "backend_tokens_per_backend_second": 825.38,
+        "net_tokens_per_wall_second": 820.27
+      },
+      {
+        "requested_checkpoint": 130048,
+        "actual_occupied_tokens": 130049,
+        "append_indices": [
+          8
+        ],
+        "new_tokens": 29697,
+        "backend_tokens": 29697,
+        "backend_seconds": 34.978346,
+        "wall_seconds": 35.100202,
+        "net_tokens_per_backend_second": 849.011,
+        "backend_tokens_per_backend_second": 849.011,
+        "net_tokens_per_wall_second": 846.064
+      },
+      {
+        "requested_checkpoint": 196608,
+        "actual_occupied_tokens": 196608,
+        "append_indices": [
+          9,
+          10,
+          11
+        ],
+        "new_tokens": 66559,
+        "backend_tokens": 67540,
+        "backend_seconds": 87.995891,
+        "wall_seconds": 88.493857,
+        "net_tokens_per_backend_second": 756.388,
+        "backend_tokens_per_backend_second": 767.536,
+        "net_tokens_per_wall_second": 752.131
+      },
+      {
+        "requested_checkpoint": 256000,
+        "actual_occupied_tokens": 256001,
+        "append_indices": [
+          12,
+          13
+        ],
+        "new_tokens": 59393,
+        "backend_tokens": 59393,
+        "backend_seconds": 81.569088,
+        "wall_seconds": 81.978926,
+        "net_tokens_per_backend_second": 728.131,
+        "backend_tokens_per_backend_second": 728.131,
+        "net_tokens_per_wall_second": 724.491
+      },
+      {
+        "requested_checkpoint": 261120,
+        "actual_occupied_tokens": 261121,
+        "append_indices": [
+          14
+        ],
+        "new_tokens": 5120,
+        "backend_tokens": 5120,
+        "backend_seconds": 8.619392,
+        "wall_seconds": 8.83721,
+        "net_tokens_per_backend_second": 594.009,
+        "backend_tokens_per_backend_second": 594.009,
+        "net_tokens_per_wall_second": 579.368
+      }
+    ],
+    "append_curve": [
+      {
+        "index": 0,
+        "task_id": 1,
+        "requested_checkpoint": 6144,
+        "actual_occupied_tokens": 6144,
+        "prior_occupied_tokens": 0,
+        "new_tokens": 6144,
+        "backend_tokens": 6144,
+        "backend_seconds": 4.235005,
+        "wall_seconds": 4.252574,
+        "net_tokens_per_backend_second": 1450.766,
+        "backend_tokens_per_backend_second": 1450.766,
+        "net_tokens_per_wall_second": 1444.772,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": null,
+        "truncated": false
+      },
+      {
+        "index": 1,
+        "task_id": 11,
+        "requested_checkpoint": 12288,
+        "actual_occupied_tokens": 12288,
+        "prior_occupied_tokens": 6144,
+        "new_tokens": 6144,
+        "backend_tokens": 6144,
+        "backend_seconds": 5.110801,
+        "wall_seconds": 5.134384,
+        "net_tokens_per_backend_second": 1202.16,
+        "backend_tokens_per_backend_second": 1202.16,
+        "net_tokens_per_wall_second": 1196.638,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": null,
+        "truncated": false
+      },
+      {
+        "index": 2,
+        "task_id": 22,
+        "requested_checkpoint": 28672,
+        "actual_occupied_tokens": 28673,
+        "prior_occupied_tokens": 12288,
+        "new_tokens": 16385,
+        "backend_tokens": 16385,
+        "backend_seconds": 17.295312,
+        "wall_seconds": 17.330201,
+        "net_tokens_per_backend_second": 947.367,
+        "backend_tokens_per_backend_second": 947.367,
+        "net_tokens_per_wall_second": 945.459,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": null,
+        "truncated": false
+      },
+      {
+        "index": 3,
+        "task_id": 43,
+        "requested_checkpoint": 62464,
+        "actual_occupied_tokens": 61456,
+        "prior_occupied_tokens": 28673,
+        "new_tokens": 32783,
+        "backend_tokens": 32783,
+        "backend_seconds": 53.106249,
+        "wall_seconds": 53.171783,
+        "net_tokens_per_backend_second": 617.31,
+        "backend_tokens_per_backend_second": 617.31,
+        "net_tokens_per_wall_second": 616.549,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": null,
+        "truncated": false
+      },
+      {
+        "index": 4,
+        "task_id": 80,
+        "requested_checkpoint": 62464,
+        "actual_occupied_tokens": 62465,
+        "prior_occupied_tokens": 61456,
+        "new_tokens": 1009,
+        "backend_tokens": 1009,
+        "backend_seconds": 2.394948,
+        "wall_seconds": 2.456008,
+        "net_tokens_per_backend_second": 421.304,
+        "backend_tokens_per_backend_second": 421.304,
+        "net_tokens_per_wall_second": 410.829,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": null,
+        "truncated": false
+      },
+      {
+        "index": 5,
+        "task_id": 86,
+        "requested_checkpoint": 78848,
+        "actual_occupied_tokens": 78849,
+        "prior_occupied_tokens": 62465,
+        "new_tokens": 16384,
+        "backend_tokens": 16384,
+        "backend_seconds": 18.464895,
+        "wall_seconds": 18.540721,
+        "net_tokens_per_backend_second": 887.305,
+        "backend_tokens_per_backend_second": 887.305,
+        "net_tokens_per_wall_second": 883.677,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 16369,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 6,
+        "task_id": 107,
+        "requested_checkpoint": 88064,
+        "actual_occupied_tokens": 88065,
+        "prior_occupied_tokens": 78849,
+        "new_tokens": 9216,
+        "backend_tokens": 9216,
+        "backend_seconds": 11.325311,
+        "wall_seconds": 11.405964,
+        "net_tokens_per_backend_second": 813.752,
+        "backend_tokens_per_backend_second": 813.752,
+        "net_tokens_per_wall_second": 807.998,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 9201,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 7,
+        "task_id": 121,
+        "requested_checkpoint": 100352,
+        "actual_occupied_tokens": 100352,
+        "prior_occupied_tokens": 88065,
+        "new_tokens": 12287,
+        "backend_tokens": 12287,
+        "backend_seconds": 14.886474,
+        "wall_seconds": 14.979215,
+        "net_tokens_per_backend_second": 825.38,
+        "backend_tokens_per_backend_second": 825.38,
+        "net_tokens_per_wall_second": 820.27,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 12272,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 8,
+        "task_id": 138,
+        "requested_checkpoint": 130048,
+        "actual_occupied_tokens": 130049,
+        "prior_occupied_tokens": 100352,
+        "new_tokens": 29697,
+        "backend_tokens": 29697,
+        "backend_seconds": 34.978346,
+        "wall_seconds": 35.100202,
+        "net_tokens_per_backend_second": 849.011,
+        "backend_tokens_per_backend_second": 849.011,
+        "net_tokens_per_wall_second": 846.064,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 29682,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 9,
+        "task_id": 172,
+        "requested_checkpoint": 196608,
+        "actual_occupied_tokens": 162832,
+        "prior_occupied_tokens": 130049,
+        "new_tokens": 32783,
+        "backend_tokens": 32783,
+        "backend_seconds": 40.278427,
+        "wall_seconds": 40.425677,
+        "net_tokens_per_backend_second": 813.91,
+        "backend_tokens_per_backend_second": 813.91,
+        "net_tokens_per_wall_second": 810.945,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 32768,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 10,
+        "task_id": 209,
+        "requested_checkpoint": 196608,
+        "actual_occupied_tokens": 195615,
+        "prior_occupied_tokens": 162832,
+        "new_tokens": 32783,
+        "backend_tokens": 32783,
+        "backend_seconds": 42.109449,
+        "wall_seconds": 42.28115,
+        "net_tokens_per_backend_second": 778.519,
+        "backend_tokens_per_backend_second": 778.519,
+        "net_tokens_per_wall_second": 775.357,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 32768,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 11,
+        "task_id": 246,
+        "requested_checkpoint": 196608,
+        "actual_occupied_tokens": 196608,
+        "prior_occupied_tokens": 195615,
+        "new_tokens": 993,
+        "backend_tokens": 1974,
+        "backend_seconds": 5.608015,
+        "wall_seconds": 5.78703,
+        "net_tokens_per_backend_second": 177.068,
+        "backend_tokens_per_backend_second": 351.996,
+        "net_tokens_per_wall_second": 171.591,
+        "query_replay_count": 1,
+        "query_replay_tokens": 981,
+        "routing_prefix": null,
+        "truncated": false
+      },
+      {
+        "index": 12,
+        "task_id": 254,
+        "requested_checkpoint": 256000,
+        "actual_occupied_tokens": 229391,
+        "prior_occupied_tokens": 196608,
+        "new_tokens": 32783,
+        "backend_tokens": 32783,
+        "backend_seconds": 44.119474,
+        "wall_seconds": 44.309892,
+        "net_tokens_per_backend_second": 743.051,
+        "backend_tokens_per_backend_second": 743.051,
+        "net_tokens_per_wall_second": 739.857,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 32768,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 13,
+        "task_id": 291,
+        "requested_checkpoint": 256000,
+        "actual_occupied_tokens": 256001,
+        "prior_occupied_tokens": 229391,
+        "new_tokens": 26610,
+        "backend_tokens": 26610,
+        "backend_seconds": 37.449614,
+        "wall_seconds": 37.669034,
+        "net_tokens_per_backend_second": 710.555,
+        "backend_tokens_per_backend_second": 710.555,
+        "net_tokens_per_wall_second": 706.416,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 26595,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      },
+      {
+        "index": 14,
+        "task_id": 322,
+        "requested_checkpoint": 261120,
+        "actual_occupied_tokens": 261121,
+        "prior_occupied_tokens": 256001,
+        "new_tokens": 5120,
+        "backend_tokens": 5120,
+        "backend_seconds": 8.619392,
+        "wall_seconds": 8.83721,
+        "net_tokens_per_backend_second": 594.009,
+        "backend_tokens_per_backend_second": 594.009,
+        "net_tokens_per_wall_second": 579.368,
+        "query_replay_count": 0,
+        "query_replay_tokens": 0,
+        "routing_prefix": {
+          "tokens": 5105,
+          "state_bytes": 9805824,
+          "target_query_passes": 1
+        },
+        "truncated": false
+      }
+    ]
+  },
+  "routing_prefix": {
+    "successful_append_count": 9,
+    "state_bytes_min": 9805824,
+    "state_bytes_max": 9805824,
+    "state_bytes_constant": true,
+    "query_replay_counts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "query_replay_note": "Only the 993-token tail to C196608 had replay_count=1; it reprocessed a 981-token suffix, not the complete populated prefix. All nine early-routed appends had replay_count=0."
+  },
+  "resources": {
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.99.02",
+    "total_mib": 16376,
+    "sampling": "external GPU/global and host swap at 1s; harness process RSS/swap every 5s",
+    "gpu_global_used_peak_mib": 15567.0,
+    "gpu_global_free_min_mib": 379.0,
+    "gpu_process_used_peak_mib": 15516.0,
+    "gpu_util_peak_percent": 100.0,
+    "gpu_power_peak_w": 306.31,
+    "host_process_rss_peak_kib": 8550228,
+    "host_process_hwm_kib": 14321444,
+    "host_process_swap_peak_kib": 0,
+    "system_memavailable_min_kib": 44384520,
+    "system_swapfree_min_kib": 6130644,
+    "system_swap_total_kib": 8388604,
+    "compute_buffers_mib": {
+      "cuda0_mib": 168.3167,
+      "cuda_host_mib": 118.3286,
+      "mtp_kv_rows": 262144,
+      "mtp_kv_bytes": 276955136
+    },
+    "gpu_sample_count_1s": 438,
+    "process_sample_count_5s": 90,
+    "process_sample_errors": 0,
+    "external_1s_process_pid_lookup": "not populated; per-process RSS/swap use 5s harness samples; global GPU/system data are 1s."
+  },
+  "restoration": {
+    "record_path": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/restoration.txt",
+    "restore_exit": 0,
+    "gateway": "active",
+    "llama_server": "active",
+    "jellyfin_pid_unchanged": 1000914,
+    "port8091_listener_unchanged": "127.0.0.1:8091 pid 76881",
+    "port8092": "unbound; untouched"
+  },
+  "artifacts": {
+    "run_wrapper": "/srv/ai/paged-kv/builds/aco-before-prefix-3dfcd0248/run-candidate-full256k.sh",
+    "startup_log": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/cell/server-startup-20261104T005438Z.log",
+    "raw_curve": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/cell/prefill-curve.json",
+    "resource_loop_1s": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/resource-loop-1s.jsonl",
+    "resource_samples_5s": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/cell/resource-samples.jsonl",
+    "runtime_identity": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/runtime-dependencies.json",
+    "restoration": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/restoration.txt",
+    "full_baseline_summary": "/srv/ai/paged-kv/results/forward/allhot-reuse-repair-20261104/full256k/summary.md",
+    "runtime_snapshot": "/srv/ai/paged-kv/results/candidate-full256k-20261104T005437547968773Z/cell/C261120/campaign/runtime-captures"
+  },
+  "verification_scope": {
+    "focused_tests": [
+      "test-kv-attention-view",
+      "test-kv-prefetch",
+      "test-kv-policy (assertions enabled)",
+      "test-kv-router-job --cpu-only"
+    ],
+    "build_parallelism": 16,
+    "full_decode_reasoning_matrix": "not run; still paused",
+    "long_run": "prefill-only",
+    "short_recall": "retrieved source figures and approximately 40%; exact calculated percentage differs from baseline",
+    "backend_tokens": "full target-model evaluations; leading-layer routing work included in HTTP wall time",
+    "cuda_compute_allocator_same_as_baseline_mib": 168.3167,
+    "host_compute_allocator_same_as_baseline_mib": 118.3286
+  }
+}

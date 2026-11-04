@@ -1,6 +1,14 @@
 # Automatic attention reuse implementation
 
-Current status (2026-11-04): commit `f12d3ff14` fixes the all-hot replay
+Current continuation (2026-11-04): `6068d4a00` adds automatic early routing for
+bulk user spans and preserves all-layer selection for short recall questions.
+The fresh 256K fill completed at C261121 with 764.22 wall tok/s versus 448.61
+previously, bounded 9.35 MiB prefix state and no measured VRAM increase. See
+[the detailed design](early-routing-prefix-20261104.md) and
+[current validation](../evidence/EARLY_ROUTING_PREFIX_20261104.md).
+The full decode/reasoning suite remains paused.
+
+Earlier milestone (2026-11-04): commit `f12d3ff14` fixes the all-hot replay
 failure found by the first live run. A production build passed an exclusive
 fresh prefill ladder through C62465/H65536 with zero replay and backend work
 identical to net-new input. See `../evidence/ALLHOT_REUSE_REPAIR_20261104.md`

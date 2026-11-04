@@ -92,8 +92,9 @@ Physical relocation, table epochs and invisible future pages do not force
 replay. Normal Q-window rollover is allowed; a changed/missing historical page,
 unproven coverage, content edit or representation change retains replay.
 
-For supported single-sequence text Qwen35 hybrid requests larger than one
-configured batch, ACO can prepare history before the real target prefill. An
+For supported single-sequence text Qwen35 hybrid requests using
+`--kv-router probe-rerank` and larger than one configured batch, ACO can prepare
+history before the real target prefill. An
 internal graph runs only the leading recurrent blocks and first full-attention
 layer's Q projection, using an isolated active recurrent state. Four bounded
 query probes rank compatible keys in that source layer; the existing
