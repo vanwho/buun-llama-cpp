@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one frozen repository-content benchmark row as independent slot branches."""
+"""Run one repository-context benchmark row as a cumulative conversation."""
 
 from __future__ import annotations
 
@@ -30,7 +30,6 @@ PROMPTS = (
     "write a bash script that watches a directory and prints new files as they appear.",
 )
 MODES = ("off", "low", "medium", "xhigh")
-SLOT_SNAPSHOT_TIMEOUT = 1800
 CANONICAL_REQUEST_TIMEOUT = 600
 # 1024 tokens of total headroom at C=127K/L=128K safely contains the
 # 96-token question suffix, 400 generated tokens, 3 speculative rows and
@@ -38,6 +37,8 @@ CANONICAL_REQUEST_TIMEOUT = 600
 SAFETY_TOKENS = 512
 MTP_REPLAY_TOKENS = 3
 CANONICAL_SUFFIX_RESERVE_TOKENS = 96
+QUESTION_WRAPPER_RESERVE_TOKENS = 128
+FINAL_CONTEXT_RESERVE_TOKENS = 1024
 # The selected, measured request size comes from the frozen multi-file map.
 # There is no implicit 4K/per-file fill policy.
 SOURCE_CHUNK_MAP = HERE.parents[2] / ".wiretail/execution/benchmarks/repo-prefill-map.json"
@@ -133,17 +134,13 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
         argv.extend(("--ctx-checkpoints", "0", "--cache-ram", "0",
                      "--no-cache-idle-slots"))
     elif checkpoint_free_control:
-        # Independent MTP-off questions restore a complete target state file;
-        # no draft companion or in-place rewind checkpoint is needed.
+        # Preserve the predeclared MTP-off profile with no native checkpoint
+        # allocation; requests still use one resident conversation.
         argv.extend(("--ctx-checkpoints", "0", "--cache-ram", "0",
                      "--no-cache-idle-slots", "--kv-unified"))
     else:
-        # Qwen's hybrid/recurrent state must rewind between the independent
-        # benchmark questions. The stock master cannot do that with zero
-        # checkpoints: its next request reports cache_n=0 and re-prefills L.
-        # Freeze the native cache count in the series plan. A count carried
-        # over from a short profile can leave no recent checkpoint at a much
-        # larger frontier, causing a repeat to reprocess old context.
+        # Keep the native checkpoint count and minimum interval fixed for the
+        # full context series, including its later cumulative conversation.
         argv.extend(("--cache-ram", "12288", "--ctx-checkpoints", str(context_checkpoints),
                      "--checkpoint-min-step", "8192", "--cache-idle-slots",
                      "--kv-unified"))
@@ -235,9 +232,8 @@ def canonical_payload(case: Mapping[str, Any], messages: list[dict[str, str]]) -
     payload = {
         "model": MODEL, "messages": messages, "max_tokens": case["max_tokens"],
         "temperature": 0, "seed": 42, "stream": True,
-        # Retain the resident filled prefix between canonical cases. The
-        # server rewinds only the prior question/answer suffix when the next
-        # case shares the frozen repository conversation prefix.
+        # Keep the ordinary server conversation resident. The next question
+        # appends to the complete prior user/assistant history.
         "cache_prompt": True,
         "stream_options": {"include_usage": True},
         "chat_template_kwargs": {"enable_thinking": mode != "off",
@@ -405,6 +401,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context-tokens", type=int, required=True)
     parser.add_argument("--target-tokens", type=int)
+    parser.add_argument("--series-final-target", type=int,
+                        help="nominal final C; after the final questions, fill further up to this C")
+    parser.add_argument("--future-case-reserve-tokens", type=int, default=0,
+                        help="output plus wrapper budget for selected cases in later checkpoints")
     parser.add_argument("--placement", choices=("gpu", "cpu"), required=True)
     parser.add_argument("--mtp", choices=("on", "off"), default="on")
     parser.add_argument("--pager", choices=("none", "off", "selective"), default="none")
@@ -423,14 +423,14 @@ def parse_args() -> argparse.Namespace:
                         default=[0, 1, 2])
     parser.add_argument("--prefill-only", action="store_true",
                         help="fill and record fresh repository chunks, omit canonical prompt runs")
-    parser.add_argument("--reuse-filled-prefix", action="store_true",
-                        help="keep the filled KV prefix resident and reuse it with cache_prompt; skip disk snapshots")
+    parser.add_argument("--reuse-filled-prefix", action="store_true", default=True,
+                        help=argparse.SUPPRESS)
     parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume",
-                        help="native held-base file format for controls; restore is outside request timing")
+                        help=argparse.SUPPRESS)
     parser.add_argument("--context-checkpoints", type=int, default=8,
                         help="native server checkpoint count for occupied controls; frozen per series")
     parser.add_argument("--checkpoint-free-controls", action="store_true",
-                        help="MTP-off only: restore full target files without optional rewind checkpoints")
+                        help="MTP-off only: use the predeclared profile without native checkpoints")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--startup-log", type=pathlib.Path,
@@ -438,7 +438,7 @@ def parse_args() -> argparse.Namespace:
                         if os.environ.get("MASTER106_STARTUP_LOG") else None)
     parser.add_argument("--source-manifest", type=pathlib.Path)
     parser.add_argument("--continue-from", type=pathlib.Path,
-                        help="append only unseen repo bytes after restoring the prior completed checkpoint")
+                        help="append new repo bytes after the prior cumulative conversation checkpoint")
     parser.add_argument("--append-reference", type=pathlib.Path)
     parser.add_argument("--request-reference", type=pathlib.Path)
     parser.add_argument("--preserve-prefix-tokens", type=int)
@@ -555,6 +555,91 @@ def canonical_context_messages(history: list[dict[str, str]], prompt: str) -> li
     if not history:
         raise RuntimeError("filled repository history is empty")
     return history + [{"role": "user", "content": prompt}]
+
+
+def append_completed_turn(history: list[dict[str, str]], prompt: str,
+                          response: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Carry the exact completed user/assistant exchange into the next request."""
+    messages = list(history)
+    messages.append({"role": "user", "content": prompt})
+    assistant = {"role": "assistant", "content": str(response.get("content") or "")}
+    reasoning = response.get("reasoning_content")
+    if reasoning:
+        assistant["reasoning_content"] = str(reasoning)
+    messages.append(assistant)
+    return messages
+
+
+def required_question_headroom(cases: list[Mapping[str, Any]],
+                               future_case_reserve_tokens: int = 0) -> int:
+    """Reserve output plus wrapper room for every request in this block."""
+    return (sum(int(case["max_tokens"]) + QUESTION_WRAPPER_RESERVE_TOKENS
+                for case in cases) + future_case_reserve_tokens +
+            FINAL_CONTEXT_RESERVE_TOKENS)
+
+
+def bounded_fill_target(context_tokens: int, nominal_target: int,
+                        cases: list[Mapping[str, Any]],
+                        future_case_reserve_tokens: int = 0) -> int:
+    """Cap repository input so all scheduled generations fit without truncation."""
+    return min(nominal_target, context_tokens - required_question_headroom(
+        cases, future_case_reserve_tokens))
+
+
+def actual_context_after_request(rendered_prompt_tokens: int,
+                                 completion_tokens: Any) -> int:
+    if not isinstance(completion_tokens, (int, float)) or completion_tokens < 0:
+        raise RuntimeError("completed request lacks a valid completion-token count")
+    return rendered_prompt_tokens + int(completion_tokens)
+
+
+def logical_new_input_tokens(reported_prompt_tokens: int,
+                             prior_committed_frontier: int) -> int:
+    """Net new input comes from logical conversation growth, never cache counters."""
+    return reported_prompt_tokens - prior_committed_frontier
+
+
+def write_conversation_frontier(output: pathlib.Path, history: list[dict[str, str]],
+                                actual_context_tokens: int,
+                                source_manifest: Mapping[str, Any],
+                                last_case_index: int | None = None) -> None:
+    """Persist the live conversation and source cursor after every successful turn."""
+    messages_path = output / "conversation-messages.json"
+    frontier_path = output / "conversation-frontier.json"
+    message_bytes = (json.dumps(history, ensure_ascii=False, indent=2) + "\n").encode()
+    temporary = messages_path.with_suffix(".json.tmp")
+    temporary.write_bytes(message_bytes)
+    temporary.replace(messages_path)
+    source_bytes = json.dumps(source_manifest, sort_keys=True, separators=(",", ":")).encode()
+    state = {"actual_context_tokens": actual_context_tokens,
+             "conversation_sha256": hashlib.sha256(message_bytes).hexdigest(),
+             "source_manifest_sha256": hashlib.sha256(source_bytes).hexdigest(),
+             "last_case_index": last_case_index}
+    tmp_frontier = frontier_path.with_suffix(".json.tmp")
+    tmp_frontier.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    tmp_frontier.replace(frontier_path)
+
+
+def read_conversation_frontier(output: pathlib.Path,
+                               source_manifest: Mapping[str, Any]) -> tuple[list[dict[str, str]], int] | None:
+    messages_path = output / "conversation-messages.json"
+    frontier_path = output / "conversation-frontier.json"
+    if not messages_path.is_file() or not frontier_path.is_file():
+        return None
+    messages_bytes = messages_path.read_bytes()
+    state = json.loads(frontier_path.read_text())
+    manifest_bytes = json.dumps(source_manifest, sort_keys=True,
+                                separators=(",", ":")).encode()
+    if hashlib.sha256(messages_bytes).hexdigest() != state.get("conversation_sha256"):
+        raise RuntimeError("conversation frontier hash mismatch")
+    if hashlib.sha256(manifest_bytes).hexdigest() != state.get("source_manifest_sha256"):
+        raise RuntimeError("source manifest frontier hash mismatch")
+    occupied = state.get("actual_context_tokens")
+    if not isinstance(occupied, int) or occupied < 0:
+        raise RuntimeError("conversation frontier has invalid actual context size")
+    if source_manifest and source_manifest.get("actual_occupancy_tokens") != occupied:
+        raise RuntimeError("source manifest and conversation frontier sizes differ")
+    return json.loads(messages_bytes), occupied
 
 
 def _exact_tail_rewrite(renderer: ServerPromptRenderer,
@@ -727,7 +812,10 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  initial_manifest: Mapping[str, Any] | None = None,
                  initial_occupied: int = 0,
                  snapshot_format: str = "resume",
-                 chunk_map_path: pathlib.Path = SOURCE_CHUNK_MAP) -> tuple[list[dict[str, str]], dict[str, Any]]:
+                 chunk_map_path: pathlib.Path = SOURCE_CHUNK_MAP,
+                 nominal_target_tokens: int | None = None) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    if not reuse_filled_prefix:
+        raise RuntimeError("benchmark rows require one resident server conversation; snapshots are disabled")
     mapped = repo_prefill_map.MappedCorpus(chunk_map_path)
     if pathlib.Path(mapped.manifest["source_root"]).resolve() != SOURCE_WORKTREE.resolve():
         raise RuntimeError("chunk map source root differs from the frozen benchmark source")
@@ -744,9 +832,6 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                     "path": str(mapped.manifest_path), "sha256": mapped.manifest_sha256,
                     "chunk_tokens": mapped.chunk_tokens}
     if initial_manifest is None:
-        cleared = final.clear_slot(endpoint, key, 0, 180)
-        if not cleared.get("ok"):
-            raise RuntimeError(f"filled-row initial slot erase failed: {cleared}")
         source_manifest = {"git_identity": current_git_identity, "fixture_sha256": None,
                            "inventory": current_inventory, "source_schedule": current_schedule,
                            "chunk_map": map_identity, "selected_ranges": []}
@@ -759,10 +844,12 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                               ("source_schedule", current_schedule), ("chunk_map", map_identity)):
             if source_manifest.get(field_name) != expected:
                 raise RuntimeError(f"continuation source {field_name} differs; use a fresh mapped run")
-        if source_manifest.get("actual_occupancy_tokens") != initial_occupied:
-            raise RuntimeError("continuation occupancy does not match saved frontier")
         if initial_history is None or initial_occupied <= 0:
             raise RuntimeError("continuation requires saved history and a nonempty frontier")
+        source_frontier = source_manifest.get("actual_occupancy_tokens")
+        if (not isinstance(source_frontier, int) or source_frontier <= 0 or
+                source_frontier != initial_occupied):
+            raise RuntimeError("continuation source manifest lacks its actual frontier")
         history = list(initial_history)
         occupied = initial_occupied
     source_cursor = mapped.resume_cursor(source_manifest["selected_ranges"])
@@ -784,7 +871,9 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             if preserve_prefix_tokens is not None and occupied < preserve_prefix_tokens:
                 current_goal = preserve_prefix_tokens
             remaining_frontier = current_goal - occupied
-            reserve_limit = context_tokens - SAFETY_TOKENS - 400 - MTP_REPLAY_TOKENS
+            # The caller already reserved every remaining canonical output in
+            # this block. Retain the fixed context margin and the fill reply.
+            reserve_limit = context_tokens - SAFETY_TOKENS - 1
             text = mapped.window(source_cursor)
             if not text:
                 raise RuntimeError("frozen repository chunk map exhausted before target context")
@@ -813,12 +902,6 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                                                 "preserve_thinking": True}}
             payload["reasoning_effort"] = "none" if reasoning_mode == "off" else reasoning_mode
             request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
-            if append_reference is not None:
-                reference = append_reference / "requests" / req_path.name
-                if reference.is_file() and request_bytes != reference.read_bytes():
-                    raise RuntimeError(f"frozen append request mismatch at {req_path.name}")
-                if not reference.is_file() and context_tokens != 131072:
-                    raise RuntimeError(f"frozen append reference missing: {reference}")
             _write_unique(req_path, request_bytes)
             start = time.monotonic()
             response = _append_request(final, endpoint, key, payload, raw_path)
@@ -830,27 +913,27 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             cache_n = usage.get("prompt_tokens_details", {}).get("cached_tokens")
             if not isinstance(cache_n, (int, float)):
                 cache_n = response.get("timings", {}).get("cache_n")
-            validate_cached_prefix(occupied, cache_n, label=f"fill append {append_index}")
-            fresh = prompt_n - occupied
-            validate_fill_bounds(fresh, prompt_n, output_n, reserve_limit,
-                                 max_fresh_tokens=mapped.chunk_tokens + CANONICAL_SUFFIX_RESERVE_TOKENS)
-            assistant_message = {"role": "assistant", "content": response.get("content", "")}
-            reasoning_text = response.get("reasoning_content", "")
-            if reasoning_text:
-                assistant_message["reasoning_content"] = reasoning_text
-            history = messages + [assistant_message]
-            # Occupancy is the server's prompt/KV frontier. A one-token append
-            # response is recorded in the conversation but is not necessarily
-            # installed in the resumable KV snapshot (EOS/length boundary).
-            occupied = prompt_n
+            cache_prefix_diagnostic = None
+            try:
+                validate_cached_prefix(occupied, cache_n, label=f"fill append {append_index}")
+            except RuntimeError as error:
+                cache_prefix_diagnostic = str(error)
+            fresh = logical_new_input_tokens(prompt_n, occupied)
+            validate_fill_bounds(fresh, prompt_n, output_n, reserve_limit)
+            history = append_completed_turn(history, selected_text, response)
+            # A fill acknowledgment is part of the next normal conversation,
+            # so include its generated token count in the committed frontier.
+            occupied = prompt_n + output_n
             fill_rates = prefill_measurements(
                 fresh, response.get("timings", {}), elapsed)
             rec = {"append_index": append_index, "source_text_sha256": hashlib.sha256(
                        selected_text.encode()).hexdigest(), "fresh_tokens": fresh,
                    "prior_occupied_tokens": prior_occupied,
                    "cumulative_tokens": occupied, "elapsed_seconds": elapsed,
+                   "nominal_target_C": nominal_target_tokens,
                    **fill_rates,
                    "cache_n": cache_n,
+                   "cache_prefix_diagnostic": cache_prefix_diagnostic,
                    "prompt_n": response.get("timings", {}).get("prompt_n"),
                    "timings": response.get("timings", {}),
                    "prompt_tokens": prompt_n, "completion_tokens": output_n,
@@ -859,6 +942,8 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                    "raw_sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),
                    "fingerprint": fingerprint,
                    "chunk_kind": chunk_kind, "content_tokens": content_tokens,
+                   "fresh_exceeds_chunk_reserve_diagnostic": (
+                       fresh > mapped.chunk_tokens + CANONICAL_SUFFIX_RESERVE_TOKENS),
                    "configured_chunk_tokens": mapped.chunk_tokens,
                    "chunk_map_sha256": mapped.manifest_sha256}
             if rewritten_tail:
@@ -874,64 +959,32 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
             source_manifest["selected_ranges"].append(selected_range)
             source_cursor = selected_range["corpus_end_byte"]
             append_index += 1
-            if occupied == target_tokens:
+            source_manifest["actual_occupancy_tokens"] = occupied
+            (output / "source-manifest.json").write_text(
+                json.dumps(source_manifest, indent=2) + "\n")
+            write_conversation_frontier(output, history, occupied, source_manifest)
+            if occupied >= target_tokens:
                 break
-            if occupied > target_tokens:
-                if occupied - target_tokens <= 8:
-                    break
-                raise RuntimeError(f"measured C overshot materially: {occupied} > {target_tokens}")
     occupancy_delta = occupied - target_tokens
-    # The apply-template/tokenize preflight can differ from the live chat
-    # parser by a couple of boundary tokens. Preserve the server's measured
-    # occupancy and continue when that discrepancy is immaterial and the
-    # configured output/runtime reserve still fits; never label the requested
-    # frontier as the actual one.
-    if abs(occupancy_delta) > 8:
-        raise RuntimeError(
-            f"measured occupancy differs materially from target: {occupied} != {target_tokens}")
     source_manifest["requested_target_tokens"] = target_tokens
+    source_manifest["nominal_target_tokens"] = nominal_target_tokens
     source_manifest["actual_occupancy_tokens"] = occupied
     source_manifest["occupancy_delta_tokens"] = occupancy_delta
     (output / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2) + "\n")
     base_messages = json.dumps(history, ensure_ascii=False, indent=2) + "\n"
     (output / "base-messages.json").write_text(base_messages)
-    if reuse_filled_prefix:
-        # The live slot already contains this exact measured prefix. Keep it
-        # resident and use normal cache_prompt LCP reuse for each independent
-        # canonical question; serializing the entire KV state to disk is both
-        # unnecessary and prohibitively expensive at long contexts.
-        base_file = None
-        base_hash = hashlib.sha256(base_messages.encode("utf-8")).hexdigest()
-        saved = {"method": "resident_prefix_reuse", "n_saved": occupied}
-        restored = {"method": "resident_prefix_reuse", "n_restored": occupied}
-    else:
-        base_file = f"base-{fingerprint[:16]}.bin"
-        status, saved = _post(endpoint, key, "/slots/0?action=save",
-                              {"filename": base_file, "format": snapshot_format},
-                              timeout=SLOT_SNAPSHOT_TIMEOUT)
-        if status != 200 or not saved.get("n_saved"):
-            raise RuntimeError(f"base snapshot save failed: {saved}")
-        base_path = SLOT_STATE / base_file
-        if not base_path.is_file():
-            raise RuntimeError("server did not create the frozen base snapshot")
-        if saved.get("n_saved") != occupied:
-            raise RuntimeError(f"snapshot occupancy mismatch: {saved.get('n_saved')} != {occupied}")
-        base_hash = hashlib.sha256(base_path.read_bytes()).hexdigest()
-        # Retained for callers that explicitly request disk-backed snapshots.
-        cleared = final.clear_slot(endpoint, key, 0, 180)
-        if not cleared.get("ok"):
-            raise RuntimeError(f"base snapshot round-trip erase failed: {cleared}")
-        status, restored = _post(endpoint, key, "/slots/0?action=restore",
-                                 {"filename": base_file}, timeout=SLOT_SNAPSHOT_TIMEOUT)
-        if status != 200 or restored.get("n_restored") != saved.get("n_saved"):
-            raise RuntimeError(f"base snapshot round-trip mismatch: {saved} / {restored}")
+    write_conversation_frontier(output, history, occupied, source_manifest)
+    # The live slot already holds this conversation. Keep it resident and let
+    # ordinary requests extend the one server-side history; no slot file I/O.
+    base_file = None
+    base_hash = hashlib.sha256(base_messages.encode("utf-8")).hexdigest()
     return history, {"fingerprint": fingerprint, "requested_target_tokens": target_tokens,
+                     "nominal_target_tokens": nominal_target_tokens,
                      "occupied_tokens": occupied, "occupancy_delta_tokens": occupancy_delta,
                      "base_file": (str(SLOT_STATE / base_file) if base_file else None),
-                     "base_sha256": base_hash, "save": saved, "restore": restored,
-                     "reuse_method": ("resident_prefix_reuse" if reuse_filled_prefix
-                                      else "disk_snapshot_restore"),
-                     "snapshot_format": None if reuse_filled_prefix else snapshot_format,
+                     "base_sha256": base_hash,
+                     "reuse_method": "resident_cumulative_conversation",
+                     "snapshot_format": None,
                      "fill_enable_thinking": enable_thinking,
                      "fill_reasoning_mode": reasoning_mode,
                      "source_manifest_sha256": hashlib.sha256(
@@ -949,7 +1002,9 @@ def _existing_complete(output: pathlib.Path, fingerprint: str) -> dict[int, dict
         except json.JSONDecodeError:
             continue
         if (row.get("fingerprint") == fingerprint and
-                row.get("status") in {"pass", "runtime_fault_reproduced_skipped"} and
+                row.get("status") in {"pass", "output_invalid", "mtp_unmeasured",
+                                       "runtime_fault_reproduced_skipped"} and
+                row.get("http_status") == 200 and row.get("stream_complete") is True and
                 row.get("request_path") and row.get("raw_path") and
                 pathlib.Path(row["request_path"]).is_file() and
                 pathlib.Path(row["raw_path"]).is_file() and
@@ -1025,9 +1080,8 @@ def main() -> int:
                 "mtp_enabled": mtp_enabled, "pager": args.pager,
                 "fill_enable_thinking": fill_thinking,
                 "fill_reasoning_mode": fill_mode,
-                "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
-                                         else "disk_snapshot_restore"),
-                "snapshot_format": None if args.reuse_filled_prefix else args.snapshot_format,
+                "filled_prefix_method": "resident_cumulative_conversation",
+                "snapshot_format": None,
                 "hot_pages": args.hot_pages,
                 "model_sha256": model_sha256,
                 "template_id": renderer.template_id, "repo_context_git": source_identity,
@@ -1058,6 +1112,22 @@ def main() -> int:
             if (previous.get("fingerprint") == fingerprint and
                     previous.get("status") == "runtime_fault"):
                 reproducible_failures[int(previous["case_index"])] = previous
+    selected_prompts = tuple(args.prompt_indices)
+    cases = ([] if args.prefill_only else
+             canonical_schedule(selected_modes, selected_prompts, selection))
+    schedule_path = output / "canonical-schedule.json"
+    if not schedule_path.exists():
+        schedule_path.write_text(json.dumps(cases, indent=2, ensure_ascii=False) + "\n")
+    elif json.loads(schedule_path.read_text()) != cases:
+        raise SystemExit("resume refused: canonical request schedule changed")
+    fill_target = (bounded_fill_target(args.context_tokens, int(args.target_tokens), cases,
+                                       args.future_case_reserve_tokens)
+                   if geometry["target_tokens"] is not None else None)
+    if fill_target is not None and fill_target <= 0:
+        raise RuntimeError(
+            f"question headroom leaves no repository fill room: L={args.context_tokens}, "
+            f"requested C={args.target_tokens}, reserved={required_question_headroom(cases)}")
+
     continuation: dict[str, Any] | None = None
     if args.continue_from is not None and not (args.resume and (output / "base.json").is_file()):
         prior_output = args.continue_from.resolve()
@@ -1078,51 +1148,63 @@ def main() -> int:
         if not isinstance(prior_row.get("base"), dict):
             raise RuntimeError("continuation refused: prior filled base is missing")
         prior_base = json.loads((prior_output / "base.json").read_text())
-        prior_messages = json.loads((prior_output / "base-messages.json").read_text())
+        prior_messages_path = prior_output / "conversation-messages.json"
+        prior_frontier_path = prior_output / "conversation-frontier.json"
         prior_manifest = json.loads((prior_output / "source-manifest.json").read_text())
-        if prior_base.get("reuse_method") == "resident_prefix_reuse":
-            saved_messages = (prior_output / "base-messages.json").read_bytes()
-            if hashlib.sha256(saved_messages).hexdigest() != prior_base.get("base_sha256"):
-                raise RuntimeError("continuation refused: resident prefix description hash changed")
-            # No disk snapshot is needed. cache_prompt truncates the prior
-            # canonical question/answer suffix back to this exact prefix; the
-            # next file chunk is then appended once and checked via cache_n.
+        if prior_frontier_path.is_file():
+            loaded_frontier = read_conversation_frontier(prior_output, prior_manifest)
+            assert loaded_frontier is not None
+            prior_messages, current_occupied = loaded_frontier
         else:
-            snapshot = pathlib.Path(prior_base.get("base_file", "")).resolve()
-            if (not snapshot.is_file() or snapshot.parent != SLOT_STATE.resolve() or
-                    hashlib.sha256(snapshot.read_bytes()).hexdigest() != prior_base.get("base_sha256")):
-                raise RuntimeError("continuation refused: frozen base snapshot is missing or has changed")
-            restore_status, restore_result = _post(endpoint, key, "/slots/0?action=restore",
-                {"filename": snapshot.name}, timeout=SLOT_SNAPSHOT_TIMEOUT)
-            if (restore_status != 200 or
-                    restore_result.get("n_restored") != prior_base.get("occupied_tokens")):
-                raise RuntimeError(f"continuation snapshot restore failed: {restore_result}")
-        continuation = {"history": prior_messages,
-                       "manifest": prior_manifest,
-                       "occupied": int(prior_base["occupied_tokens"])}
+            # Read-only compatibility for a pre-cumulative output. New runs
+            # always write the explicit conversation frontier.
+            prior_messages = json.loads((prior_output / "base-messages.json").read_text())
+            current_occupied = int(prior_base["occupied_tokens"])
+        if prior_manifest.get("actual_occupancy_tokens") != current_occupied:
+            raise RuntimeError("continuation refused: source manifest frontier differs from conversation")
+        continuation = {"history": prior_messages, "manifest": prior_manifest,
+                        "occupied": current_occupied}
 
-    if geometry["target_tokens"] is not None and (
-            args.reuse_filled_prefix or not (output / "base.json").exists()):
+    if geometry["target_tokens"] is not None and not (output / "base.json").exists():
         history, base = fill_context(final, renderer, endpoint, key, output,
-            args.context_tokens, args.target_tokens, fingerprint, args.append_reference,
+            args.context_tokens, int(fill_target), fingerprint, args.append_reference,
             args.preserve_prefix_tokens, fill_mode,
             reuse_filled_prefix=args.reuse_filled_prefix,
             initial_history=(continuation["history"] if continuation else None),
             initial_manifest=(continuation["manifest"] if continuation else None),
             initial_occupied=(continuation["occupied"] if continuation else 0),
             snapshot_format=args.snapshot_format,
-            chunk_map_path=args.source_chunk_map)
+            chunk_map_path=args.source_chunk_map,
+            nominal_target_tokens=args.target_tokens)
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
+        base["nominal_target_tokens"] = args.target_tokens
+        base["fill_target_tokens"] = fill_target
+        (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
+        actual_context_tokens = int(base["occupied_tokens"])
     elif (output / "base.json").exists():
         base = json.loads((output / "base.json").read_text())
         if base.get("fingerprint") != fingerprint:
             raise SystemExit("resume refused: base fingerprint changed")
-        history_path = output / "base-messages.json"
+        history_path = output / "conversation-messages.json"
+        if not history_path.is_file():
+            history_path = output / "base-messages.json"
         if not history_path.is_file():
             raise SystemExit("resume refused: frozen base messages are missing")
         history = json.loads(history_path.read_text())
+        frontier_path = output / "conversation-frontier.json"
+        if frontier_path.is_file():
+            if geometry["target_tokens"] is not None:
+                manifest_for_resume = json.loads((output / "source-manifest.json").read_text())
+            else:
+                manifest_for_resume = {}
+            loaded_frontier = read_conversation_frontier(output, manifest_for_resume)
+            assert loaded_frontier is not None
+            history, actual_context_tokens = loaded_frontier
+        else:
+            actual_context_tokens = int(base.get("occupied_tokens", 0))
     else:
         history, base = [], {"occupied_tokens": 0, "base_sha256": None}
+        actual_context_tokens = 0
     if args.source_manifest is not None and geometry["target_tokens"] is not None:
         actual_manifest = json.loads((output / "source-manifest.json").read_text())
         expected_manifest = json.loads(args.source_manifest.read_text())
@@ -1131,56 +1213,24 @@ def main() -> int:
                                    allow_suffix=args.context_tokens == 131072)
         except ValueError as error:
             raise SystemExit(f"source replay refused: {error}")
-    selected_prompts = tuple(args.prompt_indices)
-    cases = ([] if args.prefill_only else
-             canonical_schedule(selected_modes, selected_prompts, selection))
-    schedule_path = output / "canonical-schedule.json"
-    if not schedule_path.exists():
-        schedule_path.write_text(json.dumps(cases, indent=2, ensure_ascii=False) + "\n")
-    elif json.loads(schedule_path.read_text()) != cases:
-        raise SystemExit("resume refused: canonical request schedule changed")
-    prepared = {}
+    if geometry["target_tokens"] is not None:
+        manifest_path = output / "source-manifest.json"
+        source_manifest = json.loads(manifest_path.read_text())
+    else:
+        source_manifest = {}
     canonical_renderers: dict[str, ServerPromptRenderer] = {}
-    rendered_token_counts: dict[str, int] = {}
-    for case in cases:
-        messages = ([{"role": "user", "content": case["prompt"]}]
-                    if geometry["target_tokens"] is None else
-                    canonical_context_messages(history, case["prompt"]))
-        payload = canonical_payload(case, messages)
-        renderer_options = request_options(chat_template_kwargs={
-            "enable_thinking": case["reasoning"] != "off", "preserve_thinking": True})
-        renderer_options["reasoning_effort"] = (
-            "none" if case["reasoning"] == "off" else case["reasoning"])
-        mode = case["reasoning"]
-        renderer_mode = canonical_renderers.get(mode)
-        if renderer_mode is None:
-            renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
-                timeout=sizing_timeout, request_options=renderer_options)
-            canonical_renderers[mode] = renderer_mode
-        if geometry["target_tokens"] is None:
-            render_key = canonical_render_key(mode, messages)
-            rendered = rendered_token_counts.get(render_key)
-            if rendered is None:
-                rendered = len(renderer_mode(messages).token_ids)
-                rendered_token_counts[render_key] = rendered
-        else:
-            # Filled rows already have exact server-measured base occupancy.
-            # The benchmark prompts are short; reserve a fixed upper bound for
-            # the final user turn/template suffix instead of asking the server
-            # to tokenize the entire 8K–256K history once per prompt.
-            rendered = canonical_prompt_upper_bound(
-                int(base.get("occupied_tokens", geometry["target_tokens"])))
-        reserve = args.context_tokens - rendered - int(case["max_tokens"]) - MTP_REPLAY_TOKENS
-        if reserve < SAFETY_TOKENS:
-            raise RuntimeError(f"canonical case {case['case_index']} violates context reserve: {reserve}")
-        request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
-        if args.request_reference is not None:
-            matches = sorted((args.request_reference / "requests").glob(
-                f"case-{case['case_index']:02d}-*.json"))
-            if not matches or any(request_bytes != item.read_bytes() for item in matches):
-                raise RuntimeError(f"frozen canonical request mismatch: case {case['case_index']}")
-        prepared[case["case_index"]] = (payload, rendered)
-    for case in cases:
+    if args.request_reference is not None:
+        raise RuntimeError("frozen request references are incompatible with cumulative conversation history")
+    if cases:
+        initial_ceiling = args.context_tokens - required_question_headroom(
+            cases, args.future_case_reserve_tokens)
+        if actual_context_tokens > initial_ceiling:
+            raise RuntimeError(
+                f"conversation exceeds the generation headroom before requests: "
+                f"actual C={actual_context_tokens}, L={args.context_tokens}, "
+                f"remaining-block ceiling={initial_ceiling}, "
+                f"reserved={required_question_headroom(cases, args.future_case_reserve_tokens)}")
+    for case_index, case in enumerate(cases):
         if case["case_index"] in completed:
             continue
         if case["case_index"] in args.skip_runtime_fault_case:
@@ -1195,27 +1245,33 @@ def main() -> int:
             completed[case["case_index"]] = skipped
             append_jsonl(output / "records.jsonl", skipped)
             continue
-        base_restore_seconds = 0.0
+        remaining_cases = cases[case_index:]
+        remaining_ceiling = args.context_tokens - required_question_headroom(
+            remaining_cases, args.future_case_reserve_tokens)
+        if actual_context_tokens > remaining_ceiling:
+            raise RuntimeError(
+                f"conversation exceeds generation headroom before case {case['case_index']}: "
+                f"actual C={actual_context_tokens}, L={args.context_tokens}, "
+                f"remaining-block ceiling={remaining_ceiling}, "
+                f"reserved={required_question_headroom(remaining_cases, args.future_case_reserve_tokens)}")
+        messages = (canonical_context_messages(history, case["prompt"])
+                    if history else [{"role": "user", "content": case["prompt"]}])
+        payload = canonical_payload(case, messages)
+        mode = case["reasoning"]
+        renderer_mode = canonical_renderers.get(mode)
+        if renderer_mode is None:
+            renderer_options = request_options(chat_template_kwargs={
+                "enable_thinking": mode != "off", "preserve_thinking": True})
+            renderer_options["reasoning_effort"] = "none" if mode == "off" else mode
+            renderer_mode = ServerPromptRenderer(endpoint, MODEL, key,
+                timeout=sizing_timeout, request_options=renderer_options)
+            canonical_renderers[mode] = renderer_mode
+        # Avoid re-rendering an ever-growing transcript locally before each
+        # timed request. The fixed wrapper allowance is reserved in advance;
+        # server usage records the exact prompt count for each request.
+        rendered = actual_context_tokens + QUESTION_WRAPPER_RESERVE_TOKENS
         if geometry["target_tokens"] is None:
-            cleared = final.clear_slot(endpoint, key, 0, 180)
-            if not cleared.get("ok"):
-                raise RuntimeError(f"baseline slot erase failed: {cleared}")
-            messages = [{"role": "user", "content": case["prompt"]}]
-        else:
-            if not args.reuse_filled_prefix:
-                filename = pathlib.Path(base["base_file"]).name
-                # The server's slot-file restore paths clear/replace an occupied
-                # slot themselves (resume_install_sequence/chunks).
-                restore_started = time.monotonic()
-                restore_status, restored = _post(endpoint, key, "/slots/0?action=restore",
-                                                 {"filename": filename},
-                                                 timeout=SLOT_SNAPSHOT_TIMEOUT)
-                base_restore_seconds = time.monotonic() - restore_started
-                if (restore_status != 200 or
-                        restored.get("n_restored") != int(base["occupied_tokens"])):
-                    raise RuntimeError(f"canonical snapshot restore failed: {restored}")
-            messages = canonical_context_messages(history, case["prompt"])
-        payload, rendered = prepared[case["case_index"]]
+            rendered = len(renderer_mode(messages).token_ids)
         attempt = sum(1 for p in (output / "requests").glob(f"case-{case['case_index']:02d}-*.json"))
         suffix = f"{attempt:02d}"
         request_path = output / "requests" / f"case-{case['case_index']:02d}-{suffix}.json"
@@ -1223,17 +1279,15 @@ def main() -> int:
         request_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
         _write_unique(request_path, request_bytes)
         before = final.snapshot(endpoint, key)
-        print(f"request start C={base.get('occupied_tokens', 0)} "
+        print(f"request start nominal_C={args.target_tokens} actual_C={actual_context_tokens} "
               f"mode={case['reasoning']} prompt={case['prompt_index'] + 1} "
               f"{case['kind']} repetition={case['repetition']}", flush=True)
         started_epoch = time.time()
         start = time.monotonic()
         status, response, error = final._stream_completion(
             endpoint + "/v1/chat/completions", key, payload, raw_path,
-            # A query uses the resident base frontier and adds only its short
-            # prompt suffix. Ten minutes is generous for cold-page attention
-            # while preventing a broken full-history replay from tying up a
-            # GPU for 30 minutes without producing a token.
+            # The request extends the current normal conversation. Ten minutes
+            # bounds a genuinely stalled stream without imposing cache checks.
             connect_timeout=10, prefill_idle_timeout=CANONICAL_REQUEST_TIMEOUT,
             decode_idle_timeout=CANONICAL_REQUEST_TIMEOUT,
             total_timeout=CANONICAL_REQUEST_TIMEOUT)
@@ -1262,22 +1316,21 @@ def main() -> int:
         if geometry["target_tokens"] is not None and complete_sse and usage:
             try:
                 validate_cached_prefix(
-                    int(base.get("occupied_tokens", geometry["target_tokens"])),
+                    int(actual_context_tokens),
                     cached_tokens,
                     label=f"canonical case {case['case_index']}",
                 )
             except RuntimeError as cache_error:
                 prefix_cache_error = str(cache_error)
-        fresh_timed = max(0, int(usage.get("prompt_tokens", rendered)) -
-                          int(cached_tokens or 0))
-        rates = prefill_measurements(fresh_timed, timings, elapsed)
+        logical_question_input = logical_new_input_tokens(
+            int(usage.get("prompt_tokens", rendered)), int(actual_context_tokens))
+        rates = prefill_measurements(max(0, logical_question_input), timings, elapsed)
         mtp_result = observation.get("mtp")
         mtp_not_measured = (mtp_enabled and
                             (not isinstance(mtp_result, Mapping) or
                              mtp_result.get("status") != "measured"))
         output_error = canonical_output_error(response) if case["kind"] == "measured" else None
         row_status = ("runtime_fault" if status != 200 or error is not None or not usage or not complete_sse else
-                      "prefix_cache_miss" if prefix_cache_error else
                       "mtp_unmeasured" if mtp_not_measured else
                       "output_invalid" if output_error else
                       "pass" if status == 200 and error is None and usage and complete_sse
@@ -1304,7 +1357,12 @@ def main() -> int:
                **rates,
                "mtp": observation.get("mtp"), "mtp_counters": observation.get("counters"),
                "elapsed_seconds": elapsed, "request_path": str(request_path),
-               "base_restore_seconds": base_restore_seconds,
+               "nominal_target_C": args.target_tokens,
+               "actual_C_before": actual_context_tokens,
+               "actual_C_after": (actual_context_after_request(
+                   int(usage.get("prompt_tokens", rendered)),
+                   usage.get("completion_tokens", 0))
+                   if status == 200 and error is None and usage and complete_sse else None),
                "started_epoch": started_epoch, "finished_epoch": started_epoch + elapsed,
                "snapshot_before": str(snapshot_before), "snapshot_after": str(snapshot_after),
                "request_sha256": hashlib.sha256(request_path.read_bytes()).hexdigest(),
@@ -1315,10 +1373,57 @@ def main() -> int:
         print(f"request done status={row_status} tokens={rec['completion_tokens']} "
               f"decode={rec['decode_tok_s']} tok/s cached={cached_tokens}", flush=True)
         completed[case["case_index"]] = rec
-        if prefix_cache_error:
-            # Reprocessing a large prefix is a setup failure. Stop immediately
-            # rather than consume the rest of a multi-hour invalid campaign.
-            raise RuntimeError(f"canonical prefix reuse failed: {prefix_cache_error}")
+        if status == 200 and error is None and usage and complete_sse:
+            history = append_completed_turn(history, case["prompt"], response)
+            actual_context_tokens = rec["actual_C_after"]
+            if geometry["target_tokens"] is not None:
+                source_manifest["actual_occupancy_tokens"] = actual_context_tokens
+                source_manifest["occupancy_delta_tokens"] = (
+                    actual_context_tokens - int(source_manifest.get("requested_target_tokens", 0)))
+                (output / "source-manifest.json").write_text(
+                    json.dumps(source_manifest, indent=2) + "\n")
+                write_conversation_frontier(output, history, actual_context_tokens,
+                                            source_manifest, case["case_index"])
+            else:
+                write_conversation_frontier(output, history, actual_context_tokens,
+                                            {}, case["case_index"])
+        elif status != 200 or error is not None or not usage or not complete_sse:
+            raise RuntimeError(
+                f"canonical request {case['case_index']} did not complete; "
+                "stopping before extending an uncertain conversation frontier")
+
+    post_question_capacity_fill = None
+    if (geometry["target_tokens"] is not None and cases and
+            args.series_final_target == args.target_tokens):
+        post_fill_target = min(int(args.series_final_target),
+                               args.context_tokens - FINAL_CONTEXT_RESERVE_TOKENS)
+        before_post_fill = actual_context_tokens
+        if actual_context_tokens < post_fill_target:
+            history, post_fill = fill_context(
+                final, renderer, endpoint, key, output, args.context_tokens,
+                post_fill_target, fingerprint, None, None, fill_mode,
+                reuse_filled_prefix=True, initial_history=history,
+                initial_manifest=source_manifest,
+                initial_occupied=actual_context_tokens,
+                snapshot_format=args.snapshot_format,
+                chunk_map_path=args.source_chunk_map,
+                nominal_target_tokens=args.series_final_target)
+            actual_context_tokens = int(post_fill["occupied_tokens"])
+            source_manifest = json.loads((output / "source-manifest.json").read_text())
+            base.update({"occupied_tokens": actual_context_tokens,
+                         "post_question_capacity_fill": True,
+                         "post_question_fill_target_tokens": post_fill_target})
+            (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
+        post_question_capacity_fill = {
+            "attempted": actual_context_tokens > before_post_fill,
+            "actual_C_before": before_post_fill,
+            "actual_C_after": actual_context_tokens,
+            "nominal_target_C": args.series_final_target,
+            "fill_target_C": post_fill_target,
+            "source_cursor_bytes": (repo_prefill_map.MappedCorpus(
+                args.source_chunk_map).resume_cursor(source_manifest.get("selected_ranges", []))
+                if source_manifest else None),
+        }
     measured = [r for r in completed.values()
                 if r.get("kind") == "measured" and r.get("status") == "pass"]
     def table(metric):
@@ -1348,8 +1453,13 @@ def main() -> int:
                            all(r.get("status") == "pass" for r in completed.values())
                            else "incomplete"),
                "geometry": geometry, "fingerprint": fingerprint,
-               "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
-                                         else "disk_snapshot_restore"),
+               "nominal_target_C": args.target_tokens,
+               "fill_target_C": fill_target,
+               "actual_C_final": actual_context_tokens,
+               "actual_C_drift_from_nominal": (actual_context_tokens - args.target_tokens
+                                                if args.target_tokens is not None else None),
+               "post_question_capacity_fill": post_question_capacity_fill,
+               "filled_prefix_method": "resident_cumulative_conversation",
                "case_count": len(completed),
                "expected_case_count": len(cases),
                "successful_case_count": sum(r.get("status") == "pass" for r in completed.values()),

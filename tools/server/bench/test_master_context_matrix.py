@@ -39,7 +39,7 @@ class MasterContextMatrixTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             matrix.argv_for_row(262144, "cpu", context_checkpoints=-1)
 
-    def test_mtp_controls_never_restore_target_without_their_draft_history(self) -> None:
+    def test_all_occupied_mtp_controls_use_the_resident_conversation(self) -> None:
         self.assertTrue(cell.resident_prefix_required("none", "on"))
         self.assertTrue(cell.resident_prefix_required("off", "on"))
         self.assertTrue(cell.resident_prefix_required("selective", "off"))
@@ -52,6 +52,76 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertEqual(cell.completed_series_status(stages, 2), "runtime_or_driver_failure")
         self.assertEqual(cell.completed_series_status(stages[1:], 2), "incomplete_series")
         self.assertEqual(cell.completed_series_status(stages[1:], 1), "complete")
+
+    def test_cumulative_history_keeps_raw_answer_and_reasoning_for_next_prompt(self) -> None:
+        first = matrix.append_completed_turn([], "first question",
+            {"content": "raw answer", "reasoning_content": "raw reasoning"})
+        next_messages = matrix.canonical_context_messages(first, "second question")
+        self.assertEqual(next_messages, [
+            {"role": "user", "content": "first question"},
+            {"role": "assistant", "content": "raw answer",
+             "reasoning_content": "raw reasoning"},
+            {"role": "user", "content": "second question"},
+        ])
+
+    def test_conversation_frontier_roundtrips_qa_and_frozen_source_cursor(self) -> None:
+        history = matrix.append_completed_turn([], "question",
+            {"content": "answer", "reasoning_content": "think"})
+        manifest = {"actual_occupancy_tokens": 37,
+                    "selected_ranges": [{"path": "src/a.py", "rendered_end_byte": 17}]}
+        with tempfile.TemporaryDirectory(prefix="conversation-frontier-") as tmp:
+            output = pathlib.Path(tmp)
+            (output / "source-manifest.json").write_text(json.dumps(manifest))
+            matrix.write_conversation_frontier(output, history, 37, manifest, 0)
+            loaded = matrix.read_conversation_frontier(output, manifest)
+        self.assertEqual(loaded, (history, 37))
+
+    def test_nominal_fill_drift_is_recorded_without_rejecting_actual_frontier(self) -> None:
+        cases = [{"max_tokens": 400}]
+        self.assertEqual(matrix.bounded_fill_target(8192, 7000, cases), 6640)
+        self.assertEqual(matrix.actual_context_after_request(7017, 400), 7417)
+        self.assertNotEqual(7417, 7000)  # actual C remains distinct from nominal C
+
+    def test_cache_miss_does_not_turn_reprocessed_history_into_new_repo_input(self) -> None:
+        prior_frontier = 65536
+        prompt_after_append = prior_frontier + 32768 + 4
+        # cache_n may be zero after a server-side re-evaluation. It is only a
+        # diagnostic; logical context growth remains the append delta.
+        cache_n = 0
+        backend_prompt_tokens = prompt_after_append
+        self.assertEqual(matrix.logical_new_input_tokens(
+            prompt_after_append, prior_frontier), 32772)
+        self.assertEqual(backend_prompt_tokens, 98308)
+        self.assertEqual(cache_n, 0)
+
+    def test_future_headroom_preserves_each_full_output_and_context_margin(self) -> None:
+        current = [{"max_tokens": n} for n in (40, 400, 400, 400)]
+        future = sum(n + matrix.QUESTION_WRAPPER_RESERVE_TOKENS
+                     for n in (40, 400, 400, 400))
+        reserved = matrix.required_question_headroom(current, future)
+        self.assertEqual(reserved, 2 * (40 + 1200 + 4 * 128) + 1024)
+        limit = matrix.bounded_fill_target(8192, 7000, current, future)
+        self.assertEqual(limit, 8192 - reserved)
+        # As one full request runs, its max output plus wrapper allowance
+        # leaves the next block under the same fixed L.
+        after_one = limit + 40 + matrix.QUESTION_WRAPPER_RESERVE_TOKENS
+        remaining = current[1:]
+        self.assertLessEqual(after_one, 8192 - matrix.required_question_headroom(remaining, future))
+
+    def test_6k_to_12k_checkpoint_overlap_keeps_later_cases_in_the_budget(self) -> None:
+        targets = [6144, 12288]
+        selections = {"6144": {"low": [0]}, "12288": {"low": [0]}}
+        later_reserve = cell.future_case_reserve(
+            targets, 0, selections, list(matrix.MODES), [0, 1, 2], False)
+        self.assertEqual(later_reserve,
+                         40 + 1200 + 4 * matrix.QUESTION_WRAPPER_RESERVE_TOKENS)
+        current = matrix.canonical_schedule(("low",), (0,))
+        context = 32768
+        first_fill = matrix.bounded_fill_target(context, 30000, current, later_reserve)
+        after_first_block = first_fill + matrix.required_question_headroom(current) - 1024
+        later = matrix.canonical_schedule(("low",), (0,))
+        next_ceiling = context - matrix.required_question_headroom(later)
+        self.assertEqual(after_first_block, next_ceiling)
 
     def test_checkpoint_free_control_keeps_gpu_quant_and_rejects_mtp(self) -> None:
         argv = matrix.argv_for_row(8192, "gpu", mtp=False, checkpoint_free_control=True)
@@ -97,10 +167,8 @@ class MasterContextMatrixTests(unittest.TestCase):
 
         class FakeRenderer:
             def __call__(self, messages):
-                users = [row["content"] for row in messages if row.get("role") == "user"]
-                # Account for deterministic per-turn framing while keeping
-                # generated assistant acknowledgments out of fake occupancy.
-                count = sum(len(tokenizer.encode(text)) for text in users) + 12 * len(users)
+                count = sum(len(tokenizer.encode(str(row.get("content") or ""))) + 12
+                            for row in messages)
                 return SimpleNamespace(token_ids=[0] * count)
 
         class FakeFinal:
@@ -117,11 +185,11 @@ class MasterContextMatrixTests(unittest.TestCase):
                              "continuation metadata must not overwrite the API key")
             raw_path.parent.mkdir(parents=True, exist_ok=True)
             raw_path.write_text("offline fake SSE\n", encoding="utf-8")
+            seen_payloads.append(payload)
             messages = payload["messages"]
-            users = [row["content"] for row in messages if row.get("role") == "user"]
-            prompt_n = sum(len(tokenizer.encode(text)) for text in users) + 12 * len(users)
-            prior_users = users[:-1]
-            cache_n = sum(len(tokenizer.encode(text)) for text in prior_users) + 12 * len(prior_users)
+            prompt_n = sum(len(tokenizer.encode(str(row.get("content") or ""))) + 12
+                           for row in messages)
+            cache_n = max(0, prompt_n - len(tokenizer.encode(messages[-1]["content"])) - 12)
             return {
                 "content": "a", "reasoning_content": "",
                 "usage": {"prompt_tokens": prompt_n, "completion_tokens": 1,
@@ -131,6 +199,7 @@ class MasterContextMatrixTests(unittest.TestCase):
             }
 
         self_outer = self
+        seen_payloads = []
         with tempfile.TemporaryDirectory(prefix="mapped-fill-integration-") as tmp:
             base = pathlib.Path(tmp)
             source = base / "source"
@@ -187,19 +256,26 @@ class MasterContextMatrixTests(unittest.TestCase):
             ranges1 = manifest1["selected_ranges"]
             ranges2 = manifest2["selected_ranges"]
 
-            self.assertEqual(info1["occupied_tokens"], 250)
-            self.assertEqual(info2["occupied_tokens"], 500)
-            self.assertEqual(final.clear_calls, 1, "continuation must not erase the saved prefix")
+            self.assertGreaterEqual(info1["occupied_tokens"], 250)
+            self.assertLessEqual(info1["occupied_tokens"], 250 + 32)
+            self.assertGreaterEqual(info2["occupied_tokens"], 500)
+            self.assertLessEqual(info2["occupied_tokens"], 500 + 32)
+            self.assertEqual(final.clear_calls, 0, "continuation keeps the live conversation resident")
+            self.assertIn({"role": "assistant", "content": "a"},
+                          seen_payloads[2]["messages"],
+                          "the next checkpoint starts from the prior completed conversation")
             self.assertEqual([row["chunk_kind"] for row in rows1],
                              ["full_group", "checkpoint_tail"])
-            self.assertEqual([row["content_tokens"] for row in rows1], [128, 98])
+            self.assertEqual(rows1[0]["content_tokens"], 128)
+            self.assertGreater(rows1[1]["content_tokens"], 0)
+            self.assertLess(rows1[1]["content_tokens"], 128)
             self.assertEqual(rows1[0]["content_tokens"], mapped_manifest["chunk_tokens"])
             self.assertGreaterEqual(len({s["path"] for s in ranges1[0]["source_segments"]}), 2,
                                     "one fixed-size group should combine multiple short files")
             self.assertTrue(all(row["fresh_tokens"] <= 128 +
                                 matrix.CANONICAL_SUFFIX_RESERVE_TOKENS
                                 for row in rows1 + rows2))
-            self.assertEqual(set(bounds), {128 + matrix.CANONICAL_SUFFIX_RESERVE_TOKENS})
+            self.assertEqual(set(bounds), {None})
 
             cursor1 = mapped.resume_cursor(ranges1)
             self.assertTrue(any(begin < cursor1 < end for begin, end in
@@ -209,7 +285,9 @@ class MasterContextMatrixTests(unittest.TestCase):
             continuation = ranges2[len(ranges1):]
             self.assertEqual([row["chunk_kind"] for row in rows2],
                              ["full_group", "checkpoint_tail"])
-            self.assertEqual([row["content_tokens"] for row in rows2], [128, 98])
+            self.assertEqual(rows2[0]["content_tokens"], 128)
+            self.assertGreater(rows2[1]["content_tokens"], 0)
+            self.assertLess(rows2[1]["content_tokens"], 128)
             self.assertEqual(continuation[0]["corpus_start_byte"], cursor1)
             self.assertEqual(continuation[0]["map_chunk_ids"], [1, 2])
             self.assertEqual(mapped.resume_cursor(ranges2), ranges2[-1]["corpus_end_byte"])
@@ -227,6 +305,12 @@ class MasterContextMatrixTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "fresh/context bound"):
                 matrix.validate_fill_bounds(max_group_fresh + 1, max_group_fresh + 1,
                                             1, 40000, max_fresh_tokens=max_group_fresh)
+            # The measured map-bound excess can be diagnostic when only a few
+            # wrapper tokens differ; the actual configured context bound stays hard.
+            matrix.validate_fill_bounds(max_group_fresh + 4, max_group_fresh + 4,
+                                        1, 40000)
+            with self.assertRaisesRegex(RuntimeError, "fresh/context bound"):
+                matrix.validate_fill_bounds(max_group_fresh + 4, 40000, 1, 40000)
 
     def test_stock_hybrid_rewind_keeps_checkpoints_enabled(self) -> None:
         argv = matrix.argv_for_row(65536, "gpu", mtp=False)

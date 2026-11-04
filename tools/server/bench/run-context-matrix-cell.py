@@ -183,12 +183,7 @@ def checkpoint_case_options(selections: dict[str, Any] | None, target: int,
 
 def resident_prefix_required(pager: str, mtp: str, *,
                              prefill_only: bool = False) -> bool:
-    # All occupied-context comparisons use ordinary server prefix caching.
-    # Benchmark-owned slot files are unnecessary for this workload and a
-    # target-only restore also loses native MTP's companion prefix/carry.
-    # Keep this one policy for GPU, CPU, pager-on/off, and ingest-only runs;
-    # request construction reuses the filled repo frontier without manual
-    # /slots save/restore/erase operations between canonical questions.
+    # Every occupied-context run keeps one cumulative conversation resident.
     return True
 
 
@@ -199,12 +194,35 @@ def completed_series_status(stages: list[dict[str, Any]], expected: int) -> str:
     return "complete" if len(stages) == expected else "incomplete_series"
 
 
+def future_case_reserve(targets: list[int], start_index: int,
+                        selections: dict[str, Any] | None,
+                        modes: list[str], prompt_indices: list[int],
+                        prefill_only: bool) -> int:
+    """Output and wrapper budget for all scheduled cases after this checkpoint."""
+    if prefill_only:
+        return 0
+    per_pair = sum((40, 400, 400, 400)) + 4 * matrix.QUESTION_WRAPPER_RESERVE_TOKENS
+    total = 0
+    for target in targets[start_index + 1:]:
+        selected = selections.get(str(target)) if selections is not None else None
+        if selected == {}:
+            continue
+        if selected is None:
+            pair_count = len(modes) * len(prompt_indices)
+        else:
+            pair_count = sum(len(indices) for indices in selected.values())
+        total += pair_count * per_pair
+    return total
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context-tokens", type=int, required=True)
     parser.add_argument("--target-tokens", type=int)
     parser.add_argument("--target-sequence", nargs="+", type=int,
                         help="increasing context checkpoints filled from new repo bytes in one server session")
+    parser.add_argument("--series-final-target", type=int,
+                        help="nominal final C for optional post-question capacity fill")
     parser.add_argument("--placement", choices=("gpu", "cpu"), required=True)
     parser.add_argument("--mtp", choices=("on", "off"), required=True)
     parser.add_argument("--pager", choices=("none", "off", "selective"), default="none")
@@ -225,7 +243,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-only", action="store_true")
     parser.add_argument("--checkpoint-selection", type=pathlib.Path,
                         help="JSON mapping occupied checkpoints to remaining mode/prompt pairs")
-    parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume")
+    parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume",
+                        help=argparse.SUPPRESS)
     parser.add_argument("--context-checkpoints", type=int, default=8,
                         help="native server checkpoint count, passed unchanged to request identity checks")
     parser.add_argument("--checkpoint-free-controls", action="store_true")
@@ -244,6 +263,9 @@ def main() -> int:
     if any(target is None for target in targets):
         raise SystemExit("context checkpoint list cannot contain an empty target")
     targets = [int(target) for target in targets]
+    series_final_target = args.series_final_target or targets[-1]
+    if series_final_target not in targets:
+        raise SystemExit("--series-final-target must be one of the target checkpoints")
     selections = (json.loads(args.checkpoint_selection.read_text())
                   if args.checkpoint_selection else None)
     prefill_only_series = args.prefill_only or (
@@ -337,7 +359,7 @@ def main() -> int:
             args=(proc.pid, output / "resource-samples.jsonl", sampler_stop), daemon=True)
         sampler.start()
         previous_campaign: pathlib.Path | None = None
-        for target in targets:
+        for target_index, target in enumerate(targets):
             target_dir = output / f"C{target}"
             target_dir.mkdir(parents=True, exist_ok=True)
             campaign_output = target_dir / "campaign"
@@ -352,6 +374,10 @@ def main() -> int:
                 "--output", str(campaign_output), "--api-key-file", str(args.api_key_file),
                 "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
                 "--context-checkpoints", str(args.context_checkpoints),
+                "--series-final-target", str(series_final_target),
+                "--future-case-reserve-tokens", str(future_case_reserve(
+                    targets, target_index, selections, args.reasoning_modes,
+                    args.prompt_indices, args.prefill_only)),
                 "--source-chunk-map", str(args.source_chunk_map.resolve())]
             if resident_prefix:
                 command.append("--reuse-filled-prefix")
@@ -377,6 +403,9 @@ def main() -> int:
             for index in args.skip_runtime_fault_case:
                 command.extend(("--skip-runtime-fault-case", str(index)))
             stage = {"target_tokens": target, "output": str(target_dir),
+                     "future_case_reserve_tokens": future_case_reserve(
+                         targets, target_index, selections, args.reasoning_modes,
+                         args.prompt_indices, args.prefill_only),
                      "driver_argv": command, "status": "runtime_or_driver_failure"}
             # Each request already has its own progress/total deadline. An
             # arbitrary two-hour checkpoint timeout can kill a healthy large
