@@ -219,7 +219,7 @@
     "status": "ready",
     "plan": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.json",
     "numbered_plan": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.md",
-    "output_root": "/srv/ai/paged-kv/results/comparison-completion-20261104-r2",
+    "output_root": "/srv/ai/paged-kv/results/comparison-completion-20261104-r3",
     "step_order": [
       "master-gpu-mtp-off",
       "fork-cpu-mtp-off",
