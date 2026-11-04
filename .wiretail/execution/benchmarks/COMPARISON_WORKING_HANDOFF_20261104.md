@@ -1,107 +1,94 @@
-# Comparison completion — active working handoff
+# Comparison completion — current handoff
 
-User confirmation on 2026-11-04: **normal server prefix caching, no benchmark
-KV disk saves/restores, same context-size comparisons**. Repository ingestion
-appends only fresh disjoint mapped repo chunks. Canonical questions reuse that
-filled base without accumulating prior benchmark answers in the base.
+## User-confirmed method
 
-## Active frozen plan
+Normal server prefix caching, no benchmark disk save/restore/erase. Each
+canonical question uses the fixed filled repo base plus its current question;
+prior benchmark questions/answers do not accumulate in that base. Only new
+mapped disjoint repository chunks grow the ingest frontier. One fill per
+configuration series, never per prompt or reasoning mode. Keep valid historical
+decode results even if their legacy fill protocol was inefficient; label it.
 
-- Branch: `plan/attention-aware-kv-paging`.
-- Plan: `COMPARISON_COMPLETION_20261104.json`, revision 6; output
-  `/srv/ai/paged-kv/results/comparison-completion-20261104-r6`.
-- R6 is running durably. Steps1/2 GPU-MTP-on mapped ingest completed through
-  actual C62465; master backend/net-new1346.87 tok/s, fork910.57 tok/s. Step3
-  fork GPU/MTP-off is active; query live queue progress for its latest frontier.
-- Runtime owner: `/root/comparison_runtime_prep`, Luna High. One model and
-  `/tmp/ai-pager-benchmark.lock`; protect Jellyfin, 8091, 8092.
-- Driver fix `095a1fc05` keeps every occupied control on ordinary prefix reuse;
-  no benchmark `/slots` save/restore/erase calls. 28 focused tests passed.
-- No inference source, binary, DSO, model, quant, B1024/U256, t16/tb16,
-  T0/seed42, 40-token warmup or 3x400 measured setting changes.
-- R6 has 204 primary canonical requests at most; all valid historical results
-  and the two complete current ACO curves remain. Most R6 steps are ingest-only.
-- Execution order: GPU-MTP-on master/fork mapped ingest curves; fork GPU-off
-  conditional 127K endpoint; master GPU-off mapped ingest; fork/master CPU-MTP-on
-  mapped ingest; remaining master CPU-MTP-off non-off mode cells; three clean
-  independent sessions of the one historical master CPU-MTP-on Bash outlier.
-- All argv are predetermined in JSON/Markdown. Startup-OOM fallbacks retain
-  B/U, threads and quants. Runtime faults never become allocation-limit claims.
-- `requested_decode_requirements` preserves the earlier requested but currently
-  unmeasured decode cells. Ingest-only completion does not erase decode gaps.
+## Current execution
 
-## Preserved runs / failures
+- Branch plan/attention-aware-kv-paging, no inference code/binary changes.
+- Active plan COMPARISON_COMPLETION_20261104.json revision7, ready; output
+  /srv/ai/paged-kv/results/comparison-completion-20261104-r7.
+- Runtime owner /root/comparison_runtime_prep (Luna High) must launch durable
+  queue with nohup setsid, one GPU/model and /tmp/ai-pager-benchmark.lock.
+- Root checked all11 profiles: exact argv/driver SHA, B1024/U256,t16/tb16,
+  Turbo4 GPU target/draft or Q4_0 CPU target, MTP nmax2, T0/seed42, one warmup40
+  and three measured400. Same binaries/model/template/map. No build required.
+- Tool commit da21b657d passes context_checkpoints through all driver layers;
+ 29 focused tests pass. Profiles32(native default), except forkGPUoff ingest8.
+- R7 selects147 genuinely missing feasible cells +3 independent outlier
+  sessions =600 maximum canonical requests. Conditional startup profiles replace
+  a failed startup;448 catalogue requests are NOT additive planned executions.
+- Order: remaining master CPU-off; master GPU-off L122880 gaps; fork CPU-on
+  gaps; master CPU-on gaps; three independent C28K/off/Bash rechecks; fork
+  GPU-off L122880 ingest-only. Predeclared CPU startup fallbacks filter cells
+  beyond their L; never shrink batches or quietly relabel the requested C.
+- First repeated C126976 question must keep the recent prefix. Monitor native
+  checkpoint creates and cached/backend token counts before letting cases repeat.
 
-- Current ACO on/off curves: `evidence/ACO_FULL_CURVES_20261104.json`, 264 cells,
-  792 measured plus 264 warmups, all passing. Do not rerun them.
-- R4 fork CPU-Q4/MTP-off completed all seven points; repaired 192K Bash
-  decode min/median/max 3.6813 / 3.7312 / 3.7395 tok/s, all 400 tokens.
-- R4 fork/master CPU-MTP-on target-file-restored data is quarantined. It drops
-  native draft prefix/carry and is not a normal full-prefix MTP comparison.
-- R5 normal resident fork CPU-MTP-on faulted at C12288 after 31 passing records.
-  Master CPU-MTP-on produced invalid target-argmax rows at C6144. Retain only
-  independently valid complete triplets, with partial-series status explicit.
-- R5 master CPU-MTP-off C6144/C12288/C28672 each completed 36/36 requests.
-  Root deliberately held the idle series driver after C28672 to remove manual
-  file restores. Supervisor exit143 was an operator hold, not a model failure.
-- R5 JSON/MD are archived as `COMPARISON_COMPLETION_20261104_R5.*` for audit
-  only. Do not run them: their older driver hashes/protocol are superseded.
-- Pristine master GPU-off repeated-context checkpoint faults reproduced at
-  C6144 under multiple L values; this is not an established memory ceiling.
-  R6 does not repeat that failed decode path again just to obtain another fault.
-- Exact source findings: `engineering-notes/benchmark-prefix-state-failures-20261104.md`.
+## Why R6 paused
 
-## Outlier and reporting policy
+Eight native checkpoints were created, newest C61441; none after appends to
+C94224/C126977. C126K warmup cached126977 and processed61; measured repeat
+restored61441, reprocessed65597. No CUDA/OOM; driver stopped before more repeats.
+The8-cap plus protected retention floor is the leading explanation, not a
+proven exact skip predicate.32 native checkpoints cost about3.51 GiB extra
+for the observed target images, versus~50 GiB host available; native-MTP
+companion snapshots are additional and must be observed, not assumed zero.
+No benchmark slot files are the recovery. R5/R6 plans are audit archives only;
+old driver SHA are superseded, so do not resume those queues.
 
-- Coverage index: `COMPARISON_COVERAGE_20261104.json`; retain valid historical
-  whole-cell triplets, including CPU-Q4 records whose null mode was verified off.
-- Old master CPU-MTP-on C28672/off/Bash had 15.9977/11.2388/11.6034 tok/s and
-  63.25/29.98/29.98% acceptance. All three had identical target text and full
-  fresh prompt processing (cache_n=0); restore/carry was not an evidenced cause.
-  Acceptance tracks the speed spread, but its differing value remains unresolved.
-  R6 schedules three independent normal-prefix rechecks, without cherry-picking.
-- No >30% repeat spread or >35% adjacent decode jump in current ACO curves.
-  Small-tail ingest rows remain visible, but mapped interval curves weight
-  all chunks in each interval as sum(tokens)/sum(seconds).
-- Primary prefill graphs: mapped repo chunk schedules only; separate backend,
-  net-new/backend-time, and net-new/HTTP-wall rates. Canonical question-suffix
-  prefill is a separate diagnostic, never the bulk ingestion curve.
-- Preserve actual C and nominal target separately, min/median/max, source hashes,
-  independent cohorts, and explicit failures. Never interpolate missing cells.
-- Report generator: `report-comparisons-20261104.py`; docs owner
-  `/root/aco_docs_refresh_20261104` completed R5 partial-series whitelists and
-  R6 outlier aliases in commit a85dab5a6; synthetic checks passed. No broad
-  import of quarantined external roots. Preview export awaits a quiet window.
-- Matplotlib environment: `/srv/ai/paged-kv/venvs/comparison-report`; use Agg and
-  OMP/OpenBLAS/MKL threads1. Render/export only outside timed CPU runs.
-- Preview-r5 is stale and not publication output. Final report needs fresh
-  generation, image inspection, completeness review, and compact tracked exports.
-- Raw logs/binaries remain external. Benchmark-tool changes stay separate from
-  portable inference commits. Commit/push compact reports and final graphs.
+## Preserved evidence
 
-The systematic GPU-MTP-on ingest difference is documented in
-`engineering-notes/dense-turbo4-prefill-cohort-difference-20261104.md`: differing
-CUDA attention dispatch predicates are a source-grounded candidate, not confirmed
-per-kernel timing attribution. Do not change measured binaries to investigate it.
+- ACO current on/off curves complete: evidence/ACO_FULL_CURVES_20261104.json;
+ 264 cells,792 measured+264 warmups, all pass. Never rerun them unnecessarily.
+- R4 forkCPUoff repaired192K Bash3x400, min/median/max3.6813/3.7312/3.7395.
+- R4 fork/master CPU-MTP-on target-file-restored data quarantined, external raw
+  retained; target-only restore drops native draft prefix/carry.
+- R5 masterCPUoff C6144/C12288/C28672 each36/36 pass; operator-held idle driver
+  exit143 was intentional, not a model fault. Valid partial-series triplets kept.
+- R6 masterCPUoff C61440 passed36/36. C126K cache-miss attempt diagnostic only.
+- R6 GPU-MTP-on master/fork mapped C62465 fills passed; weighted backend/net
+ 1346.87 vs910.57 tok/s, wall1341.45 vs908.05. No canonical decode repeated.
+- R6 fork/masterCPU-MTP-on mapped fills completed C256000/C196608, respectively.
+- R6 GPU-off L131072 had real fill-time exhaustion: fork completedC100352 then
+  failedC120832, master completedC120832 then failedC130048. GPU-free min9MiB,
+  host available~50.7GiB. VBR allocator really failed, but main-target F16
+  reservation is conservative; not an intrinsic context ceiling for every config.
+- Normal masterGPU C6 fault source: comparison-completion-20261104/
+  master-gpu-mtp-off/attempt-002-L131072. base_fileNone/resident_prefix_reuse;
+ 9 passes then cache miss and CUDAillegal access. R2/3/4 file protocols separate.
 
-## Latest runtime handoff
+## Reports / remaining follow-up
 
-R6 steps1/2 completed all mapped fills; GPU-off steps3/4 hit real fill-time GPU
-exhaustion at L131072 (not startup OOM). Their L122880 profiles exist but queue
-fallback is startup-only. After the primary queue, execute step3/4 profile1 as
-fresh ingest-only series, attempt2, one model at a time. They are predeclared
-commands, not a batch/quant reduction. Keep the 127K endpoint as unmeasured.
-
-Steps5/6 CPU-MTP-on mapped fills completed through C256000/C196608. Step7
-CPU-MTP-off is active at C126976 after C61440 passed36/36. Last completed query
-reused61441 cached tokens and processed71 prompt tokens; no full-C replay.
-Do not export/plot during timed CPU work. No quiet window was available.
-
-After primary+fallback runs, runtime owner executes the separate tracked
-`profile-comparison-dispatch.py --execute` diagnostic (default is dry-run).
-It profiles only the two frozen GPU/MTP-on configurations, mapped fill through
-C28672, no canonical decode; raw traces remain external. Script SHA256:
-`118259d142fa7e9da10424d6d32ff7a8e12d1212a72d5418e663afc51980c012`.
-Trace absence is unmeasured, not zero work; timings cannot replace primary data.
-Docs agent is idle; explicitly followup once timings are idle to export/render
-final preview and inspect the graphs. Final publication/export still pending.
+- Current preview /srv/ai/paged-kv/results/comparison-final-20261104-preview-r6:
+ 774 valid cells/2322 reps,171 missing declared cells.24 are conditional GPU
+ C130048 endpoints beyond the verified lower allocation;147 feasible gaps R7.
+- Reporter maps all10 variants only using verified source manifest/map SHA.
+  No historical variable chunks silently pooled. Primary graphs interval-weight
+  all new chunks; backend/net-new/backend-time/HTTP-wall rates remain separate.
+- Nominal and actual C separate; min/median/max from complete triplets; no
+ interpolation, best-sample mixing, source-cohort pooling, or hidden missing cells.
+- Old masterCPUon C28672/off/Bash15.9977/11.2388/11.6034tok/s correlated with
+ 63.25/29.98/29.98% MTP acceptance. Identical target text and full cache_n0
+  processing; native proposals greedy, so neither RNG nor restored carry explains
+  it. R7 has three independent clean normal-cache sessions, no cherry-picking.
+- Source-conditioned dense GPU prefill difference note:
+ engineering-notes/dense-turbo4-prefill-cohort-difference-20261104.md.
+  Fused-vs-materialized dispatch remains unconfirmed; do not change measured code.
+- After allR7 primary/fallback work, execute tracked
+ profile-comparison-dispatch.py --execute once. It profiles frozen R6 master/fork
+ GPU-MTP-on throughC28672 only, no decode; no changes to their argv/binaries.
+  SHA118259d142fa7e9da10424d6d32ff7a8e12d1212a72d5418e663afc51980c012.
+  Empty CUDA trace =unmeasured, not zero. Trace timings never replace primary data.
+- Docs agent /root/aco_docs_refresh_20261104 is idle; followup ONLY when timings
+  idle to export/render and inspect final charts. Matplotlib venv
+ /srv/ai/paged-kv/venvs/comparison-report, Agg, OMP/OpenBLAS/MKL1.
+- Protect Jellyfin/ffmpeg and8091; never touch8092. Restore gateway/model health.
+  Raw payloads/traces/binaries external; commit/push compact reports/CSV/graphs
+  and separate local benchmark helpers from portable inference changes.

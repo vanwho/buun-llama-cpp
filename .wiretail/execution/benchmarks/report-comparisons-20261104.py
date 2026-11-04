@@ -898,7 +898,7 @@ def write_prefill_chart(out, rows, metric, label):
         family_handles=[Line2D([0],[0],color=palette(family_index[f]%10),marker='o',linewidth=1.2,markersize=4,label=f) for f in families]
         marker_handles=[Line2D([0],[0],color='#333333',marker=markers.get(k,'^'),linestyle='None',markersize=5,label=marker_labels.get(k,k)) for k in kinds]
         if marker_handles:
-            ax.legend(handles=marker_handles,loc='upper left',frameon=False,title='Append kind',fontsize='small')
+            ax.legend(handles=marker_handles,loc='upper right',frameon=False,title='Append kind',fontsize='small')
         fig.legend(handles=family_handles,loc='lower center',ncol=min(5,len(family_handles)),frameon=False,bbox_to_anchor=(.5,.01),fontsize='small',title='Family (colors match decode plots)')
         fig.tight_layout(rect=(0,.12,1,.94))
         base=out/f'prefill-{metric}-{cohort}'
@@ -1207,7 +1207,7 @@ def write_prefill_checkpoint_chart(out, rows, metric, label):
     families=sorted({r['family'] for r in data},key=lambda f:family_index_map.get(f,99))
     handles=[Line2D([0],[0],color=palette(family_index_map[f]%10),marker='o',linestyle='None',markersize=4,label=f) for f in families]
     handles.append(Line2D([0],[0],color='#555555',linestyle='--',label='ACO H = 65,536 tokens'))
-    ax.legend(handles=handles,frameon=False,ncol=2,fontsize='small',loc='upper left')
+    ax.legend(handles=handles,frameon=False,ncol=4,fontsize='small',loc='upper center',bbox_to_anchor=(0.5,-0.15))
     fig.tight_layout()
     base=out/f'prefill-{metric}-mapped-checkpoints'
     fig.savefig(base.with_suffix('.png'),dpi=180,bbox_inches='tight'); fig.savefig(base.with_suffix('.svg'),bbox_inches='tight'); plt.close(fig)
