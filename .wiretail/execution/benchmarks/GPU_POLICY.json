@@ -7,7 +7,7 @@
     "media-stack.service"
   ],
   "sizing_checks_allow_jellyfin_running": true,
-  "final_clean_prefill_retests": "paused_until_user_releases_hold",
+  "final_clean_prefill_retests": "authorized_aco_mtp_on_off_full_curves_20261104",
   "note": "Never stop Jellyfin or its transcode processes for benchmark cleanup. Record its resource use during sizing. A clean benchmark must pause instead of killing a protected GPU client.",
   "authorized_current_run": {
     "purpose": "one fresh prefill-only 256K allocation /64K hot/GPU MTP2 curve",
@@ -129,5 +129,47 @@
     "performance_verdict": "no material speedup established",
     "fence_experiment": "discarded; only moved waits, no material end-to-end gain",
     "final_build_source": "8a79008b5"
+  },
+  "authorized_full_aco_curves_20261104": {
+    "status": "authorized_preparing",
+    "scope": "ACO MTP on and off full incremental repo-fill curves only; other variants not requested",
+    "runtime_source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
+    "L": 262144,
+    "H": 65536,
+    "page_tokens": 256,
+    "B": 1024,
+    "U": 256,
+    "reasoning_order": [
+      "off",
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "prompts_per_reasoning": 3,
+    "warmups_per_prompt": 1,
+    "warmup_output_cap": 40,
+    "measured_per_prompt": 3,
+    "measured_output_cap": 400,
+    "target_sequence": [
+      6144,
+      12288,
+      28672,
+      62464,
+      78848,
+      88064,
+      100352,
+      130048,
+      196608,
+      256000,
+      261120
+    ],
+    "fresh_server_per_mtp_variant": true,
+    "one_persistent_fill_per_variant": true,
+    "source_map": "/srv/ai/paged-kv/fixtures/repo-prefill-a5a1110-32k-v1/map.json",
+    "source_worktree": "/srv/ai/paged-kv/worktrees/benchmark-source-a5a1110",
+    "replacement_policy": "Promote complete comparable new cells when median and/or max decode improves; retain whole new cell, previous raw lineage, and all slower observations. Do not mix a median from one run and a maximum from another into a fabricated sample.",
+    "jellyfin": "preserve",
+    "8091": "preserve",
+    "8092": "never touch"
   }
 }
