@@ -32,6 +32,7 @@ ALLOW_PILLOW_DRAFT = False
 DATA_ONLY = False
 PREFILL_GROUPS = []
 _PREFILL_SEEN = set()
+OUTLIER_SERIES_CELLS = []
 
 
 def plotting_pyplot():
@@ -234,6 +235,9 @@ def append_schedule_groups(schedule_path, family, nominal_c, mtp, protocol, sour
         raw=r.get('raw_path')
         rawsha=r.get('raw_sha256')
         if not isinstance(ix,int) or not raw or not rawsha: continue
+        append_status=r.get('status')
+        if append_status is not None and append_status not in ('pass','complete','ok','success'):
+            continue
         rawpath=Path(raw)
         if not rawpath.is_absolute(): rawpath=p.parent/rawpath
         if not rawpath.is_file(): continue
@@ -308,6 +312,9 @@ def timing_from_sse(path, expected_sha):
 
 def cell(family, c, mode, pi, triplet, source, identity, variant, mtp, nominal_c=None):
     rates = [float(r["decode_tok_s"]) for r in triplet]
+    actuals=[int(r['actual_C']) for r in triplet if r.get('actual_C') is not None]
+    actual_values=actuals if len(actuals)==3 else None
+    actual_median=int(statistics.median(actual_values)) if actual_values else int(c)
     accept = []
     if mtp:
         for r in triplet:
@@ -322,7 +329,11 @@ def cell(family, c, mode, pi, triplet, source, identity, variant, mtp, nominal_c
             accept.append(float(a))
     return {
         "family": family, "variant": variant, "mtp": "on" if mtp else "off", "placement": "GPU" if "gpu" in family else ("CPU Q4_0 target" if "cpu" in family else "GPU target; ACO"),
-        "actual_C": int(c), "nominal_target_C": int(nominal_c if nominal_c is not None else c), "reasoning_mode": mode, "prompt": f"P{pi+1}",
+        "actual_C": actual_median, "actual_C_repeats": actual_values,
+        "actual_C_min": min(actual_values) if actual_values else None,
+        "actual_C_median": actual_median if actual_values else int(c),
+        "actual_C_max": max(actual_values) if actual_values else None,
+        "nominal_target_C": int(nominal_c if nominal_c is not None else c), "reasoning_mode": mode, "prompt": f"P{pi+1}",
         "decode_tok_s": summary(rates),
         "mtp_acceptance_percent": summary(accept) if mtp else None,
         "completion_tokens": [r["completion_tokens"] for r in triplet],
@@ -375,7 +386,12 @@ def add_raw_family(cells, family, rows, identity, variant, mtp, source_hashes):
                 nominal_c=nominal_override if nominal_override is not None else (geometry_meta.get('nominal_target_C') if geometry_meta.get('nominal_target_C') is not None else c)
                 item = cell(family, actual_c, mode, pi, t, {"path": str(p), "sha256": actual_hash, "context_identity_artifacts":raw_identity,"observed_geometry":geometry_meta, **provenance}, identity, variant, mtp, nominal_c=nominal_c)
                 if item:
-                    cells[(family, int(nominal_c), mode, pi)] = item
+                    independent_series=provenance.get('independent_series_id')
+                    if independent_series:
+                        item['independent_series_id']=independent_series
+                        OUTLIER_SERIES_CELLS.append(item)
+                    else:
+                        cells[(family, int(nominal_c), mode, pi)] = item
 
 
 def discover_current_completion(plan, source_hashes):
@@ -384,10 +400,10 @@ def discover_current_completion(plan, source_hashes):
     # plan root. Keep this allowlist narrow so quarantined R4 variants cannot leak
     # into primary coverage through broad directory discovery.
     for spec in plan.get("retained_completed_series", []):
-        if not isinstance(spec, dict) or spec.get("family") != "fork-cpu-mtp-off":
+        if not isinstance(spec, dict) or spec.get("family") not in FAMILIES[:8]:
             continue
         series = Path(spec.get("path", ""))
-        if not series.is_dir() or series.parent.name != spec["family"]:
+        if not series.is_dir() or series.parent.name != spec["family"] or not series.name.startswith("attempt-"):
             continue
         for p in sorted(series.glob("cell/C*/campaign/records.jsonl")):
             try:
@@ -395,7 +411,7 @@ def discover_current_completion(plan, source_hashes):
                 cfg = jread(cfgp) if cfgp.exists() else {}
                 rowp = p.parent / "row.json"
                 rowmeta = jread(rowp) if rowp.exists() else {}
-                if not row_is_complete(rowmeta): continue
+                if not spec.get("allow_partial_triplets") and not row_is_complete(rowmeta): continue
                 geo = rowmeta.get("geometry", {}) if isinstance(rowmeta.get("geometry", {}), dict) else {}
                 base = cfg.get("base", rowmeta.get("base", {}))
                 if not isinstance(base, dict): base = {}
@@ -403,7 +419,7 @@ def discover_current_completion(plan, source_hashes):
                 nominal = geo.get("target_tokens", cfg.get("requested_target_tokens"))
                 if actual is None or nominal is None: continue
                 rows[spec["family"]].append((int(actual), str(p), None,
-                    {"approved_retained_series":str(series),"retention_reason":spec.get("reason"),"run_config":str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None},
+                    {"approved_retained_series":str(series),"retention_reason":spec.get("reason"),"allow_partial_triplets":bool(spec.get("allow_partial_triplets")),"run_config":str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None},
                     None, False, False, int(nominal)))
             except Exception:
                 continue
@@ -412,8 +428,12 @@ def discover_current_completion(plan, source_hashes):
         return rows
     # Locate only compact campaign record files. In-progress/failed records naturally fail
     # triplet validation; the path and file hash remain the cell provenance.
-    for family in FAMILIES[:8]:
-        for p in root.glob(f"{family}/**/records.jsonl"):
+    step_by_id={s.get("id"):s for s in plan.get("steps",[]) if isinstance(s,dict)}
+    for step_id,step in step_by_id.items():
+        family=step.get("family",step_id)
+        if family not in FAMILIES[:8]:
+            continue
+        for p in root.glob(f"{step_id}/**/records.jsonl"):
             try:
                 cfgp = p.parent / "run-config.json"
                 cfg = jread(cfgp) if cfgp.exists() else {}
@@ -433,7 +453,10 @@ def discover_current_completion(plan, source_hashes):
                     continue
                 nominal=geometry.get("target_tokens",cfg.get("requested_target_tokens"))
                 if nominal is None: continue
-                rows[family].append((int(c), str(p), None, {"run_config": str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None},None,False,False,int(nominal)))
+                provenance={"run_config":str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None,"execution_step_id":step_id}
+                if step.get("outlier_series_id"):
+                    provenance["independent_series_id"]=step["outlier_series_id"]
+                rows[family].append((int(c), str(p), None, provenance,None,False,False,int(nominal)))
             except Exception:
                 continue
     return rows
@@ -444,26 +467,26 @@ def discover_current_prefill(plan, source_hashes):
     root=Path(plan.get('output_root',''))
     if root.is_dir(): roots.append((root, None))
     for spec in plan.get("retained_completed_series", []):
-        if isinstance(spec,dict) and spec.get("family")=="fork-cpu-mtp-off":
+        if isinstance(spec,dict) and spec.get("family") in FAMILIES[:8]:
             series=Path(spec.get("path",""))
-            if series.is_dir() and series.parent.name==spec["family"]:
+            if series.is_dir() and series.parent.name==spec["family"] and series.name.startswith("attempt-"):
                 roots.append((series,spec))
-    steps={s.get('id'):s for s in plan.get('steps',[])}
+    steps={s.get('id'):s for s in plan.get('steps',[]) if isinstance(s,dict)}
     for root_entry in roots:
       root,spec=root_entry
-      families=[spec["family"]] if spec else FAMILIES[:8]
-      for family in families:
-        step=steps.get(family,{})
-        mtp=step.get('mtp')=='on'
-        if spec: mtp=False
-        schedules=root.glob('cell/C*/campaign/schedule.jsonl') if spec else root.glob(f'{family}/**/schedule.jsonl')
+      families=[(spec["family"], spec.get("series_id", spec["family"]))] if spec else [(s.get('family',sid),sid) for sid,s in steps.items() if s.get('family',sid) in FAMILIES[:8]]
+      for family,step_id in families:
+        step=steps.get(step_id,{})
+        mtp=step.get('mtp')=='on' if step else family.endswith('-mtp-on')
+        if spec: mtp=family.endswith('-mtp-on')
+        schedules=root.glob('cell/C*/campaign/schedule.jsonl') if spec else root.glob(f'{step_id}/**/schedule.jsonl')
         for schedule in schedules:
             rowp=schedule.parent/'row.json'
             if not rowp.is_file(): continue
             try:
                 row=jread(rowp)
-                # Keep completed primary curves only; partial attempts stay out of summaries.
-                if not row_is_complete(row): continue
+                # Partial series may contribute recorded append groups, but not imply series completion.
+                if spec and not spec.get('allow_partial_triplets') and not row_is_complete(row): continue
                 geo=row.get('geometry',{}) if isinstance(row.get('geometry',{}),dict) else {}
                 base=row.get('base',{}) if isinstance(row.get('base',{}),dict) else {}
                 nominal=geo.get('target_tokens')
@@ -471,12 +494,20 @@ def discover_current_prefill(plan, source_hashes):
                 if nominal is None or actual is None: continue
                 identity=row.get('filled_prefix_method','current-plan schedule')
                 source_hashes[str(rowp)]={"sha256":sha(rowp)}
+                first=len(PREFILL_GROUPS)
                 append_schedule_groups(schedule,family,nominal,mtp,str(identity),source_hashes)
+                for group in PREFILL_GROUPS[first:]:
+                    group['execution_step_id']=step_id
+                    group['source']['execution_step_id']=step_id
+                    if spec:
+                        group['retained_series_path']=str(root)
+                        group['retained_series_allow_partial']=bool(spec.get('allow_partial_triplets'))
+                        group['retention_reason']=spec.get('reason')
             except Exception: continue
 
 
-def collect(out):
-    PREFILL_GROUPS.clear(); _PREFILL_SEEN.clear()
+def collect(out, plan_path=None):
+    PREFILL_GROUPS.clear(); _PREFILL_SEEN.clear(); OUTLIER_SERIES_CELLS.clear()
     _IDENTITY_ARTIFACTS.clear()
     cells, source_hashes, identities = {}, {}, {}
     empty_context_controls=[]
@@ -624,7 +655,8 @@ def collect(out):
                  "completion_tokens":x.get("actual_completion_tokens"),"source":source,"source_identity_ref":family}
             cells[(family,nominal_c,mode,pi)] = d
 
-    plan_path = BENCH / "COMPARISON_COMPLETION_20261104.json"; plan = jread(plan_path)
+    plan_path = Path(plan_path) if plan_path else BENCH / "COMPARISON_COMPLETION_20261104.json"
+    plan = jread(plan_path)
     source_hashes[str(plan_path)] = {"sha256": sha(plan_path)}
     identities["current_completion_plan"] = {"path":str(plan_path),"sha256":source_hashes[str(plan_path)]["sha256"],"revision":plan.get("revision"),"status":plan.get("status"),"output_root":plan.get("output_root")}
     # Include only raw cells from the current plan with complete measured triplets and observed C.
@@ -639,7 +671,7 @@ def collect(out):
     # completion while the queue is running or in assessment.
     required = {}
     for step in plan.get("steps", []):
-        fam = step.get("id")
+        fam = step.get("family",step.get("id"))
         if fam not in FAMILIES[:8]: continue
         points = set()
         required_cells = set()
@@ -652,7 +684,29 @@ def collect(out):
                 points.add(int(c))
                 for mode,pis in selection.items():
                     for pi in pis: required_cells.add((int(c),mode,int(pi)))
-        required[fam] = {"checkpoints":sorted(points),"cells":sorted(required_cells)}
+        entry=required.setdefault(fam,{"checkpoints":[] ,"cells":[]})
+        entry["checkpoints"]=sorted(set(entry["checkpoints"])|points)
+        entry["cells"]=sorted(set(tuple(x) for x in entry["cells"])|required_cells)
+    # Preserve original scientific decode requirements even when R6 executes only
+    # prefill at those checkpoints or holds a previously observed fault.
+    for req in plan.get("requested_decode_requirements",[]):
+        if not isinstance(req,dict): continue
+        fam=req.get("family")
+        if fam not in FAMILIES[:8]: continue
+        entry=required.setdefault(fam,{"checkpoints":[],"cells":[]})
+        for prof in req.get("profiles",[]):
+            for c,selection in prof.get("checkpoint_selection",{}).items():
+                if not isinstance(selection,dict): continue
+                has_required=False
+                for mode,pis in selection.items():
+                    if mode not in MODES or not isinstance(pis,list): continue
+                    for pi in pis:
+                        if pi in (0,1,2):
+                            has_required=True
+                            entry["cells"].append((int(c),mode,int(pi)))
+                if has_required: entry["checkpoints"].append(int(c))
+        entry["checkpoints"]=sorted(set(entry["checkpoints"]))
+        entry["cells"]=sorted(set(tuple(x) for x in entry["cells"]))
     return cells, source_hashes, identities, aco, plan, required, empty_context_controls
 
 
@@ -1049,10 +1103,22 @@ def prefill_cohort_summaries(rows, plan, aco_report):
         observed=sorted({int(r['nominal_target_C']) for r in xs if r.get('nominal_target_C') is not None})
         actuals=[int(r['actual_C']) for r in xs if r.get('actual_C') is not None]
         maps=sorted({r.get('chunk_map_sha256') for r in xs if r.get('chunk_map_sha256')})
+        execution_ids={r.get('execution_step_id') or r.get('source',{}).get('execution_step_id') for r in xs}
+        execution_ids.discard(None)
+        retained_specs={r.get('retained_series_path') for r in xs if r.get('retained_series_path')}
         if family.startswith('current-aco'):
             status='complete ACO fill curve' if aco_report.get('status')=='complete' else 'partial ACO fill curve'
-        elif '/attempt-' in series:
-            expected=plan_targets.get(family,set())
+        elif retained_specs:
+            partial=any(r.get('retained_series_allow_partial') for r in xs)
+            if partial:
+                status='retained partial series; source-level completion not asserted'
+            elif family=='master-cpu-mtp-off' and any('/r5/' in str(p) for p in retained_specs):
+                status='R5 operator-held series (intentional exit 143); not a runtime failure; historical coverage retained'
+            else:
+                status='retained series approved by plan; historical completeness kept separate from active step'
+        elif execution_ids:
+            execution_id=next(iter(execution_ids)) if len(execution_ids)==1 else None
+            expected=plan_targets.get(execution_id,set())
             status='complete planned fill series' if expected and expected.issubset(set(observed)) else 'partial planned fill series'
         else: status='complete source fill record(s); historical cohort only'
         result.append({"family":family,"series_id":series,"protocol":protocol,"status":status,"append_groups":len(xs),"observed_nominal_targets_C":observed,"final_actual_C":max(actuals) if actuals else None,"total_backend_tokens":bt if b else None,"backend_seconds":bs if b else None,"aggregate_backend_tok_s":bt/bs if b and bs else None,"backend_eligible_groups":len(b),"total_net_new_tokens":nt if n else None,"net_new_backend_seconds":ns if n else None,"aggregate_net_new_tok_s":nt/ns if n and ns else None,"net_new_eligible_groups":len(n),"http_wall_seconds":ws if w else None,"aggregate_http_wall_tok_s":wt/ws if w and ws else None,"http_wall_eligible_groups":len(w),"chunk_map_sha256":maps if maps else None,"source_files":sorted({(r.get('source',{}).get('schedule_path') or r.get('source',{}).get('report') or r.get('source',{}).get('path') or '') for r in xs})})
@@ -1192,11 +1258,11 @@ def write_tables_appendix(path, celllist, prefill, cohorts, checkpoint_ingest, m
 
 def main():
     global ALLOW_PILLOW_DRAFT, DATA_ONLY
-    ap=argparse.ArgumentParser(); ap.add_argument('--out',type=Path,default=DEFAULT_OUT); ap.add_argument('--allow-pillow-draft',action='store_true',help='Allow interim Pillow charts when Matplotlib is unavailable; not for final report output'); ap.add_argument('--data-only',action='store_true',help='Write JSON/CSV/Markdown only; skip all chart renderers'); args=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('--out',type=Path,default=DEFAULT_OUT); ap.add_argument('--plan',type=Path,help='Use a specific frozen/active comparison plan'); ap.add_argument('--allow-pillow-draft',action='store_true',help='Allow interim Pillow charts when Matplotlib is unavailable; not for final report output'); ap.add_argument('--data-only',action='store_true',help='Write JSON/CSV/Markdown only; skip all chart renderers'); args=ap.parse_args()
     ALLOW_PILLOW_DRAFT=args.allow_pillow_draft
     DATA_ONLY=args.data_only
     out=args.out; out.mkdir(parents=True,exist_ok=True)
-    cells, hashes, ids, aco, plan, required, empty_context_controls = collect(out)
+    cells, hashes, ids, aco, plan, required, empty_context_controls = collect(out,args.plan)
     celllist=sorted(cells.values(),key=lambda x:(x['family'],x['reasoning_mode'],x['actual_C'],x['prompt']))
     # Spread diagnostics are flags for review only; they do not discard a cell.
     flags=[]
@@ -1228,6 +1294,8 @@ def main():
             ac=d.get('mtp_acceptance_percent') or {}
             w.writerow({'family':d['family'],'variant':d['variant'],'placement':d['placement'],'mtp':d['mtp'],'nominal_target_C':d['nominal_target_C'],'actual_C':d['actual_C'],'reasoning_mode':d['reasoning_mode'],'prompt':d['prompt'],'decode_min':d['decode_tok_s']['min'],'decode_median':d['decode_tok_s']['median'],'decode_max':d['decode_tok_s']['max'],'decode_repeats':json.dumps(d['decode_tok_s']['repeats']),'acceptance_min':ac.get('min'),'acceptance_median':ac.get('median'),'acceptance_max':ac.get('max'),'source_path':path,'source_sha256':sh})
     report={"schema":"comparison-final-digest-v1","generated":"2026-11-04","data_only_export":DATA_ONLY,"charts_rendered":not DATA_ONLY,"queue_status":None,"queue_progress_path":str(Path(plan.get('output_root',''))/'queue-progress.json'),"queue_progress":None,"families":FAMILIES,"source_identities":ids,"source_identity_artifacts":_IDENTITY_ARTIFACTS,"source_files":hashes,"coverage":counts,"cell_count":len(celllist),"measured_repeat_count":3*len(celllist),"cells":celllist,"empty_context_controls_separate_cohort":empty_context_controls,"diagnostic_flags_review_only":flags,"limitations":["Only observed actual C values are plotted; no interpolation or manufactured grid points.","At a matching family/nominal target C/mode/prompt, later valid complete evidence replaces the whole earlier cell; repetitions are never cherry-picked.","MTP-on acceptance is shown only when measured for all three valid repetitions; MTP-off is N/A.","Historical fresh-prefill and current persistent 32K-map prefill are separate protocols and are not pooled.","Rate summaries do not establish causality or statistical significance.","A nonzero VmSwap observation exists for current ACO MTP-on; memory residency and page-in I/O are not certified."]}
+    report['independent_outlier_rechecks']={"declared":plan.get('outlier_rechecks'),"complete_cells":sorted(OUTLIER_SERIES_CELLS,key=lambda d:(d.get('independent_series_id',''),d['reasoning_mode'],d['prompt'])),"replacement_policy":"Independent series remain separate robustness evidence; they do not overwrite the main-family cell."}
+    report['reused_decode_outcomes']=plan.get('reused_decode_outcomes',[])
     report["excluded_series"]=[{k:s.get(k) for k in ("family","path","reason")} for s in plan.get("quarantined_series",[]) if isinstance(s,dict)]
     report['generated_at_utc'] = datetime.now(timezone.utc).isoformat()
     qp=Path(plan.get('output_root',''))/'queue-progress.json'

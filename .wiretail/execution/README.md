@@ -164,6 +164,10 @@ external benchmark tooling) during final cleanup:
 - `7e360cf9b` fixes local benchmark prefix selection and aggregate completion:
   MTP retains paired resident state; a successful final stage cannot hide an
   earlier failure. It does not change either measured inference binary.
+- `095a1fc05` supersedes the earlier benchmark slot-file workarounds: every
+  occupied-context control uses normal server prefix caching, with no benchmark
+  disk save/restore/erase between questions. Only new mapped repository chunks
+  grow the filled base. Keep this local driver policy outside the inference PR.
 
 Also remove or rewrite references to these assets/helpers in phase-102
 packets, clusters, overview, testing plan, and evidence before preparing the
