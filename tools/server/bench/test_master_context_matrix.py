@@ -29,6 +29,28 @@ CELL_SPEC.loader.exec_module(cell)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_mtp_controls_never_restore_target_without_their_draft_history(self) -> None:
+        self.assertTrue(cell.resident_prefix_required("none", "on"))
+        self.assertTrue(cell.resident_prefix_required("off", "on"))
+        self.assertTrue(cell.resident_prefix_required("selective", "off"))
+        self.assertFalse(cell.resident_prefix_required("none", "off"))
+        self.assertTrue(cell.resident_prefix_required("none", "off", prefill_only=True))
+
+    def test_successful_last_stage_does_not_hide_an_earlier_runtime_failure(self) -> None:
+        stages = [{"status": "runtime_or_driver_failure"}, {"status": "complete"}]
+        self.assertEqual(cell.completed_series_status(stages, 2), "runtime_or_driver_failure")
+        self.assertEqual(cell.completed_series_status(stages[1:], 2), "incomplete_series")
+        self.assertEqual(cell.completed_series_status(stages[1:], 1), "complete")
+
+    def test_checkpoint_free_control_keeps_gpu_quant_and_rejects_mtp(self) -> None:
+        argv = matrix.argv_for_row(8192, "gpu", mtp=False, checkpoint_free_control=True)
+        for name, value in (("-ctk", "turbo4"), ("-ctv", "turbo4"), ("-b", "1024"),
+                            ("-ub", "256"), ("--ctx-checkpoints", "0"), ("--cache-ram", "0")):
+            self.assertEqual(argv[argv.index(name) + 1], value)
+        self.assertIn("--no-cache-idle-slots", argv)
+        with self.assertRaises(ValueError):
+            matrix.argv_for_row(8192, "gpu", mtp=True, checkpoint_free_control=True)
+
     def test_sparse_decode_keeps_prefill_checkpoints_without_empty_case_requests(self) -> None:
         selections = {"6144": {}, "12288": {"low": [0, 2]}}
         self.assertEqual(cell.checkpoint_case_options(selections, 6144), ["--prefill-only"])

@@ -309,12 +309,14 @@ that ingest point. Only a newly observed sparse-result anomaly permits one fresh
 full-curve escalation. Older graphs with reasoning off do not supply unmeasured
 low/medium/xhigh values.
 
-Ordinary pager-off/master controls restore the held native K/V snapshot before
-each independent question, outside the timed request; they do not prefill the
-repository again. Record this setup time as `base_restore_seconds`. The pristine
-master can crash while rewinding generated tails in place through
-`CHECKPOINT_ATTN_ONLY_TRIM`; the previously successful controls used snapshot
-restore. Selective ACO keeps its resident-prefix path. An HTTP-200 SSE stream
+MTP-on controls and selective ACO keep a resident prefix with paired target and
+draft checkpoint state. A target-only slot-file restore drops the native MTP
+prefix/carry, so it must not be used to benchmark normal MTP behavior. MTP-off
+controls may restore the full target snapshot outside the timed request,
+recording `base_restore_seconds`, without re-prefilling the repository. A
+source-directed checkpoint-free MTP-off profile avoids optional checkpoint
+capture while using full target files; it does not disable CUDA graphs or FA.
+An HTTP-200 SSE stream
 that closes without final usage and `[DONE]` is a runtime fault, not evidence of
 a prefix-cache miss.
 

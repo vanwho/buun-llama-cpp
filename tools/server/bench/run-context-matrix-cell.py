@@ -181,6 +181,20 @@ def checkpoint_case_options(selections: dict[str, Any] | None, target: int,
             if selection is not None else [])
 
 
+def resident_prefix_required(pager: str, mtp: str, *,
+                             prefill_only: bool = False) -> bool:
+    # A target-only slot file discards the native MTP draft prefix and carry.
+    # Normal in-place checkpoints preserve the paired target/draft state.
+    return pager == "selective" or mtp == "on" or prefill_only
+
+
+def completed_series_status(stages: list[dict[str, Any]], expected: int) -> str:
+    failures = [stage["status"] for stage in stages if stage["status"] != "complete"]
+    if failures:
+        return failures[0]
+    return "complete" if len(stages) == expected else "incomplete_series"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context-tokens", type=int, required=True)
@@ -208,6 +222,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-selection", type=pathlib.Path,
                         help="JSON mapping occupied checkpoints to remaining mode/prompt pairs")
     parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume")
+    parser.add_argument("--checkpoint-free-controls", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--skip-runtime-fault-case", type=int, action="append", default=[])
     return parser.parse_args()
@@ -225,6 +240,10 @@ def main() -> int:
     targets = [int(target) for target in targets]
     selections = (json.loads(args.checkpoint_selection.read_text())
                   if args.checkpoint_selection else None)
+    prefill_only_series = args.prefill_only or (
+        selections is not None and all(selection == {} for selection in selections.values()))
+    resident_prefix = resident_prefix_required(args.pager, args.mtp,
+                                               prefill_only=prefill_only_series)
     if selections is not None:
         for target in targets:
             checkpoint_case_options(selections, target, args.prefill_only)
@@ -268,7 +287,8 @@ def main() -> int:
             pager=effective_pager, hot_pages=args.hot_pages,
             draft_device=args.draft_device,
             server_bin=args.server_binary.resolve(), slot_state=args.slot_state.resolve(),
-            model_alias=args.model_alias)
+            model_alias=args.model_alias,
+            checkpoint_free_control=args.checkpoint_free_controls)
         options = [argv[i] for i in range(1, len(argv)) if argv[i].startswith("--")]
         missing = [option for option in options if option not in help_text]
         if missing:
@@ -326,14 +346,15 @@ def main() -> int:
                 "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
                 "--snapshot-format", args.snapshot_format,
                 "--source-chunk-map", str(args.source_chunk_map.resolve())]
-            if effective_pager == "selective":
+            if resident_prefix:
                 command.append("--reuse-filled-prefix")
-            # Ordinary controls use the proven native base-snapshot restore
-            # before independent questions. The pristine master can crash in
-            # CHECKPOINT_ATTN_ONLY_TRIM when cache_prompt rewinds generated
-            # tails in place (even with MTP off). Restoring already-computed
-            # K/V is outside the timed request and never re-prefills source
-            # content. Continuation still appends only the next new repo slice.
+            if args.checkpoint_free_controls:
+                command.append("--checkpoint-free-controls")
+            # MTP-off controls may restore a full target snapshot. The master
+            # can crash in optional checkpoint creation after repeated restore;
+            # a checkpoint-free MTP-off profile avoids that auxiliary path.
+            # Native MTP controls must retain their paired resident state.
+            # Continuation always appends only the next new source slice.
             if previous_campaign is not None:
                 command.extend(("--continue-from", str(previous_campaign)))
             if args.hot_pages is not None:
@@ -393,10 +414,7 @@ def main() -> int:
             if not row_path.is_file() or not (campaign_output / "base.json").is_file():
                 break
             previous_campaign = campaign_output
-        report["status"] = ("complete" if len(report["stages"]) == len(targets) and
-                            all(stage["status"] == "complete" for stage in report["stages"])
-                            else report["stages"][-1]["status"] if report["stages"]
-                            else "setup_failure")
+        report["status"] = completed_series_status(report["stages"], len(targets))
         return 0 if report["status"] == "complete" else 1
     except Exception as error:
         report["error"] = f"{type(error).__name__}: {error}"

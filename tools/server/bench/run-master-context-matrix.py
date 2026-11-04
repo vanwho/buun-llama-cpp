@@ -92,7 +92,8 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
                  draft_device: str | None = None,
                  server_bin: pathlib.Path = SERVER_BIN,
                  slot_state: pathlib.Path = SLOT_STATE,
-                 model_alias: str = MODEL) -> list[str]:
+                 model_alias: str = MODEL,
+                 checkpoint_free_control: bool = False) -> list[str]:
     if placement not in {"gpu", "cpu"}:
         raise ValueError("placement must be gpu or cpu")
     if pager not in {"none", "off", "selective"}:
@@ -105,6 +106,8 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
         raise ValueError("draft device must be gpu, cpu, auto, or omitted")
     if not mtp and draft_device is not None:
         raise ValueError("draft device cannot be set when MTP is disabled")
+    if checkpoint_free_control and (mtp or pager == "selective"):
+        raise ValueError("checkpoint-free control is only for ordinary MTP-off controls")
     argv = [str(server_bin), "-m", "/srv/ai/models/text/current.gguf", "--alias", model_alias,
             "--jinja", "--chat-template-file", str(BENCHMARK_TEMPLATE),
             "-ngl", "999", "--device", "CUDA0", "--fit", "off", "-fa", "on",
@@ -126,6 +129,11 @@ def argv_for_row(context_tokens: int, placement: str, *, mtp: bool = True,
     if pager == "selective":
         argv.extend(("--ctx-checkpoints", "0", "--cache-ram", "0",
                      "--no-cache-idle-slots"))
+    elif checkpoint_free_control:
+        # Independent MTP-off questions restore a complete target state file;
+        # no draft companion or in-place rewind checkpoint is needed.
+        argv.extend(("--ctx-checkpoints", "0", "--cache-ram", "0",
+                     "--no-cache-idle-slots", "--kv-unified"))
     else:
         # Qwen's hybrid/recurrent state must rewind between the independent
         # benchmark questions. The stock master cannot do that with zero
@@ -414,6 +422,8 @@ def parse_args() -> argparse.Namespace:
                         help="keep the filled KV prefix resident and reuse it with cache_prompt; skip disk snapshots")
     parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume",
                         help="native held-base file format for controls; restore is outside request timing")
+    parser.add_argument("--checkpoint-free-controls", action="store_true",
+                        help="MTP-off only: restore full target files without optional rewind checkpoints")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--startup-log", type=pathlib.Path,
@@ -981,7 +991,8 @@ def main() -> int:
     expected_argv = argv_for_row(args.context_tokens, args.placement,
         mtp=mtp_enabled, pager=args.pager, hot_pages=args.hot_pages,
         draft_device=args.draft_device, server_bin=SERVER_BIN,
-        slot_state=SLOT_STATE, model_alias=MODEL)
+        slot_state=SLOT_STATE, model_alias=MODEL,
+        checkpoint_free_control=args.checkpoint_free_controls)
     live = capture_live_identity(expected_argv, args.startup_log,
         mtp_enabled=mtp_enabled, placement=args.placement,
         pager=args.pager, hot_pages=args.hot_pages)
