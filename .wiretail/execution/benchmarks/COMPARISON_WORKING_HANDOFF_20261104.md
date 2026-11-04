@@ -10,6 +10,9 @@ filled base without accumulating prior benchmark answers in the base.
 - Branch: `plan/attention-aware-kv-paging`.
 - Plan: `COMPARISON_COMPLETION_20261104.json`, revision 6; output
   `/srv/ai/paged-kv/results/comparison-completion-20261104-r6`.
+- R6 is running durably. Steps1/2 GPU-MTP-on mapped ingest completed through
+  actual C62465; master backend/net-new1346.87 tok/s, fork910.57 tok/s. Step3
+  fork GPU/MTP-off is active; query live queue progress for its latest frontier.
 - Runtime owner: `/root/comparison_runtime_prep`, Luna High. One model and
   `/tmp/ai-pager-benchmark.lock`; protect Jellyfin, 8091, 8092.
 - Driver fix `095a1fc05` keeps every occupied control on ordinary prefix reuse;
@@ -66,11 +69,17 @@ filled base without accumulating prior benchmark answers in the base.
 - Preserve actual C and nominal target separately, min/median/max, source hashes,
   independent cohorts, and explicit failures. Never interpolate missing cells.
 - Report generator: `report-comparisons-20261104.py`; docs owner
-  `/root/aco_docs_refresh_20261104` is adding R5 partial-series whitelists and
-  R6 outlier aliases. No broad import of quarantined external roots.
+  `/root/aco_docs_refresh_20261104` completed R5 partial-series whitelists and
+  R6 outlier aliases in commit a85dab5a6; synthetic checks passed. No broad
+  import of quarantined external roots. Preview export awaits a quiet window.
 - Matplotlib environment: `/srv/ai/paged-kv/venvs/comparison-report`; use Agg and
   OMP/OpenBLAS/MKL threads1. Render/export only outside timed CPU runs.
 - Preview-r5 is stale and not publication output. Final report needs fresh
   generation, image inspection, completeness review, and compact tracked exports.
 - Raw logs/binaries remain external. Benchmark-tool changes stay separate from
   portable inference commits. Commit/push compact reports and final graphs.
+
+The systematic GPU-MTP-on ingest difference is documented in
+`engineering-notes/dense-turbo4-prefill-cohort-difference-20261104.md`: differing
+CUDA attention dispatch predicates are a source-grounded candidate, not confirmed
+per-kernel timing attribution. Do not change measured binaries to investigate it.
