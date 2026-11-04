@@ -102,3 +102,9 @@ Cell-wise selection across history. Each cell preserves its complete repeat dist
 | 261,120 / 261121 | xhigh | 37.38/37.43 [new] | 37.36/37.38 [new] | 37.45/37.48 [new] |
 
 Source tags are compact; lineage, raw file paths, request hashes, and all repeat values are in the JSON. Promoted cells retain both old and new comparison values in `comparison_to_prior`.
+
+## Memory observation limitation
+
+The MTP-on candidate process recorded a peak `VmSwap` of **530.4 MiB** at the 100,352-token checkpoint (98K), including changes during some measured requests. The MTP-off candidate recorded zero across all 958 samples. Five-second process samples do not identify which allocations were swapped, prove that K/V pages were swapped, or measure swap-in I/O. These rates remain the observed run results, including any associated effects; the MTP-on run is **not certified RAM-only**. This caveat also applies to current-run cells selected as historical bests.
+
+The hashed offline attribution and per-checkpoint sample windows are referenced in the JSON report; raw measurements remain external.

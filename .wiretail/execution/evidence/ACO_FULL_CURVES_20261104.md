@@ -473,3 +473,9 @@ Append lineage and full raw/request paths plus hashes are stored with each check
 
 See the compact [best historical report](.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md). Current comparable cells promoted: 95 (86 improved both, 5 median-only, 4 max-only). Non-promoted comparable cells retained prior best: 28. Each comparison records both deltas, old/new actual C, source refs, and match note in JSON.
 
+
+## Memory observation limitation
+
+The MTP-on candidate process recorded a peak `VmSwap` of **530.4 MiB** at the 100,352-token checkpoint (98K), including changes during some measured requests. The MTP-off candidate recorded zero across all 958 samples. Five-second process samples do not identify which allocations were swapped, prove that K/V pages were swapped, or measure swap-in I/O. These rates remain the observed run results, including any associated effects; the MTP-on run is **not certified RAM-only**. This caveat also applies to current-run cells selected as historical bests.
+
+The hashed offline attribution and per-checkpoint sample windows are referenced in the JSON report; raw measurements remain external.

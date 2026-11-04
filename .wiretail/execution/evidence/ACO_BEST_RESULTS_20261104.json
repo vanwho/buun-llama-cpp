@@ -24981,6 +24981,23 @@
     }
   },
   "created_for": "2026-11-04 full ACO MTP on/off curve comparison",
+  "memory_observation_caveat": {
+    "limitations": "VmSwap changed during some measured requests. These samples do not identify allocations, prove KV residency, or measure swap-in I/O. Rates are observations including any associated effects; MTP-on is not certified RAM-only.",
+    "mtp_off_candidate_pid": 2991299,
+    "mtp_off_peak_vm_swap_kib": 0,
+    "mtp_off_zero_swap_samples": 958,
+    "mtp_on_candidate_pid": 2772531,
+    "mtp_on_peak_vm_swap_kib": 543148,
+    "mtp_on_peak_vm_swap_mib": 530.41796875,
+    "peak_target_context_tokens": 100352,
+    "peak_utc": "2026-11-04T11:24:09.770Z",
+    "sampling_interval_seconds": 5,
+    "scope": "observed candidate-process memory; not a claim that KV specifically was swapped",
+    "source": {
+      "path": "/srv/ai/paged-kv/results/aco-fullcurves-20261104-memory-attribution.json",
+      "sha256": "4542c513a1a89dbf8643192c599fbe77e62d943f872c85ebeee3e66a9520cd86"
+    }
+  },
   "schema": "aco-best-historical-cells-v1",
   "selected_complete_cells": 264,
   "source_baseline_index": "/srv/ai/paged-kv/results/aco-fullcurves-20261104-baseline-index.json",
