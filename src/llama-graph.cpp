@@ -1104,7 +1104,14 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                     }
                 }
             };
-            if (self_kq_mask->type == GGML_TYPE_F16) {
+            // A selected-dense view can have the same consecutive causal rows
+            // as ordinary GPU attention. Do not pay a scalar native-position
+            // lookup for every Q x KV cell in that common prefill case. Sparse
+            // selections, partial-page holes and ALiBi retain the exact oracle.
+            if (llama_kv_attention_fill_contiguous_selected_mask(self_kq_mask,
+                    positions, valid, queries, cparams.causal_attn, hparams.use_alibi)) {
+                // The entire mask, including admitted-capacity padding, is set.
+            } else if (self_kq_mask->type == GGML_TYPE_F16) {
                 fill((ggml_fp16_t *) self_kq_mask->data);
             } else {
                 fill((float *) self_kq_mask->data);

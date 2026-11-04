@@ -7,6 +7,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 static llama_kv_page_record page(uint32_t logical, uint32_t slot, llama_pos end) {
@@ -926,6 +927,111 @@ static void test_selected_mask_capacity_padding() {
     assert(llama_kv_attention_selected_mask_value(0, positions, valid, 13, true, true) == -3.0f);
 }
 
+template<typename T>
+static void check_contiguous_selected_mask(
+        uint32_t capacity, const std::vector<llama_pos> & positions,
+        const std::vector<uint8_t> & valid, const std::vector<llama_pos> & queries,
+        bool causal, bool alibi, bool eligible) {
+    const auto convert = [](float value) -> T {
+        if constexpr (std::is_same<T, float>::value) return value;
+        else return ggml_fp32_to_fp16(value);
+    };
+    const T sentinel = convert(17.0f);
+    std::vector<T> data(size_t(capacity) * queries.size(), sentinel);
+    ggml_tensor mask = {};
+    mask.type = std::is_same<T, float>::value ? GGML_TYPE_F32 : GGML_TYPE_F16;
+    mask.ne[0] = capacity;
+    mask.ne[1] = queries.size();
+    mask.ne[2] = mask.ne[3] = 1;
+    mask.nb[0] = sizeof(T);
+    mask.nb[1] = size_t(capacity) * sizeof(T);
+    mask.nb[2] = mask.nb[1] * queries.size();
+    mask.nb[3] = mask.nb[2];
+    mask.data = data.data();
+    assert(llama_kv_attention_fill_contiguous_selected_mask(
+            &mask, positions, valid, queries, causal, alibi) == eligible);
+    for (size_t query = 0; query < queries.size(); ++query) {
+        for (uint32_t row = 0; row < capacity; ++row) {
+            // On refusal the caller's fallback must still own an untouched
+            // buffer. Accepted fills match the existing scalar visibility
+            // oracle for every cell, including capacity padding.
+            const T expected = eligible ? convert(llama_kv_attention_selected_mask_value(
+                    row, positions, valid, queries[query], causal, alibi)) : sentinel;
+            assert(data[query * capacity + row] == expected);
+        }
+    }
+}
+
+template<typename T>
+static void test_contiguous_selected_mask_type() {
+    // Deliberately unordered/repeated queries exercise both causal boundaries
+    // and widened subtraction, not just the monotonic prefill case.
+    std::vector<llama_pos> queries(40);
+    const llama_pos sample[] = { -1, 99, 100, 101, 103, 104, 999,
+        std::numeric_limits<llama_pos>::max() };
+    for (size_t i = 0; i < queries.size(); ++i) queries[i] = sample[i % 8];
+    for (bool causal : { false, true }) {
+        check_contiguous_selected_mask<T>(8, { 100, 101, 102, 103 }, { 1, 1, 1, 1 }, queries,
+                causal, false, true);
+        // Explicit invalid tails, unequal metadata lengths and clipped
+        // capacity have exactly the same missing-row behavior as the oracle.
+        check_contiguous_selected_mask<T>(8, { 100, 101, -77, 42 }, { 1, 2, 0, 0 }, queries,
+                causal, false, true);
+        check_contiguous_selected_mask<T>(8, { 100, 101 }, { 1, 1, 1, 1 }, queries,
+                causal, false, true);
+        check_contiguous_selected_mask<T>(8, { 100, 101, 102 }, { 1 }, queries,
+                causal, false, true);
+        check_contiguous_selected_mask<T>(2, { 100, 101, 999 }, { 1, 1, 1 }, queries,
+                causal, false, true);
+        check_contiguous_selected_mask<T>(8, {}, {}, queries, causal, false, true);
+        check_contiguous_selected_mask<T>(8, { 100, -7 }, { 0, 0 }, queries,
+                causal, false, true);
+        check_contiguous_selected_mask<T>(8, { 100, 101, 102 }, { 1, 0, 1 }, queries,
+                causal, false, false);
+        check_contiguous_selected_mask<T>(8, { 100, 102 }, { 1, 1 }, queries,
+                causal, false, false);
+        check_contiguous_selected_mask<T>(8, { 100, 100 }, { 1, 1 }, queries,
+                causal, false, false);
+        check_contiguous_selected_mask<T>(8, { -1, 0 }, { 1, 1 }, queries,
+                causal, false, false);
+        check_contiguous_selected_mask<T>(8, { 100, 101 }, { 1, 1 }, queries,
+                causal, true, false);
+        check_contiguous_selected_mask<T>(8,
+                { std::numeric_limits<llama_pos>::max() - 1, std::numeric_limits<llama_pos>::max() },
+                { 1, 1 }, queries, causal, false, true);
+        check_contiguous_selected_mask<T>(8,
+                { std::numeric_limits<llama_pos>::max(), std::numeric_limits<llama_pos>::min() },
+                { 1, 1 }, queries, causal, false, false);
+    }
+    // Do not change the scalar decode/native-MTP verification path.
+    check_contiguous_selected_mask<T>(8, { 100, 101 }, { 1, 1 }, { 100, 101 },
+            true, false, false);
+}
+
+static void test_contiguous_selected_mask() {
+    test_contiguous_selected_mask_type<float>();
+    test_contiguous_selected_mask_type<ggml_fp16_t>();
+
+    std::vector<float> data(8 * 32, 17.0f);
+    ggml_tensor mask = {};
+    mask.type = GGML_TYPE_F32;
+    mask.data = data.data();
+    mask.ne[0] = 8; mask.ne[1] = 32; mask.ne[2] = mask.ne[3] = 1;
+    mask.nb[0] = sizeof(float); mask.nb[1] = 9 * sizeof(float); // not contiguous
+    mask.nb[2] = mask.nb[1] * 32; mask.nb[3] = mask.nb[2];
+    const std::vector<llama_pos> queries(32, 100);
+    assert(!llama_kv_attention_fill_contiguous_selected_mask(
+            &mask, { 100 }, { 1 }, queries, true, false));
+    mask.nb[1] = 8 * sizeof(float); mask.nb[2] = mask.nb[1] * 32; mask.nb[3] = mask.nb[2];
+    mask.ne[2] = 2;
+    assert(!llama_kv_attention_fill_contiguous_selected_mask(
+            &mask, { 100 }, { 1 }, queries, true, false));
+    mask.ne[2] = 1; mask.type = GGML_TYPE_I32;
+    assert(!llama_kv_attention_fill_contiguous_selected_mask(
+            &mask, { 100 }, { 1 }, queries, true, false));
+    for (float value : data) assert(value == 17.0f);
+}
+
 static void test_visibility_snapshot_records_native_mask_and_pages() {
     const auto view = metadata(snapshot(), 2, 1, { 2, 0 }, 600);
     const std::string trace = llama_kv_attention_visibility_snapshot_json(view);
@@ -1578,6 +1684,7 @@ int main(int argc, char ** argv) {
         test_kv_pack_byte_exact_cuda();
     }
     test_selected_mask_capacity_padding();
+    test_contiguous_selected_mask();
     test_visibility_snapshot_records_native_mask_and_pages();
     test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();

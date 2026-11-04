@@ -11,6 +11,7 @@
 #include <cstring>
 #include <limits>
 #include <sstream>
+#include <type_traits>
 
 namespace {
 
@@ -177,6 +178,75 @@ float llama_kv_attention_selected_mask_value(
     }
     return use_alibi
         ? -float(std::abs(native_positions[row] - query_position)) : 0.0f;
+}
+
+bool llama_kv_attention_fill_contiguous_selected_mask(
+        ggml_tensor * destination,
+        const std::vector<llama_pos> & native_positions,
+        const std::vector<uint8_t> & native_mask,
+        const std::vector<llama_pos> & query_positions,
+        bool causal,
+        bool use_alibi) noexcept {
+    // Match the ordinary cache's batched-mask cutoff. Decode and small MTP
+    // verification keep their existing path rather than scanning a long
+    // prefix once to optimize only one or two query rows.
+    if (use_alibi || query_positions.size() < 32 || destination == nullptr ||
+            destination->data == nullptr ||
+            (destination->buffer != nullptr && !ggml_backend_buffer_is_host(destination->buffer)) ||
+            (destination->type != GGML_TYPE_F16 && destination->type != GGML_TYPE_F32) ||
+            destination->ne[0] <= 0 || destination->ne[0] > UINT32_MAX ||
+            destination->ne[1] != int64_t(query_positions.size()) ||
+            destination->ne[2] != 1 || destination->ne[3] != 1 ||
+            !ggml_is_contiguous(destination)) {
+        return false;
+    }
+
+    const uint32_t capacity = uint32_t(destination->ne[0]);
+    const size_t available = std::min<size_t>(capacity,
+            std::min(native_positions.size(), native_mask.size()));
+    size_t used = 0;
+    int64_t first = 0;
+    if (available != 0 && native_mask[0] != 0) {
+        first = native_positions[0];
+        if (first < 0) return false;
+        while (used < available && native_mask[used] != 0) {
+            const int64_t expected = first + int64_t(used);
+            if (expected > std::numeric_limits<llama_pos>::max() ||
+                    native_positions[used] != expected) {
+                return false;
+            }
+            ++used;
+        }
+    }
+    // A hole followed by a live row is sparse, even if that row's position
+    // would otherwise be consecutive. Rows outside either metadata vector
+    // are masked by the scalar oracle and remain padding here as well.
+    for (size_t row = used; row < available; ++row) {
+        if (native_mask[row] != 0) return false;
+    }
+
+    const auto fill = [&](auto * data) {
+        using T = std::remove_reference_t<decltype(*data)>;
+        const T visible_value = llama_cast<T>(0.0f);
+        const T masked_value = llama_cast<T>(-std::numeric_limits<float>::infinity());
+        for (size_t query = 0; query < query_positions.size(); ++query) {
+            // Widen before subtracting: native positions and queries can be
+            // near INT32_MAX, including on a reused selected view.
+            const size_t visible = causal
+                ? size_t(std::clamp(int64_t(query_positions[query]) - first + 1,
+                        int64_t(0), int64_t(used)))
+                : used;
+            T * row = data + query * capacity;
+            std::fill(row, row + visible, visible_value);
+            std::fill(row + visible, row + capacity, masked_value);
+        }
+    };
+    if (destination->type == GGML_TYPE_F16) {
+        fill(static_cast<ggml_fp16_t *>(destination->data));
+    } else {
+        fill(static_cast<float *>(destination->data));
+    }
+    return true;
 }
 
 std::string llama_kv_attention_visibility_snapshot_json(

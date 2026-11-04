@@ -109,6 +109,19 @@ float llama_kv_attention_selected_mask_value(
         bool causal,
         bool use_alibi) noexcept;
 
+// Fill a batched selected mask by visible intervals when its valid native rows
+// form one consecutive prefix. Validate the current metadata on every call:
+// physical contiguity alone does not prove causal visibility after promotion.
+// Returns false without writing for unsupported/sparse layouts, allowing the
+// caller to retain the general mask builder. The destination must be host RAM.
+bool llama_kv_attention_fill_contiguous_selected_mask(
+        ggml_tensor * destination,
+        const std::vector<llama_pos> & native_positions,
+        const std::vector<uint8_t> & native_mask,
+        const std::vector<llama_pos> & query_positions,
+        bool causal,
+        bool use_alibi) noexcept;
+
 size_t llama_kv_attention_packed_allocation_bytes(
         uint32_t row_capacity,
         size_t k_bytes_per_row,
