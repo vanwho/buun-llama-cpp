@@ -131,7 +131,7 @@
     "final_build_source": "8a79008b5"
   },
   "authorized_full_aco_curves_20261104": {
-    "status": "running_mtp_off",
+    "status": "complete",
     "scope": "ACO MTP on and off full incremental repo-fill curves only; other variants not requested",
     "runtime_source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
     "L": 262144,
@@ -172,7 +172,7 @@
     "8091": "preserve",
     "8092": "never touch",
     "mtp_on_output_root": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-on-20261104T105341378940038Z",
-    "mtp_off_status": "running",
+    "mtp_off_status": "complete",
     "completed_checkpoints_on": [
       6144,
       12288,
@@ -199,8 +199,20 @@
       88064,
       100352,
       130048,
-      196608
+      196608,
+      256000,
+      261120
     ],
-    "current_checkpoint_off": 256000
-  }
+    "current_checkpoint_off": null,
+    "checkpoint_rows_complete": 22,
+    "benchmark_requests_passed": 1056,
+    "measured_requests_passed": 792,
+    "warmup_requests_passed": 264,
+    "failed_requests": 0,
+    "actual_final_occupied_tokens_each_variant": 261121,
+    "services": "restored; llama-server and gateway active; Jellyfin and port8091 preserved; port8092 untouched",
+    "current_run_report": ".wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md",
+    "selected_historical_bests": ".wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md"
+  },
+  "benchmark_state": "completed_aco_mtp_on_off_full_curves_20261104"
 }

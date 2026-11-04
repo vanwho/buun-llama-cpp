@@ -1,5 +1,6 @@
 # ACO best historical cells — 2026-11-04
 
+**Status: COMPLETE** — 264 selected complete cells; whole-cell lineage and repeat distributions are in JSON.
 Cell-wise selection across history. Each cell preserves its complete repeat distribution and raw/request references in the JSON report. A current complete cell replaces history when median or max decode rate is higher. Framing differences up to 8 actual tokens are labeled in lineage; current and historical observations do not imply causal comparison.
 
 ## MTP ON
@@ -91,5 +92,13 @@ Cell-wise selection across history. Each cell preserves its complete repeat dist
 | 196,608 / 196608 | low | 37.39/37.42 [new] | 37.48/37.48 [new] | 37.49/37.50 [new] |
 | 196,608 / 196608 | medium | 37.48/37.50 [new] | 37.49/37.50 [new] | 37.47/37.50 [new] |
 | 196,608 / 196608 | xhigh | 37.44/37.48 [new] | 37.38/37.45 [new] | 37.47/37.47 [new] |
+| 256,000 / 256001 | off | 37.42/37.51 [new] | 37.57/37.57 [new] | 37.44/37.45 [new] |
+| 256,000 / 256001 | low | 37.42/37.45 [new] | 37.32/37.36 [new] | 37.46/37.47 [new] |
+| 256,000 / 256001 | medium | 37.45/37.49 [new] | 37.45/37.46 [new] | 37.44/37.45 [new] |
+| 256,000 / 256001 | xhigh | 37.41/37.45 [new] | 37.37/37.39 [new] | 37.46/37.46 [new] |
+| 261,120 / 261121 | off | 37.55/37.59 [new] | 37.57/37.59 [new] | 37.44/37.47 [new] |
+| 261,120 / 261121 | low | 37.38/37.43 [new] | 37.43/37.45 [new] | 37.44/37.45 [new] |
+| 261,120 / 261121 | medium | 37.41/37.45 [new] | 37.46/37.46 [new] | 37.42/37.42 [new] |
+| 261,120 / 261121 | xhigh | 37.38/37.43 [new] | 37.36/37.38 [new] | 37.45/37.48 [new] |
 
 Source tags are compact; lineage, raw file paths, request hashes, and all repeat values are in the JSON. Promoted cells retain both old and new comparison values in `comparison_to_prior`.

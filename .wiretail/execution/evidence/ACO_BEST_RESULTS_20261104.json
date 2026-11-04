@@ -46,11 +46,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -128,11 +125,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -210,11 +204,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -292,11 +283,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -374,11 +362,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -456,11 +441,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -538,11 +520,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -620,11 +599,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -702,11 +678,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -784,11 +757,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -866,11 +836,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -948,11 +915,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1030,11 +994,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1112,11 +1073,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1194,11 +1152,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1276,11 +1231,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1358,11 +1310,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1440,11 +1389,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1522,11 +1468,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1604,11 +1547,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1686,11 +1626,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1768,11 +1705,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1850,11 +1784,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -1932,11 +1863,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2014,11 +1942,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2096,11 +2021,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2178,11 +2100,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2260,11 +2179,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2342,11 +2258,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2424,11 +2337,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2506,11 +2416,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2588,11 +2495,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2670,11 +2574,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2752,11 +2653,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2834,11 +2732,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2916,11 +2811,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -2998,11 +2890,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3080,11 +2969,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3162,11 +3048,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3244,11 +3127,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3326,11 +3206,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3408,11 +3285,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3490,11 +3364,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3572,11 +3443,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3654,11 +3522,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3736,11 +3601,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3818,11 +3680,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3900,11 +3759,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -3934,6 +3790,1902 @@
       "status": "complete",
       "stop_terminated_repeats": 0,
       "target_C": 196608,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|low|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        372,
+        353,
+        353
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.44849192096733,
+      "decode_tok_s_median": 37.42323983193563,
+      "decode_tok_s_repeats": [
+        37.44849192096733,
+        37.401608269155574,
+        37.42323983193563
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-13-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-13-00.json",
+          "request_sha256": "9073b2d36aa07b42771c07447e20db2bbceda2ab4d863c6c01be096733d4d103",
+          "sha256": "444143e3977fc6ef6316d2c33d247e4a035c451057ff8a99c80e888f51843562"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-14-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-14-00.json",
+          "request_sha256": "9073b2d36aa07b42771c07447e20db2bbceda2ab4d863c6c01be096733d4d103",
+          "sha256": "cb0e60c95ca1fceb4bf7a09202e96efe824e6a789215a483ae915099b47d15df"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-15-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-15-00.json",
+          "request_sha256": "9073b2d36aa07b42771c07447e20db2bbceda2ab4d863c6c01be096733d4d103",
+          "sha256": "cb4dba8fd065a4117c9c2446762d5d8a4e8143c84d11d4b72443c8cd4336d58d"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|low|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        252,
+        266,
+        239
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.358795659592616,
+      "decode_tok_s_median": 37.31719503120844,
+      "decode_tok_s_repeats": [
+        37.358795659592616,
+        37.31719503120844,
+        37.25174762347937
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-17-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-17-00.json",
+          "request_sha256": "a7d86c36609466851e33e9e8e7f58421280e8d38171f8784fba3d9870e880f2d",
+          "sha256": "7b597179b77aa63e6813d668621e331f7b6125973c5abce6d74efe1279aac8b6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-18-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-18-00.json",
+          "request_sha256": "a7d86c36609466851e33e9e8e7f58421280e8d38171f8784fba3d9870e880f2d",
+          "sha256": "484000390e24c2c931ef12cddca2b240737174a4abfdeb345b42fbf04c71ad9b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-19-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-19-00.json",
+          "request_sha256": "a7d86c36609466851e33e9e8e7f58421280e8d38171f8784fba3d9870e880f2d",
+          "sha256": "ad47414bda5023b6eed564a9532f961721fe0a3edc3ffff1635770c04407a271"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|low|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.46547823790935,
+      "decode_tok_s_median": 37.45842607579614,
+      "decode_tok_s_repeats": [
+        37.45842607579614,
+        37.42327174125606,
+        37.46547823790935
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-21-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-21-00.json",
+          "request_sha256": "8938ff497f275e4df6c25f4f5af8834dc948ec0f16a3cbac6adbc09a78fc4d29",
+          "sha256": "9bce2a4254f8a6364eff9ca6aa5e277edb4b7e534051fd011ab0c16523770fe4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-22-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-22-00.json",
+          "request_sha256": "8938ff497f275e4df6c25f4f5af8834dc948ec0f16a3cbac6adbc09a78fc4d29",
+          "sha256": "214628297f5129ffa661d24d8497ec5e2e30f67734bb4eda7d4858fde0336db3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-23-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-23-00.json",
+          "request_sha256": "8938ff497f275e4df6c25f4f5af8834dc948ec0f16a3cbac6adbc09a78fc4d29",
+          "sha256": "c4f7c26df8e056b404da78116c19969c17380834f18fea06e654c868b5a9c937"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|medium|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        383
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.4851468628596,
+      "decode_tok_s_median": 37.44916908834832,
+      "decode_tok_s_repeats": [
+        37.4851468628596,
+        37.44916908834832,
+        37.41289626451819
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-25-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-25-00.json",
+          "request_sha256": "cbc97a7c052cc20b990203a44bbc196fc894a8b108288abd6de6353d260d2328",
+          "sha256": "f741553317605b8618028237f38c1d50caa3dc60b65787c7f94bc2b9fe05120d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-26-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-26-00.json",
+          "request_sha256": "cbc97a7c052cc20b990203a44bbc196fc894a8b108288abd6de6353d260d2328",
+          "sha256": "5eedfb974031f0ef1cf91f2270999051ed55063eedcc0fd55a7ca4a72d6fdbc8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-27-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-27-00.json",
+          "request_sha256": "cbc97a7c052cc20b990203a44bbc196fc894a8b108288abd6de6353d260d2328",
+          "sha256": "5b582c8a63c1c69f2466a05a7f74553e638782356fb85f45da063c81146284fe"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|medium|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.46110241921734,
+      "decode_tok_s_median": 37.45311320790139,
+      "decode_tok_s_repeats": [
+        37.46110241921734,
+        37.45311320790139,
+        37.44286092736113
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-29-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-29-00.json",
+          "request_sha256": "baf4bf759a8ec66a799fcbc268401bc03d839dac2010b75742e82e4bb980b082",
+          "sha256": "d1f51e48afad1e44dc7ef040c70ef7491c1a8039dac745c5cf78508c7c5215e6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-30-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-30-00.json",
+          "request_sha256": "baf4bf759a8ec66a799fcbc268401bc03d839dac2010b75742e82e4bb980b082",
+          "sha256": "f2c84ce2af1b2db20fa2b684e768ebc5de7d2ed1f7155b89c35d72364f9feb19"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-31-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-31-00.json",
+          "request_sha256": "baf4bf759a8ec66a799fcbc268401bc03d839dac2010b75742e82e4bb980b082",
+          "sha256": "e5a567f361634a1363f04b8590146ca9342282da86edcf8747fb66cd32f00644"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|medium|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.45273352389484,
+      "decode_tok_s_median": 37.441567928998026,
+      "decode_tok_s_repeats": [
+        37.45273352389484,
+        37.43834636231574,
+        37.441567928998026
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-33-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-33-00.json",
+          "request_sha256": "b0d32e65804711f935d1b31592db280efee71ff2ca5c627c2b6f721f3c3a7c9f",
+          "sha256": "2180a25fb0fd474a6ffafae0463e02b7bad4c57dbf7db2f7fb764d645f76cf61"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-34-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-34-00.json",
+          "request_sha256": "b0d32e65804711f935d1b31592db280efee71ff2ca5c627c2b6f721f3c3a7c9f",
+          "sha256": "2cb82812ebd4a23a04d08c01c85a5d46b586807b4feab11c895b9a083a6b0ea8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-35-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-35-00.json",
+          "request_sha256": "b0d32e65804711f935d1b31592db280efee71ff2ca5c627c2b6f721f3c3a7c9f",
+          "sha256": "c7276fd1d020ee7526841b754833d6812ef4c3b401a5d6327581231bf0453eb1"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|off|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        186
+      ],
+      "cap_terminated_repeats": 2,
+      "decode_tok_s_max": 37.513636713886534,
+      "decode_tok_s_median": 37.41831974676331,
+      "decode_tok_s_repeats": [
+        37.41831974676331,
+        37.41633721065989,
+        37.513636713886534
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-01-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-01-00.json",
+          "request_sha256": "72d7580e5234ddf205adb7d74f7e37de2ec23f43a2505bb3fdf2d124769873a9",
+          "sha256": "4bcfd2d858694ccca0cb62859608a1afc7571cd2de0fb43e120ce62a5e401724"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-02-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-02-00.json",
+          "request_sha256": "72d7580e5234ddf205adb7d74f7e37de2ec23f43a2505bb3fdf2d124769873a9",
+          "sha256": "7b02684bdf00df0aec519171a5037bcf54375a52c35e8ec490fc0fcba4a1450a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-03-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-03-00.json",
+          "request_sha256": "72d7580e5234ddf205adb7d74f7e37de2ec23f43a2505bb3fdf2d124769873a9",
+          "sha256": "0bcb19fa81e6add22f2c5da3da38949ea534a4ccd004b651332c74e64384f22a"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 1,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|off|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        177,
+        146,
+        147
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.572497549423915,
+      "decode_tok_s_median": 37.57197113874881,
+      "decode_tok_s_repeats": [
+        37.57197113874881,
+        37.565233971821414,
+        37.572497549423915
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-05-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-05-00.json",
+          "request_sha256": "8dbd188f6386c1e2c63f720960c59b1265f4a01f74031de1e555efc66da0c2f9",
+          "sha256": "025029cd5b619aa7f0d39e558a9424fb5d359c46521928c1ad07588ca6147cbe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-06-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-06-00.json",
+          "request_sha256": "8dbd188f6386c1e2c63f720960c59b1265f4a01f74031de1e555efc66da0c2f9",
+          "sha256": "ae7a86fcc20452c9f161857fc2365c193e441f1e8cc8d67c6d52936b7c2dcf46"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-07-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-07-00.json",
+          "request_sha256": "8dbd188f6386c1e2c63f720960c59b1265f4a01f74031de1e555efc66da0c2f9",
+          "sha256": "304f72d90aa1487f32bc9d7aec655e66457225bfc04b5654fde59871167bed79"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|off|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.44649093532137,
+      "decode_tok_s_median": 37.43990262247282,
+      "decode_tok_s_repeats": [
+        37.43990262247282,
+        37.43523423010266,
+        37.44649093532137
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-09-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-09-00.json",
+          "request_sha256": "d95c4f3a740f9889aa314ae17af6e70f81a800a7fadd79adda9e3d2eea0c11ee",
+          "sha256": "c4c9f6183d3aacca97db30c5bf79691cc53904ea2aa619f8553f87f5ab829aeb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-10-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-10-00.json",
+          "request_sha256": "d95c4f3a740f9889aa314ae17af6e70f81a800a7fadd79adda9e3d2eea0c11ee",
+          "sha256": "2ad904838380f49453c3fb177ae8637329ab1d720819554688f2805ffcbb3345"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-11-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-11-00.json",
+          "request_sha256": "d95c4f3a740f9889aa314ae17af6e70f81a800a7fadd79adda9e3d2eea0c11ee",
+          "sha256": "4d2cb231bc423af36b289896eb5c883c5e637985a1d37c536fd4f7e1cd2a2698"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|xhigh|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        340,
+        342,
+        333
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.44666335869397,
+      "decode_tok_s_median": 37.412383981838424,
+      "decode_tok_s_repeats": [
+        37.44666335869397,
+        37.412383981838424,
+        37.365178669705095
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-37-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-37-00.json",
+          "request_sha256": "36a601796e97f9cfe355d40dadccf051c3781ec383452f5dd39defbde6a76aa6",
+          "sha256": "f7ae773f0e0f887cbca102e278dbceb5290e807464648f507f89f880d1421480"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-38-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-38-00.json",
+          "request_sha256": "36a601796e97f9cfe355d40dadccf051c3781ec383452f5dd39defbde6a76aa6",
+          "sha256": "ef5abdae61cd2b4384cdd52559155ea740133af6c644ed3562c13c8a6eec7ef6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-39-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-39-00.json",
+          "request_sha256": "36a601796e97f9cfe355d40dadccf051c3781ec383452f5dd39defbde6a76aa6",
+          "sha256": "29e9e7b04ecb3183941e71c13fc465c8baa5fcb91a0033603e02b1eb0fd22590"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|xhigh|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        261,
+        253,
+        297
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.38734904138837,
+      "decode_tok_s_median": 37.36718396230762,
+      "decode_tok_s_repeats": [
+        37.38734904138837,
+        37.27627026656823,
+        37.36718396230762
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-41-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-41-00.json",
+          "request_sha256": "dab0cfa810477434499302e39dad1c675ac9809781c273945a9f757163eeeeb3",
+          "sha256": "453da335ffcda0afc6dadcd5a7429573f914b869c247862fd3f06126ba0ab9ff"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-42-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-42-00.json",
+          "request_sha256": "dab0cfa810477434499302e39dad1c675ac9809781c273945a9f757163eeeeb3",
+          "sha256": "6818e803dcf57fe17adf76f6dcf9b39418af7a92bf4ae87782da6fbc242a4aaf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-43-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-43-00.json",
+          "request_sha256": "dab0cfa810477434499302e39dad1c675ac9809781c273945a9f757163eeeeb3",
+          "sha256": "7ee553689eb82ebafdcc3d993cf2fd31c34caf2c88d1d8e65ad12d09199e5892"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|256000|256001|xhigh|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "d3c6c5a9fbfd0eb137105428291dbbffe568cfedc1d358e45e0c1a55c4b856d0",
+        "ubatch": 256
+      },
+      "actual_C": 256001,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.45700892922522,
+      "decode_tok_s_median": 37.45644983637916,
+      "decode_tok_s_repeats": [
+        37.45644983637916,
+        37.433457104541795,
+        37.45700892922522
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-45-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-45-00.json",
+          "request_sha256": "3bb854ada9ceb33b7ea5239f744c2f33329a5dbd1bf44f44cb5cc216c2a4b0f4",
+          "sha256": "5393a699bcc82555fb2c5244e9b7149e241122713e77f22021709cc8b37828ad"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-46-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-46-00.json",
+          "request_sha256": "3bb854ada9ceb33b7ea5239f744c2f33329a5dbd1bf44f44cb5cc216c2a4b0f4",
+          "sha256": "b65a779b1b9939c569934e47cd62815ad7a723c86fcf361d9cb68b361053d033"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/raw/case-47-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign/requests/case-47-00.json",
+          "request_sha256": "3bb854ada9ceb33b7ea5239f744c2f33329a5dbd1bf44f44cb5cc216c2a4b0f4",
+          "sha256": "5e454bbcc7f6ca8ba4478533ec58ae533bb11e83396d40a939a29c2558019a8b"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C256000/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 256000,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|low|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        295,
+        295,
+        295
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.42521639794767,
+      "decode_tok_s_median": 37.381628023302746,
+      "decode_tok_s_repeats": [
+        37.42521639794767,
+        37.369236271953476,
+        37.381628023302746
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-13-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-13-00.json",
+          "request_sha256": "e4b69b91be11b639915de09f027359cc07686f13dcd73854f7cbf859191fd922",
+          "sha256": "2e10e9381e86e61ac514aca051ceaa656b0a17883f110e2b85bdb296208d542e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-14-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-14-00.json",
+          "request_sha256": "e4b69b91be11b639915de09f027359cc07686f13dcd73854f7cbf859191fd922",
+          "sha256": "fc648e17ae06ee70d6e87c2d5c4a4661f07bfe89eaa0bf65b736e475d248ccbd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-15-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-15-00.json",
+          "request_sha256": "e4b69b91be11b639915de09f027359cc07686f13dcd73854f7cbf859191fd922",
+          "sha256": "3ab84aa246b86a4519e8c7a5d2bbe8271f959741dc140afab85945d62748b4e5"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|low|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.446694770770854,
+      "decode_tok_s_median": 37.432551046178816,
+      "decode_tok_s_repeats": [
+        37.446694770770854,
+        37.432551046178816,
+        37.43074608389028
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-17-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-17-00.json",
+          "request_sha256": "ef00bcf40fb08bfef2921d2da12af9484945e3ee8afe8811678aab70f41a74f4",
+          "sha256": "c53046d66f5830ab199449db86ec1731d2eae62aef874f9f4589d00b22ebf73b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-18-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-18-00.json",
+          "request_sha256": "ef00bcf40fb08bfef2921d2da12af9484945e3ee8afe8811678aab70f41a74f4",
+          "sha256": "9ec990e32e8989ed4d072f108d2df329bd03c0c2e9a9f30cd2734dd90a529c1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-19-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-19-00.json",
+          "request_sha256": "ef00bcf40fb08bfef2921d2da12af9484945e3ee8afe8811678aab70f41a74f4",
+          "sha256": "f5afb4edecd7287028d2187fa2ddb447061b8b460b355ffaa770dfe851407e70"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|low|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.44751013476035,
+      "decode_tok_s_median": 37.438392029507085,
+      "decode_tok_s_repeats": [
+        37.438392029507085,
+        37.44751013476035,
+        37.41917949586519
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-21-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-21-00.json",
+          "request_sha256": "98c2e4ad81eb3076e0608d34f7de4afcac96cdf07026f271fbe1b03096446e18",
+          "sha256": "957276627f56f14bf1c2c2adce1a82fff8344661ae344b03867a7b9e43d18fc1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-22-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-22-00.json",
+          "request_sha256": "98c2e4ad81eb3076e0608d34f7de4afcac96cdf07026f271fbe1b03096446e18",
+          "sha256": "ced7c9fddb1c878ec56c90a17c46d9041f1f0a0a74e931d946383d25f68723f2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-23-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-23-00.json",
+          "request_sha256": "98c2e4ad81eb3076e0608d34f7de4afcac96cdf07026f271fbe1b03096446e18",
+          "sha256": "5882120a72c667964768791993267bae574d13248186b4538fc89c154cf6d887"
+        }
+      ],
+      "reasoning_mode": "low",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|medium|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        377,
+        383,
+        383
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.44600331138194,
+      "decode_tok_s_median": 37.411177833152415,
+      "decode_tok_s_repeats": [
+        37.44600331138194,
+        37.411177833152415,
+        37.40609674332926
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-25-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-25-00.json",
+          "request_sha256": "751aac4e8900646a7af3b5b15b79b5181565741421ea694f0e1551fa99853a2f",
+          "sha256": "2304f21f03dd0fde624a20fc7fe795e4c35a88bf01e4c5be7193d3f2b6217912"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-26-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-26-00.json",
+          "request_sha256": "751aac4e8900646a7af3b5b15b79b5181565741421ea694f0e1551fa99853a2f",
+          "sha256": "847fc61f347963ba26a0cc321771fb26c8110cbb8ef9e16544b86cf9cdf4142b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-27-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-27-00.json",
+          "request_sha256": "751aac4e8900646a7af3b5b15b79b5181565741421ea694f0e1551fa99853a2f",
+          "sha256": "64e886211879b0cd379ba203f8d918813ca24bcad97393eecf559fe40e0bd714"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|medium|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.46372989833809,
+      "decode_tok_s_median": 37.45558485769272,
+      "decode_tok_s_repeats": [
+        37.46372989833809,
+        37.44079498349649,
+        37.45558485769272
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-29-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-29-00.json",
+          "request_sha256": "0e550afd4287cd16ef750675f502645baae2a3da440d08b9c4c0b5a49292e550",
+          "sha256": "cf374202786ab55208b59c73a5a38fa36b4319b69c4e2de19b967d4fb363e7f0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-30-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-30-00.json",
+          "request_sha256": "0e550afd4287cd16ef750675f502645baae2a3da440d08b9c4c0b5a49292e550",
+          "sha256": "0eec8045a52d69bf5a293f3effd5019112d2b00ed9744873291a6d8213a8cee9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-31-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-31-00.json",
+          "request_sha256": "0e550afd4287cd16ef750675f502645baae2a3da440d08b9c4c0b5a49292e550",
+          "sha256": "e5ddb231051c5045d86708b66bd794edb71a17f7b521a126e0682dd6a2098d34"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|medium|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.42429318735296,
+      "decode_tok_s_median": 37.423419163022885,
+      "decode_tok_s_repeats": [
+        37.418768916875756,
+        37.423419163022885,
+        37.42429318735296
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-33-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-33-00.json",
+          "request_sha256": "76e35d3e90ca2c93ae0a612058f5e8fedb344b68efcbbfcfd72c6c4d82bc3f09",
+          "sha256": "5839cfa33c0aa7e800d8829ea0331cb8027ecb1f5d9b9afe1be12ccc36b65ef4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-34-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-34-00.json",
+          "request_sha256": "76e35d3e90ca2c93ae0a612058f5e8fedb344b68efcbbfcfd72c6c4d82bc3f09",
+          "sha256": "1993d825d4181cf784cde75d2b025e223b45d5f1b7f4df19ded84cc79bf96644"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-35-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-35-00.json",
+          "request_sha256": "76e35d3e90ca2c93ae0a612058f5e8fedb344b68efcbbfcfd72c6c4d82bc3f09",
+          "sha256": "3e30a31c4133d88b4c02df3a7a06e0bf155ca1fe1460097956755188dbe02b8f"
+        }
+      ],
+      "reasoning_mode": "medium",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|off|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        188,
+        188,
+        400
+      ],
+      "cap_terminated_repeats": 1,
+      "decode_tok_s_max": 37.59061448794547,
+      "decode_tok_s_median": 37.54524000644091,
+      "decode_tok_s_repeats": [
+        37.59061448794547,
+        37.54524000644091,
+        37.47891106761637
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-01-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-01-00.json",
+          "request_sha256": "fa7b814e5aecb18471c967036a5bc410c8b85f93b7c64900f224c80c40c01f33",
+          "sha256": "3ce9826a2f2312b5facc7bdf46cc7fa98babe49ad7c8753ad960c1fa0d23c369"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-02-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-02-00.json",
+          "request_sha256": "fa7b814e5aecb18471c967036a5bc410c8b85f93b7c64900f224c80c40c01f33",
+          "sha256": "121501d315f68f237173accd7cf34cb8c8c5693d2cd714f25176e825f4510e6d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-03-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-03-00.json",
+          "request_sha256": "fa7b814e5aecb18471c967036a5bc410c8b85f93b7c64900f224c80c40c01f33",
+          "sha256": "871054ec356305ff622c94744f5622b26789ecd158f34f72fe53ea2274b64ae5"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 2,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|off|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        140,
+        115,
+        115
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.587762479631714,
+      "decode_tok_s_median": 37.56837985686177,
+      "decode_tok_s_repeats": [
+        37.56837985686177,
+        37.587762479631714,
+        37.51582081654172
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-05-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-05-00.json",
+          "request_sha256": "5fada26d6b27e9ecead2a7ffe19f63e22ac649f0cdbdbeb2a2d4e22abff02146",
+          "sha256": "6a3127c4f25699bbcc3b000eeea60581cf21065aa65f3568d29b7ab9df7c1f1a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-06-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-06-00.json",
+          "request_sha256": "5fada26d6b27e9ecead2a7ffe19f63e22ac649f0cdbdbeb2a2d4e22abff02146",
+          "sha256": "eb8ed76f225361253ebe6e9fa33e8941a5e9f20d46f309b96e7856eee841b532"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-07-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-07-00.json",
+          "request_sha256": "5fada26d6b27e9ecead2a7ffe19f63e22ac649f0cdbdbeb2a2d4e22abff02146",
+          "sha256": "6b4098ddcc09f75b399599a392cbd0d61206f201f684e57234fe39d9685feec0"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|off|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.46841595651185,
+      "decode_tok_s_median": 37.442358474453805,
+      "decode_tok_s_repeats": [
+        37.46841595651185,
+        37.44108307763451,
+        37.442358474453805
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-09-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-09-00.json",
+          "request_sha256": "e53e844cabe71b0d5976e87a87045b98e263bda37378a9cafbe3070d6905a516",
+          "sha256": "dc37858820483a1eb03a26dcb8b9bbe6e20aa19916c1887c191cea4116cdeb27"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-10-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-10-00.json",
+          "request_sha256": "e53e844cabe71b0d5976e87a87045b98e263bda37378a9cafbe3070d6905a516",
+          "sha256": "6da6aba0e85432de063fedb8a2cc4b441b707e67edccfdaeea115c19a691e38e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-11-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-11-00.json",
+          "request_sha256": "e53e844cabe71b0d5976e87a87045b98e263bda37378a9cafbe3070d6905a516",
+          "sha256": "8958a0f1025365a561b99ba763dec601edce67563fb2f40162d8cc4229f9a4f8"
+        }
+      ],
+      "reasoning_mode": "off",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|xhigh|P1": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        330,
+        330,
+        325
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.4261374133056,
+      "decode_tok_s_median": 37.38368305636266,
+      "decode_tok_s_repeats": [
+        37.4261374133056,
+        37.38368305636266,
+        37.379856641327585
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P1",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-37-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-37-00.json",
+          "request_sha256": "ce634b68ea1c55e2ae31d4a53c18344f4e927db94b9de90ea0a90c737d6d0b06",
+          "sha256": "24189c0d4b670463d5a7615c79b559f7f6681b68b41822125c2b5332b7a790a2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-38-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-38-00.json",
+          "request_sha256": "ce634b68ea1c55e2ae31d4a53c18344f4e927db94b9de90ea0a90c737d6d0b06",
+          "sha256": "763f949059293f9e2897bb683f10015016d05cff64ecd70762d0a378b6ecf830"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-39-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-39-00.json",
+          "request_sha256": "ce634b68ea1c55e2ae31d4a53c18344f4e927db94b9de90ea0a90c737d6d0b06",
+          "sha256": "3edee4783cea683b21d8d8a841a3c9b27c1dc64553c7fefa5e23addc79c33185"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|xhigh|P2": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        299,
+        296,
+        264
+      ],
+      "cap_terminated_repeats": 0,
+      "decode_tok_s_max": 37.381423740515714,
+      "decode_tok_s_median": 37.355754552685106,
+      "decode_tok_s_repeats": [
+        37.381423740515714,
+        37.355754552685106,
+        37.32904044637016
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P2",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-41-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-41-00.json",
+          "request_sha256": "8546d46b46e3a315c7d11f2597df27302189bf5445516bf0faa0bf63ef2707af",
+          "sha256": "336273d0513164a9e00f93d117d6f2ac1473e3d4a1a75ae6a301a9cc54e8e3d9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-42-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-42-00.json",
+          "request_sha256": "8546d46b46e3a315c7d11f2597df27302189bf5445516bf0faa0bf63ef2707af",
+          "sha256": "212aeaa1653ee3b662b18c24137a940ece84d2a7e4b3ae49ebe02603fd8d3332"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-43-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-43-00.json",
+          "request_sha256": "8546d46b46e3a315c7d11f2597df27302189bf5445516bf0faa0bf63ef2707af",
+          "sha256": "9b074c08dbea4df17144ed249e877e616302a8db8848d7171a78d3181b392a80"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 3,
+      "target_C": 261120,
+      "valid_measured_repeats": 3
+    },
+    "off|261120|261121|xhigh|P3": {
+      "_baseline_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "_geometry": {
+        "H_tokens": 65536,
+        "batch": 1024,
+        "binary_sha256": "90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c",
+        "context_tokens": 262144,
+        "hot_pages": 256,
+        "loaded_project_dsos": {
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "726c12f2177a25ea61423cbf1d0a0773057a8eeb74869237fa683c4e02bce3f2",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "6df306ddc0d114c35a596cdabfd91e45f2649151507da16a33a9ca27f8df5238",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "34814372286d70331e9e4d06bfb1b6630197370aedb11bdd2763ab68d7c425eb",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "4eca7b4902504b187dbba0317e27908109e594ed706fc2b1e6757c95afb8d7f0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "page_tokens": 256,
+        "placement": "gpu",
+        "repo_context_commit": "a5a1110ca620db4f1c04669d0a2f569852ec1ec7",
+        "source_manifest_sha256": "5b02109d0f45bd785dbbcbb69cc6bb8ad0fa54f74a30860d8b28b0bb6bb9a0da",
+        "ubatch": 256
+      },
+      "actual_C": 261121,
+      "actual_completion_tokens": [
+        400,
+        400,
+        400
+      ],
+      "cap_terminated_repeats": 3,
+      "decode_tok_s_max": 37.47969967018803,
+      "decode_tok_s_median": 37.44697592675634,
+      "decode_tok_s_repeats": [
+        37.47969967018803,
+        37.44697592675634,
+        37.41782847930006
+      ],
+      "finish_reasons": [
+        "length",
+        "length",
+        "length"
+      ],
+      "lineage": [],
+      "mtp": "off",
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
+      "output_cap_tokens": [
+        400
+      ],
+      "prompt": "P3",
+      "raw_refs": [
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-45-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-45-00.json",
+          "request_sha256": "f54c4a2396352b0d3bb1715a8298a84c3be4cc85a670da78f299d8116d90e2c5",
+          "sha256": "1147616208384cbe39473030de9a32a67083e5be5c25a865cc0f2f76d3ecabfe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-46-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-46-00.json",
+          "request_sha256": "f54c4a2396352b0d3bb1715a8298a84c3be4cc85a670da78f299d8116d90e2c5",
+          "sha256": "6ebb78042f09d9201e903748d91cd2389b1b87164d5b8365bba6bcf41dc1f99a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/raw/case-47-00.sse",
+          "request_path": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign/requests/case-47-00.json",
+          "request_sha256": "f54c4a2396352b0d3bb1715a8298a84c3be4cc85a670da78f299d8116d90e2c5",
+          "sha256": "a5697b553753a294e8ca2823614263d70324b8789d3f9c273870651a9d76b007"
+        }
+      ],
+      "reasoning_mode": "xhigh",
+      "source_campaign": "/srv/ai/paged-kv/results/candidate-full256k-aco-mtp-off-20261104T115523300080953Z/cell/C261120/campaign",
+      "status": "complete",
+      "stop_terminated_repeats": 0,
+      "target_C": 261120,
       "valid_measured_repeats": 3
     },
     "off|28672|28673|low|P1": {
@@ -3982,11 +5734,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4064,11 +5813,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4146,11 +5892,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4228,11 +5971,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4310,11 +6050,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4392,11 +6129,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4474,11 +6208,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4556,11 +6287,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4638,11 +6366,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4720,11 +6445,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4802,11 +6524,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4884,11 +6603,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -4966,11 +6682,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5048,11 +6761,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5130,11 +6840,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5212,11 +6919,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5294,11 +6998,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5376,11 +7077,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5458,11 +7156,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5540,11 +7235,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5622,11 +7314,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5704,11 +7393,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5786,11 +7472,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5868,11 +7551,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -5950,11 +7630,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6032,11 +7709,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6114,11 +7788,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6196,11 +7867,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6278,11 +7946,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6360,11 +8025,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6442,11 +8104,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6524,11 +8183,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6606,11 +8262,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6688,11 +8341,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6770,11 +8420,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6852,11 +8499,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -6934,11 +8578,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7016,11 +8657,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7098,11 +8736,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7180,11 +8815,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7262,11 +8894,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7344,11 +8973,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7426,11 +9052,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7508,11 +9131,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7590,11 +9210,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7672,11 +9289,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7754,11 +9368,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7836,11 +9447,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -7918,11 +9526,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8000,11 +9605,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8082,11 +9684,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8164,11 +9763,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8246,11 +9842,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8328,11 +9921,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8410,11 +10000,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8492,11 +10079,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8574,11 +10158,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8656,11 +10237,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8738,11 +10316,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8820,11 +10395,8 @@
       ],
       "lineage": [],
       "mtp": "off",
-      "mtp_acceptance_percent_repeats": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "mtp_acceptance_percent_repeats": [],
+      "mtp_acceptance_status": "not_applicable_mtp_disabled",
       "output_cap_tokens": [
         400
       ],
@@ -8925,6 +10497,7 @@
         92.78350515463917,
         94.27083333333333
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9025,6 +10598,7 @@
         60.833333333333336,
         62.71186440677966
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9125,6 +10699,7 @@
         74.375,
         76.5079365079365
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9225,6 +10800,7 @@
         65.02890173410404,
         65.98837209302326
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9325,6 +10901,7 @@
         76.5079365079365,
         76.26582278481013
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9425,6 +11002,7 @@
         95.62043795620438,
         95.62043795620438
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9525,6 +11103,7 @@
         65.0,
         63.81578947368421
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9625,6 +11204,7 @@
         77.07006369426752,
         81.51815181518151
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9725,6 +11305,7 @@
         85.3932584269663,
         86.93181818181819
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9825,6 +11406,7 @@
         57.61904761904762,
         51.785714285714285
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9925,6 +11507,7 @@
         60.55555555555556,
         61.00278551532033
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -9989,6 +11572,7 @@
         89.16083916083916,
         90.14084507042253
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "medium",
       "record_hashes": [
@@ -10079,6 +11663,7 @@
         66.56891495601172,
         66.56891495601172
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -10179,6 +11764,7 @@
         63.24786324786325,
         63.24786324786325
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -10279,6 +11865,7 @@
         80.3921568627451,
         80.3921568627451
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -10379,6 +11966,7 @@
         96.69117647058823,
         96.69117647058823
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -10479,6 +12067,7 @@
         82.39202657807309,
         82.39202657807309
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -10543,6 +12132,7 @@
         89.47368421052632,
         89.47368421052632
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "low",
       "record_hashes": [
@@ -10597,6 +12187,7 @@
         82.66666666666667,
         82.66666666666667
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "low",
       "record_hashes": [
@@ -10651,6 +12242,7 @@
         86.19402985074628,
         85.18518518518519
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "medium",
       "record_hashes": [
@@ -10705,6 +12297,7 @@
         69.35483870967742,
         69.35483870967742
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P2",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -10759,6 +12352,7 @@
         88.58267716535433,
         88.58267716535433
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -10813,6 +12407,7 @@
         63.23529411764706,
         63.23529411764706
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P2",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -10867,6 +12462,7 @@
         74.375,
         74.375
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -10957,6 +12553,7 @@
         86.81318681318682,
         90.09009009009009
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11057,6 +12654,7 @@
         59.34065934065934,
         62.889518413597735
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11157,6 +12755,7 @@
         78.38709677419355,
         80.65573770491804
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11221,6 +12820,7 @@
         90.14084507042253,
         87.94326241134752
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "medium",
       "record_hashes": [
@@ -11311,6 +12911,7 @@
         62.71186440677966,
         59.61538461538461
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11411,6 +13012,7 @@
         78.13504823151125,
         75.47169811320755
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11511,6 +13113,7 @@
         92.5,
         95.62043795620438
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11611,6 +13214,7 @@
         61.267605633802816,
         65.27777777777777
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11711,6 +13315,7 @@
         80.65573770491804,
         83.83838383838383
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11811,6 +13416,7 @@
         87.71186440677967,
         87.5
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -11911,6 +13517,7 @@
         55.839416058394164,
         54.09836065573771
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12011,6 +13618,7 @@
         56.98924731182796,
         61.34453781512605
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12111,6 +13719,7 @@
         89.80582524271844,
         88.3177570093458
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12211,6 +13820,7 @@
         60.11080332409972,
         65.98837209302326
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12311,6 +13921,7 @@
         76.5079365079365,
         77.31629392971246
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12411,6 +14022,7 @@
         89.92805755395683,
         89.82456140350877
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12511,6 +14123,7 @@
         67.05882352941177,
         60.72423398328691
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12611,6 +14224,7 @@
         80.92105263157895,
         78.64077669902913
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12711,6 +14325,7 @@
         93.86281588447653,
         96.69117647058823
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12811,6 +14426,7 @@
         58.333333333333336,
         57.377049180327866
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -12911,6 +14527,7 @@
         85.08474576271186,
         84.45945945945945
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13011,6 +14628,7 @@
         86.53846153846153,
         89.83050847457628
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13111,6 +14729,7 @@
         55.38461538461539,
         49.1869918699187
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13175,6 +14794,7 @@
         62.889518413597735,
         75.70977917981072
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -13265,6 +14885,7 @@
         91.2280701754386,
         88.93129770992367
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13365,6 +14986,7 @@
         54.48275862068966,
         51.14503816793893
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13465,6 +15087,7 @@
         76.7515923566879,
         78.64077669902913
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13565,6 +15188,7 @@
         88.54166666666667,
         89.5104895104895
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13665,6 +15289,7 @@
         66.66666666666667,
         61.452513966480446
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13765,6 +15390,7 @@
         83.27759197324414,
         78.38709677419355
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13865,6 +15491,7 @@
         93.86281588447653,
         92.3076923076923
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -13965,6 +15592,7 @@
         64.86486486486487,
         65.3225806451613
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14065,6 +15693,7 @@
         83.27759197324414,
         82.39202657807309
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14165,6 +15794,7 @@
         87.90322580645162,
         82.66666666666667
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14265,6 +15895,7 @@
         53.2520325203252,
         54.13223140495868
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14365,6 +15996,7 @@
         64.18338108882521,
         60.11080332409972
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14434,6 +16066,7 @@
         90.0,
         93.6842105263158
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "raw_lineage": {
         "comparison_json": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/lowdecode-comparison.json",
@@ -14516,6 +16149,7 @@
         61.34453781512605,
         61.971830985915496
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14585,6 +16219,7 @@
         81.25,
         79.54545454545455
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "raw_lineage": {
         "comparison_json": "/srv/ai/paged-kv/results/candidate-full256k-lowdecode-20261104T011740487741661Z/lowdecode-comparison.json",
@@ -14649,6 +16284,7 @@
         88.23529411764706,
         89.41605839416059
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14731,6 +16367,7 @@
         56.266666666666666,
         60.833333333333336
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14813,6 +16450,7 @@
         74.92163009404389,
         72.08588957055214
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14895,6 +16533,7 @@
         93.84615384615384,
         96.875
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -14977,6 +16616,7 @@
         57.27272727272727,
         60.317460317460316
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15059,6 +16699,7 @@
         79.22077922077922,
         82.66666666666667
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15141,6 +16782,7 @@
         89.83050847457628,
         88.65546218487395
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15223,6 +16865,7 @@
         58.333333333333336,
         55.2
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15305,6 +16948,7 @@
         59.61538461538461,
         53.506493506493506
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15405,6 +17049,7 @@
         93.20388349514563,
         93.20388349514563
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15469,6 +17114,7 @@
         60.283687943262414,
         60.283687943262414
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P2",
       "reasoning_mode": "low",
       "record_hashes": [
@@ -15523,6 +17169,7 @@
         84.79729729729729,
         84.79729729729729
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "low",
       "record_hashes": [
@@ -15577,6 +17224,7 @@
         90.49295774647888,
         90.49295774647888
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "medium",
       "record_hashes": [
@@ -15667,6 +17315,7 @@
         64.8414985590778,
         64.8414985590778
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15767,6 +17416,7 @@
         78.38709677419355,
         78.38709677419355
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15867,6 +17517,7 @@
         93.30708661417323,
         93.30708661417323
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -15931,6 +17582,7 @@
         66.66666666666667,
         66.66666666666667
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P2",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -15985,6 +17637,7 @@
         77.88461538461539,
         77.88461538461539
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -16039,6 +17692,7 @@
         96.7948717948718,
         96.7948717948718
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -16129,6 +17783,7 @@
         56.854838709677416,
         56.854838709677416
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16229,6 +17884,7 @@
         73.91304347826087,
         73.91304347826087
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16329,6 +17985,7 @@
         91.20370370370371,
         91.20370370370371
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16429,6 +18086,7 @@
         56.83646112600536,
         56.83646112600536
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16529,6 +18187,7 @@
         80.3921568627451,
         80.3921568627451
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16629,6 +18288,7 @@
         90.81272084805654,
         90.81272084805654
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16729,6 +18389,7 @@
         63.53276353276353,
         63.53276353276353
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16829,6 +18490,7 @@
         77.88461538461539,
         77.88461538461539
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -16929,6 +18591,7 @@
         94.20289855072464,
         94.20289855072464
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17029,6 +18692,7 @@
         64.65517241379311,
         64.65517241379311
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17129,6 +18793,7 @@
         91.07142857142857,
         91.07142857142857
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17229,6 +18894,7 @@
         57.87671232876713,
         57.87671232876713
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17293,6 +18959,7 @@
         86.64383561643835,
         86.64383561643835
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -17347,6 +19014,7 @@
         68.95522388059702,
         68.95522388059702
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -17401,6 +19069,7 @@
         88.07339449541284,
         88.07339449541284
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "low",
       "record_hashes": [
@@ -17491,6 +19160,7 @@
         55.88235294117647,
         55.88235294117647
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17555,6 +19225,7 @@
         86.3013698630137,
         86.3013698630137
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "low",
       "record_hashes": [
@@ -17645,6 +19316,7 @@
         92.14285714285714,
         92.14285714285714
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17745,6 +19417,7 @@
         70.18072289156626,
         70.18072289156626
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17809,6 +19482,7 @@
         78.96440129449839,
         78.96440129449839
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "medium",
       "record_hashes": [
@@ -17899,6 +19573,7 @@
         92.3076923076923,
         92.3076923076923
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -17999,6 +19674,7 @@
         60.273972602739725,
         60.273972602739725
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18063,6 +19739,7 @@
         84.79729729729729,
         84.79729729729729
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -18153,6 +19830,7 @@
         87.05882352941177,
         87.05882352941177
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18253,6 +19931,7 @@
         54.95495495495496,
         51.36363636363637
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18353,6 +20032,7 @@
         67.05882352941177,
         67.05882352941177
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18453,6 +20133,7 @@
         89.81481481481481,
         89.35185185185185
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18553,6 +20234,7 @@
         66.3716814159292,
         54.666666666666664
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18653,6 +20335,7 @@
         86.3013698630137,
         85.71428571428571
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18717,6 +20400,7 @@
         89.82456140350877,
         89.82456140350877
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P1",
       "reasoning_mode": "medium",
       "record_hashes": [
@@ -18807,6 +20491,7 @@
         61.00278551532033,
         61.79775280898876
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -18907,6 +20592,7 @@
         72.8395061728395,
         72.8395061728395
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19007,6 +20693,7 @@
         95.62043795620438,
         95.62043795620438
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19071,6 +20758,7 @@
         67.76315789473684,
         60.1123595505618
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P2",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -19125,6 +20813,7 @@
         85.71428571428571,
         85.37414965986395
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "off",
       "record_hashes": [
@@ -19215,6 +20904,7 @@
         89.83050847457628,
         89.16666666666667
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19315,6 +21005,7 @@
         54.32098765432099,
         59.50413223140496
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19415,6 +21106,7 @@
         67.05882352941177,
         56.11702127659574
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19515,6 +21207,7 @@
         92.92035398230088,
         92.92035398230088
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19615,6 +21308,7 @@
         57.878787878787875,
         63.714285714285715
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19715,6 +21409,7 @@
         83.83838383838383,
         85.37414965986395
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19815,6 +21510,7 @@
         83.49514563106796,
         82.89473684210526
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -19915,6 +21611,7 @@
         63.35227272727273,
         65.3179190751445
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20015,6 +21712,7 @@
         77.31629392971246,
         82.94314381270902
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20115,6 +21813,7 @@
         95.62043795620438,
         95.62043795620438
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20215,6 +21914,7 @@
         61.18421052631579,
         64.28571428571429
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20315,6 +22015,7 @@
         78.13504823151125,
         83.27759197324414
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20415,6 +22116,7 @@
         90.67796610169492,
         86.93181818181819
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20515,6 +22217,7 @@
         53.93700787401575,
         60.0
       ],
+      "mtp_acceptance_status": "measured",
       "output_cap_tokens": [
         400
       ],
@@ -20579,6 +22282,7 @@
         49.004975124378106,
         69.87951807228916
       ],
+      "mtp_acceptance_status": "measured",
       "prompt": "P3",
       "reasoning_mode": "xhigh",
       "record_hashes": [
@@ -20838,6 +22542,126 @@
       "replacement_eligible": true
     },
     "off|196608|196608|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|256000|256001|xhigh|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|low|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|low|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|low|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|medium|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|medium|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|medium|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|off|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|off|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|off|P3": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|xhigh|P1": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|xhigh|P2": {
+      "comparable": false,
+      "match_note": "no prior matching cell; new history observation",
+      "replacement_eligible": true
+    },
+    "off|261120|261121|xhigh|P3": {
       "comparable": false,
       "match_note": "no prior matching cell; new history observation",
       "replacement_eligible": true
@@ -23158,5 +24982,7 @@
   },
   "created_for": "2026-11-04 full ACO MTP on/off curve comparison",
   "schema": "aco-best-historical-cells-v1",
-  "source_baseline_index": "/srv/ai/paged-kv/results/aco-fullcurves-20261104-baseline-index.json"
+  "selected_complete_cells": 264,
+  "source_baseline_index": "/srv/ai/paged-kv/results/aco-fullcurves-20261104-baseline-index.json",
+  "status": "complete"
 }
