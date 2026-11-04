@@ -285,7 +285,13 @@ def capture_live_identity(expected_argv: list[str], startup_log: pathlib.Path, *
         if len(fields) >= 6 and fields[-1].startswith("/"):
             path = pathlib.Path(fields[-1].removesuffix(" (deleted)"))
             if path.name.startswith(("libggml", "libllama", "libmtmd")) and path.is_file():
-                loaded[str(path.resolve())] = hashlib.sha256(path.read_bytes()).hexdigest()
+                resolved = str(path.resolve())
+                if resolved not in loaded:
+                    # A DSO has multiple /proc/maps segments. Hash it once,
+                    # streaming, without allocating a CUDA-library-sized blob
+                    # while the benchmark's host K/V is resident.
+                    with path.open("rb") as stream:
+                        loaded[resolved] = hashlib.file_digest(stream, "sha256").hexdigest()
     text = startup_log.read_text(errors="replace")
     cpu_target = "--no-kv-offload" in observed_argv
     # The upstream master binary does not know the fork-only

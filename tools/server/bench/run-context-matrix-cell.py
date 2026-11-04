@@ -160,6 +160,27 @@ def stop_server(proc: subprocess.Popen[bytes] | None) -> None:
         proc.wait(timeout=10)
 
 
+def checkpoint_case_options(selections: dict[str, Any] | None, target: int,
+                            prefill_only: bool = False) -> list[str]:
+    """An explicit empty checkpoint selection fills the base without decoding.
+
+    Keep these checkpoints in the same server's target sequence: omitting them
+    would lose the ingest curve, while passing {} to the canonical request
+    validator would turn an intentional prefill-only stage into a setup error.
+    """
+    selection = None
+    if selections is not None:
+        if str(target) not in selections:
+            raise ValueError(f"checkpoint selection lacks target {target}")
+        selection = selections[str(target)]
+        if selection != {}:
+            selection = matrix.validate_case_selection(selection)
+    if prefill_only or selection == {}:
+        return ["--prefill-only"]
+    return (["--case-selection", json.dumps(selection)]
+            if selection is not None else [])
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context-tokens", type=int, required=True)
@@ -205,7 +226,7 @@ def main() -> int:
                   if args.checkpoint_selection else None)
     if selections is not None:
         for target in targets:
-            matrix.validate_case_selection(selections[str(target)])
+            checkpoint_case_options(selections, target, args.prefill_only)
     if targets != sorted(set(targets)):
         raise SystemExit("--target-sequence values must be strictly increasing")
     for target in targets:
@@ -268,6 +289,13 @@ def main() -> int:
             proc = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                                     start_new_session=True, env=server_env)
         report["server_pid"] = proc.pid
+        # Publish ownership before readiness or a long checkpoint. An outer
+        # lifecycle supervisor can then clean up only this run's server even
+        # if the driver is interrupted before cell.json is finalized.
+        (output / "server-process.json").write_text(json.dumps({
+            "pid": proc.pid, "executable": str(args.server_binary.resolve()),
+            "slot_state": str(args.slot_state.resolve()), "argv": argv,
+        }, indent=2) + "\n")
         health_ready(proc)
         live_apps = gpu_compute_apps()
         expected_app = [line for line in live_apps if line.split(",", 1)[0].strip() == str(proc.pid)]
@@ -310,11 +338,8 @@ def main() -> int:
                 command.extend(("--draft-device", args.draft_device))
             if args.resume:
                 command.append("--resume")
-            if args.prefill_only:
-                command.append("--prefill-only")
+            command.extend(checkpoint_case_options(selections, target, args.prefill_only))
             command.extend(("--reasoning-modes", *args.reasoning_modes))
-            if selections is not None:
-                command.extend(("--case-selection", json.dumps(selections[str(target)])))
             command.extend(("--prompt-indices", *map(str, args.prompt_indices)))
             for index in args.skip_runtime_fault_case:
                 command.extend(("--skip-runtime-fault-case", str(index)))
@@ -448,4 +473,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Run the existing finally cleanup when the outer lifecycle owner stops
+    # this driver; the model itself lives in a separate process group.
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(128 + signum))
     raise SystemExit(main())

@@ -297,6 +297,18 @@ Do not start another model, silently adopt its geometry, or send a generation
 have zero drafts. Setup is established by identity, health and allocator
 evidence; MTP acceptance comes from completed measured responses.
 
+## Active comparison completion — historical results count
+
+The [numbered gap-only plan](../../../.wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.md)
+and [frozen machine configuration](../../../.wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.json)
+pin the server commands, binaries/libraries, 32K repository chunk map, and exact
+missing prompt/mode selections. Complete historical cells are reused at their
+recorded occupancies; different old checkpoint coordinates are not automatically
+missing tests. An empty checkpoint selection means prefill-only, not omission of
+that ingest point. Only a newly observed sparse-result anomaly permits one fresh
+full-curve escalation. Older graphs with reasoning off do not supply unmeasured
+low/medium/xhigh values.
+
 ## Current completed ACO full-curve benchmark (2026-11-04)
 
 The completed campaign has two fresh persistent server variants, MTP on and

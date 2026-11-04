@@ -29,6 +29,20 @@ CELL_SPEC.loader.exec_module(cell)
 
 
 class MasterContextMatrixTests(unittest.TestCase):
+    def test_sparse_decode_keeps_prefill_checkpoints_without_empty_case_requests(self) -> None:
+        selections = {"6144": {}, "12288": {"low": [0, 2]}}
+        self.assertEqual(cell.checkpoint_case_options(selections, 6144), ["--prefill-only"])
+        options = cell.checkpoint_case_options(selections, 12288)
+        self.assertEqual(options[0], "--case-selection")
+        selected = matrix.validate_case_selection(json.loads(options[1]))
+        cases = matrix.canonical_schedule(selection=selected)
+        self.assertEqual(len(cases), 8)
+        self.assertEqual({c["prompt_index"] for c in cases}, {0, 2})
+        self.assertEqual({c["reasoning"] for c in cases}, {"low"})
+        self.assertEqual(cell.checkpoint_case_options(None, 6144), [])
+        with self.assertRaisesRegex(ValueError, "lacks target"):
+            cell.checkpoint_case_options(selections, 28672)
+
     def test_mapped_multifile_fill_and_checkpoint_resume_use_map_group_bound(self) -> None:
         class CharacterTokenizer:
             def encode(self, text: str) -> list[int]:
