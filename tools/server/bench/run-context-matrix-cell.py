@@ -207,6 +207,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-only", action="store_true")
     parser.add_argument("--checkpoint-selection", type=pathlib.Path,
                         help="JSON mapping occupied checkpoints to remaining mode/prompt pairs")
+    parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--skip-runtime-fault-case", type=int, action="append", default=[])
     return parser.parse_args()
@@ -323,6 +324,7 @@ def main() -> int:
                 "--slot-state", str(args.slot_state.resolve()), "--model-alias", args.model_alias,
                 "--output", str(campaign_output), "--api-key-file", str(args.api_key_file),
                 "--startup-log", str(startup_log), "--endpoint", "http://127.0.0.1:8080",
+                "--snapshot-format", args.snapshot_format,
                 "--source-chunk-map", str(args.source_chunk_map.resolve())]
             if effective_pager == "selective":
                 command.append("--reuse-filled-prefix")

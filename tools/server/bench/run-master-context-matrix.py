@@ -412,6 +412,8 @@ def parse_args() -> argparse.Namespace:
                         help="fill and record fresh repository chunks, omit canonical prompt runs")
     parser.add_argument("--reuse-filled-prefix", action="store_true",
                         help="keep the filled KV prefix resident and reuse it with cache_prompt; skip disk snapshots")
+    parser.add_argument("--snapshot-format", choices=("resume", "legacy"), default="resume",
+                        help="native held-base file format for controls; restore is outside request timing")
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--startup-log", type=pathlib.Path,
@@ -707,6 +709,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                  initial_history: list[dict[str, str]] | None = None,
                  initial_manifest: Mapping[str, Any] | None = None,
                  initial_occupied: int = 0,
+                 snapshot_format: str = "resume",
                  chunk_map_path: pathlib.Path = SOURCE_CHUNK_MAP) -> tuple[list[dict[str, str]], dict[str, Any]]:
     mapped = repo_prefill_map.MappedCorpus(chunk_map_path)
     if pathlib.Path(mapped.manifest["source_root"]).resolve() != SOURCE_WORKTREE.resolve():
@@ -887,7 +890,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
     else:
         base_file = f"base-{fingerprint[:16]}.bin"
         status, saved = _post(endpoint, key, "/slots/0?action=save",
-                              {"filename": base_file, "format": "resume"},
+                              {"filename": base_file, "format": snapshot_format},
                               timeout=SLOT_SNAPSHOT_TIMEOUT)
         if status != 200 or not saved.get("n_saved"):
             raise RuntimeError(f"base snapshot save failed: {saved}")
@@ -911,6 +914,7 @@ def fill_context(final, renderer: ServerPromptRenderer, endpoint: str, key: str,
                      "base_sha256": base_hash, "save": saved, "restore": restored,
                      "reuse_method": ("resident_prefix_reuse" if reuse_filled_prefix
                                       else "disk_snapshot_restore"),
+                     "snapshot_format": None if reuse_filled_prefix else snapshot_format,
                      "fill_enable_thinking": enable_thinking,
                      "fill_reasoning_mode": reasoning_mode,
                      "source_manifest_sha256": hashlib.sha256(
@@ -1004,6 +1008,7 @@ def main() -> int:
                 "fill_reasoning_mode": fill_mode,
                 "filled_prefix_method": ("resident_prefix_reuse" if args.reuse_filled_prefix
                                          else "disk_snapshot_restore"),
+                "snapshot_format": None if args.reuse_filled_prefix else args.snapshot_format,
                 "hot_pages": args.hot_pages,
                 "model_sha256": model_sha256,
                 "template_id": renderer.template_id, "repo_context_git": source_identity,
@@ -1086,6 +1091,7 @@ def main() -> int:
             initial_history=(continuation["history"] if continuation else None),
             initial_manifest=(continuation["manifest"] if continuation else None),
             initial_occupied=(continuation["occupied"] if continuation else 0),
+            snapshot_format=args.snapshot_format,
             chunk_map_path=args.source_chunk_map)
         (output / "base.json").write_text(json.dumps(base, indent=2) + "\n")
     elif (output / "base.json").exists():
