@@ -183,9 +183,13 @@ def checkpoint_case_options(selections: dict[str, Any] | None, target: int,
 
 def resident_prefix_required(pager: str, mtp: str, *,
                              prefill_only: bool = False) -> bool:
-    # A target-only slot file discards the native MTP draft prefix and carry.
-    # Normal in-place checkpoints preserve the paired target/draft state.
-    return pager == "selective" or mtp == "on" or prefill_only
+    # All occupied-context comparisons use ordinary server prefix caching.
+    # Benchmark-owned slot files are unnecessary for this workload and a
+    # target-only restore also loses native MTP's companion prefix/carry.
+    # Keep this one policy for GPU, CPU, pager-on/off, and ingest-only runs;
+    # request construction reuses the filled repo frontier without manual
+    # /slots save/restore/erase operations between canonical questions.
+    return True
 
 
 def completed_series_status(stages: list[dict[str, Any]], expected: int) -> str:
@@ -350,11 +354,9 @@ def main() -> int:
                 command.append("--reuse-filled-prefix")
             if args.checkpoint_free_controls:
                 command.append("--checkpoint-free-controls")
-            # MTP-off controls may restore a full target snapshot. The master
-            # can crash in optional checkpoint creation after repeated restore;
-            # a checkpoint-free MTP-off profile avoids that auxiliary path.
-            # Native MTP controls must retain their paired resident state.
-            # Continuation always appends only the next new source slice.
+            # The filled prefix stays in the one live server. Only the next
+            # new repository slice advances a context checkpoint; canonical
+            # questions use the server's normal prefix-cache path.
             if previous_campaign is not None:
                 command.extend(("--continue-from", str(previous_campaign)))
             if args.hot_pages is not None:

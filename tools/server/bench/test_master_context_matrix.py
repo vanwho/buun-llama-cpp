@@ -33,7 +33,8 @@ class MasterContextMatrixTests(unittest.TestCase):
         self.assertTrue(cell.resident_prefix_required("none", "on"))
         self.assertTrue(cell.resident_prefix_required("off", "on"))
         self.assertTrue(cell.resident_prefix_required("selective", "off"))
-        self.assertFalse(cell.resident_prefix_required("none", "off"))
+        self.assertTrue(cell.resident_prefix_required("none", "off"))
+        self.assertTrue(cell.resident_prefix_required("off", "off"))
         self.assertTrue(cell.resident_prefix_required("none", "off", prefill_only=True))
 
     def test_successful_last_stage_does_not_hide_an_earlier_runtime_failure(self) -> None:
