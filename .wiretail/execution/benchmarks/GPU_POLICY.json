@@ -177,9 +177,14 @@
       6144,
       12288,
       28672,
-      62464
+      62464,
+      78848,
+      88064,
+      100352,
+      130048,
+      196608
     ],
     "first_checkpoint_prefix_reuse_validated_all_reasoning_modes": true,
-    "current_checkpoint_on": 78848
+    "current_checkpoint_on": 256000
   }
 }
