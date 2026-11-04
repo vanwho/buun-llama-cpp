@@ -174,3 +174,11 @@ pages, so this is not an all-hot control or an isolated promotion surcharge.
 Measured key rerank jobs were about 775/786ms; page-transfer counter deltas were
 5.1/5.2ms. Timers overlap and do not establish a single additive ACO-versus-off
 cost. See [the source-promotion and latency evidence](../evidence/NATURAL_FILE_PROMOTION_20261104.md).
+
+A matched all-hot 32K file-context comparison with pristine master now measures
+the ordinary short-question/request path: median first-token latency was
+117.62 ms on master and 434.42 ms on ACO, a 316.80 ms difference. Each of three
+clean samples per build reused 32,832 cached tokens and evaluated the same 91
+new tokens. The short query skips the bulk early-routing prefix; logs show
+no query replay, H2D queueing, promotion or eviction. This does not isolate
+cold-selection cost or one code change. See [matched 32K master control](../evidence/MATCHED_32K_MASTER_ACO_LATENCY_20261104.md).

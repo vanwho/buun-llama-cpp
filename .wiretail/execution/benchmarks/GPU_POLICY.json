@@ -92,5 +92,23 @@
     "timing_limit": "target-warm repeat promoted other pages; not an all-hot control or isolated full ACO surcharge",
     "full_suite": "still paused",
     "services": "restored; Jellyfin and port 8091 preserved; port 8092 untouched"
+  },
+  "authorized_matched_32k_turn_latency": {
+    "status": "completed",
+    "scope": "three independent fresh32K file-load+A1 samples per pristine master and ACO build",
+    "L": 65536,
+    "H": 65536,
+    "B": 1024,
+    "U": 256,
+    "mtp": "GPU native MTP2; Turbo4 target/draft",
+    "reasoning": "low",
+    "same_rendered_A1_tokens": true,
+    "master_median_ttft_ms": 117.6234949962236,
+    "aco_median_ttft_ms": 434.4225070090033,
+    "extra_ttft_ms": 316.7990120127797,
+    "result": ".wiretail/execution/evidence/MATCHED_32K_MASTER_ACO_LATENCY_20261104.md",
+    "timing_limit": "all-hot short query; no cold selection/promotion; response output lengths differ",
+    "full_suite": "still paused",
+    "services": "restored; Jellyfin and port8091 preserved; port8092 untouched"
   }
 }

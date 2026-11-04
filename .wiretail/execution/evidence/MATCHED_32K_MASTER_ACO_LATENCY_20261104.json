@@ -1,0 +1,515 @@
+{
+  "schema_version": 1,
+  "status": "completed_matched_short_question_latency",
+  "date": "2026-11-04",
+  "raw_root": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z",
+  "question": "A1 optimization/code-generation question about src/llama-kv-fixed-window.cpp",
+  "input_identity": {
+    "token_count": 32923,
+    "token_sha256": "903bd0122dbd1a6262d903582308f134dddd1d9978f092cdccfd7012f407490e",
+    "rendered_prompt_sha256": "0ab677b88f1864b08d2b2dcae46eff8c0f9978e3d392b152c21d97f5751d429f",
+    "template_id": "server-chat-template-sha256:18a440e8243b4deaed058a03548eae714ea9d83f77f7fea33008c3999bbbf7a7",
+    "tokenizer_id": "server-model:qwen38-fast-turbo4-mtp"
+  },
+  "common_config": {
+    "L": 65536,
+    "body_tokens": 32768,
+    "cached_prefix_tokens": 32832,
+    "A1_new_tokens": 91,
+    "A1_total_tokens": 32923,
+    "B": 1024,
+    "U": 256,
+    "threads": 16,
+    "parallel": 1,
+    "model": "/srv/ai/models/text/current.gguf",
+    "target_kv": "GPU Turbo4",
+    "draft_kv": "GPU Turbo4",
+    "mtp_n_max": 2,
+    "reasoning": "low",
+    "temperature": 0,
+    "seed": 42,
+    "max_output_tokens": 4096,
+    "native_model_template": true,
+    "samples_per_build": 3,
+    "fresh_server_each_sample": true,
+    "one_initial_fill_per_sample": true,
+    "no_old_prefix_recomputation": true,
+    "aco_hot_tokens_requested": 65536
+  },
+  "builds": {
+    "master": {
+      "source": {
+        "worktree": "/srv/ai/paged-kv/worktrees/master106-d2407c33f959",
+        "source_equivalent_commit": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+        "worktree_head_at_run": "d2407c33f9595d1badccfd9a82a33c4c5ceda490",
+        "worktree_dirty": false
+      },
+      "binary_sha256": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+      "loaded_project_dsos": {
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server": "527c34de411d4cad6290e828deb17a71816ae2b9620a3f1166b833e1267e0f0f",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cuda.so.0.26.0": "e35eeb2413d026fc1651599d67ff85474f88099343bac05887b3a1fb7dbd42d0",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-cpu.so.0.26.0": "9a1bbce31a0387341cf6057d688b582cf9de0183a109ca59b62692c6c297d6ea",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml-base.so.0.26.0": "9f883e824e6cbf40d5fbedafe1a185c70e09fabc7574b6b0d8cf2e84ec1e2166",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama.so.0.6.0": "011722e51f00e142778ce181d363a9f5774b3340e41c030b6bb51a8190f769c9",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-common.so.0.6.0": "e34553856be80a2cc373ea8559b9ecfb7c5ab5c6611e3903b79d87ae33843952",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libmtmd.so.0.6.0": "0c285981b7cb11fbd8d61cb24ed3451e7731b75782119cfa078a69071a6c79fc",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libllama-server-impl.so": "96cb874ff3d286784378c3a5949d4f68300266b9e3ee40b7f8f126dff1e08f1b",
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/libggml.so.0.26.0": "60685d4e302c602021f74b3ae6226f37f62ef7d84bf352fc79803560dc3d5b23"
+      },
+      "launch": [
+        "/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server",
+        "-m",
+        "/srv/ai/models/text/current.gguf",
+        "--alias",
+        "qwen38-fast-turbo4-mtp",
+        "--jinja",
+        "-ngl",
+        "999",
+        "--device",
+        "CUDA0",
+        "--fit",
+        "off",
+        "-fa",
+        "on",
+        "-c",
+        "65536",
+        "-np",
+        "1",
+        "-t",
+        "16",
+        "-tb",
+        "16",
+        "-ctk",
+        "turbo4",
+        "-ctv",
+        "turbo4",
+        "-b",
+        "1024",
+        "-ub",
+        "256",
+        "--poll",
+        "0",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--metrics",
+        "--reasoning-preserve",
+        "--no-context-shift",
+        "--slot-save-path",
+        "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/master-1/slot-state",
+        "--ctx-checkpoints",
+        "0",
+        "--cache-ram",
+        "0",
+        "--no-cache-idle-slots",
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        "2",
+        "--spec-draft-type-k",
+        "turbo4",
+        "--spec-draft-type-v",
+        "turbo4",
+        "--slots"
+      ]
+    },
+    "aco": {
+      "source": {
+        "worktree": "/srv/repos/vanwho/buun-llama-cpp",
+        "source_equivalent_commit": "6068d4a003c6ad0e117a4808097f34f0056e0e85",
+        "worktree_head_at_run": "e3f23cbf8a43c2f0751d3da06bfa9fe1d3ba055f",
+        "worktree_dirty": false
+      },
+      "binary_sha256": "f0f44fdefb920245811908f9a75e96ec5fce782f962836e024bc59f10d837cd0",
+      "loaded_project_dsos": {
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "f0f44fdefb920245811908f9a75e96ec5fce782f962836e024bc59f10d837cd0",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.26.0": "4755a309d250327eb72812bfa1e653c292148bcb61df22ee6c1a9278a93887bc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.26.0": "20c3d6e6b2bb24741014491636a3595e3b840dab8b3d4c7c4b874651f949a313",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.26.0": "c4f457ff15345cdab963865d4a302a7e6760a7e06710b53e2a8f7fe77e1492de",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.6.0": "a0558d38ce3ca7759cc48c3515ac3814f5e979542db3a85602838a03cf7b470b",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.6.0": "9b2a5c9840f943938f6dcb33be3345aa39ff144edba3dbd79c330fa1fa4a81cc",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.6.0": "e3e09a05b6543a3ced9daa1f13c760810be5bddc69ab15f9370173bf8a1951c5",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "059c83b3c166750090778857f10d48f67df94d76daf793e4040330b09e37f06a",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.26.0": "cc3a1e4d68391f32811002e367798a91fa9296578595a75623d3649d83e727d6"
+      },
+      "launch": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "-m",
+        "/srv/ai/models/text/current.gguf",
+        "--alias",
+        "qwen38-fast-turbo4-mtp",
+        "--jinja",
+        "-ngl",
+        "999",
+        "--device",
+        "CUDA0",
+        "--fit",
+        "off",
+        "-fa",
+        "on",
+        "-c",
+        "65536",
+        "-np",
+        "1",
+        "-t",
+        "16",
+        "-tb",
+        "16",
+        "-ctk",
+        "turbo4",
+        "-ctv",
+        "turbo4",
+        "-b",
+        "1024",
+        "-ub",
+        "256",
+        "--poll",
+        "0",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--metrics",
+        "--reasoning-preserve",
+        "--no-context-shift",
+        "--slot-save-path",
+        "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/aco-1/slot-state",
+        "--ctx-checkpoints",
+        "0",
+        "--cache-ram",
+        "0",
+        "--no-cache-idle-slots",
+        "--spec-type",
+        "draft-mtp",
+        "--spec-draft-n-max",
+        "2",
+        "--spec-draft-type-k",
+        "turbo4",
+        "--spec-draft-type-v",
+        "turbo4",
+        "--slots",
+        "--kv-pager",
+        "selective",
+        "--kv-page-size",
+        "256",
+        "--kv-hot-pages",
+        "256",
+        "--kv-router",
+        "probe-rerank",
+        "--kv-pin-recent",
+        "0",
+        "--spec-draft-kv-device",
+        "gpu"
+      ]
+    }
+  },
+  "medians_and_ranges": {
+    "master": {
+      "ttft_ms": {
+        "median": 117.6234949962236,
+        "min": 115.45112400199287,
+        "max": 119.15143800433725
+      },
+      "question_prompt_ms": {
+        "median": 90.112,
+        "min": 89.792,
+        "max": 90.141
+      },
+      "first_visible_content_seconds": {
+        "median": 16.533901001006598,
+        "min": 16.50493439999991,
+        "max": 16.54892488900805
+      },
+      "response_wall_seconds": {
+        "median": 22.590262454992626,
+        "min": 22.55371973500587,
+        "max": 22.613785517023643
+      },
+      "decode_tok_s": {
+        "median": 91.58263470423816,
+        "min": 91.49304919569695,
+        "max": 91.722805658896
+      },
+      "output_tokens": {
+        "median": 2059,
+        "min": 2059,
+        "max": 2059
+      },
+      "mtp_acceptance_percent": {
+        "median": 86.53846153846153,
+        "min": 86.53846153846153,
+        "max": 86.53846153846153
+      },
+      "initial_fill_backend_tok_s": {
+        "median": 1631.849779161996,
+        "min": 1631.1754026777967,
+        "max": 1640.9171323353785
+      },
+      "initial_fill_wall_seconds": {
+        "median": 20.144432249013335,
+        "min": 20.032572310010437,
+        "max": 20.151244969980326
+      }
+    },
+    "aco": {
+      "ttft_ms": {
+        "median": 434.4225070090033,
+        "min": 433.665389980888,
+        "max": 435.54952199338004
+      },
+      "question_prompt_ms": {
+        "median": 406.662,
+        "min": 405.024,
+        "max": 406.977
+      },
+      "first_visible_content_seconds": {
+        "median": 18.351663637993624,
+        "min": 18.33905808001873,
+        "max": 18.381999633013038
+      },
+      "response_wall_seconds": {
+        "median": 25.15312295698095,
+        "min": 25.14212169201346,
+        "max": 25.214868531009415
+      },
+      "decode_tok_s": {
+        "median": 87.26549623016699,
+        "min": 87.05025899369014,
+        "max": 87.30974156923656
+      },
+      "output_tokens": {
+        "median": 2158,
+        "min": 2158,
+        "max": 2158
+      },
+      "mtp_acceptance_percent": {
+        "median": 87.03939008894537,
+        "min": 87.03939008894537,
+        "max": 87.03939008894537
+      },
+      "initial_fill_backend_tok_s": {
+        "median": 1039.5172323917523,
+        "min": 1037.2933039387226,
+        "max": 1040.52557443702
+      },
+      "initial_fill_wall_seconds": {
+        "median": 31.6088580719952,
+        "min": 31.57835056798649,
+        "max": 31.67605819401797
+      }
+    }
+  },
+  "aco_minus_master": {
+    "ttft_ms": 316.7990120127797,
+    "question_prompt_ms": 316.54999999999995,
+    "first_visible_content_seconds": 1.8177626369870268,
+    "response_wall_seconds": 2.5628605019883253,
+    "decode_tok_s": -4.317138474071172,
+    "output_tokens": 99,
+    "mtp_acceptance_percent": 0.5009285504838346,
+    "initial_fill_backend_tok_s": -592.3325467702437,
+    "initial_fill_wall_seconds": 11.464425822981866
+  },
+  "samples": [
+    {
+      "sample": "master-1",
+      "build": "master",
+      "metrics": {
+        "ttft_ms": 115.45112400199287,
+        "question_prompt_ms": 89.792,
+        "first_visible_content_seconds": 16.50493439999991,
+        "response_wall_seconds": 22.55371973500587,
+        "decode_tok_s": 91.722805658896,
+        "output_tokens": 2059,
+        "mtp_acceptance_percent": 86.53846153846153,
+        "initial_fill_backend_tok_s": 1640.9171323353785,
+        "initial_fill_wall_seconds": 20.032572310010437
+      },
+      "cache_n": 32832,
+      "prompt_n": 91,
+      "draft_n": 1508,
+      "draft_n_accepted": 1305,
+      "finish_reason": "stop"
+    },
+    {
+      "sample": "aco-1",
+      "build": "aco",
+      "metrics": {
+        "ttft_ms": 435.54952199338004,
+        "question_prompt_ms": 405.024,
+        "first_visible_content_seconds": 18.33905808001873,
+        "response_wall_seconds": 25.14212169201346,
+        "decode_tok_s": 87.30974156923656,
+        "output_tokens": 2158,
+        "mtp_acceptance_percent": 87.03939008894537,
+        "initial_fill_backend_tok_s": 1040.52557443702,
+        "initial_fill_wall_seconds": 31.57835056798649
+      },
+      "cache_n": 32832,
+      "prompt_n": 91,
+      "draft_n": 1574,
+      "draft_n_accepted": 1370,
+      "finish_reason": "stop"
+    },
+    {
+      "sample": "aco-2",
+      "build": "aco",
+      "metrics": {
+        "ttft_ms": 434.4225070090033,
+        "question_prompt_ms": 406.662,
+        "first_visible_content_seconds": 18.381999633013038,
+        "response_wall_seconds": 25.214868531009415,
+        "decode_tok_s": 87.05025899369014,
+        "output_tokens": 2158,
+        "mtp_acceptance_percent": 87.03939008894537,
+        "initial_fill_backend_tok_s": 1039.5172323917523,
+        "initial_fill_wall_seconds": 31.6088580719952
+      },
+      "cache_n": 32832,
+      "prompt_n": 91,
+      "draft_n": 1574,
+      "draft_n_accepted": 1370,
+      "finish_reason": "stop"
+    },
+    {
+      "sample": "master-2",
+      "build": "master",
+      "metrics": {
+        "ttft_ms": 119.15143800433725,
+        "question_prompt_ms": 90.141,
+        "first_visible_content_seconds": 16.54892488900805,
+        "response_wall_seconds": 22.613785517023643,
+        "decode_tok_s": 91.49304919569695,
+        "output_tokens": 2059,
+        "mtp_acceptance_percent": 86.53846153846153,
+        "initial_fill_backend_tok_s": 1631.849779161996,
+        "initial_fill_wall_seconds": 20.144432249013335
+      },
+      "cache_n": 32832,
+      "prompt_n": 91,
+      "draft_n": 1508,
+      "draft_n_accepted": 1305,
+      "finish_reason": "stop"
+    },
+    {
+      "sample": "master-3",
+      "build": "master",
+      "metrics": {
+        "ttft_ms": 117.6234949962236,
+        "question_prompt_ms": 90.112,
+        "first_visible_content_seconds": 16.533901001006598,
+        "response_wall_seconds": 22.590262454992626,
+        "decode_tok_s": 91.58263470423816,
+        "output_tokens": 2059,
+        "mtp_acceptance_percent": 86.53846153846153,
+        "initial_fill_backend_tok_s": 1631.1754026777967,
+        "initial_fill_wall_seconds": 20.151244969980326
+      },
+      "cache_n": 32832,
+      "prompt_n": 91,
+      "draft_n": 1508,
+      "draft_n_accepted": 1305,
+      "finish_reason": "stop"
+    },
+    {
+      "sample": "aco-3",
+      "build": "aco",
+      "metrics": {
+        "ttft_ms": 433.665389980888,
+        "question_prompt_ms": 406.977,
+        "first_visible_content_seconds": 18.351663637993624,
+        "response_wall_seconds": 25.15312295698095,
+        "decode_tok_s": 87.26549623016699,
+        "output_tokens": 2158,
+        "mtp_acceptance_percent": 87.03939008894537,
+        "initial_fill_backend_tok_s": 1037.2933039387226,
+        "initial_fill_wall_seconds": 31.67605819401797
+      },
+      "cache_n": 32832,
+      "prompt_n": 91,
+      "draft_n": 1574,
+      "draft_n_accepted": 1370,
+      "finish_reason": "stop"
+    }
+  ],
+  "all_hot_log_evidence": {
+    "artifact": {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/aco-3/server.log",
+      "sha256": "3295dcb68a5de733cc3f8fb8af7261e382b2ac73be960cff1a857a40d6dcf80e"
+    },
+    "lines": [
+      "0.34.708.191 I slot   operator(): id  0 | task 0 | query replay: unchanged history; replay_count=0",
+      "0.34.868.222 I slot freeze_pager: id  0 | task 0 | kv pager history frozen: turn=1 history_generation=1 table_epoch=66176 selector_refresh_count=0 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+      "0.34.869.657 I slot      release: id  0 | task 0 | kv pager generated span: turn=1 history_generation=1 selector_refresh_delta=0 h2d_queued_delta=0 promotion_pages_delta=0 eviction_pages_delta=0 summary_build_calls_delta=0 table_epoch_before=66176 table_epoch_after=66176",
+      "0.35.149.234 I slot   operator(): id  0 | task 37 | query replay: unchanged history; replay_count=0",
+      "0.35.306.200 I slot freeze_pager: id  0 | task 37 | kv pager history frozen: turn=2 history_generation=2 table_epoch=66361 selector_refresh_count=0 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+      "1.00.025.877 I slot      release: id  0 | task 37 | kv pager generated span: turn=2 history_generation=2 selector_refresh_delta=0 h2d_queued_delta=0 promotion_pages_delta=0 eviction_pages_delta=0 summary_build_calls_delta=576 table_epoch_before=66361 table_epoch_after=71907"
+    ]
+  },
+  "timing_limits": [
+    "This is a matched build-to-build short-question latency comparison; it does not isolate a single code change.",
+    "Both allocate L=65536; ACO requests H=65536. The actual filled body is32768 tokens, framed initial prefix32832, A1 total32923.",
+    "The existing early-routing prefix skips the91-token A1 because count<=B1024; this comparison measures ordinary short-question pager/request behavior.",
+    "ACO3 server logs show unchanged history/replay_count0, no H2D queueing, no promotions or evictions. No cold selection or transfer surcharge is measured.",
+    "A post-response physical inventory snapshot missed the server-exit race; this does not affect the completed HTTP timings.",
+    "No extra opt-in profiling or polling was enabled. Existing built-in selective-mode hotpath logging remained part of the tested runtime.",
+    "ACO generated2158 tokens and master2059. Whole response wall-time and decode-duration differences cannot be called pure pre-answer overhead.",
+    "Jellyfin remained running; the original managed gateway/server were paused only for the six test sessions, then restored."
+  ],
+  "artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/records.json",
+      "sha256": "848fddfb57bdd17b047d52b1eea4c5e2d43ac2dbf09591c651d602b16b5519de"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/summary.json",
+      "sha256": "8ed339db8db3b637d3775fb5b75737c6334ee99858fb1eb93f47adb303298ebc"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/restoration.txt",
+      "sha256": "8dc73e89e2bffb7c6581d438e66b511d4859cd1357f82b1336111f0ee485c840"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024052153560202Z/environment-policy.json",
+      "sha256": "7fa90f4c3a9cba7c3db66f05499b3ef3c3c6f204afb6de2deae2d5e6c2f1edb9"
+    }
+  ],
+  "frozen_inputs": [
+    {
+      "path": "/srv/ai/paged-kv/tests/matched32k-latency-20261104/A-file-context.txt",
+      "sha256": "133aa7dd37860781fac620feb151e4766b7e3dae50681f5db32897680777734f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/tests/matched32k-latency-20261104/frozen-A0-request.json",
+      "sha256": "624d1ed4eedaaf1cdb61a1eb41c6f82726735394f52c3cb73abeefb9d7f7bfa4"
+    },
+    {
+      "path": "/srv/ai/paged-kv/tests/matched32k-latency-20261104/frozen-A1-request.json",
+      "sha256": "87e5a01c25d3c453680527d2e6566ce103dfc5129563da8f656bc3f71d71d9aa"
+    },
+    {
+      "path": "/srv/ai/paged-kv/tests/matched32k-latency-20261104/run.py",
+      "sha256": "eb22e77f7c4e909349f26dd21bba6a0323663afe78604ee4d10a04a47e7d2415"
+    },
+    {
+      "path": "/srv/ai/paged-kv/tests/matched32k-latency-20261104/run.sh",
+      "sha256": "09631ab97d5833038e50d271c96fe88c33f522cbab1a015f32c9c6b8190fba94"
+    }
+  ],
+  "excluded_setup_only_attempts": [
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T023957871387909Z",
+      "reason": "runner argparse import missing; no generation"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/matched32k-latency-20261104T024015632074106Z",
+      "reason": "slot-save-path directory missing before launch; no generation"
+    }
+  ],
+  "control_provenance_note": "Only pristine master106-d2407c33f959 was used. The similarly named master106-draftkv-20261013 contains six source modifications and is not an unmodified master control."
+}
