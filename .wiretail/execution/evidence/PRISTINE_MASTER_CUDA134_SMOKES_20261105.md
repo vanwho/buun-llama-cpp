@@ -173,3 +173,26 @@ The CPU-KV MTP-on row is complete: 27/27 measured requests passed, with three va
 | xhigh | 2 | 3/3 | 9.9599 | 9.9887 | 9.9599, 9.9420, 9.9887 |
 
 Raw row and repetition records: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase2-primary-missing-cells/master-cpu-mtp-on-L200704-missing-gaps/attempt-001-L200704-selected-missing-cells/cell/C126976/campaign/row.json` and `records.jsonl`. The overall CPU series remained running at step 2 when checked; no later context row had completed yet.
+
+## Phase 6 CPU-KV MTP-off, ~192K row
+
+The active CPU-Q4 MTP-off series uses context 262,144, `-ngl 999 --device CUDA0`, `-b 1024 -ub 256`, 16 threads, target K/V Q4_0, and `--no-kv-offload`. The C195664 row is incomplete: 45/48 selected requests passed, including 33/36 measured repetitions. Eleven mode/prompt groups have complete three-repetition sets; medium/prompt index 1 had three invalid measured outputs (6 tokens each) and has no graph value. Maxima below are per C × reasoning × prompt and only appear for complete triplets.
+
+The mapped base fill occupied exactly 195,664 tokens for nominal C195664 (zero-token fill delta); the row uses `resident_cumulative_conversation`, with one base fill and append-only history across selected requests. Final context reached 203,496 tokens, 7,832 above the nominal base because of that appended history. This is not a base-prefix shortfall. The phase 6 series remains `running` at step 1; the later C255488 target has not produced a completed row yet.
+
+| C | Reasoning | Prompt | Valid / 3 | Median tok/s | Graph value: max tok/s | All valid measured repetitions tok/s | Invalid repetitions |
+|---:|---|---:|---:|---:|---:|---|---|
+| 195,664 | low | 0 | 3/3 | 3.5792 | 3.5911 | 3.5911, 3.5457, 3.5792 | — |
+| 195,664 | low | 1 | 3/3 | 3.5754 | 3.5764 | 3.5764, 3.5733, 3.5754 | — |
+| 195,664 | low | 2 | 3/3 | 3.5532 | 3.5623 | 3.5623, 3.5532, 3.5296 | — |
+| 195,664 | medium | 0 | 3/3 | 3.5489 | 3.5533 | 3.5489, 3.5533, 3.5433 | — |
+| 195,664 | medium | 1 | 0/3 | — | — | — | rep1, rep2, rep3: output_invalid, 6 tokens each |
+| 195,664 | medium | 2 | 3/3 | 3.5293 | 3.5346 | 3.5293, 3.5237, 3.5346 | — |
+| 195,664 | off | 0 | 3/3 | 3.5821 | 3.6134 | 3.6134, 3.5488, 3.5821 | — |
+| 195,664 | off | 1 | 3/3 | 3.5970 | 3.6048 | 3.5783, 3.5970, 3.6048 | — |
+| 195,664 | off | 2 | 3/3 | 3.6014 | 3.6026 | 3.6026, 3.6014, 3.5953 | — |
+| 195,664 | xhigh | 0 | 3/3 | 3.5435 | 3.5479 | 3.5479, 3.5435, 3.5271 | — |
+| 195,664 | xhigh | 1 | 3/3 | 3.5366 | 3.5415 | 3.5415, 3.5241, 3.5366 | — |
+| 195,664 | xhigh | 2 | 3/3 | 3.5299 | 3.5357 | 3.5259, 3.5357, 3.5299 | — |
+
+Raw campaign artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase6-cpu-mtp-off-L262144-192k-256k/master-cpu-mtp-off-L262144-192k-256k-content/attempt-002-L262144-C195664-C236544-full-matrix/cell/C195664/campaign/` (`row.json`, `records.jsonl`, `conversation-frontier.json`).
