@@ -850,6 +850,7 @@ private:
     llama_pos dense_diagnostic_batch_min_ = -1;
     llama_pos dense_diagnostic_batch_max_ = -1;
     uint64_t dense_diagnostic_checks_ = 0;
+    bool dense_diagnostic_failed_ = false;
 
     // disable auto fused ops (Flash Attention, Gated Delta Net) whose op lands on a device
     // that differs from the layer it belongs to (usually due to missing backend support)
