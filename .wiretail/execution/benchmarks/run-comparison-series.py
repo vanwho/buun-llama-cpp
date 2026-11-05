@@ -43,6 +43,11 @@ def service_state(name):
                           capture_output=True, text=True).stdout.strip()
 
 
+def unit_enabled_state(name):
+    return subprocess.run(['sudo', '-n', 'systemctl', 'is-enabled', name],
+                          capture_output=True, text=True).stdout.strip()
+
+
 def port_state(port):
     return subprocess.run(['sudo', '-n', 'ss', '-tlnpH', f'sport = :{port}'],
                           check=True, capture_output=True, text=True).stdout.strip()
@@ -129,11 +134,22 @@ def run_one(plan, step, profile_index, attempt, full_decode):
               'started_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'status': 'starting'}
     child = None
     prior = {}
+    quiesced = {}
     lock = open(plan['lifecycle']['lock'], 'w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     try:
         prior = {name: service_state(name) for name in plan['lifecycle']['managed_services']}
-        save(run_root / 'prior-state.json', {'services': prior, 'protected': protected_state()})
+        quiesce_units = plan['lifecycle'].get('quiesce_units', [])
+        quiesced = {name: {'active': service_state(name), 'enabled': unit_enabled_state(name)}
+                    for name in quiesce_units}
+        save(run_root / 'prior-state.json', {'services': prior, 'quiesced_units': quiesced,
+                                             'protected': protected_state()})
+        # Timers that require the managed model server can restart it while a
+        # candidate owns :8080. Stop them under the lifecycle lock, and stop
+        # any already-triggered oneshot after its timer is quiesced.
+        for name in quiesce_units:
+            if quiesced[name]['active'] == 'active':
+                subprocess.run(['sudo', '-n', 'systemctl', 'stop', name], check=True)
         for name, state in prior.items():
             if state == 'active':
                 subprocess.run(['sudo', '-n', 'systemctl', 'stop', name], check=True)
@@ -176,6 +192,11 @@ def run_one(plan, step, profile_index, attempt, full_decode):
                 restored = subprocess.run(['sudo', '-n', 'systemctl', 'start', name], capture_output=True, text=True)
                 if restored.returncode:
                     restore_errors.append(name + ': ' + restored.stderr[-400:])
+        for name in reversed(list(quiesced)):
+            if quiesced[name]['active'] == 'active':
+                restored = subprocess.run(['sudo', '-n', 'systemctl', 'start', name], capture_output=True, text=True)
+                if restored.returncode:
+                    restore_errors.append(name + ': ' + restored.stderr[-400:])
         if prior.get('llama-server.service') == 'active':
             deadline = time.monotonic() + 180
             while time.monotonic() < deadline:
@@ -188,6 +209,9 @@ def run_one(plan, step, profile_index, attempt, full_decode):
             else:
                 restore_errors.append('8080 health did not return')
         result['restoration'] = {'services': {n: service_state(n) for n in prior},
+                                 'quiesced_units': {n: {'active': service_state(n),
+                                                       'enabled': unit_enabled_state(n)}
+                                                    for n in quiesced},
                                  'protected': protected_state(), 'errors': restore_errors}
         if restore_errors:
             result['status'] = 'restoration_failure'

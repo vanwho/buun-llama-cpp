@@ -9,6 +9,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import signal
 import subprocess
 import sys
@@ -192,6 +193,28 @@ def completed_series_status(stages: list[dict[str, Any]], expected: int) -> str:
     if failures:
         return failures[0]
     return "complete" if len(stages) == expected else "incomplete_series"
+
+
+def capacity_failure_in(text: str) -> bool:
+    """Recognize fatal allocation failures, excluding the explicit draft fallback.
+
+    Upstream may fail to allocate the optional compact MTP draft head and then
+    deliberately keep the full head. That warning includes "out of memory" but
+    is handled and the server continues normally; don't report it as a capacity
+    failure unless another fatal-capacity marker is present.
+    """
+    normalized = text.lower()
+    normalized = re.sub(
+        r"[^\n]*cudamalloc failed: out of memory[^\n]*\n"
+        r"[^\n]*failed to allocate cuda0 buffer[^\n]*\n"
+        r"[^\n]*failed to allocate the compact draft head[^\n]*keeping the full head[^\n]*",
+        "handled compact draft head fallback",
+        normalized,
+        count=1,
+    )
+    return ("out of memory" in normalized or
+            "device memory exhausted" in normalized or
+            "scratch reserve failed" in normalized)
 
 
 def future_case_reserve(targets: list[int], start_index: int,
@@ -434,8 +457,7 @@ def main() -> int:
             log_text = campaign_log.read_text(errors="replace") if campaign_log.exists() else ""
             startup_text = startup_log.read_text(errors="replace") if startup_log.exists() else ""
             combined = (startup_text + "\n" + log_text).lower()
-            if any(token in combined for token in
-                   ("out of memory", "device memory exhausted", "scratch reserve failed")):
+            if capacity_failure_in(combined):
                 stage["status"] = "capacity_limit"
             stage["campaign_log"] = str(campaign_log)
             report["stages"].append(stage)
@@ -455,8 +477,8 @@ def main() -> int:
         startup_text = startup_log.read_text(errors="replace") if startup_log.exists() else ""
         campaign_text = campaign_log.read_text(errors="replace") if campaign_log.exists() else ""
         combined = f"{error}\n{startup_text}\n{campaign_text}".lower()
-        report["status"] = ("capacity_limit" if any(token in combined for token in
-            ("out of memory", "device memory exhausted", "scratch reserve failed")) else "setup_failure")
+        report["status"] = ("capacity_limit" if capacity_failure_in(combined)
+                             else "setup_failure")
         if startup_text:
             report["startup_tail"] = startup_text.splitlines()[-12:]
         if campaign_text:
