@@ -31,6 +31,8 @@ KEY_FILE = pathlib.Path("/srv/ai/config/llama/api-keys")
 MATRIX_DRIVER = REPO / "tools/server/bench/run-master-context-matrix.py"
 LOCK = pathlib.Path("/tmp/ai-pager-benchmark.lock")
 PORT = 8080
+NSYS = pathlib.Path("/usr/bin/nsys")
+QDSTRM_IMPORTER = pathlib.Path("/usr/lib/nsight-systems/host-linux-x64/QdstrmImporter")
 TARGETS = (6144, 12288, 28672)
 FAMILIES = {
     "master-gpu-mtp-on": {
@@ -120,7 +122,7 @@ def clean_server_env(binary: pathlib.Path) -> dict[str, str]:
 
 
 def nsys_command(family: str, out: pathlib.Path, argv: list[str], trace_set: str = "cuda,nvtx,osrt") -> list[str]:
-    return ["/usr/bin/nsys", "profile",
+    return [str(NSYS), "profile",
             f"--trace={trace_set}", "--sample=none", "--cpuctxsw=none",
             "--backtrace=none", "--cuda-graph-trace=node",
             "--cuda-memory-usage=false", "--gpu-metrics-device=none",
@@ -129,8 +131,8 @@ def nsys_command(family: str, out: pathlib.Path, argv: list[str], trace_set: str
 
 
 def validate_nsys_cli() -> dict[str, str]:
-    profile_help = run(["/usr/bin/nsys", "profile", "--help"], check=False).stdout
-    stats_help = run(["/usr/bin/nsys", "stats", "--help-reports"], check=False).stdout
+    profile_help = run([str(NSYS), "profile", "--help"], check=False).stdout
+    stats_help = run([str(NSYS), "stats", "--help-reports"], check=False).stdout
     required = ("--cuda-graph-trace", "--gpu-metrics-device", "--sample=",
                 "--cpuctxsw=", "--cuda-memory-usage", "--stats=")
     missing = [x for x in required if x not in profile_help]
@@ -138,9 +140,23 @@ def validate_nsys_cli() -> dict[str, str]:
         raise RuntimeError(f"installed nsys lacks required options: {missing}")
     if "cuda_gpu_kern_sum" not in stats_help or "cuda_api_sum" not in stats_help:
         raise RuntimeError("installed nsys lacks expected summary reports")
-    version = run(["/usr/bin/nsys", "--version"], check=False).stdout.strip()
+    version = run([str(NSYS), "--version"], check=False).stdout.strip()
+    importer_version = run([str(QDSTRM_IMPORTER), "-v", "-b"], check=False).stdout.strip()
+    nsys_build = nsys_build_id(version)
+    importer_build = nsys_build_id(importer_version)
+    if not nsys_build or importer_build != nsys_build:
+        raise RuntimeError(
+            "Nsight Systems CLI and QdstrmImporter builds do not match: "
+            f"cli={version!r}, importer={importer_version!r}")
     return {"version": version, "cuda_graph_trace": "node supported",
+            "qdstrm_importer": str(QDSTRM_IMPORTER),
+            "qdstrm_importer_version": importer_version,
             "reports": "cuda_gpu_kern_sum,cuda_api_sum,cuda_gpu_mem_time_sum"}
+
+
+def nsys_build_id(version: str) -> str | None:
+    match = re.search(r"\b(20\d{2}\.\d+\.\d+\.\d+-[A-Za-z0-9]+)\b", version)
+    return match.group(1) if match else None
 
 
 def low_level_driver_argv(family: str, out: pathlib.Path, target: int,
@@ -189,7 +205,7 @@ def wait_for_server(proc: subprocess.Popen, expected_binary: pathlib.Path,
 
 
 def stop_server(pid: int | None, expected_binary: pathlib.Path,
-                nsys_proc: subprocess.Popen | None) -> None:
+                nsys_proc: subprocess.Popen | None) -> int | None:
     if pid is not None and pathlib.Path(f"/proc/{pid}/exe").exists():
         exe = pathlib.Path(os.readlink(f"/proc/{pid}/exe")).resolve()
         if exe != expected_binary.resolve():
@@ -213,8 +229,69 @@ def stop_server(pid: int | None, expected_binary: pathlib.Path,
             except subprocess.TimeoutExpired:
                 nsys_proc.kill()
                 nsys_proc.wait(timeout=10)
-        if nsys_proc.returncode not in (0, None):
-            raise RuntimeError(f"nsys profile exited with status {nsys_proc.returncode}")
+        return nsys_proc.returncode
+    return None
+
+
+def ensure_nsys_report(out: pathlib.Path, profiler_meta: dict,
+                       profile_exit_code: int | None) -> tuple[pathlib.Path, bool]:
+    rep = out / "trace.nsys-rep"
+    qdstrm = out / "trace.qdstrm"
+    profile_log = out / "server-startup.log"
+    log_text = profile_log.read_text(errors="replace") if profile_log.is_file() else ""
+    missing_importer_signature = (
+        "Importer error status: The importer binary and its dependencies were not found." in log_text and
+        "Unable to retrieve the importer version: skipping importation of the QDSTRM file." in log_text
+    )
+
+    if profile_exit_code not in (0, None) and not missing_importer_signature:
+        raise RuntimeError(
+            f"nsys profile exited with status {profile_exit_code}; see {profile_log}")
+    if profile_exit_code not in (0, None) and missing_importer_signature:
+        unexpected_errors = [
+            line for line in log_text.splitlines()
+            if ("error" in line.lower() or "failed" in line.lower()) and
+            "Importer error status: The importer binary and its dependencies were not found." not in line and
+            "Unable to retrieve the importer version: skipping importation of the QDSTRM file." not in line
+        ]
+        stages_path = out / "stages.json"
+        stages = json.loads(stages_path.read_text()) if stages_path.is_file() else []
+        stages_complete = ([stage.get("target") for stage in stages] == list(TARGETS) and
+                           all(stage.get("status") == "complete" and
+                               stage.get("returncode") == 0 for stage in stages))
+        trace_export_seen = str(qdstrm) in log_text
+        if unexpected_errors or not stages_complete or not trace_export_seen:
+            raise RuntimeError(
+                "nonzero nsys exit was not limited to the known post-capture importer "
+                f"failure; see {profile_log}")
+    if rep.is_file() and rep.stat().st_size > 0:
+        return rep, False
+    if profile_exit_code not in (0, None) and not missing_importer_signature:
+        raise RuntimeError(f"nsys profile failed and did not produce a report: {profile_log}")
+    if not qdstrm.is_file() or qdstrm.stat().st_size == 0:
+        raise RuntimeError(
+            f"Nsight report missing and no nonempty qdstrm capture exists: {qdstrm}")
+
+    expected_build = nsys_build_id(profiler_meta.get("version", ""))
+    importer_version = run([str(QDSTRM_IMPORTER), "-v", "-b"], check=False).stdout.strip()
+    actual_build = nsys_build_id(importer_version)
+    if not expected_build or actual_build != expected_build:
+        raise RuntimeError(
+            "refusing qdstrm import with a mismatched importer build: "
+            f"expected={expected_build!r}, actual={importer_version!r}")
+
+    import_log = out / "qdstrm-import.log"
+    with import_log.open("w", encoding="utf-8") as log:
+        proc = subprocess.run(
+            [str(QDSTRM_IMPORTER), "--input-file", str(qdstrm),
+             "--output-file", str(rep)],
+            stdout=log, stderr=subprocess.STDOUT, text=True, timeout=1800,
+            check=False)
+    if proc.returncode != 0 or not rep.is_file() or rep.stat().st_size == 0:
+        raise RuntimeError(
+            f"matching QdstrmImporter failed (rc={proc.returncode}); "
+            f"trace remains at {qdstrm}; see {import_log}")
+    return rep, True
 
 
 def read_stats_csv(path: pathlib.Path) -> list[dict[str, str]]:
@@ -296,7 +373,8 @@ def compact_stats(out: pathlib.Path) -> dict:
     }
 
 
-def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict, trace_set: str = "cuda,nvtx,osrt") -> dict:
+def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict,
+               trace_set: str = "cuda,nvtx,osrt") -> dict:
     out = run_root / family
     out.mkdir(parents=True, exist_ok=False)
     config = FAMILIES[family]
@@ -319,6 +397,7 @@ def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict, trace_s
         proc = subprocess.Popen(cmd, stdout=startup, stderr=subprocess.STDOUT,
                                 start_new_session=True, env=env, text=True)
         pid = None
+        profile_exit_code = None
         try:
             pid = wait_for_server(proc, binary, startup)
             (out / "owned-server-pid").write_text(f"{pid}\n")
@@ -353,13 +432,18 @@ def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict, trace_s
                             pid = candidate
                     except (FileNotFoundError, ProcessLookupError):
                         pass
-            stop_server(pid, binary, proc)
-    rep = out / "trace.nsys-rep"
-    if not rep.is_file():
-        raise RuntimeError(f"Nsight report missing: {rep}")
+            profile_exit_code = stop_server(pid, binary, proc)
+    rep, manually_imported = ensure_nsys_report(out, profiler_meta, profile_exit_code)
+    (out / "report-import.json").write_text(json.dumps({
+        "profile_exit_code": profile_exit_code,
+        "report": str(rep),
+        "manual_import": manually_imported,
+        "importer": str(QDSTRM_IMPORTER) if manually_imported else None,
+        "importer_version": profiler_meta.get("qdstrm_importer_version") if manually_imported else None,
+    }, indent=2) + "\n")
     reports = ["cuda_gpu_kern_sum", "cuda_api_sum", "cuda_gpu_mem_time_sum"]
     for name in reports:
-        run(["/usr/bin/nsys", "stats", "--report", name, "--format", "csv",
+        run([str(NSYS), "stats", "--report", name, "--format", "csv",
              "--output", str(out / "stats"), str(rep)], check=True, timeout=900)
     (out / "stats-generated.txt").write_text("\n".join(reports) + "\n")
     summary = compact_stats(out)
@@ -395,10 +479,14 @@ def restore_services(prior: dict) -> None:
         raise RuntimeError("Jellyfin PID changed during diagnostic")
 
 
-def run_all(run_root: pathlib.Path, dry_run: bool, trace_set: str = "cuda,nvtx,osrt") -> None:
+def run_all(run_root: pathlib.Path, dry_run: bool, trace_set: str = "cuda,nvtx,osrt",
+            families: tuple[str, ...] | None = None) -> None:
     profiler = validate_nsys_cli()
+    selected_families = tuple(FAMILIES) if families is None else tuple(families)
+    if not selected_families or any(family not in FAMILIES for family in selected_families):
+        raise ValueError(f"unknown or empty family selection: {selected_families}")
     plans = []
-    for family in FAMILIES:
+    for family in selected_families:
         out = run_root / family
         argv, r6_report = exact_server_argv(family, out / "slot-state")
         plans.append({"family": family, "binary": str(FAMILIES[family]["binary"]),
@@ -434,7 +522,7 @@ def run_all(run_root: pathlib.Path, dry_run: bool, trace_set: str = "cuda,nvtx,o
                 raise RuntimeError("managed model still owns port 8080 after service stop")
             if gpu_compute_apps():
                 raise RuntimeError("unrelated GPU compute application remains before profile")
-            for family in FAMILIES:
+            for family in selected_families:
                 run_family(family, run_root, profiler, trace_set)
         finally:
             restore_services(prior)
@@ -448,6 +536,8 @@ def main() -> int:
     parser.add_argument("--output-root", type=pathlib.Path, default=ROOT / "runs")
     parser.add_argument("--trace-set", choices=("cuda,nvtx,osrt", "cuda,nvtx"), default="cuda,nvtx,osrt",
                         help="omit OS runtime events when diagnosing old-collector event-order failures; server settings stay unchanged")
+    parser.add_argument("--families", nargs="+", choices=tuple(FAMILIES), default=tuple(FAMILIES),
+                        help="profile selected comparison family/families; allows fork-only capture")
     args = parser.parse_args()
     def terminate(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")
@@ -459,7 +549,8 @@ def main() -> int:
         raise SystemExit(f"refusing to overwrite {run_root}")
     # Dry-run uses only the output path; execution takes the shared lock and
     # starts one profiled model at a time.
-    run_all(run_root, dry_run=not args.execute, trace_set=args.trace_set)
+    run_all(run_root, dry_run=not args.execute, trace_set=args.trace_set,
+            families=tuple(args.families))
     return 0
 
 

@@ -29,6 +29,12 @@ responses and healthy independent triplets.
   rows, and the rejected target row is zero. Earlier trace records were
   finite. Several verification steps ran after this request's prompt before
   this first nonfinite record.
+- The immediate predecessor in this diagnostic was medium/prompt-1 measured
+  repetition 1: 42 completion tokens, stop finish, and 96.43% MTP acceptance.
+  Nonfinite state first appeared about thirty tokens into repetition 2.
+- Compact external findings: `findings.json` / `findings.md` in the diagnostic
+  root. The JSON SHA-256 is
+  `642c232360619796b5aa40c26e4a7cc9e7fef885c762042beb4f50db5fadc314`.
 
 The watcher stopped the client after the completed response and atomic
 conversation-frontier publication. Its stop is intentional, not another server
