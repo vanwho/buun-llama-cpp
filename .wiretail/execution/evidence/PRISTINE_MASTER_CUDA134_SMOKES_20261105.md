@@ -39,15 +39,15 @@ The cumulative mapped-prefix run used the same candidate and continued the resid
 | Nominal C | Row | Measured passes | Invalid measured cases | Pooled median tok/s (descriptive) | Pooled max tok/s (descriptive only) |
 |---:|---|---:|---:|---:|---:|
 | 6,144 | complete | 36/36 | 0 | 40.5824 | 41.2934 |
-| 12,288 | incomplete | 22/30 | 8 | 39.7569 | 40.0771 |
-| 28,672 | incomplete | 27/30 | 3 | 38.7389 | 39.2038 |
+| 12,288 | incomplete (phase 2 historical; off cells replaced by phase 10) | 22/30 | 8 | 39.7569 | 40.0771 |
+| 28,672 | incomplete (phase 2 historical; off/prompt 2 replaced by phase 10) | 27/30 | 3 | 38.7389 | 39.2038 |
 | 62,464 | complete | 3/3 | 0 | 35.9855 | 35.9924 |
 | 78,848 | fill-only complete | 0 | 0 | — | — |
 | 88,064 | incomplete (phase 2 historical; replaced by clean phase 8 cells) | 10/18 | 8 | 34.0309 | 34.1722 |
 | 100,352 | fill-only complete | 0 | 0 | — | — |
 | 120,832 | not reached | 0 | — | — | — |
 
-The incomplete decode rows failed their output-validity checks (short, typically one-token completions); these are not fatal OOMs. The C120832 stage stopped at the pre-request capacity guard: actual context was 116,601 against a 116,600 ceiling with 6,280 tokens reserved, so no decode request ran. The phase2 supervisor's `resource_interference` label and restoration record are preserved in `series-result.json`; protected Jellyfin, port 8091, and port 8092 were recorded restored/unchanged. No phase2 GPU rows are represented as complete where the row itself is incomplete. Phase 2 C88064 results below are historical: the clean phase 8 run at the same nominal context supplies the current graph cells, while phase 2's raw repetitions remain here for audit.
+The incomplete decode rows failed their output-validity checks (short, typically one-token completions); these are not fatal OOMs. The C120832 stage stopped at the pre-request capacity guard: actual context was 116,601 against a 116,600 ceiling with 6,280 tokens reserved, so no decode request ran. The phase2 supervisor's `resource_interference` label and restoration record are preserved in `series-result.json`; protected Jellyfin, port 8091, and port 8092 were recorded restored/unchanged. No phase2 GPU rows are represented as complete where the row itself is incomplete. Phase 2 C88064 results below are historical: the clean phase 8 run at the same nominal context supplies the current graph cells. Phase 2 C12288 off prompts 0–2 and C28672 off prompt 2 are likewise historical and are replaced by the clean phase 10 retries. All phase2 raw repetitions remain here for audit.
 
 Phase 2 artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase2-primary-missing-cells/master-gpu-mtp-off-missing-gaps/attempt-001-L122880-selected-missing-cells/` (`series-result.json`, per-target `cell/C*/campaign/row.json` and `records.jsonl`).
 
@@ -72,9 +72,9 @@ Per-cell graph values (tok/s) use only complete sets of three valid measured rep
 | 12,288 | low | 2 | 3/3 | 39.7273 | 39.7600 | 39.7600, 39.7273, 39.7047 | — |
 | 12,288 | medium | 1 | 3/3 | 39.7631 | 39.7941 | 39.7941, 39.7631, 39.7478 | — |
 | 12,288 | medium | 2 | 3/3 | 39.7541 | 39.7597 | 39.6768, 39.7597, 39.7541 | — |
-| 12,288 | off | 0 | 1/3 | 39.9324* | — | 39.9324 | rep2, rep3: output_invalid, 1 token each |
-| 12,288 | off | 1 | 0/3 | — | — | — | rep1: 2-token output_invalid; rep2, rep3: 1-token output_invalid |
-| 12,288 | off | 2 | 0/3 | — | — | — | rep1, rep2, rep3: 1-token output_invalid |
+| 12,288 | off | 0 | 1/3 | 39.9324* | historical; phase10 replaces | 39.9324 | rep2, rep3: output_invalid, 1 token each |
+| 12,288 | off | 1 | 0/3 | — | historical; phase10 replaces | — | rep1: 2-token output_invalid; rep2, rep3: 1-token output_invalid |
+| 12,288 | off | 2 | 0/3 | — | historical; phase10 replaces | — | rep1, rep2, rep3: 1-token output_invalid |
 | 12,288 | xhigh | 1 | 3/3 | 39.5434 | 39.6043 | 39.6043, 39.5434, 39.4951 | — |
 | 12,288 | xhigh | 2 | 3/3 | 39.5064 | 39.5209 | 39.4672, 39.5209, 39.5064 | — |
 | 28,672 | low | 0 | 3/3 | 39.1871 | 39.2038 | 38.9841, 39.2038, 39.1871 | — |
@@ -83,7 +83,7 @@ Per-cell graph values (tok/s) use only complete sets of three valid measured rep
 | 28,672 | medium | 0 | 3/3 | 38.7720 | 38.8451 | 38.6441, 38.8451, 38.7720 | — |
 | 28,672 | medium | 1 | 3/3 | 38.7664 | 38.8124 | 38.7149, 38.8124, 38.7664 | — |
 | 28,672 | medium | 2 | 3/3 | 38.5852 | 38.8377 | 38.8377, 38.5852, 38.5321 | — |
-| 28,672 | off | 2 | 0/3 | — | — | — | rep1, rep2, rep3: 1-token output_invalid |
+| 28,672 | off | 2 | 0/3 | — | historical; phase10 replaces | — | rep1, rep2, rep3: 1-token output_invalid |
 | 28,672 | xhigh | 0 | 3/3 | 38.5171 | 38.5288 | 38.5288, 38.3105, 38.5171 | — |
 | 28,672 | xhigh | 1 | 3/3 | 38.5765 | 38.5916 | 38.5409, 38.5916, 38.5765 | — |
 | 28,672 | xhigh | 2 | 3/3 | 38.5172 | 38.5461 | 38.5172, 38.5461, 38.4909 | — |
@@ -95,7 +95,7 @@ Per-cell graph values (tok/s) use only complete sets of three valid measured rep
 | 88,064 | off | 1 | 0/3 | — | — | — | rep1, rep2, rep3: 1-token output_invalid |
 | 88,064 | off | 2 | 0/3 | — | — | — | rep1, rep2, rep3: 1-token output_invalid |
 
-*The listed median is partial (one valid repetition); it is not a graph point. The phase2 C88064 cells are retained as historical raw data and are not graph points because phase 8 provides clean replacement cells at the same nominal C. Fill-only targets have no selected decode cells.
+*The listed median is partial (one valid repetition); it is not a graph point. The phase2 C88064 cells are retained as historical raw data and are not graph points because phase 8 provides clean replacement cells at the same nominal C. Phase 2 C12288 off prompts 0–2 and C28672 off prompt 2 are also historical and superseded by phase 10. Fill-only targets have no selected decode cells.
 
 ## Phase 8 clean GPU MTP-off series
 
@@ -122,6 +122,21 @@ At nominal C88064, the fill base occupied 88,065 tokens (one above target); the 
 | 116,000 (116,001 → 119,263) | xhigh | 2 | 3/3 | 32.1579 | 32.1956 | 32.1956, 32.1579, 32.1344 |
 
 Raw evidence: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase8-gpu-mtp-off-clean-88064/phase8-gpu-mtp-off-clean-88064/attempt-002-L122880-C88064-C116000-clean/` (`series-result.json`, `prior-state.json`, `cell/C*/campaign/row.json`, `records.jsonl`, and `prefill-curve.json`).
+
+## Phase 10 clean GPU MTP-off retries
+
+Phase 10 reran only the invalid phase2 cells, using the same pristine master source/build/model/fixture identity documented above and one GPU server for the cumulative C12288 → C28672 series. The server used B1024/U256, 16 threads, Turbo4 KV, `-ngl 999`, CUDA0, and MTP off. C12288 completed 12/12 requests (3 warmups plus 9 valid measured repeats) from a base occupancy of 12,289 tokens; final cumulative context was 15,648. C28672 completed 4/4 requests (1 warmup plus 3 valid measured repeats) from a base occupancy of exactly 28,672; final context was 29,961. The resident cumulative prefix continued across the two targets. Cached prompt lengths were 12,360–15,240 at C12288 and 28,741–29,554 at C28672. The checkpoint service was inactive before and after; the checkpoint timer remained active. The run completed without restoration errors or resource-interference status; Jellyfin and ports 8091/8092 matched their protected prior state.
+
+Each graph point below is the maximum of all three valid measured repetitions in the cell. Output lengths are included because the C12288 off/prompt 1 responses hit the 167-token cap, while off/prompt 2 produced 400, 400, and 377 tokens; all passed the campaign validity checks.
+
+| Nominal C (actual base → final) | Reasoning | Prompt | Valid / 3 | Median (tok/s) | Graph value: max (tok/s) | Valid measured repetitions (tok/s) | Output tokens per repetition |
+|---:|---|---:|---:|---:|---:|---|---|
+| 12,288 (12,289 → 15,648) | off | 0 | 3/3 | 40.5835 | 40.5955 | 40.5955, 40.5835, 40.5770 | 400, 400, 400 |
+| 12,288 (12,289 → 15,648) | off | 1 | 3/3 | 40.5439 | 40.5702 | 40.5317, 40.5439, 40.5702 | 167, 167, 167 |
+| 12,288 (12,289 → 15,648) | off | 2 | 3/3 | 40.3181 | 40.4242 | 40.4242, 40.3181, 40.3164 | 400, 400, 377 |
+| 28,672 (28,672 → 29,961) | off | 2 | 3/3 | 38.9368 | 39.1373 | 39.1373, 38.9368, 38.8685 | 377, 377, 377 |
+
+Raw evidence: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase10-gpu-mtp-off-clean-12k-28k/phase10-gpu-mtp-off-clean-12k-28k/attempt-001-L122880-C12288-C28672-off-gaps/` (`series-result.json`, `prior-state.json`, `cell/server-argv.json`, and each target's `campaign/row.json` and `records.jsonl`). The executable SHA256 is `ab32d497d19389e7bc1c12310fe0e7cd8b1254cf5fffa492edf37bb963baf675`; source commit is `958b444c677ad9b02058d5fbf8fd0e13b7d24286`; model SHA256 is `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; fixture commit is `a5a1110ca620db4f1c04669d0a2f569852ec1ec7` and map SHA256 is `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f`. Driver: NVIDIA open module 615.71.09; CUDA 13.4.92, GCC/G++ 13.4.0. Phase10 plan SHA256: `652aad79e78a9356ceaa62490d1226b6d5b1b5c1820232c24f920915cb080199`.
 
 ## Phase 2 CPU-KV MTP-on missing-cell pass
 
