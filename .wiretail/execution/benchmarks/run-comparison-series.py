@@ -192,11 +192,6 @@ def run_one(plan, step, profile_index, attempt, full_decode):
                 restored = subprocess.run(['sudo', '-n', 'systemctl', 'start', name], capture_output=True, text=True)
                 if restored.returncode:
                     restore_errors.append(name + ': ' + restored.stderr[-400:])
-        for name in reversed(list(quiesced)):
-            if quiesced[name]['active'] == 'active':
-                restored = subprocess.run(['sudo', '-n', 'systemctl', 'start', name], capture_output=True, text=True)
-                if restored.returncode:
-                    restore_errors.append(name + ': ' + restored.stderr[-400:])
         if prior.get('llama-server.service') == 'active':
             deadline = time.monotonic() + 180
             while time.monotonic() < deadline:
@@ -208,6 +203,13 @@ def run_one(plan, step, profile_index, attempt, full_decode):
                     time.sleep(1)
             else:
                 restore_errors.append('8080 health did not return')
+        # Restore checkpoint triggers only after the production endpoint is
+        # healthy; otherwise an immediate timer catch-up races server startup.
+        for name in reversed(list(quiesced)):
+            if quiesced[name]['active'] == 'active':
+                restored = subprocess.run(['sudo', '-n', 'systemctl', 'start', name], capture_output=True, text=True)
+                if restored.returncode:
+                    restore_errors.append(name + ': ' + restored.stderr[-400:])
         result['restoration'] = {'services': {n: service_state(n) for n in prior},
                                  'quiesced_units': {n: {'active': service_state(n),
                                                        'enabled': unit_enabled_state(n)}
