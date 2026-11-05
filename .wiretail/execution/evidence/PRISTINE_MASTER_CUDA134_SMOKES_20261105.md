@@ -1,6 +1,6 @@
 # Pristine master CUDA 13.4 smoke results
 
-**Scope:** phase 1 GPU MTP-off and CPU-KV MTP-on startup/decode smokes only. These results are not the completed comparison matrix. Raw artifacts are under `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase1-startup-smokes-corrected-source/`.
+**Scope:** consolidated pristine-master GPU MTP-off and CPU-KV MTP-on results from phases 1, 2, 6, 7, and 8, including historical partial rows and clean replacement cells where identified. This is not the completed comparison matrix. Each section links its raw artifacts under `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/`.
 
 ## Identity
 
@@ -43,11 +43,11 @@ The cumulative mapped-prefix run used the same candidate and continued the resid
 | 28,672 | incomplete | 27/30 | 3 | 38.7389 | 39.2038 |
 | 62,464 | complete | 3/3 | 0 | 35.9855 | 35.9924 |
 | 78,848 | fill-only complete | 0 | 0 | — | — |
-| 88,064 | incomplete | 10/18 | 8 | 34.0309 | 34.1722 |
+| 88,064 | incomplete (phase 2 historical; replaced by clean phase 8 cells) | 10/18 | 8 | 34.0309 | 34.1722 |
 | 100,352 | fill-only complete | 0 | 0 | — | — |
 | 120,832 | not reached | 0 | — | — | — |
 
-The incomplete decode rows failed their output-validity checks (short, typically one-token completions); these are not fatal OOMs. The C120832 stage stopped at the pre-request capacity guard: actual context was 116,601 against a 116,600 ceiling with 6,280 tokens reserved, so no decode request ran. The phase2 supervisor's `resource_interference` label and restoration record are preserved in `series-result.json`; protected Jellyfin, port 8091, and port 8092 were recorded restored/unchanged. No phase2 GPU rows are represented as complete where the row itself is incomplete.
+The incomplete decode rows failed their output-validity checks (short, typically one-token completions); these are not fatal OOMs. The C120832 stage stopped at the pre-request capacity guard: actual context was 116,601 against a 116,600 ceiling with 6,280 tokens reserved, so no decode request ran. The phase2 supervisor's `resource_interference` label and restoration record are preserved in `series-result.json`; protected Jellyfin, port 8091, and port 8092 were recorded restored/unchanged. No phase2 GPU rows are represented as complete where the row itself is incomplete. Phase 2 C88064 results below are historical: the clean phase 8 run at the same nominal context supplies the current graph cells, while phase 2's raw repetitions remain here for audit.
 
 Phase 2 artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase2-primary-missing-cells/master-gpu-mtp-off-missing-gaps/attempt-001-L122880-selected-missing-cells/` (`series-result.json`, per-target `cell/C*/campaign/row.json` and `records.jsonl`).
 
@@ -88,14 +88,40 @@ Per-cell graph values (tok/s) use only complete sets of three valid measured rep
 | 28,672 | xhigh | 1 | 3/3 | 38.5765 | 38.5916 | 38.5409, 38.5916, 38.5765 | — |
 | 28,672 | xhigh | 2 | 3/3 | 38.5172 | 38.5461 | 38.5172, 38.5461, 38.4909 | — |
 | 62,464 | low | 2 | 3/3 | 35.9855 | 35.9924 | 35.9924, 35.9855, 35.9689 | — |
-| 88,064 | low | 0 | 3/3 | 34.0094 | 34.0346 | 33.9456, 34.0094, 34.0346 | — |
-| 88,064 | low | 1 | 3/3 | 34.0410 | 34.0463 | 34.0410, 34.0463, 34.0273 | — |
-| 88,064 | low | 2 | 3/3 | 33.9306 | 34.0382 | 34.0382, 33.8633, 33.9306 | — |
+| 88,064 | low | 0 | 3/3 | 34.0094 | historical; superseded | 33.9456, 34.0094, 34.0346 | — |
+| 88,064 | low | 1 | 3/3 | 34.0410 | historical; superseded | 34.0410, 34.0463, 34.0273 | — |
+| 88,064 | low | 2 | 3/3 | 33.9306 | historical; superseded | 34.0382, 33.8633, 33.9306 | — |
 | 88,064 | off | 0 | 1/3 | 34.1722* | — | 34.1722 | rep2, rep3: output_invalid, 1 token each |
 | 88,064 | off | 1 | 0/3 | — | — | — | rep1, rep2, rep3: 1-token output_invalid |
 | 88,064 | off | 2 | 0/3 | — | — | — | rep1, rep2, rep3: 1-token output_invalid |
 
-*The listed median is partial (one valid repetition); it is not a graph point. Fill-only targets have no selected decode cells.
+*The listed median is partial (one valid repetition); it is not a graph point. The phase2 C88064 cells are retained as historical raw data and are not graph points because phase 8 provides clean replacement cells at the same nominal C. Fill-only targets have no selected decode cells.
+
+## Phase 8 clean GPU MTP-off series
+
+Phase 8 repeated C88064 under a clean timer-managed lifecycle and continued the same resident cumulative conversation to C116000. Both targets used the same pristine master binary, model, B1024/U256, 16 threads, Turbo4 KV, GPU placement (`-ngl 999`, `CUDA0`), and MTP off. One server handled the full series. The runner recorded the checkpoint service inactive before the run and active after restoration; the checkpoint timer remained active, with no restoration errors. Jellyfin and ports 8091/8092 matched their protected prior state. The supervisor and both rows completed successfully, without a resource-interference label.
+
+At nominal C88064, the fill base occupied 88,065 tokens (one above target); the row completed 48/48 requests, including 12 warmups and 36 valid measured repetitions. Final cumulative context was 98,937. At nominal C116000, the fill base occupied 116,001 tokens (one above target); the selected xhigh-only row completed 12/12 requests, including 3 warmups and 9 valid measured repetitions. Final cumulative context was 119,263. The prefix remained resident and accumulated across requests/targets; the records show cached prompt lengths of 88,136–96,336 tokens at C88064 and 115,996 tokens for each selected prompt at C116000. The C88064 fill curve used two 32,768-token groups followed by a 22,489-token checkpoint tail; C116000 continued with two checkpoint-tail groups. The graph value in each row below is the maximum of that cell's three valid measured repetitions; medians and all repetitions are retained.
+
+| Nominal C (actual base → final) | Reasoning | Prompt | Valid / 3 | Median (tok/s) | Graph value: max (tok/s) | Valid measured repetitions (tok/s) |
+|---:|---|---:|---:|---:|---:|---|
+| 88,064 (88,065 → 98,937) | off | 0 | 3/3 | 34.2009 | 34.2521 | 34.2521, 34.1954, 34.2009 |
+| 88,064 (88,065 → 98,937) | off | 1 | 3/3 | 34.1608 | 34.1737 | 34.1737, 34.1608, 34.0621 |
+| 88,064 (88,065 → 98,937) | off | 2 | 3/3 | 34.0520 | 34.0614 | 34.0520, 34.0614, 34.0236 |
+| 88,064 (88,065 → 98,937) | low | 0 | 3/3 | 34.0072 | 34.0270 | 34.0072, 34.0065, 34.0270 |
+| 88,064 (88,065 → 98,937) | low | 1 | 3/3 | 33.8665 | 33.9403 | 33.9403, 33.8665, 33.8479 |
+| 88,064 (88,065 → 98,937) | low | 2 | 3/3 | 33.8163 | 33.8165 | 33.8165, 33.8163, 33.7289 |
+| 88,064 (88,065 → 98,937) | medium | 0 | 3/3 | 33.7686 | 33.7740 | 33.7740, 33.6267, 33.7686 |
+| 88,064 (88,065 → 98,937) | medium | 1 | 3/3 | 33.7028 | 33.7302 | 33.7302, 33.7028, 33.6474 |
+| 88,064 (88,065 → 98,937) | medium | 2 | 3/3 | 33.7156 | 33.7191 | 33.7191, 33.5804, 33.7156 |
+| 88,064 (88,065 → 98,937) | xhigh | 0 | 3/3 | 33.7278 | 33.7352 | 33.5739, 33.7352, 33.7278 |
+| 88,064 (88,065 → 98,937) | xhigh | 1 | 3/3 | 33.6061 | 33.6574 | 33.6574, 33.6061, 33.5816 |
+| 88,064 (88,065 → 98,937) | xhigh | 2 | 3/3 | 33.4433 | 33.4643 | 33.4643, 33.4433, 33.4227 |
+| 116,000 (116,001 → 119,263) | xhigh | 0 | 3/3 | 32.3338 | 32.3545 | 32.3545, 32.3338, 32.2733 |
+| 116,000 (116,001 → 119,263) | xhigh | 1 | 3/3 | 32.2510 | 32.2870 | 32.2510, 32.2870, 32.1853 |
+| 116,000 (116,001 → 119,263) | xhigh | 2 | 3/3 | 32.1579 | 32.1956 | 32.1956, 32.1579, 32.1344 |
+
+Raw evidence: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase8-gpu-mtp-off-clean-88064/phase8-gpu-mtp-off-clean-88064/attempt-002-L122880-C88064-C116000-clean/` (`series-result.json`, `prior-state.json`, `cell/C*/campaign/row.json`, `records.jsonl`, and `prefill-curve.json`).
 
 ## Phase 2 CPU-KV MTP-on missing-cell pass
 
