@@ -96,21 +96,25 @@ identities pinned; no inferencecode edits or rebuild during comparison.
 
 ## Latest gap audit and additional clean-start check
 
-See COMPARISON_PROGRESS_20261105.md/.json for the timestamped direct-record
-count and exact remaining contexts. At00:35:57UTC forkCPUon completed16of37
-missing cells with65 successful requests andzero failures. Remaining primary
-base gaps:21forkCPUon,41masterCPUon,42masterGPUoff blocked byCUDAfault.
-Also pending:3independent28K/off/Prompt3cohorts andforkGPUoff mapped-ingest-only.
-Do not conflate scientific cells (warmup+3measured) withindividualrequests.
+See COMPARISON_PROGRESS_20261105.md/.json for the timestamped record count and
+exact remaining contexts. At 00:35:57 UTC, fork CPU/MTP-on completed 16 of 37
+missing cells with 65 successful requests and zero failures. Remaining primary
+gaps: 21 fork CPU/MTP-on, 41 master CPU/MTP-on, and 42 master GPU/MTP-off cells
+blocked by the CUDA fault. Also pending: three independent 28K/off/Prompt-3
+cohorts and the fork GPU/MTP-off mapped prefill-only series. A scientific cell
+requires a warmup and three measured repetitions; it is not one HTTP request.
 
-The old masterCPUon256K1730MiBstartupOOM is credible but lacks prelaunch
-GPU-owner/free-memory evidence anduses8ratherthan32CP. Auditor prepares a
-startup-only clean confirmation at a post-primary idle boundary, withcurrent
-explicit16/16threads and1024/256, samepinnedbinary andquantization, changingonly
-Lto262144 andartifactpaths. No generation/counterprobe atstartup. Ifitfits,
-runonlythemissing256K12cells/48requests afteronefreshmappedfill; keepvalidsmaller
-measurements. IfitOOMs withsoleGPUowner, recordthatverifiedconfigurationlimit.
+The old master CPU/MTP-on 256K startup OOM (1,730 MiB allocation) is credible,
+but lacks prelaunch GPU-owner/free-memory evidence and uses eight checkpoints
+rather than 32. The auditor is preparing a clean startup-only confirmation at
+an idle boundary after the primary queue, with explicit 16/16 threads and
+1024/256, the same pinned binary and quantization, changing only L to 262,144
+and artifact paths. Do not send a generation/counter probe at startup. If it
+fits, run only the missing 256K block (12 cells, 48 requests) after one fresh
+mapped fill; keep valid smaller measurements. If it runs out of GPU memory
+with sole model ownership, record that verified configuration limit.
 
-The firstsixR8steps have stale ingest-only descriptive labels; selections,
-expectedrequestcounts andactualrecords correctlyrequiredecode. OnlylastforkGPU
-step isfill-only. Fixlabels afterthefrozenprimaryqueue/diagnostics, notmidrun.
+The first six R8 steps have stale ingest-only descriptive labels; selections,
+expected request counts and actual records correctly require decoding. Only
+the last fork GPU step is fill-only. Fix labels after the frozen primary queue
+and diagnostics, not during a run.
