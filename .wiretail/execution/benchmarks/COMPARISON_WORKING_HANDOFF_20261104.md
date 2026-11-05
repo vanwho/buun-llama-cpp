@@ -22,13 +22,28 @@ against R7 unchanged,492maximum canonical requests. Client alone changes to
 normal cumulative conversation. Current+future reply budget1752percell+1024
 leaves room underL; none of the400-token output budgets shrink.
 
-Runtime owner /root/comparison_runtime_prep (LunaHigh) must launch durablequeue
-with nohupsetsid once root commits/pushes. Do not resume R7. Remaining120cells
+Runtime owner /root/comparison_runtime_prep (LunaHigh) launched the durable R8
+queue with nohup/setsid. Do not resume R7. Initially remaining120cells
 +3outliercohorts=492requests: masterGPUoff L122880;forkCPUon;masterCPUon;
 3independentC28KBashrechecks;forkGPUoffL122880ingest-only. Serverflags remain
 R7(CP32, lastforkingestCP8), no cache tuning. Realerrors assess; stat/cacheflags
 never trigger automatic replay/rerun. Keep strictL bound/no contextshift by
 reserving all remainingoutputs before newfiles, not by shorteninganswers.
+
+R8 master GPU/MTP-off failed on its first question after a successful C6144
+fill: +33 input tokens, LCP6144, rewind0, CUDA illegal memory access at target
+synchronize before output. This is a recorded runtime finding, not a benchmark
+restore or capacity result. See engineering-notes/normal-append-master-cuda-fault-20261105.md.
+Fork CPU/MTP-on is running normally (C12288,29/36 requests passed at latest
+capture). Keep it running with its originally pinned template for the entire
+configuration. Do not silently change its template or helper provenance midway.
+
+The shared-prefix Jinja template moves effort steering from old last-user to
+new last-user. Offline rendering proves historical prompt bytes change although
+the client preserves messages. An append-stable replacement is being prepared
+for the next fresh configuration; hold at that safe queue boundary until root
+pins its provenance. This is a separate reprocessing defect, not an established
+cause of the master off-mode CUDA failure.
 
 ## Preserved data
 
@@ -45,13 +60,15 @@ append Q/A. Archived_R5/_R6/_R7 are provenance only, never executabledirections.
 
 ## Agents and report work
 
-- Runtime owner: /root/comparison_runtime_prep, waitingrootlaunchhandoff.
+- Runtime owner: /root/comparison_runtime_prep, active durable R8 queue.
 - Docs /root/aco_docs_refresh_20261104 implemented cumulativehistory, logical
   newinput accounting (prompt_n-priorcommittedfrontier, notcache_n), persisted
   conversation/sourcecursor, nominal/actualcounts, and whole-series headroom.
-  It is idle; followup for reporting ONLY when modeltimingsidle.
+  It is preparing the append-stable template repair outside active runtime files.
 - Audit /root/routing_prefix_engine_audit audited exact assistantconstructor:
   rawcontent+optionalrawreasoning_content; don'tstrip orinsert stopmarkers.
+  It also proved the Jinja steering relocation and audited the master fault's
+  target synchronize path. A bounded post-primary memcheck wrapper is pending.
 - Root reporter changes groupprimaryplots byoriginalnominalC (userdirection),
   retain actualbefore/afterperrepeat. Append diagnostics stillplot actualC.
   Newnormal Q/A history is a distinct protocol; oldfixedbase data remainsvalid
