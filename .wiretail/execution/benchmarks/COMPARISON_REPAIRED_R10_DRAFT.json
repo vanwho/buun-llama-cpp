@@ -3,6 +3,18 @@
     "path": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104_R9.json",
     "sha256": "d94223ec4357e3d9de6fda0adfb18bec4de1a4aef3c5d3bc3793dabf7787fa6e"
   },
+  "build_policy": {
+    "aco_source_changes": "none without a specifically demonstrated defect",
+    "allowed_build_variation": "approved host toolchain compatibility only",
+    "candidate_binary_and_loaded_dso_hashes": "pending build; do not invent or copy old hashes",
+    "fork_source_commit_current": "8a79008b5473676bb99a54cc1505d11a4e107357",
+    "fork_temporary_finite_diagnostic_changes": "reverted; no fork repair until master findings support a concrete fix",
+    "former_master_repair_worktree_and_build": "retired; do not use",
+    "master_source_commit": "958b444c677ad9b02058d5fbf8fd0e13b7d24286",
+    "master_source_must_be_pristine": true,
+    "master_source_patches_hooks_or_overlays": false,
+    "master_source_path": "/srv/ai/paged-kv/worktrees/master-pristine-958b444c677a"
+  },
   "capacity_exclusions_not_gap_cells": [
     {
       "family": "fork-gpu-mtp-off",
@@ -198,10 +210,10 @@
     }
   ],
   "created_date": "2026-11-05",
-  "diagnostic_sequence_source": {
-    "path": "/srv/ai/paged-kv/results/candidate-short-repros-r9-20261105/candidate-short-repros.json",
-    "sha256": "accc075633bc391167919f4bd1a6457a6f382cfde2c902b881ccbe67983326ff"
-  },
+  "historical_provisional_findings": [
+    "R8/R9 CUDA faults, nonfinite CPU-MTP outputs, and memory observations remain tied to their historical binaries; they are provisional symptoms, not proven repairs or a single root cause.",
+    "No retired master diagnostic launch should be replayed against the pristine build. Use the fresh startup/short-check sequence in this draft after root pins it."
+  ],
   "not_in_scope": [
     "24 confirmed GPU capacity-N/A cells at nominal C=130048",
     "any complete quality-qualified historical cell",
@@ -828,13 +840,14 @@
       "feasible_missing_cell_count": 42
     }
   },
-  "output_root": "/srv/ai/paged-kv/results/comparison-repaired-20261105-r10",
+  "output_root": "/srv/ai/paged-kv/results/comparison-pristine-master-r10",
   "pending_root_review": [
-    "repair scope and source changes",
-    "repaired binary and DSO identities",
-    "template selection/integration after initial source-fault diagnosis",
-    "exact literal argv and fallback profiles",
-    "startup/resource gates and launch order"
+    "pristine master toolchain/build completion and binary/DSO hashes",
+    "exact argv and output roots for startup and short checks",
+    "master gap-series gate and launch order after short checks",
+    "whether pristine-master findings justify a concrete fork source fix",
+    "template integration only after initial diagnosis",
+    "no ACO source changes without a demonstrated defect"
   ],
   "protocol": {
     "B": 1024,
@@ -860,31 +873,34 @@
       "xhigh"
     ],
     "sampling": "T=0, seed=42, greedy; same R9 flags",
-    "server_and_template_argv": "unset until root pins the repaired builds and reviewed template; preserve all R9 performance flags and prompt semantics.",
+    "server_and_template_argv": "No executable argv is pinned here. Build pristine master first; root reviews binary/DSO identities and exact argv before checks. Keep original R9 template for initial source-fault diagnosis. Any later template change is separately reviewed and one pinned template must be used across all repaired full curves.",
     "source_map": "reuse the same frozen 32K chunk map and disjoint source-byte accounting as R9 after verification",
     "target": "Q4_0 CPU",
     "threads": 16,
     "warmup_tokens": 40
   },
-  "purpose": "Recover only quality-audited feasible historical gaps on separately versioned repaired builds, after narrow reproduction gates.",
+  "purpose": "Stage the pristine-upstream master checks and the quality-audited missing master controls first; defer fork CPU-MTP-on gaps until master findings justify a concrete source fix.",
   "repaired_artifacts": {
     "fork": {
       "binary_path": null,
       "binary_sha256": null,
       "dso_manifest": null,
       "dso_sha256": null,
-      "repair_id": null,
-      "source_commit": null
+      "repair_commit": null,
+      "source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
+      "status": "restored baseline; defer any source changes until pristine master findings"
     },
+    "identity_note": "Pristine master source identity is known, but built artifact identities are pending. Fork repair identity does not yet exist.",
     "master": {
       "binary_path": null,
       "binary_sha256": null,
       "dso_manifest": null,
       "dso_sha256": null,
-      "repair_id": null,
-      "source_commit": null
+      "source_commit": "958b444c677ad9b02058d5fbf8fd0e13b7d24286",
+      "source_path": "/srv/ai/paged-kv/worktrees/master-pristine-958b444c677a",
+      "status": "pristine upstream build pending; source commit known"
     },
-    "reason_unset": "Root owns repairs and build identity assignment; no repaired binary SHA or source identity is asserted here."
+    "reason_unset": "Master binary/DSO hashes are pending the pristine upstream build. No master source patches/hooks/overlays are allowed. Fork repair identity is deferred and not yet justified."
   },
   "revision": "R10-draft",
   "schema": "comparison-repaired-campaign-draft/v1",
@@ -892,75 +908,73 @@
     "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/comparison-final-20261104.json",
     "sha256": "f3f9bfef2b39d0945c87ad43e357638553e310fd52b5b7eb9343cab34b99af2b"
   },
-  "status": "draft_not_executable",
+  "status": "draft_not_executable_root_build_pin_pending",
   "steps": [
     {
-      "builds": [
-        "fork",
-        "master"
-      ],
-      "cases": [
+      "binary_and_dso_hashes": "pending build",
+      "checks": [
         {
-          "context_tokens": 262144,
-          "expected_fault_boundary": "R9 case index 14: medium/P1 repetition 2, after repetition 1 ended at EOS after 42 tokens; baseline actual C16142\u219216571, 400 punctuation-only tokens, 0/795 MTP acceptance.",
-          "family": "fork-cpu-mtp-on",
-          "sequence": [
-            "fresh server and mapped fill through nominal C6144",
-            "append through nominal C12288",
-            "run low P1, P2, P3 in order",
-            "run medium P1 through measured repetition 2; stop client on the first confirmed punctuation-only completion"
-          ]
-        },
-        {
+          "case": "short startup/health and one root-pinned missing-cell request; exact sequence to be reviewed after fresh pristine build",
           "context_tokens": 200704,
           "family": "master-cpu-mtp-on",
-          "sequence": [
-            "fresh server and normal mapped fill through nominal C12288",
-            "run the pinned root-selected first-fault reproduction case; exact sequence remains unset pending root review"
-          ]
+          "mode": "medium",
+          "nominal_C": 6144,
+          "prompt": "P1"
         },
         {
-          "context_tokens": 122880,
-          "expected_fault_boundary": "Baseline failed before any generated token; CUDA-GDB saw an out-of-range address in flash_attn_ext_f16.",
-          "family": "master-gpu-mtp-off",
-          "sequence": [
+          "case_sequence": [
             "fresh server and mapped fill through nominal C6144",
-            "run off/P1: 40-token warmup then first measured 400-token request"
-          ]
+            "off/P1 warmup40 then first measured request capped at 400 tokens"
+          ],
+          "context_tokens": 122880,
+          "family": "master-gpu-mtp-off",
+          "mode": "off",
+          "nominal_C": 6144,
+          "prompt": "P1"
         }
       ],
-      "id": "narrow-reproductions",
-      "kind": "gating_diagnostic",
-      "note": "Validation reproductions, not speed samples. Require finite inference state and substantive output; preserve failure evidence and stop the affected family on a confirmed anomaly.",
+      "family_scope": [
+        "master-cpu-mtp-on",
+        "master-gpu-mtp-off"
+      ],
+      "id": "pristine-master-startup-and-short-checks",
+      "kind": "pristine_master_gate",
+      "note": "Replaces retired master diagnostic launches. Validation only, not speed data. Require actual C, preserve failure evidence, and stop if the short check faults.",
       "order": 1,
-      "template_policy": "Keep the original frozen R9 template for the initial source-fault reproductions. Any append-stable template change is a later, root-reviewed versioned change; if adopted for full repaired curves, pin one exact template identity across all repaired families."
-    },
-    {
-      "family": "fork-cpu-mtp-on",
-      "fresh_fill": "one mapped fill across all prompts and modes; continue to configured L within reserve and source map",
-      "id": "fork-cpu-mtp-on-repaired-series",
-      "kind": "fresh_mapped_series_then_selected_gaps",
-      "order": 2,
-      "profile_reference": "R9 fork CPU/MTP-on L=262144 primary and its previously reviewed startup fallbacks, subject to repaired-build gate and exact root-pinned argv",
-      "selected_gaps": "open_gap_families.fork-cpu-mtp-on"
+      "source_commit": "958b444c677ad9b02058d5fbf8fd0e13b7d24286",
+      "source_patches": false,
+      "source_path": "/srv/ai/paged-kv/worktrees/master-pristine-958b444c677a"
     },
     {
       "family": "master-cpu-mtp-on",
-      "fresh_fill": "one mapped fill across all prompts and modes; continue to configured L within reserve and source map",
-      "id": "master-cpu-mtp-on-repaired-series",
+      "fresh_fill": "one normal cumulative mapped fill across prompts and modes",
+      "gate": "proceed only after step 1 and root pins built identity and argv",
+      "id": "master-cpu-mtp-on-pristine-gaps",
       "kind": "fresh_mapped_series_then_selected_gaps",
-      "order": 3,
-      "profile_reference": "R9 L=200704 primary and L=131072 alternative only; do not retry the known L=262144 clean-start failure without a separately reviewed startup gate",
+      "order": 2,
+      "profile_reference": "R9 L=200704 primary and L=131072 alternative; do not retry the historical clean-start L=262144 failure without a separately reviewed startup gate",
       "selected_gaps": "open_gap_families.master-cpu-mtp-on"
     },
     {
       "family": "master-gpu-mtp-off",
-      "fresh_fill": "one mapped fill across all prompts and modes; continue to configured L within reserve and source map",
-      "id": "master-gpu-mtp-off-repaired-series",
+      "fresh_fill": "one normal cumulative mapped fill across prompts and modes",
+      "gate": "proceed only after step 1 and root pins built identity and argv",
+      "id": "master-gpu-mtp-off-pristine-gaps",
       "kind": "fresh_mapped_series_then_selected_gaps",
-      "order": 4,
+      "order": 3,
       "profile_reference": "R9 L=122880 configuration",
       "selected_gaps": "open_gap_families.master-gpu-mtp-off"
+    },
+    {
+      "current_source_commit": "8a79008b5473676bb99a54cc1505d11a4e107357",
+      "family": "fork-cpu-mtp-on",
+      "future_selected_gaps": "open_gap_families.fork-cpu-mtp-on",
+      "gate": "root identifies a concrete source-directed fork fix from pristine-master results before creating a new fork build",
+      "id": "fork-cpu-mtp-on-deferred",
+      "kind": "deferred_pending_master_findings",
+      "note": "No fork repair, build identity, or launch is asserted. Do not alter ACO without a specifically demonstrated defect.",
+      "order": 4,
+      "profile_reference": "R9 L=262144 primary and prior reviewed fallback profiles, to be reviewed after any justified source fix"
     }
   ]
 }

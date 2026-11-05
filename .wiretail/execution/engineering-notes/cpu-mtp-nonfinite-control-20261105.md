@@ -88,3 +88,32 @@ before changing carry lifecycle, rollback, graph dependencies, or CPU attention.
 An unconditional carry reset, altered sampling, weakened MTP checks, or accepting
 slash-only output would conceal the defect rather than repair it. Use a new
 versioned build and rerun only affected control series after the narrow repair.
+
+## Retired diagnostic localization
+
+The diagnostic source changes described below were fully reverted on
+2026-11-05. They are historical observations, not an inference repair or an
+approved benchmark build. The next control uses pristine synced fork master
+`958b444c677ad9b02058d5fbf8fd0e13b7d24286`, without added source, hooks,
+overlays, or route overrides. Compare its ordinary inference behavior before
+deciding whether the paging branch needs a concrete repair.
+
+The isolated fork diagnostic reused the original CUDA objects and changed only
+the opt-in finite callback. It reported `conv_output_raw-4` with 20,480 NaNs
+in shape [10240,21,1,1], at a batch spanning positions 16135–16155. This is
+**provisional**, not proof that convolution creates the NaNs: fused kernels
+may leave a raw intermediate unmaterialized, and the initial callback also
+skipped allocated views whose buffer belongs to `view_src`.
+
+The experimental refined callback read those views, reported logical bad-element indices,
+and marks observed tensors as outputs so fusion must materialize them. It also
+propagated a failed check as an aborted context computation: returning false
+from an eval callback only stops one backend split and must not be mistaken
+for a complete inference abort. These changes are diagnostic-only and must
+not be enabled during performance measurements.
+
+A refined run with CUDA graphs disabled encountered a CUDA illegal memory
+access earlier, at low/prompt-2 warmup with prompt length 14375, before the
+selected finite-check window. No diagnostic first-bad tensor was emitted.
+Do not infer that it confirms the provisional convolution result. Both
+inference-state and device-memory ownership were unresolved in that old cohort.

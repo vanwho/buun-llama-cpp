@@ -1,85 +1,34 @@
 # Comparison completion — current handoff, 2026-11-05
 
-## Current result and remaining work
+## Current retained result
 
-R8/R9 primary queues ended with runtime findings. Do not resume an old queue
-blindly. The quality-filtered report retains **805 complete cells / 2,415
-measured repetitions**. Both current ACO curves are complete: 264 cells.
-Historical controls remain retained; there is no blanket rerun instruction.
+R8/R9 remain historical baseline campaigns. Quality audit retains **805 usable complete cells / 2,415 measured repetitions** across the ten comparison families. The ACO ON/OFF curves remain complete at 264 cells total. The response artifact filter excludes 31 whole fork CPU/MTP-on triplets; 189 source triplets lacked saved raw SSE and remain unassessed. The narrow filter is not semantic answer validation.
 
-There are **116 feasible selected gap-fill cells**, separate from 24 verified
-GPU-capacity N/A cells:
+There are **116 feasible selected gap cells** and **24 separate GPU capacity N/A cells**:
 
-- Fork CPU-Q4/MTP-on: 33. C12288: 6; C28672: 9; C61440: 9;
-  C126976: 8; C196608: 1.
-- Master CPU-Q4/MTP-on: 41. C6144: 3; C12288: 9; C28672: 9;
-  C61440: 9; C126976: 9; C196608: 2.
-- Master GPU-Turbo4/MTP-off: 42. C6144: 12; C12288: 10; C28672: 10;
-  C62464: 1; C88064: 6; C120832: 3.
-- Three independent master CPU/MTP-on C28672/off/prompt-3 rechecks each have
-  two passing measured repetitions followed by a runtime error. None is a
-  complete triplet; do not combine repetitions across independent cohorts.
+- Fork CPU-Q4/MTP-on: 33 gaps — C12288: 6; C28672: 9; C61440: 9; C126976: 8; C196608: 1.
+- Master CPU-Q4/MTP-on: 41 — C6144: 3; C12288: 9; C28672: 9; C61440: 9; C126976: 9; C196608: 2.
+- Master GPU-Turbo4/MTP-off: 42 — C6144: 12; C12288: 10; C28672: 10; C62464: 1; C88064: 6; C120832: 3.
+- Master/fork GPU/MTP-off each have 12 capacity-N/A cells at C130048; these are not missing runnable measurements.
 
-Fork GPU/MTP-off mapped fill completed through C120832. Master CPU/MTP-on
-L262144 clean startup failed before readiness on a 1730 MiB GPU allocation,
-with 15900 MiB free and no other compute owner before launch. That is a
-confirmed configuration limit, not an unrun measurement or general CPU limit.
+See `COMPARISON_PROGRESS_20261105.md/.json` and compact result snapshot at `../evidence/COMPARISON_20261105/`. R9's three independent master CPU/MTP-on C28672/off/P3 cohorts each contain two measured repetitions plus a runtime error; never combine them into a triplet.
 
-The response audit excludes 31 whole fork CPU/MTP-on triplets: R8=27, R9=4.
-R8 contributes only C12288/low/P1-P3; R9 adds C126976/medium/P1. HTTP 200 and
-SSE completion did not make the slash-only responses valid results. The
-classifier is narrow, not a semantic accuracy certification; unavailable
-historical response bodies remain explicitly unassessed.
+## Latest source/build direction
 
-## Required benchmark method and frozen identities
+Use pristine upstream master source commit `958b444c677ad9b02058d5fbf8fd0e13b7d24286` for the next master build. No source patches, hooks, overlays, or benchmark-specific inference edits are allowed in that build; approved host-toolchain compatibility is allowed. The pristine worktree is `/srv/ai/paged-kv/worktrees/master-pristine-958b444c677a`. Its new binary and loaded DSO identities are pending build completion. The prior master repair worktree/build is retired.
 
-One continuous mapped repository fill per configuration series, with ordinary
-cumulative questions and answers. All three prompts share the fill across
-reasoning modes. Keep prior content and reasoning verbatim. No benchmark disk
-KV save/restore/erase, per-mode refill, context shifting, or shortened output
-budgets. Group by nominal C and record actual drift per repetition. Keep
-backend, net-new, and HTTP-wall prefill rates separate.
+Fork temporary finite-diagnostic edits have been reverted. The fork source is again `8a79008b5473676bb99a54cc1505d11a4e107357`. Wait for pristine-master startup and short-check results before deciding whether a fork repair is warranted. Do not change ACO code without a concrete demonstrated defect.
 
-B1024/U256, sixteen threads, Turbo4 GPU K/V, CPU target Q4_0, native MTP n-max2,
-the original three prompts and four modes, warmup40 + 3 measured400-token caps.
-Exact argv, binaries/DSOs, template and chunk map are pinned in R9 JSON;
-its frozen source plan is an archive, not a ready queue after these failures.
+Start with pristine-master startup and narrow checks, then address the missing master controls. Defer fork CPU/MTP-on work until the master findings guide a source-directed fix. Root owns build identity and launch pinning. The user has already authorized separately versioned repaired-build investigation and Luna runner tests; no additional user approval is pending.
 
-- Master binary: `/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server`.
-- Fork binary: `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server`.
-- Raw R9 root: `/srv/ai/paged-kv/results/comparison-completion-20261104-r9`.
-- Detailed live inventory: `COMPARISON_PROGRESS_20261105.md/.json`.
+R8/R9 late traces, runtime faults, capacity observations, and punctuation-only outputs remain evidence tied to their recorded builds. Treat them as historical/provisional symptoms, not a proven single cause or a repair. Do not replay retired master diagnostic launches against the new binary. Preserve the 805 retained-cell and 116-gap baseline until new quality-qualified measurements are indexed.
 
-## Blockers and bounded diagnostics
+R10 outline: `COMPARISON_REPAIRED_R10_DRAFT.md/.json`. It is non-executable pending root pinning of actual binaries/DSOs and exact argv. It sequences pristine-master startup/short checks before master gaps, then gates fork work on master findings. Preserve the current normal cumulative conversation, one mapped fill per configuration, same prompts/modes, warmup/repetition/output schedule, actual-C recording, and whole-triplet response-quality gate.
 
-Fork CPU/MTP-on trace proves target and draft NaNs after several finite
-verification steps. Do not assume EOS alone or carry reset is the cause.
-Master CPU/MTP-on throws an argmax error that can also mean an invalid
-candidate, not necessarily a missing row. Master GPU/MTP-off CUDA-GDB proves
-a Turbo4 Flash Attention kernel out-of-range address after a valid warmup.
+## Historical measurement identities and method
 
-Engineering notes:
-`cpu-mtp-nonfinite-control-20261105.md`,
-`normal-append-master-cuda-fault-20261105.md`, and
-`checkpoint-retention-prefill-reprocessing-20261105.md`.
-They live in `../engineering-notes/` and bind the diagnostic roots.
+R9 master binary `/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server` and R9 fork binary `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server` are historical identities only. Raw R9 root: `/srv/ai/paged-kv/results/comparison-completion-20261104-r9`.
 
-Paired master/fork CUDA traces now import successfully. Their main bulk-prefill
-attention dispatch differs (master F16 compute, fork fused Turbo4). Whole-profile
-kernel totals are diagnostic and overlap API waits; do not replace benchmark
-rates with them. See `dense-turbo4-prefill-cohort-difference-20261104.md`.
+Comparison protocol: B1024/U256, 16 threads, Turbo4 GPU KV, Q4_0 CPU target, native MTP n-max2, T=0/seed42, original three prompts and four modes, one 40-token warmup plus three measured requests capped at 400. Use ordinary cumulative Q/A history, retain reasoning, one fresh mapped 32K chunk-map fill per configuration, and group by nominal C while recording actual C per request. Keep backend, net-new, and HTTP-wall prefill rates separate. No context shifting, output shortening, or benchmark-owned slot save/restore/erase.
 
-Runtime owner `/root/comparison_runtime_prep` completed the bounded diagnostics;
-both CPU/MTP and master GPU faults persisted with CUDA graphs disabled.
-All owned diagnostic clients stopped and managed services were restored healthy.
-Frozen primary inference builds, flags and six pinned helpers remain unchanged.
-A user has authorized separately versioned repaired builds and Luna runner
-tests. The frozen-build results remain the historical baseline. Repaired
-identities are not yet assigned; use the R10 draft as a campaign outline only,
-and do not treat it as an executable or active plan until root pins the repaired
-artifacts and argv.
-
-Use one model and `/tmp/ai-pager-benchmark.lock`; protect Jellyfin/ffmpeg and
-8091, never touch8092. Restore the managed model and gateway after each run.
-Do not render charts during primary CPU timing. Raw payloads, traces and
-binaries stay external; commit compact reports and tools to the plan branch.
+The quality-filtered external full report and chart files are referenced by path/hash in the snapshot manifest. Raw SSE, answer text, binaries, and model files remain external. Do not render charts during timed CPU benchmark work; restore managed services and protect Jellyfin, 8091, and 8092 under the runtime lifecycle procedure.
