@@ -321,3 +321,21 @@ The medium/P1 warmup and measured repetition 1 were normal: the warmup generated
 Provenance: fork source commit `8a79008b5473676bb99a54cc1505d11a4e107357`; executable `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server`, SHA256 `90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c`; model `/srv/ai/models/text/current.gguf`, SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; chat-template SHA256 `0103d81679a0cc43ce416da910e7db86a04c0e8548d7df3f41564c98a203deb7`; mapped fixture commit `a5a1110ca620db4f1c04669d0a2f569852ec1ec7`, map SHA256 `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd432dcf4f`; NVIDIA open driver 615.71.09. Lifecycle records driver/checker SHA256 `ee4e73093f0186d8fbc25a49d7d06b31e69dc0eae1d1db2fc8e0e8b285846ecd`, matrix SHA256 `d71b10f51e18df5b9e5f424283deec2a3a201620b90d5f0fd2b21c0ce1210d48`, and the executable plus all loaded project DSO hashes. The quality record preserves base SHA256 `f50e31be5cca945ac2d58e10f2f03daffbc3bf165609e03b5a540c9d6aee8d8c` and records SHA256 `a536b700812ec1aa73b6c837c3c86dd2bfc721eb2536c7fc54997bfd09112c0e`.
 
 Raw artifacts: `/srv/ai/paged-kv/results/fork-cpu-mtp-on-nvidia615-20261105/attempt-002-L262144-C12288-to-196608/quality-stop.json`, `lifecycle.json`, `cell/C12288/campaign/records.jsonl`, `cell/server-argv.json`, and `cell/server-startup-20261105T195721Z.log`. The quality record hashes the slash-only raw streams: rep2 `fa3b286f0d5c5220dd12c63da543d714d3eb0985a0199ec93d029bf28ebded3b`; rep3 `9f265fde7bd5e62336560b85cd2d40442236886e37c32f84fe5817fcd4546f6a`. Contexts 28,672, 61,440, 126,976, and 196,608 were skipped.
+
+## Independent-base master GPU MTP-off C120832 xhigh retry
+
+This retry fills the exact master GPU MTP-off C120832 xhigh/P1–P3 cells. It completed all 12 requests (3 warmups + 9 measured) with no failed cases. Context was 122,880; the mapped base occupied 120,833 tokens (+1 from nominal C120832). Every measured query began at that same base occupancy. Cached prompt tokens were 120,901 for P1 and 120,832 for P2/P3, with no per-prompt or per-repetition refills. Although the inherited `row.json` label says `resident_cumulative_conversation`, the lifecycle protocol is `independent-base-one-query` and each record shows `actual_C_before=120833`; treat this as an independent frozen-base cohort.
+
+The graph value is the maximum of the three valid repetitions in each cell. The table retains each repetition and its median.
+
+| C | Reasoning | Prompt | Valid / 3 | Median tok/s | Graph value: max tok/s | All measured repetitions tok/s |
+|---:|---|---:|---:|---:|---:|---|
+| 120832 | xhigh | 1 | 3/3 | 32.084035 | 32.095688 | 32.084035, 32.076703, 32.095688 |
+| 120832 | xhigh | 2 | 3/3 | 32.075815 | 32.081824 | 32.081824, 32.075815, 32.055659 |
+| 120832 | xhigh | 3 | 3/3 | 32.058503 | 32.059907 | 32.058503, 32.059907, 32.048491 |
+
+P1 and P2 stopped normally at 355 and 293 tokens. All three P3 repetitions reached the 400-token cap with a `length` finish. P3 emitted coherent, task-relevant xhigh reasoning about the requested directory-watcher script, rather than punctuation-only or slash-only filler; it did not reach a final script answer before the cap. Under the previously specified policy to retain normal reasoning-only length-stopped output, P3 is graph-eligible.
+
+Configuration: pristine master source commit `958b444c677ad9b02058d5fbf8fd0e13b7d24286`; executable `/srv/ai/paged-kv/builds/master-pristine-958b444c677a-cuda134/bin/llama-server`, SHA256 `ab32d497d19389e7bc1c12310fe0e7cd8b1254cf5fffa492edf37bb963baf675`; model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; context 122,880, GPU Turbo4 KV, `-ngl 999 --device CUDA0`, B1024/U256, 16 threads, MTP off. Map SHA256 `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd432dcf4f`; NVIDIA open driver 615.71.09. Loaded project DSO hashes and runner/matrix hashes are recorded in the attempt `lifecycle.json`; the run used the same pristine binary/DSO identity as the provenance above.
+
+Artifacts: `/srv/ai/paged-kv/results/independent-base-gpu-mtp-off-120k-xhigh-20261105/attempt-001-L122880-C120832-xhigh-P123/`; row and raw repetitions are under `run-L122880-C120832-xhigh-P123/C120832/campaign/`. Lifecycle confirms services and protected processes were restored with no errors.
