@@ -1,6 +1,6 @@
 # Pristine master CUDA 13.4 smoke results
 
-**Scope:** consolidated pristine-master GPU MTP-off and CPU-KV MTP-on results from phases 1, 2, 6, 7, and 8, including historical partial rows and clean replacement cells where identified. This is not the completed comparison matrix. Each section links its raw artifacts under `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/`.
+**Scope:** consolidated pristine-master GPU MTP-off and CPU-KV results, including phases 1, 2, 6, 7, 8, and 10, independent-base retries, historical partial rows, and clean replacement cells where identified. A separate fork build diagnostic is recorded at the end. This is not the completed comparison matrix. Each section links its raw artifacts under `/srv/ai/paged-kv/results/`.
 
 ## Identity
 
@@ -304,3 +304,20 @@ The supervisor logged this wall-time prefill curve for this independent base fil
 | 255,489 | 26,011 | 301.35 |
 
 Completed row and raw repetitions: `/srv/ai/paged-kv/results/independent-base-queries-256k-prototype-20261105/attempt-003-L262144-C255488/run-L262144-C255488/C255488/campaign/row.json` and `records.jsonl`; fill curve and lifecycle provenance are in `/srv/ai/paged-kv/results/independent-base-queries-256k-prototype-20261105/attempt-003-L262144-C255488/supervisor.log` and `lifecycle.json`.
+
+## Separate fork CPU-Q4 native MTP-on driver-615 diagnostic
+
+This is a fork-build diagnostic, separate from all pristine-master results above. With NVIDIA open driver 615.71.09 loaded, the fork candidate started successfully and reached nominal C12288 with actual occupancy 12,289. The configuration was context 262,144, CPU Q4_0 target KV (`-ctk q4_0 -ctv q4_0 --no-kv-offload`), `-ngl 999 --device CUDA0`, B1024/U256, 16 threads, native MTP (`--spec-type draft-mtp --spec-draft-n-max 2`), Turbo4 draft K/V, and draft KV on GPU. It used the same current model file and shared-prefix chat template identity recorded in the attempt.
+
+The medium/P1 warmup and measured repetition 1 were normal: the warmup generated 40 tokens at 20.8411 tok/s with 22/31 MTP accepted (70.97%); repetition 1 generated 367 tokens at 24.9512 tok/s with 231/270 accepted (85.56%). The quality gate then stopped the run after measured repetitions 2 and 3 each emitted 400 slash-only reasoning tokens. Both had zero accepted of 795 draft tokens (0.00% acceptance); every nonspace character was `/`, with no alphanumeric characters. The gate classifies output with at least 64 nonspace characters, zero alphanumeric characters, and at least 80% dominant punctuation as low quality. These responses passed the transport/campaign status but failed output quality, so the run was intentionally aborted before later contexts. This is a quality failure, not an OOM or a driver crash. The 615.71.09 check therefore shows that updating the NVIDIA driver alone did not cure this fork's native-MTP CPU-Q4 output defect. The 33 other planned old-fork cells remain unfilled; no performance conclusions should be drawn for them.
+
+| Fork diagnostic cell | Valid behavior | Output / MTP details |
+|---|---|---|
+| C12288, medium/P1 warmup | completed | 40 tokens; 20.8411 tok/s; 22/31 accepted (70.97%) |
+| C12288, medium/P1 measured rep1 | completed | 367 tokens; 24.9512 tok/s; 231/270 accepted (85.56%) |
+| C12288, medium/P1 measured rep2 | quality gate failed | 400 slash-only tokens; 0/795 accepted; 9.1429 tok/s |
+| C12288, medium/P1 measured rep3 | quality gate failed; run stopped | 400 slash-only tokens; 0/795 accepted; 8.9777 tok/s |
+
+Provenance: fork source commit `8a79008b5473676bb99a54cc1505d11a4e107357`; executable `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server`, SHA256 `90426c19b1d3d2e6f322907a35447adcb9a1278341a587f09137d242c8ffab8c`; model `/srv/ai/models/text/current.gguf`, SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`; chat-template SHA256 `0103d81679a0cc43ce416da910e7db86a04c0e8548d7df3f41564c98a203deb7`; mapped fixture commit `a5a1110ca620db4f1c04669d0a2f569852ec1ec7`, map SHA256 `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd432dcf4f`; NVIDIA open driver 615.71.09. Lifecycle records driver/checker SHA256 `ee4e73093f0186d8fbc25a49d7d06b31e69dc0eae1d1db2fc8e0e8b285846ecd`, matrix SHA256 `d71b10f51e18df5b9e5f424283deec2a3a201620b90d5f0fd2b21c0ce1210d48`, and the executable plus all loaded project DSO hashes. The quality record preserves base SHA256 `f50e31be5cca945ac2d58e10f2f03daffbc3bf165609e03b5a540c9d6aee8d8c` and records SHA256 `a536b700812ec1aa73b6c837c3c86dd2bfc721eb2536c7fc54997bfd09112c0e`.
+
+Raw artifacts: `/srv/ai/paged-kv/results/fork-cpu-mtp-on-nvidia615-20261105/attempt-002-L262144-C12288-to-196608/quality-stop.json`, `lifecycle.json`, `cell/C12288/campaign/records.jsonl`, `cell/server-argv.json`, and `cell/server-startup-20261105T195721Z.log`. The quality record hashes the slash-only raw streams: rep2 `fa3b286f0d5c5220dd12c63da543d714d3eb0985a0199ec93d029bf28ebded3b`; rep3 `9f265fde7bd5e62336560b85cd2d40442236886e37c32f84fe5817fcd4546f6a`. Contexts 28,672, 61,440, 126,976, and 196,608 were skipped.
