@@ -93,3 +93,24 @@ hypothesis untiltrace. Notes engineering-notes/dense-turbo4-prefill-cohort-diffe
 OneGPU/model, /tmp/ai-pager-benchmark.lock. ProtectJellyfin/ffmpeg and8091;
 nevertouch8092. Restoremodel/gateway healthy. Allmodel/build/DSO/map/template
 identities pinned; no inferencecode edits or rebuild during comparison.
+
+## Latest gap audit and additional clean-start check
+
+See COMPARISON_PROGRESS_20261105.md/.json for the timestamped direct-record
+count and exact remaining contexts. At00:35:57UTC forkCPUon completed16of37
+missing cells with65 successful requests andzero failures. Remaining primary
+base gaps:21forkCPUon,41masterCPUon,42masterGPUoff blocked byCUDAfault.
+Also pending:3independent28K/off/Prompt3cohorts andforkGPUoff mapped-ingest-only.
+Do not conflate scientific cells (warmup+3measured) withindividualrequests.
+
+The old masterCPUon256K1730MiBstartupOOM is credible but lacks prelaunch
+GPU-owner/free-memory evidence anduses8ratherthan32CP. Auditor prepares a
+startup-only clean confirmation at a post-primary idle boundary, withcurrent
+explicit16/16threads and1024/256, samepinnedbinary andquantization, changingonly
+Lto262144 andartifactpaths. No generation/counterprobe atstartup. Ifitfits,
+runonlythemissing256K12cells/48requests afteronefreshmappedfill; keepvalidsmaller
+measurements. IfitOOMs withsoleGPUowner, recordthatverifiedconfigurationlimit.
+
+The firstsixR8steps have stale ingest-only descriptive labels; selections,
+expectedrequestcounts andactualrecords correctlyrequiredecode. OnlylastforkGPU
+step isfill-only. Fixlabels afterthefrozenprimaryqueue/diagnostics, notmidrun.
