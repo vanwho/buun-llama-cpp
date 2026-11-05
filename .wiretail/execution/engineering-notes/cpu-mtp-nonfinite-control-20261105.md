@@ -76,13 +76,14 @@ handling remain possible owners; this does not identify one of them.
 The combined external `graphs-disabled-diagnostics-20261105/graphs-disabled-summary.json`
 has SHA-256 `41c9a00aee4755c4b118454dc6c7e27c066ec196a5fbf1e409a08de20e90471b`.
 
-Keep the primary frozen builds and configuration identities unchanged while the
-user's fixed-build versus repaired-build clarification is pending. A diagnostic
+The user has authorized separately versioned repaired builds and Luna runner
+tests. Keep the frozen-build results as the historical baseline; repaired
+identities and campaign argv are still pending root review. A diagnostic
 reproduction may separately disable CUDA graphs to isolate capture/reuse; it
 must have a distinct identity and cannot replace a primary benchmark value.
 Do not repeat an entire matrix on state already known to be nonfinite.
 
-If repairs are authorized, locate the first producer of the nonfinite state
+For the repaired campaign, locate the first producer of the nonfinite state
 before changing carry lifecycle, rollback, graph dependencies, or CPU attention.
 An unconditional carry reset, altered sampling, weakened MTP checks, or accepting
 slash-only output would conceal the defect rather than repair it. Use a new

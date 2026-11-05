@@ -1,0 +1,966 @@
+{
+  "baseline_plan": {
+    "path": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104_R9.json",
+    "sha256": "d94223ec4357e3d9de6fda0adfb18bec4de1a4aef3c5d3bc3793dabf7787fa6e"
+  },
+  "capacity_exclusions_not_gap_cells": [
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "low",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "low",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "low",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "medium",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "medium",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "medium",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "xhigh",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "xhigh",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "fork-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "xhigh",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/fork-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; not retried; R7 only fills through L122880"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "low",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "low",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "low",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "medium",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "medium",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "medium",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P1",
+      "reasoning_mode": "xhigh",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P2",
+      "reasoning_mode": "xhigh",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "nominal_target_C": 130048,
+      "prompt": "P3",
+      "reasoning_mode": "xhigh",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r6/master-gpu-mtp-off/attempt-001-L131072",
+      "status": "capacity_limit at R6 L131072; R7 L122880 excludes this nominal context"
+    }
+  ],
+  "created_date": "2026-11-05",
+  "diagnostic_sequence_source": {
+    "path": "/srv/ai/paged-kv/results/candidate-short-repros-r9-20261105/candidate-short-repros.json",
+    "sha256": "accc075633bc391167919f4bd1a6457a6f382cfde2c902b881ccbe67983326ff"
+  },
+  "not_in_scope": [
+    "24 confirmed GPU capacity-N/A cells at nominal C=130048",
+    "any complete quality-qualified historical cell",
+    "the two ACO curves (already complete)",
+    "blanket reruns of the ten-family matrix"
+  ],
+  "open_gap_families": {
+    "fork-cpu-mtp-on": {
+      "cells": [
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 61440,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 61440,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 61440,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 61440,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 61440,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 61440,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 61440,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 61440,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 61440,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 126976,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 126976,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 126976,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 126976,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 126976,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 126976,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 126976,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 126976,
+          "prompt": "P3"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 196608,
+          "prompt": "P3"
+        }
+      ],
+      "cells_by_nominal_C": {
+        "12288": 6,
+        "126976": 8,
+        "196608": 1,
+        "28672": 9,
+        "61440": 9
+      },
+      "feasible_missing_cell_count": 33
+    },
+    "master-cpu-mtp-on": {
+      "cells": [
+        {
+          "mode": "medium",
+          "nominal_target_C": 6144,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 6144,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 6144,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 61440,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 61440,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 61440,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 61440,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 61440,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 61440,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 61440,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 61440,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 61440,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 126976,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 126976,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 126976,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 126976,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 126976,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 126976,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 126976,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 126976,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 126976,
+          "prompt": "P3"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 196608,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 196608,
+          "prompt": "P2"
+        }
+      ],
+      "cells_by_nominal_C": {
+        "12288": 9,
+        "126976": 9,
+        "196608": 2,
+        "28672": 9,
+        "6144": 3,
+        "61440": 9
+      },
+      "feasible_missing_cell_count": 41
+    },
+    "master-gpu-mtp-off": {
+      "cells": [
+        {
+          "mode": "low",
+          "nominal_target_C": 6144,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 6144,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 6144,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 6144,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 6144,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 6144,
+          "prompt": "P3"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 6144,
+          "prompt": "P1"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 6144,
+          "prompt": "P2"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 6144,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 6144,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 6144,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 6144,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 12288,
+          "prompt": "P1"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 12288,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "medium",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 28672,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 62464,
+          "prompt": "P3"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 88064,
+          "prompt": "P1"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 88064,
+          "prompt": "P2"
+        },
+        {
+          "mode": "low",
+          "nominal_target_C": 88064,
+          "prompt": "P3"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 88064,
+          "prompt": "P1"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 88064,
+          "prompt": "P2"
+        },
+        {
+          "mode": "off",
+          "nominal_target_C": 88064,
+          "prompt": "P3"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 120832,
+          "prompt": "P1"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 120832,
+          "prompt": "P2"
+        },
+        {
+          "mode": "xhigh",
+          "nominal_target_C": 120832,
+          "prompt": "P3"
+        }
+      ],
+      "cells_by_nominal_C": {
+        "120832": 3,
+        "12288": 10,
+        "28672": 10,
+        "6144": 12,
+        "62464": 1,
+        "88064": 6
+      },
+      "feasible_missing_cell_count": 42
+    }
+  },
+  "output_root": "/srv/ai/paged-kv/results/comparison-repaired-20261105-r10",
+  "pending_root_review": [
+    "repair scope and source changes",
+    "repaired binary and DSO identities",
+    "template selection/integration after initial source-fault diagnosis",
+    "exact literal argv and fallback profiles",
+    "startup/resource gates and launch order"
+  ],
+  "protocol": {
+    "B": 1024,
+    "U": 256,
+    "draft": "same GPU MTP draft and quantization as R9",
+    "gpu_kv": "Turbo4",
+    "grouping": "group by nominal target context; retain actual C before/after and each repetition; do not force equality to nominal C",
+    "history": "ordinary cumulative conversation; preserve Q/A and reasoning; one fresh mapped fill per configuration series; no per-mode/per-prompt refills, benchmark-owned KV saves/restores, history deletion, context shifting, or output shortening",
+    "measured_max_tokens": 400,
+    "measured_repetitions": 3,
+    "model": "same model and tokenizer as R9; exact artifact identity must be copied from reviewed frozen plan before execution",
+    "mtp": "native MTP on for CPU-MTP-on families; off for master-GPU/MTP-off",
+    "prompts": [
+      "P1",
+      "P2",
+      "P3"
+    ],
+    "quality_gate": "a cell enters speed tables only as a whole complete three-repetition cell; exclude the complete triplet if any hash-verified SSE is repeated-punctuation-only under the current narrow audit; preserve failures separately; no semantic correctness claim",
+    "reasoning_modes": [
+      "off",
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "sampling": "T=0, seed=42, greedy; same R9 flags",
+    "server_and_template_argv": "unset until root pins the repaired builds and reviewed template; preserve all R9 performance flags and prompt semantics.",
+    "source_map": "reuse the same frozen 32K chunk map and disjoint source-byte accounting as R9 after verification",
+    "target": "Q4_0 CPU",
+    "threads": 16,
+    "warmup_tokens": 40
+  },
+  "purpose": "Recover only quality-audited feasible historical gaps on separately versioned repaired builds, after narrow reproduction gates.",
+  "repaired_artifacts": {
+    "fork": {
+      "binary_path": null,
+      "binary_sha256": null,
+      "dso_manifest": null,
+      "dso_sha256": null,
+      "repair_id": null,
+      "source_commit": null
+    },
+    "master": {
+      "binary_path": null,
+      "binary_sha256": null,
+      "dso_manifest": null,
+      "dso_sha256": null,
+      "repair_id": null,
+      "source_commit": null
+    },
+    "reason_unset": "Root owns repairs and build identity assignment; no repaired binary SHA or source identity is asserted here."
+  },
+  "revision": "R10-draft",
+  "schema": "comparison-repaired-campaign-draft/v1",
+  "source_quality_report": {
+    "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/comparison-final-20261104.json",
+    "sha256": "f3f9bfef2b39d0945c87ad43e357638553e310fd52b5b7eb9343cab34b99af2b"
+  },
+  "status": "draft_not_executable",
+  "steps": [
+    {
+      "builds": [
+        "fork",
+        "master"
+      ],
+      "cases": [
+        {
+          "context_tokens": 262144,
+          "expected_fault_boundary": "R9 case index 14: medium/P1 repetition 2, after repetition 1 ended at EOS after 42 tokens; baseline actual C16142\u219216571, 400 punctuation-only tokens, 0/795 MTP acceptance.",
+          "family": "fork-cpu-mtp-on",
+          "sequence": [
+            "fresh server and mapped fill through nominal C6144",
+            "append through nominal C12288",
+            "run low P1, P2, P3 in order",
+            "run medium P1 through measured repetition 2; stop client on the first confirmed punctuation-only completion"
+          ]
+        },
+        {
+          "context_tokens": 200704,
+          "family": "master-cpu-mtp-on",
+          "sequence": [
+            "fresh server and normal mapped fill through nominal C12288",
+            "run the pinned root-selected first-fault reproduction case; exact sequence remains unset pending root review"
+          ]
+        },
+        {
+          "context_tokens": 122880,
+          "expected_fault_boundary": "Baseline failed before any generated token; CUDA-GDB saw an out-of-range address in flash_attn_ext_f16.",
+          "family": "master-gpu-mtp-off",
+          "sequence": [
+            "fresh server and mapped fill through nominal C6144",
+            "run off/P1: 40-token warmup then first measured 400-token request"
+          ]
+        }
+      ],
+      "id": "narrow-reproductions",
+      "kind": "gating_diagnostic",
+      "note": "Validation reproductions, not speed samples. Require finite inference state and substantive output; preserve failure evidence and stop the affected family on a confirmed anomaly.",
+      "order": 1,
+      "template_policy": "Keep the original frozen R9 template for the initial source-fault reproductions. Any append-stable template change is a later, root-reviewed versioned change; if adopted for full repaired curves, pin one exact template identity across all repaired families."
+    },
+    {
+      "family": "fork-cpu-mtp-on",
+      "fresh_fill": "one mapped fill across all prompts and modes; continue to configured L within reserve and source map",
+      "id": "fork-cpu-mtp-on-repaired-series",
+      "kind": "fresh_mapped_series_then_selected_gaps",
+      "order": 2,
+      "profile_reference": "R9 fork CPU/MTP-on L=262144 primary and its previously reviewed startup fallbacks, subject to repaired-build gate and exact root-pinned argv",
+      "selected_gaps": "open_gap_families.fork-cpu-mtp-on"
+    },
+    {
+      "family": "master-cpu-mtp-on",
+      "fresh_fill": "one mapped fill across all prompts and modes; continue to configured L within reserve and source map",
+      "id": "master-cpu-mtp-on-repaired-series",
+      "kind": "fresh_mapped_series_then_selected_gaps",
+      "order": 3,
+      "profile_reference": "R9 L=200704 primary and L=131072 alternative only; do not retry the known L=262144 clean-start failure without a separately reviewed startup gate",
+      "selected_gaps": "open_gap_families.master-cpu-mtp-on"
+    },
+    {
+      "family": "master-gpu-mtp-off",
+      "fresh_fill": "one mapped fill across all prompts and modes; continue to configured L within reserve and source map",
+      "id": "master-gpu-mtp-off-repaired-series",
+      "kind": "fresh_mapped_series_then_selected_gaps",
+      "order": 4,
+      "profile_reference": "R9 L=122880 configuration",
+      "selected_gaps": "open_gap_families.master-gpu-mtp-off"
+    }
+  ]
+}

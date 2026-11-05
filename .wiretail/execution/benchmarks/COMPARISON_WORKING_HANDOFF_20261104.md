@@ -73,9 +73,11 @@ Runtime owner `/root/comparison_runtime_prep` completed the bounded diagnostics;
 both CPU/MTP and master GPU faults persisted with CUDA graphs disabled.
 All owned diagnostic clients stopped and managed services were restored healthy.
 Frozen primary inference builds, flags and six pinned helpers remain unchanged.
-A required user
-clarification about versioned inference repairs versus retaining frozen-build
-failure outcomes is pending; do not silently change the control builds.
+A user has authorized separately versioned repaired builds and Luna runner
+tests. The frozen-build results remain the historical baseline. Repaired
+identities are not yet assigned; use the R10 draft as a campaign outline only,
+and do not treat it as an executable or active plan until root pins the repaired
+artifacts and argv.
 
 Use one model and `/tmp/ai-pager-benchmark.lock`; protect Jellyfin/ffmpeg and
 8091, never touch8092. Restore the managed model and gateway after each run.
