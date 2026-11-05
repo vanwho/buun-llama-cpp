@@ -1,0 +1,202 @@
+{
+  "capacity_and_exclusions": {
+    "fresh_normal_prefix_runtime_fault": "R8 master-GPU-MTP-off CUDA illegal access on first appended question after successful C6144 fill; distinct from R4 quarantine and not a capacity finding",
+    "gpu_mtp_off_c130048": {
+      "fork-gpu-mtp-off": "12 cells verified capacity N/A",
+      "master-gpu-mtp-off": "12 cells verified capacity N/A",
+      "note": "This endpoint is excluded from the 120 feasible-gap count; active GPU-off fallback profile is L122880."
+    },
+    "master_cpu_mtp_on_c262144": "Real historical1730MiB GPU allocation failure, but clean sole-owner startup not documented. Add fresh startup-only confirmation at idle; if it fits, schedule only missing256Kdecode cells aftermappedfill.",
+    "quarantine_reason": "target-only slot restoration did not preserve native MTP full-prefix state/carry; keep as diagnostic history, exclude from intended resident-MTP comparison",
+    "quarantined_old_slot_restore": [
+      "R4 fork-cpu-mtp-on",
+      "R4 master-cpu-mtp-on"
+    ]
+  },
+  "captured_utc": "2026-11-05T00:35:57Z",
+  "counting": {
+    "gap_count_unit": "cells, not HTTP requests; ordinary cell requires warmup plus three measured requests (4 requests total)",
+    "independent_outlier_unit": "one independent configuration series for master CPU MTP-on, C28672 / off / prompt 3; three such series are robustness checks, not three different cells",
+    "primary_gap_math": "120 selected base cells minus 16 complete = 104 remaining base cells; plus three independent outlier cohorts",
+    "queue_progress_as_of_utc": "2026-11-05T00:35:57Z; direct bounded record audit, passing warmup and three distinct passing measured repetitions per complete cell",
+    "scientific_cell": "one nominal context \u00d7 reasoning mode \u00d7 prompt index, requiring one valid complete triplet of measured repetitions"
+  },
+  "plan_erratum": "R8 metadata labels the first six steps decode_policy/decode_strategy as ingest-only despite positive selections and expected request counts; derive decode work from checkpoint selections/expected counts. Only fork-GPU-MTP-off is actually ingest-only.",
+  "remaining": {
+    "fork-cpu-mtp-on": {
+      "note": "Direct live record audit; completed QA retained in continuing mapped-source series.",
+      "planned_selected_by_nominal_context": {
+        "12288": 9,
+        "126976": 9,
+        "196608": 1,
+        "28672": 9,
+        "61440": 9
+      },
+      "remaining_cells": 21,
+      "reported_complete_of_selected": 16,
+      "reported_complete": 16,
+      "remaining_by_nominal_context": {
+        "28672": 2,
+        "61440": 9,
+        "126976": 9,
+        "196608": 1
+      }
+    },
+    "fork-gpu-mtp-off": {
+      "note": "R8 step is mapped-prefill-only; its empty decode selections create no decode gaps.",
+      "pending_ingest_only": true,
+      "remaining_decode_cells": 0
+    },
+    "master-cpu-mtp-on": {
+      "note": "Queued primary L200704. Historical L262144 OOM lacks clean prelaunch GPU-owner evidence; startup-only confirmation queued after primary.",
+      "planned_selected_by_nominal_context": {
+        "12288": 9,
+        "126976": 9,
+        "196608": 2,
+        "28672": 9,
+        "6144": 3,
+        "61440": 9
+      },
+      "remaining_cells": 41,
+      "reported_complete": 0,
+      "remaining_by_nominal_context": {
+        "6144": 3,
+        "12288": 9,
+        "28672": 9,
+        "61440": 9,
+        "126976": 9,
+        "196608": 2
+      }
+    },
+    "master-cpu-mtp-on-outlier-rechecks": {
+      "each_cohort": {
+        "measured_repetitions": 3,
+        "mode": "off",
+        "nominal_context": 28672,
+        "prompt_index": 2,
+        "series_length": 3
+      },
+      "note": "Three fresh independent normal-prefix series; do not pool or choose the fastest triplet.",
+      "remaining_independent_cohorts": 3
+    },
+    "master-gpu-mtp-off": {
+      "note": "R8 attempt recorded runtime/driver CUDA illegal access during first appended question after successful C6144 fill. Treat these cells as blocked/unmeasured, not capacity N/A. R7 earlier partial native-restore failure is also retained only diagnostically.",
+      "planned_selected_by_nominal_context": {
+        "120832": 3,
+        "12288": 10,
+        "28672": 10,
+        "6144": 12,
+        "62464": 1,
+        "88064": 6
+      },
+      "remaining_cells": 42,
+      "reported_complete": 0,
+      "remaining_by_nominal_context": {
+        "6144": 12,
+        "12288": 10,
+        "28672": 10,
+        "62464": 1,
+        "88064": 6,
+        "120832": 3
+      }
+    }
+  },
+  "retained_coverage": {
+    "aco": "Both ACO states (MTP on and off) retain the completed 11-checkpoint \u00d7 3-prompt \u00d7 4-mode matrix: 264 cells total; each has three valid measured repetitions.",
+    "historical_controls": "Previously validated master/fork GPU and CPU controls remain indexed and retained, including the earlier complete master-GPU-MTP-on and fork-GPU-MTP-on cohorts. R4 fork-CPU-MTP-off remains valid. R5/R6/R7 approved partial sources contribute only individually complete triplets.",
+    "master_cpu_mtp_off": "R7 normal-prefix completed comparison cells retained; not rerun in R8.",
+    "scope": "Ten scientific families are the eight master/fork \u00d7 GPU/CPU \u00d7 MTP on/off controls plus ACO MTP-on and ACO MTP-off. Fresh gap work concerns only the explicitly selected missing cells; it does not erase retained historical cells."
+  },
+  "selected_mode_prompt_pattern": {
+    "fork-cpu-mtp-on": "At 12,288, 28,672, 61,440, and 126,976: low/medium/xhigh \u00d7 prompt indices 0,1,2. At 196,608: off \u00d7 prompt index 2 only.",
+    "master-cpu-mtp-on": "At 6,144, 12,288, 28,672, 61,440, and 126,976: low/medium/xhigh \u00d7 prompt indices 0,1,2. Additionally, at 28,672: off \u00d7 prompt index 2. At 196,608: off \u00d7 prompt index 2 and xhigh \u00d7 prompt index 1.",
+    "master-gpu-mtp-off": "6,144: all four modes \u00d7 prompts 0,1,2. 12,288: low and off \u00d7 all prompts; medium and xhigh \u00d7 prompts 1,2. 28,672: low/medium/xhigh \u00d7 all prompts; off \u00d7 prompt 2. 62,464: low \u00d7 prompt 2. 88,064: low and off \u00d7 all prompts. 120,832: xhigh \u00d7 all prompts.",
+    "outlier": "Each of three independent series repeats only C28,672 / off / prompt index 2."
+  },
+  "sources": [
+    ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.json (frozen R8 geometry and selected cells)",
+    "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/queue-progress.json (R8 runtime finding and queue state)",
+    "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/fork-cpu-mtp-on/attempt-001-L262144/cell/C12288/campaign/row.json (small per-row summary)",
+    "queue-owner progress message at 2026-11-05 00:29 UTC for the 13/37, 41 pending, and 42 blocked counts"
+  ],
+  "status": "incomplete; R8 queue active/paused after recorded runtime fault; counts are a queue-owner snapshot at 00:29 UTC plus frozen R8 selection geometry",
+  "direct_record_counts": {
+    "master-gpu-mtp-off": {
+      "complete_cells": 0,
+      "remaining_cells": 42,
+      "remaining_by_nominal_C": {
+        "6144": 12,
+        "12288": 10,
+        "28672": 10,
+        "62464": 1,
+        "88064": 6,
+        "120832": 3
+      },
+      "passed_requests": 0,
+      "failed_requests": 1
+    },
+    "fork-cpu-mtp-on": {
+      "complete_cells": 16,
+      "remaining_cells": 21,
+      "remaining_by_nominal_C": {
+        "28672": 2,
+        "61440": 9,
+        "126976": 9,
+        "196608": 1
+      },
+      "passed_requests": 65,
+      "failed_requests": 0
+    },
+    "master-cpu-mtp-on": {
+      "complete_cells": 0,
+      "remaining_cells": 41,
+      "remaining_by_nominal_C": {
+        "6144": 3,
+        "12288": 9,
+        "28672": 9,
+        "61440": 9,
+        "126976": 9,
+        "196608": 2
+      },
+      "passed_requests": 0,
+      "failed_requests": 0
+    },
+    "master-cpu-mtp-on-outlier-a": {
+      "complete_cells": 0,
+      "remaining_cells": 1,
+      "remaining_by_nominal_C": {
+        "28672": 1
+      },
+      "passed_requests": 0,
+      "failed_requests": 0
+    },
+    "master-cpu-mtp-on-outlier-b": {
+      "complete_cells": 0,
+      "remaining_cells": 1,
+      "remaining_by_nominal_C": {
+        "28672": 1
+      },
+      "passed_requests": 0,
+      "failed_requests": 0
+    },
+    "master-cpu-mtp-on-outlier-c": {
+      "complete_cells": 0,
+      "remaining_cells": 1,
+      "remaining_by_nominal_C": {
+        "28672": 1
+      },
+      "passed_requests": 0,
+      "failed_requests": 0
+    },
+    "fork-gpu-mtp-off": {
+      "complete_cells": 0,
+      "remaining_cells": 0,
+      "remaining_by_nominal_C": {},
+      "passed_requests": 0,
+      "failed_requests": 0
+    }
+  },
+  "additional_work": {
+    "master_cpu_mtp_on_256k_clean_startup": "Startup-only, no generation; exact current masterCPUon flags withL262144. Healthy sole-owner readiness\u2192onlymissing256K12cells48requestsafterfreshmappedfill; realOOM\u2192recordbound."
+  }
+}
