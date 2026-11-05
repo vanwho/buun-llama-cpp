@@ -119,9 +119,9 @@ def clean_server_env(binary: pathlib.Path) -> dict[str, str]:
     return env
 
 
-def nsys_command(family: str, out: pathlib.Path, argv: list[str]) -> list[str]:
+def nsys_command(family: str, out: pathlib.Path, argv: list[str], trace_set: str = "cuda,nvtx,osrt") -> list[str]:
     return ["/usr/bin/nsys", "profile",
-            "--trace=cuda,nvtx,osrt", "--sample=none", "--cpuctxsw=none",
+            f"--trace={trace_set}", "--sample=none", "--cpuctxsw=none",
             "--backtrace=none", "--cuda-graph-trace=node",
             "--cuda-memory-usage=false", "--gpu-metrics-device=none",
             "--stats=true", "--show-output=true", "--force-overwrite=true",
@@ -296,7 +296,7 @@ def compact_stats(out: pathlib.Path) -> dict:
     }
 
 
-def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict) -> dict:
+def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict, trace_set: str = "cuda,nvtx,osrt") -> dict:
     out = run_root / family
     out.mkdir(parents=True, exist_ok=False)
     config = FAMILIES[family]
@@ -305,7 +305,7 @@ def run_family(family: str, run_root: pathlib.Path, profiler_meta: dict) -> dict
     slot_dir.mkdir()
     argv, r6_report = exact_server_argv(family, slot_dir)
     env = clean_server_env(binary)
-    cmd = nsys_command(family, out, argv)
+    cmd = nsys_command(family, out, argv, trace_set)
     identity = {"family": family, "r6_source_cell": str(config["r6"] / "cell.json"),
                 "binary": str(binary), "binary_sha256": sha256(binary),
                 "r6_binary_sha256": r6_report["server_binary_sha256"],
@@ -395,7 +395,7 @@ def restore_services(prior: dict) -> None:
         raise RuntimeError("Jellyfin PID changed during diagnostic")
 
 
-def run_all(run_root: pathlib.Path, dry_run: bool) -> None:
+def run_all(run_root: pathlib.Path, dry_run: bool, trace_set: str = "cuda,nvtx,osrt") -> None:
     profiler = validate_nsys_cli()
     plans = []
     for family in FAMILIES:
@@ -403,10 +403,11 @@ def run_all(run_root: pathlib.Path, dry_run: bool) -> None:
         argv, r6_report = exact_server_argv(family, out / "slot-state")
         plans.append({"family": family, "binary": str(FAMILIES[family]["binary"]),
                       "binary_sha256": r6_report["server_binary_sha256"],
-                      "server_argv": argv, "nsys_argv": nsys_command(family, out, argv),
+                      "server_argv": argv, "nsys_argv": nsys_command(family, out, argv, trace_set),
                       "targets": list(TARGETS), "canonical_decode_requests": 0})
     plan = {"created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
-            "nsys": profiler, "diagnostic_only": True, "families": plans}
+            "driver_source": {"path": str(pathlib.Path(__file__).resolve()), "sha256": sha256(pathlib.Path(__file__))},
+            "nsys": profiler, "trace_set": trace_set, "diagnostic_only": True, "families": plans}
     plan_path = run_root / "command-plan.json"
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     plan_path.write_text(json.dumps(plan, indent=2) + "\n")
@@ -434,7 +435,7 @@ def run_all(run_root: pathlib.Path, dry_run: bool) -> None:
             if gpu_compute_apps():
                 raise RuntimeError("unrelated GPU compute application remains before profile")
             for family in FAMILIES:
-                run_family(family, run_root, profiler)
+                run_family(family, run_root, profiler, trace_set)
         finally:
             restore_services(prior)
             after = lifecycle_snapshot()
@@ -445,6 +446,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true", help="run the diagnostic; default is safe dry-run")
     parser.add_argument("--output-root", type=pathlib.Path, default=ROOT / "runs")
+    parser.add_argument("--trace-set", choices=("cuda,nvtx,osrt", "cuda,nvtx"), default="cuda,nvtx,osrt",
+                        help="omit OS runtime events when diagnosing old-collector event-order failures; server settings stay unchanged")
     args = parser.parse_args()
     def terminate(signum, frame):
         raise KeyboardInterrupt(f"signal {signum}")
@@ -456,7 +459,7 @@ def main() -> int:
         raise SystemExit(f"refusing to overwrite {run_root}")
     # Dry-run uses only the output path; execution takes the shared lock and
     # starts one profiled model at a time.
-    run_all(run_root, dry_run=not args.execute)
+    run_all(run_root, dry_run=not args.execute, trace_set=args.trace_set)
     return 0
 
 
