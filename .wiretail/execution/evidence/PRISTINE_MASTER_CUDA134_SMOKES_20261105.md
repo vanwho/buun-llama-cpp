@@ -155,3 +155,20 @@ Per-cell graph values (tok/s) use only complete sets of three valid measured rep
 The C12288 base occupied 12,286 tokens for a 12,288-token target, a 2-token prefix shortfall; other listed starts were within one token of nominal. Actual final context includes the accumulated selected request history and is not the nominal fill target. The two invalid repetitions are output-quality failures, not OOMs; each affected reasoning/prompt triplet has two valid measured repeats and one failed repetition. Raw records, row summaries, and the running series result are under `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase2-primary-missing-cells/master-cpu-mtp-on-L200704-missing-gaps/attempt-001-L200704-selected-missing-cells/`.
 
 Provenance is the pristine detached source commit `958b444c677ad9b02058d5fbf8fd0e13b7d24286`; executable SHA256 `ab32d497d19389e7bc1c12310fe0e7cd8b1254cf5fffa492edf37bb963baf675`; mapped fixture worktree commit `a5a1110ca620db4f1c04669d0a2f569852ec1ec7` and map SHA256 `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f`; NVIDIA driver `615.71.09` (boot ID `f79550f5-bc13-4100-a561-0467a4201951`). Full compiler, CUDA, DSO hashes, and build/link provenance are recorded above and in `/srv/ai/paged-kv/results/master-pristine-958b444c677a/build-provenance-cuda134-matched-20261105.md`.
+
+### C126976 (127K) in-progress snapshot
+
+The CPU-KV MTP-on series was still running at step 2 when this snapshot was read. The target base held 126,977 tokens for nominal C126976 (+1); accumulated conversation context was 132,272 tokens through `last_case_index=29`. The campaign had seven complete reasoning/prompt triplets with three valid measured repetitions each. Their maximums are the only graph values below. The xhigh/prompt 1 cell had one of three measured repetitions so far, and no graph value; later cells/repetitions are not included. This is a read-only snapshot, not a final row result.
+
+| Reasoning | Prompt | Valid / 3 | Median tok/s | Graph value: max tok/s | Valid measured repetitions tok/s |
+|---|---:|---:|---:|---:|---|
+| low | 0 | 3/3 | 10.2333 | 10.2457 | 10.2457, 10.2217, 10.2333 |
+| low | 1 | 3/3 | 10.2737 | 10.3246 | 10.3246, 10.2737, 10.2087 |
+| low | 2 | 3/3 | 10.1393 | 10.1541 | 10.1393, 10.0303, 10.1541 |
+| medium | 0 | 3/3 | 9.8338 | 10.0744 | 9.8338, 10.0744, 9.5737 |
+| medium | 1 | 3/3 | 10.0929 | 10.1078 | 10.1078, 10.0662, 10.0929 |
+| medium | 2 | 3/3 | 9.8082 | 9.9555 | 9.8082, 9.6344, 9.9555 |
+| xhigh | 0 | 3/3 | 10.0732 | 10.1369 | 10.0732, 10.1369, 10.0534 |
+| xhigh | 1 | 1/3 | 9.9594* | — | 9.9594 |
+
+*Partial median across the single valid repetition; descriptive only, with no graph point. Raw snapshot: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase2-primary-missing-cells/master-cpu-mtp-on-L200704-missing-gaps/attempt-001-L200704-selected-missing-cells/cell/C126976/campaign/records.jsonl` and `conversation-frontier.json`.
