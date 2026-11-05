@@ -13,12 +13,14 @@
 
 Both smokes used B1024/U256 and 16 threads. The prefix stayed resident and the conversation accumulated normally; the CPU-KV profile continued from C6144 to C12288 without reloading or repeating mapped bytes.
 
+**CPU-KV MTP-on K/V accounting:** The pristine-master CPU-Q4 MTP-on commands use `--no-kv-offload`. This sets native MTP `offload_kqv=false` (`tools/server/server-context.cpp:8540`, `common/common.cpp:2119`); when draft K/V is CPU-bound, model/cache initialization converts the requested Turbo4 type to Q8_0 (`src/llama-model.cpp:3482`, `src/llama-kv-cache.cpp:1175–1184`). Thus these runs requested Turbo4 draft K/V but actually used CPU Q8_0 draft K/V; the target KV remained CPU Q4_0. Fork diagnostics explicitly using `--spec-draft-kv-device gpu` are a separate configuration and retain GPU draft K/V.
+
 ## Results
 
 | Smoke | Selected decode work | Decode repetitions (tok/s) | Outcome |
 |---|---|---|---|
 | GPU KV Turbo4, MTP off; context 122,880; nominal C6144 | Reasoning off, prompt 0; 1 warmup + 3 measured repetitions (all 4 requests passed) | Raw: 41.4297, 41.4105, 41.2505; median 41.4105; max graph value 41.4297 | Complete. Actual context was 6,145 before decode and 7,430 after the cumulative turn history. MTP acceptance is disabled/not applicable. |
-| CPU KV Q4_0, MTP on with Turbo4 draft K/V and n-max 2; context 200,704; nominal C6144 then C12288 | C6144 was prefill-only. At C12288, low prompts 0–2 and medium prompt 0; 4 warmups + 12 measured repetitions (all 16 selected requests passed, 3 measured repeats per cell). | Low p0: 25.5062, 26.6377, 26.3089 (median 26.3089, max 26.6377); p1: 19.4721, 25.4535, 25.5664 (median 25.4535, max 25.5664); p2: 22.7281, 25.0135, 24.9792 (median 24.9792, max 25.0135); medium p0: 25.1887, 24.8573, 24.6096 (median 24.8573, max 25.1887). | Accepted as a successful smoke. At C12288 actual context was 12,289 before the selected requests and 15,790 after their accumulated history. MTP acceptance medians were 99.00%, 97.44%, 100.00%, and 100.00%, respectively. |
+| CPU KV Q4_0, MTP on; Turbo4 draft K/V requested, actual CPU Q8_0; n-max 2; context 200,704; nominal C6144 then C12288 | C6144 was prefill-only. At C12288, low prompts 0–2 and medium prompt 0; 4 warmups + 12 measured repetitions (all 16 selected requests passed, 3 measured repeats per cell). | Low p0: 25.5062, 26.6377, 26.3089 (median 26.3089, max 26.6377); p1: 19.4721, 25.4535, 25.5664 (median 25.4535, max 25.5664); p2: 22.7281, 25.0135, 24.9792 (median 24.9792, max 25.0135); medium p0: 25.1887, 24.8573, 24.6096 (median 24.8573, max 25.1887). | Accepted as a successful smoke. At C12288 actual context was 12,289 before the selected requests and 15,790 after their accumulated history. MTP acceptance medians were 99.00%, 97.44%, 100.00%, and 100.00%, respectively. |
 
 ### CPU-KV optional compact-head fallback
 
@@ -140,7 +142,7 @@ Raw evidence: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-val
 
 ## Phase 2 CPU-KV MTP-on missing-cell pass
 
-The CPU-KV Q4_0, MTP-on run is still marked `running` at step 2 in its series result; the four rows below have been written, and later planned contexts are not included here. It used the same pristine master executable, mapped fixture, B1024/U256, 16 threads, Turbo4 draft K/V, and n-max 2. Values in the summary table are aggregated across the selected reasoning/prompt cases; pooled medians and maxima are descriptive only, and the pooled maximum is not a graph point. The per-context, per-mode, per-prompt table below carries graph values, each calculated only from a full set of three valid measured repetitions. Repetition lists follow the campaign record order and omit only the explicitly identified invalid request.
+The CPU-KV Q4_0, MTP-on run is still marked `running` at step 2 in its series result; the four rows below have been written, and later planned contexts are not included here. It used the same pristine master executable, mapped fixture, B1024/U256, 16 threads, requested Turbo4 draft K/V (actual CPU Q8_0 under `--no-kv-offload`), and n-max 2. Values in the summary table are aggregated across the selected reasoning/prompt cases; pooled medians and maxima are descriptive only, and the pooled maximum is not a graph point. The per-context, per-mode, per-prompt table below carries graph values, each calculated only from a full set of three valid measured repetitions. Repetition lists follow the campaign record order and omit only the explicitly identified invalid request.
 
 | Nominal C | Row / valid measured repeats | Actual prefix occupancy → final context | Pooled median tok/s (descriptive) | Pooled max tok/s (descriptive only) | Invalid case |
 |---:|---|---:|---:|---:|---|
@@ -256,7 +258,7 @@ Attempt: `/srv/ai/paged-kv/results/independent-base-192k-medium-p2-20261105/atte
 
 ## Phase 7 separate 192K CPU-KV MTP-on recovery cohort
 
-This is a separate targeted cohort covering two master CPU-KV MTP-on 192K graph cells (off/P3 and xhigh/P2); keep it separate rather than pooling it into that profile. The completed measured target C195664 row passed all eight requests (2 warmups + 6 measured), with no startup error. It ran at context 200,704 using the pristine candidate and CPU Q4_0 target KV with native MTP and Turbo4 draft K/V.
+This is a separate targeted cohort covering two master CPU-KV MTP-on 192K graph cells (off/P3 and xhigh/P2); keep it separate rather than pooling it into that profile. The completed measured target C195664 row passed all eight requests (2 warmups + 6 measured), with no startup error. It ran at context 200,704 using the pristine candidate and CPU Q4_0 target KV with native MTP. Turbo4 draft K/V was requested, but actual CPU-bound draft K/V was Q8_0 under `--no-kv-offload`.
 
 The mapped base occupancy was exactly 195,664 tokens for nominal C195664 (zero-token fill delta). The prefix remained resident and the two selected cells appended to it; final actual context was 198,223 (+2,559 accumulated tokens), not a refill or a prefix shortfall.
 

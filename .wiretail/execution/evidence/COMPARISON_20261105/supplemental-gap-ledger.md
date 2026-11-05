@@ -12,7 +12,7 @@ Cell inclusion requires at least two measured repetitions with `status=pass`, a 
 | `master-cpu-mtp-off-192k-independent-base` | `master-cpu-mtp-off` | 1 | Independent questions reuse one frozen base; not cumulative conversation. |
 | `master-cpu-mtp-off-256k-independent-base` | `master-cpu-mtp-off` | 12 | Independent questions reuse one frozen base; not cumulative conversation. |
 | `master-cpu-mtp-off-phase6-cumulative` | `master-cpu-mtp-off` | 12 | Pristine master, resident cumulative conversation; invalid output repetitions excluded. |
-| `master-cpu-mtp-on-phase7-cumulative` | `master-cpu-mtp-on` | 2 | Pristine master 192K run, resident cumulative conversation. |
+| `master-cpu-mtp-on-phase7-cumulative` | `master-cpu-mtp-on` | 2 | Pristine master 192K run, resident cumulative conversation; Turbo4 draft K/V requested, actual CPU draft K/V Q8_0 under `--no-kv-offload`; target KV remains CPU Q4_0. |
 | `master-gpu-mtp-off-120k-independent-base` | `master-gpu-mtp-off` | 3 | GPU target; independent questions reuse one frozen base; not cumulative conversation. |
 
 R4 contributed 37 eligible fork CPU/MTP-on keys: 33 cover selected cells absent from the retained snapshot and 4 overlap same family/context/mode/prompt keys already retained. These are supplemental source rows, not pooled repetitions. Thus the snapshot’s 33 selected fork CPU/MTP-on cells are covered by R4, with the restored-base caveat; the snapshot itself is unchanged.
@@ -20,7 +20,7 @@ R4 contributed 37 eligible fork CPU/MTP-on keys: 33 cover selected cells absent 
 ## Exact high-context additions and remaining gaps
 
 - **Fork CPU/MTP-on:** The selected 37-cell R4 set is represented with 3 eligible repetitions per cell. R4 uses `disk_snapshot_restore`/resume; do not treat its prefill or lifecycle as cumulative-conversation evidence.
-- **Master CPU/MTP-on 192K:** phase7 provides the two covered cumulative cells (off/P3 and xhigh/P2), each with 3 eligible reps. Their measured nominal target is `C=195664` at `L=200704`; the graph label is 192K.
+- **Master CPU/MTP-on 192K:** phase7 provides the two covered cumulative cells (off/P3 and xhigh/P2), each with 3 eligible reps. Their measured nominal target is `C=195664` at `L=200704`; the graph label is 192K. The command requested Turbo4 draft K/V, but `--no-kv-offload` leaves native MTP `offload_kqv=false`, so CPU-bound draft K/V is actually Q8_0; target KV remains CPU Q4_0. This differs from fork runs explicitly configured with `--spec-draft-kv-device gpu`.
 - **Master CPU/MTP-on 256K:** 12 cells at nominal C=256000 remain unmeasured. Clean pristine-master startup failed before readiness on a 1,730 MiB GPU allocation request with 15,900 MiB free; do not synthesize timings or relabel it as success.
 - **Master CPU/MTP-off cumulative 192K:** phase6 has 11 usable cells at measured `C=195664`. Medium/P2 has 0 valid reps (all three measured records are `output_invalid`), so it remains a gap for this cumulative cohort.
 - **Master CPU/MTP-off cumulative near 256K:** phase6 has one usable cell at C=255488 (off/P1; two valid reps); off/P2 and off/P3 have zero valid reps and remain gaps in that phase6 subset.
