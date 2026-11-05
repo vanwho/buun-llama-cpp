@@ -216,30 +216,30 @@ The mapped base occupancy was exactly 195,664 tokens for nominal C195664 (zero-t
 
 Phase 7 artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase7-cpu-mtp-on-L200704-near192k/master-cpu-mtp-on-L200704-C195664-missing-upper-cells/attempt-001-L200704-C195664-offP2-xhighP1/cell/C195664/campaign/` (`row.json`, `records.jsonl`, `run-config.json`).
 
-## Independent-base near-256K CPU-Q4 MTP-off prototype (in progress)
+## Independent-base near-256K CPU-Q4 MTP-off cohort (complete)
 
-This is a separate independent-base cohort from the earlier cumulative C255488 phase6 series. The active prototype uses the pristine master binary (`ab32d497d19389e7bc1c12310fe0e7cd8b1254cf5fffa492edf37bb963baf675`), source commit `958b444c677ad9b02058d5fbf8fd0e13b7d24286`, model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`, mapped fixture commit `a5a1110ca620db4f1c04669d0a2f569852ec1ec7` / map SHA256 `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f`, and NVIDIA open driver `615.71.09` (boot ID `f79550f5-bc13-4100-a561-0467a4201951`). Loaded project DSO hashes match the build provenance above. Configuration: `-ngl 999 --device CUDA0`, context 262,144, 16 threads, B1024/U256, target CPU Q4_0 KV (`--no-kv-offload -ctk q4_0 -ctv q4_0`), MTP off. The lifecycle metadata still says `starting`; there is no finalized row yet. The snapshot below uses the 27 measured records currently present, and all recorded requests have passed so far.
+This is a separate independent-base cohort from the earlier cumulative C255488 phase6 series; do not merge the two profiles. It completed all 48/48 requests: 12 warmups and 36 valid measured repetitions, with no invalid requests. The run used the pristine master binary (`ab32d497d19389e7bc1c12310fe0e7cd8b1254cf5fffa492edf37bb963baf675`), source commit `958b444c677ad9b02058d5fbf8fd0e13b7d24286`, model SHA256 `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199`, mapped fixture commit `a5a1110ca620db4f1c04669d0a2f569852ec1ec7` / map SHA256 `5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f`, and NVIDIA open driver `615.71.09` (boot ID `f79550f5-bc13-4100-a561-0467a4201951`). Loaded project DSO hashes match the build provenance above. Configuration: `-ngl 999 --device CUDA0`, context 262,144, 16 threads, B1024/U256, target CPU Q4_0 KV (`--no-kv-offload -ctk q4_0 -ctv q4_0`), MTP off.
 
-The independent base fill occupied 255,489 tokens for nominal C255488 (+1). The resident prefix is reused across appended requests; cache logs show 255,488 cached prompt tokens at the base and 255,512/255,517 after turns extend the history. Latest observed request context after recorded responses is 255,961; this is not a finalized end-of-series context. Rows with fewer than three measured repetitions have partial medians for reference only and no graph point. Graph maxima are recorded only for a complete valid triplet.
+The independent base occupied 255,489 tokens for nominal C255488 (+1), and every request began from actual context 255,489 with the same frozen base plus exactly one query. `actual_C_after` varied from 255,670 to 255,961 within individual requests; final row context reset to 255,489. Cached prompt counts ranged from 255,488 to 255,517. The row's `filled_prefix_method` field says `resident_cumulative_conversation`, but that inherited label is stale for this cohort: the 48 request payloads and `actual_C_before` records show independent base-plus-one-query requests, without accumulated conversation history between cells.
 
-| Reasoning | Prompt index | Valid measured / 3 so far | Median tok/s | Graph value: max tok/s | All valid measured repetitions tok/s so far |
+Each graph value below is the maximum of that cell's full three measured repetitions. Medians and all three raw repetitions are retained.
+
+| Reasoning | Prompt index | Valid measured / 3 | Median tok/s | Graph value: max tok/s | All measured repetitions tok/s |
 |---|---:|---:|---:|---:|---|
 | low | 0 | 3/3 | 2.8962 | 2.8982 | 2.8982, 2.8962, 2.8943 |
-| low | 1 | 2/3 | 2.9045* | — | 2.9054, 2.9035 |
-| low | 2 | 2/3 | 2.8992* | — | 2.8996, 2.8988 |
-| medium | 0 | 2/3 | 2.8873* | — | 2.8973, 2.8773 |
-| medium | 1 | 2/3 | 2.9033* | — | 2.9063, 2.9004 |
-| medium | 2 | 2/3 | 2.9013* | — | 2.9053, 2.8974 |
+| low | 1 | 3/3 | 2.9035 | 2.9054 | 2.9054, 2.9035, 2.8893 |
+| low | 2 | 3/3 | 2.8991 | 2.8996 | 2.8996, 2.8988, 2.8991 |
+| medium | 0 | 3/3 | 2.8973 | 2.8977 | 2.8973, 2.8773, 2.8977 |
+| medium | 1 | 3/3 | 2.9063 | 2.9092 | 2.9063, 2.9004, 2.9092 |
+| medium | 2 | 3/3 | 2.9040 | 2.9053 | 2.9053, 2.8974, 2.9040 |
 | off | 0 | 3/3 | 2.8939 | 2.8947 | 2.8939, 2.8908, 2.8947 |
 | off | 1 | 3/3 | 2.9056 | 2.9080 | 2.9080, 2.9024, 2.9056 |
 | off | 2 | 3/3 | 2.9031 | 2.9051 | 2.9031, 2.9025, 2.9051 |
-| xhigh | 0 | 2/3 | 2.8951* | — | 2.9001, 2.8902 |
-| xhigh | 1 | 2/3 | 2.9062* | — | 2.9062, 2.9061 |
-| xhigh | 2 | 2/3 | 2.9043* | — | 2.9038, 2.9048 |
+| xhigh | 0 | 3/3 | 2.9001 | 2.9034 | 2.9001, 2.8902, 2.9034 |
+| xhigh | 1 | 3/3 | 2.9061 | 2.9062 | 2.9062, 2.9061, 2.9061 |
+| xhigh | 2 | 3/3 | 2.9038 | 2.9048 | 2.9038, 2.9048, 2.9023 |
 
-*Partial median across two valid repetitions; descriptive only, with no graph point.
-
-The supervisor logged this wall-time prefill curve as the independent base was filled in mapped chunks:
+The supervisor logged this wall-time prefill curve for this independent base fill. It belongs to this cohort and is separate from the cumulative phase6 fill curve:
 
 | Actual C after fill | New tokens | Wall prefill tok/s |
 |---:|---:|---:|
@@ -252,4 +252,4 @@ The supervisor logged this wall-time prefill curve as the independent base was f
 | 229,477 | 32,782 | 333.25 |
 | 255,489 | 26,011 | 301.35 |
 
-Raw in-progress records and fill log: `/srv/ai/paged-kv/results/independent-base-queries-256k-prototype-20261105/attempt-003-L262144-C255488/run-L262144-C255488/C255488/campaign/records.jsonl` and `/srv/ai/paged-kv/results/independent-base-queries-256k-prototype-20261105/attempt-003-L262144-C255488/supervisor.log`. The lifecycle file also records the model/runtime identity, chunk-map hash, and snapshot state.
+Completed row and raw repetitions: `/srv/ai/paged-kv/results/independent-base-queries-256k-prototype-20261105/attempt-003-L262144-C255488/run-L262144-C255488/C255488/campaign/row.json` and `records.jsonl`; fill curve and lifecycle provenance are in `/srv/ai/paged-kv/results/independent-base-queries-256k-prototype-20261105/attempt-003-L262144-C255488/supervisor.log` and `lifecycle.json`.
