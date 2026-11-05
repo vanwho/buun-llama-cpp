@@ -3527,11 +3527,23 @@ static half * kv_dequant_scratch_try(
                                       // the cudaMalloc fallback allocates on the current device
     if (ggml_backend_cuda_vmm_available(ctx.device)) {
         if (side.vmm == nullptr || need_bytes > side.vmm_va) {
-            const size_t va = (size_t) next_pow2_i64((int64_t) need_bytes);
+            // Reserve address space, not physical VRAM, for future long-context growth.
+            // A small initial VA forces a second fully mapped pool at every power-of-two
+            // boundary while the old pool is still live; that transient duplication can
+            // OOM even when the incremental pages would fit. 512 MiB covers the common
+            // long-context MTP view while pool_map still commits only the requested pages.
+            const size_t minimum_va = size_t(512) * 1024 * 1024;
+            const size_t required_va = (size_t) next_pow2_i64((int64_t) need_bytes);
+            size_t va = std::max(minimum_va, required_va);
             // Grow into a candidate pool first.  Keeping the old pool alive until the candidate
             // has all of its physical pages prevents a recoverable reserve failure from turning
             // a previously valid graph address into an empty side.
             ggml_vbr_vmm_pool * candidate = ggml_backend_cuda_vmm_pool_init(ctx.device, va);
+            if (candidate == nullptr && va != required_va) {
+                // A restricted VA space can still use the original allocation strategy.
+                va = required_va;
+                candidate = ggml_backend_cuda_vmm_pool_init(ctx.device, va);
+            }
             if (candidate != nullptr && ggml_backend_cuda_vmm_pool_map(candidate, 0, need_bytes)) {
                 ggml_vbr_vmm_pool * old = side.vmm;
                 side.vmm = candidate;
