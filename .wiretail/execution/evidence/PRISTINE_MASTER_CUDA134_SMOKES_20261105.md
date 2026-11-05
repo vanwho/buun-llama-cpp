@@ -176,9 +176,9 @@ Raw row and repetition records: `/srv/ai/paged-kv/results/pristine-master-958b44
 
 ## Phase 6 CPU-KV MTP-off, ~192K row
 
-The active CPU-Q4 MTP-off series uses context 262,144, `-ngl 999 --device CUDA0`, `-b 1024 -ub 256`, 16 threads, target K/V Q4_0, and `--no-kv-offload`. The C195664 row is incomplete: 45/48 selected requests passed, including 33/36 measured repetitions. Eleven mode/prompt groups have complete three-repetition sets; medium/prompt index 1 had three invalid measured outputs (6 tokens each) and has no graph value. Maxima below are per C × reasoning × prompt and only appear for complete triplets.
+The CPU-Q4 MTP-off series uses context 262,144, `-ngl 999 --device CUDA0`, `-b 1024 -ub 256`, 16 threads, target K/V Q4_0, and `--no-kv-offload`. The C195664 row is incomplete: 45/48 selected requests passed, including 33/36 measured repetitions. Eleven mode/prompt groups have complete three-repetition sets; medium/prompt index 1 had three invalid measured outputs (6 tokens each) and has no graph value. Maxima below are per C × reasoning × prompt and only appear for complete triplets.
 
-The mapped base fill occupied exactly 195,664 tokens for nominal C195664 (zero-token fill delta); the row uses `resident_cumulative_conversation`, with one base fill and append-only history across selected requests. Final context reached 203,496 tokens, 7,832 above the nominal base because of that appended history. This is not a base-prefix shortfall. The phase 6 series remains `running` at step 1; the later C255488 target has not produced a completed row yet.
+The mapped base fill occupied exactly 195,664 tokens for nominal C195664 (zero-token fill delta); the row uses `resident_cumulative_conversation`, with one base fill and append-only history across selected requests. Final context reached 203,496 tokens, 7,832 above the nominal base because of that appended history. This is not a base-prefix shortfall. The phase 6 supervisor later ended with `runtime_or_driver_failure`; the C195664 row's recorded invalids are output-validity failures, not OOMs.
 
 | C | Reasoning | Prompt | Valid / 3 | Median tok/s | Graph value: max tok/s | All valid measured repetitions tok/s | Invalid repetitions |
 |---:|---|---:|---:|---:|---:|---|---|
@@ -196,3 +196,9 @@ The mapped base fill occupied exactly 195,664 tokens for nominal C195664 (zero-t
 | 195,664 | xhigh | 2 | 3/3 | 3.5299 | 3.5357 | 3.5259, 3.5357, 3.5299 | — |
 
 Raw campaign artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase6-cpu-mtp-off-L262144-192k-256k/master-cpu-mtp-off-L262144-192k-256k-content/attempt-002-L262144-C195664-C236544-full-matrix/cell/C195664/campaign/` (`row.json`, `records.jsonl`, `conversation-frontier.json`).
+
+### C255488 (~250K) incomplete row
+
+The second phase6 target row is incomplete: 5/12 selected requests passed and only 2/9 measured requests were valid. The base occupancy was 255,489 for nominal C255488 (+1 token), with final accumulated context at 255,949. The prefix was not short; the final delta reflects appended request history. The only valid measured repetitions were off/prompt index 0, reps 1–2 (2.8980 and 2.9044 tok/s; two-repeat median 2.9012 is descriptive only). Rep 3 there returned a non-substantive 5-token fragment. Off/prompt index 1 had three non-substantive 2-token outputs; off/prompt index 2 had three one-token EOS/empty outputs. No reasoning/prompt cell reached three valid measured repetitions, so this row contributes no graph point.
+
+The overall phase6 series ended `runtime_or_driver_failure` after its two targets. Preserve C195664 as recorded above (11 full triplets plus the invalid medium/prompt-1 triplet); neither row's output-invalid cases are evidence of OOM. Raw C255488 artifacts are in `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase6-cpu-mtp-off-L262144-192k-256k/master-cpu-mtp-off-L262144-192k-256k-content/attempt-002-L262144-C195664-C236544-full-matrix/cell/C255488/campaign/` (`row.json`, `records.jsonl`, `conversation-frontier.json`).
