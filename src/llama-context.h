@@ -15,6 +15,7 @@
 #include "ggml-opt.h"
 
 #include <array>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -840,6 +841,15 @@ private:
     // Test-only finite-value localization for a single dense control graph.
     // The callback is installed only when LLAMA_DENSE_TENSOR_DIAGNOSTIC is set.
     static bool dense_tensor_diagnostic_callback(ggml_tensor * t, bool ask, void * user_data);
+    // Temporary diagnostic state, never enabled by a server/performance flag.
+    // Scope recurrent localization to the known failing position window rather
+    // than copying every layer's recurrent state during the repository fill.
+    bool dense_diagnostic_recurrent_ = false;
+    llama_pos dense_diagnostic_pos_min_ = 0;
+    llama_pos dense_diagnostic_pos_max_ = std::numeric_limits<llama_pos>::max();
+    llama_pos dense_diagnostic_batch_min_ = -1;
+    llama_pos dense_diagnostic_batch_max_ = -1;
+    uint64_t dense_diagnostic_checks_ = 0;
 
     // disable auto fused ops (Flash Attention, Gated Delta Net) whose op lands on a device
     // that differs from the layer it belongs to (usually due to missing backend support)

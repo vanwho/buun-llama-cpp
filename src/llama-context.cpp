@@ -534,7 +534,26 @@ llama_context::llama_context(
     // Keep dense-control localization opt-in and bounded.  It observes only
     // the named first-layer tensors needed to identify the first non-finite
     // activation; normal contexts retain the caller's callback unchanged.
-    if (std::getenv("LLAMA_DENSE_TENSOR_DIAGNOSTIC")) {
+    if (const char * diagnostic = std::getenv("LLAMA_DENSE_TENSOR_DIAGNOSTIC")) {
+        dense_diagnostic_recurrent_ = std::strcmp(diagnostic, "recurrent") == 0;
+        if (dense_diagnostic_recurrent_) {
+            const auto diagnostic_position = [](const char * name, llama_pos fallback) {
+                const char * value = std::getenv(name);
+                if (!value || !*value) return fallback;
+                char * end = nullptr;
+                const long long parsed = std::strtoll(value, &end, 10);
+                if (*end || parsed < 0 || parsed > std::numeric_limits<llama_pos>::max()) {
+                    throw std::runtime_error(std::string("invalid diagnostic position: ") + name);
+                }
+                return llama_pos(parsed);
+            };
+            dense_diagnostic_pos_min_ = diagnostic_position("LLAMA_DENSE_DIAGNOSTIC_POS_MIN", 0);
+            dense_diagnostic_pos_max_ = diagnostic_position("LLAMA_DENSE_DIAGNOSTIC_POS_MAX",
+                    std::numeric_limits<llama_pos>::max());
+            if (dense_diagnostic_pos_min_ > dense_diagnostic_pos_max_) {
+                throw std::runtime_error("invalid dense diagnostic position window");
+            }
+        }
         cparams.cb_eval = llama_context::dense_tensor_diagnostic_callback;
         cparams.cb_eval_user_data = this;
         LLAMA_LOG_INFO("dense tensor diagnostic callback enabled\n");
@@ -4222,9 +4241,17 @@ static void dflash_read_tensor(struct ggml_tensor * t, std::vector<float> & dst,
 }
 
 bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, bool ask, void * user_data) {
-    GGML_UNUSED(user_data);
+    auto * self = static_cast<llama_context *>(user_data);
 
     if (!t) {
+        return false;
+    }
+
+    const bool recurrent = self && self->dense_diagnostic_recurrent_;
+    if (recurrent &&
+            (self->cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP ||
+             self->dense_diagnostic_batch_max_ < self->dense_diagnostic_pos_min_ ||
+             self->dense_diagnostic_batch_min_ > self->dense_diagnostic_pos_max_)) {
         return false;
     }
 
@@ -4246,6 +4273,26 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
         if (std::strcmp(t->name, name) == 0) {
             selected = true;
             break;
+        }
+    }
+    if (recurrent) {
+        // Only actual activations and selected live recurrent-state views.
+        // Do not inspect a full K/V source slab: unwritten/masked cache rows
+        // are not a valid finite-value oracle for the current query.
+        static const char * const recurrent_names[] = {
+            "attn_norm-", "Qcur-", "Kcur-", "Vcur-", "kqv_out-",
+            "state_predelta-", "conv_output_raw-", "conv_output_silu-",
+            "q_conv_predelta-", "k_conv_predelta-", "v_conv_predelta-",
+            "beta_sigmoid-", "a_softplus-", "gate-", "final_output-",
+            "linear_attn_out-", "attn_output-", "ffn_out-", "l_out-",
+            "result_norm", "result_output",
+        };
+        selected = false;
+        for (const char * name : recurrent_names) {
+            if (std::strncmp(t->name, name, std::strlen(name)) == 0) {
+                selected = true;
+                break;
+            }
         }
     }
     if (!selected) {
@@ -4311,14 +4358,25 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
         }
     }
 
+    if (recurrent && nan == 0 && pos_inf == 0 && neg_inf == 0 &&
+            ++self->dense_diagnostic_checks_ > 3) {
+        return true;
+    }
     std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
             " finite=%" PRIu64 " nan=%" PRIu64 " pos_inf=%" PRIu64
             " neg_inf=%" PRIu64 " min=%g max=%g",
             t->name, ggml_type_name(t->type), n, finite, nan, pos_inf, neg_inf,
             finite ? min_value : 0.0f, finite ? max_value : 0.0f);
     print_shape();
+    if (recurrent) {
+        std::fprintf(stderr, " positions=[%d,%d] checks=%" PRIu64 " first_nonfinite=%s",
+                self->dense_diagnostic_batch_min_, self->dense_diagnostic_batch_max_,
+                self->dense_diagnostic_checks_, nan || pos_inf || neg_inf ? "yes" : "no");
+    }
     std::fputc('\n', stderr);
-    return true;
+    // A failed diagnostic stops at the producing node before bad state can
+    // cascade through later layers; normal execution never installs this mode.
+    return !recurrent || (nan == 0 && pos_inf == 0 && neg_inf == 0);
 }
 
 // DFlash eval callback: captures hidden state tensors + tape data during graph execution
@@ -7168,6 +7226,14 @@ int llama_context::route_kv_pager_query_early(llama_seq_id seq, uint64_t turn,
 }
 
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
+    if (dense_diagnostic_recurrent_) {
+        dense_diagnostic_batch_min_ = std::numeric_limits<llama_pos>::max();
+        dense_diagnostic_batch_max_ = -1;
+        for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+            dense_diagnostic_batch_min_ = std::min(dense_diagnostic_batch_min_, ubatch.pos[i]);
+            dense_diagnostic_batch_max_ = std::max(dense_diagnostic_batch_max_, ubatch.pos[i]);
+        }
+    }
     const bool hotpath_profile = llama_context_hotpath_profile_enabled();
     const int64_t ubatch_start_us = hotpath_profile ? ggml_time_us() : 0;
     int64_t apply_us = 0;
