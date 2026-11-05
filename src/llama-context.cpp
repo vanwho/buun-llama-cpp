@@ -4282,8 +4282,6 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
         static const char * const recurrent_names[] = {
             "attn_norm-", "Qcur-", "Kcur-", "Vcur-", "kqv_out-",
             "state_predelta-", "conv_output_raw-", "conv_output_silu-",
-            "conv_states-", "conv_states_reshaped-", "conv_input-",
-            "linear_attn_qkvz-", "linear_attn_qkv_mixed-",
             "q_conv_predelta-", "k_conv_predelta-", "v_conv_predelta-",
             "beta_sigmoid-", "a_softplus-", "gate-", "final_output-",
             "linear_attn_out-", "attn_output-", "ffn_out-", "l_out-",
@@ -4315,8 +4313,7 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
                 t->ne[0], t->ne[1], t->ne[2], t->ne[3],
                 t->nb[0], t->nb[1], t->nb[2], t->nb[3]);
     };
-    const ggml_backend_buffer_t diagnostic_buffer = t->view_src ? t->view_src->buffer : t->buffer;
-    if (n <= 0 || !diagnostic_buffer || !t->data) {
+    if (n <= 0 || !t->buffer) {
         std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " unavailable",
                 t->name, ggml_type_name(t->type), n);
         print_shape();
@@ -4324,8 +4321,7 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
         return true;
     }
     if ((t->type != GGML_TYPE_F32 && t->type != GGML_TYPE_F16) ||
-            (!recurrent && !ggml_is_contiguous(t)) || n > 4 * 1024 * 1024 ||
-            ggml_nbytes(t) > 64 * 1024 * 1024) {
+            !ggml_is_contiguous(t) || n > 4 * 1024 * 1024) {
         std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
                 " finite=-1 nan=-1 inf=-1", t->name, ggml_type_name(t->type), n);
         print_shape();
@@ -4334,26 +4330,7 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
     }
 
     std::vector<float> values((size_t) n);
-    if (recurrent && !ggml_is_contiguous(t)) {
-        // Read strided consumed views through their owning buffer. Their own
-        // buffer field can be null even though the view is fully allocated.
-        std::vector<uint8_t> bytes(ggml_nbytes(t));
-        ggml_backend_tensor_get(t, bytes.data(), 0, bytes.size());
-        size_t logical = 0;
-        for (int64_t i3 = 0; i3 < t->ne[3]; ++i3)
-        for (int64_t i2 = 0; i2 < t->ne[2]; ++i2)
-        for (int64_t i1 = 0; i1 < t->ne[1]; ++i1)
-        for (int64_t i0 = 0; i0 < t->ne[0]; ++i0, ++logical) {
-            const size_t offset = i0*t->nb[0] + i1*t->nb[1] + i2*t->nb[2] + i3*t->nb[3];
-            if (t->type == GGML_TYPE_F32) {
-                std::memcpy(&values[logical], bytes.data() + offset, sizeof(float));
-            } else {
-                ggml_fp16_t value;
-                std::memcpy(&value, bytes.data() + offset, sizeof(value));
-                values[logical] = ggml_fp16_to_fp32(value);
-            }
-        }
-    } else if (t->type == GGML_TYPE_F32) {
+    if (t->type == GGML_TYPE_F32) {
         ggml_backend_tensor_get(t, values.data(), 0, values.size() * sizeof(float));
     } else {
         std::vector<ggml_fp16_t> values_f16((size_t) n);
@@ -4369,14 +4346,7 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
     uint64_t neg_inf = 0;
     float min_value = std::numeric_limits<float>::infinity();
     float max_value = -std::numeric_limits<float>::infinity();
-    int64_t first_bad = -1;
-    int64_t last_bad = -1;
-    for (size_t index = 0; index < values.size(); ++index) {
-        const float value = values[index];
-        if (!std::isfinite(value)) {
-            if (first_bad < 0) first_bad = int64_t(index);
-            last_bad = int64_t(index);
-        }
+    for (float value : values) {
         if (std::isnan(value)) {
             ++nan;
         } else if (std::isinf(value)) {
@@ -4402,9 +4372,6 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
         std::fprintf(stderr, " positions=[%d,%d] checks=%" PRIu64 " first_nonfinite=%s",
                 self->dense_diagnostic_batch_min_, self->dense_diagnostic_batch_max_,
                 self->dense_diagnostic_checks_, nan || pos_inf || neg_inf ? "yes" : "no");
-        std::fprintf(stderr, " op=%s buffer=%s bad_logical=[%" PRId64 ",%" PRId64 "]",
-                ggml_op_name(t->op), ggml_backend_buffer_name(diagnostic_buffer), first_bad, last_bad);
-        self->dense_diagnostic_failed_ |= first_bad >= 0;
     }
     std::fputc('\n', stderr);
     // A failed diagnostic stops at the producing node before bad state can
@@ -7260,10 +7227,9 @@ int llama_context::route_kv_pager_query_early(llama_seq_id seq, uint64_t turn,
 
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
     if (dense_diagnostic_recurrent_) {
-        dense_diagnostic_failed_ = false;
         dense_diagnostic_batch_min_ = std::numeric_limits<llama_pos>::max();
         dense_diagnostic_batch_max_ = -1;
-        for (uint32_t i = 0; ubatch.pos && i < ubatch.n_tokens; ++i) {
+        for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
             dense_diagnostic_batch_min_ = std::min(dense_diagnostic_batch_min_, ubatch.pos[i]);
             dense_diagnostic_batch_max_ = std::max(dense_diagnostic_batch_max_, ubatch.pos[i]);
         }
@@ -7553,13 +7519,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         return nullptr;
     }
     const int64_t backend_submit_start_us = hotpath_profile ? ggml_time_us() : 0;
-    auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
-    // Eval-callback false only stops the current backend split. Propagate the
-    // diagnostic failure across the context boundary so stale later logits
-    // cannot be sampled as if that partially evaluated graph succeeded.
-    if (dense_diagnostic_recurrent_ && dense_diagnostic_failed_) {
-        status = GGML_STATUS_ABORTED;
-    }
+    const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
     if (hotpath_profile) {
         backend_submit_us = ggml_time_us() - backend_submit_start_us;
     }
