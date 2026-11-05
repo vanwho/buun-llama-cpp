@@ -31,3 +31,22 @@ Adjudication: `.../smoke-cpu-mtp-on-C6144-C12288/attempt-001-L200704-smoke-C6144
 - GPU row: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase1-startup-smokes-corrected-source/smoke-gpu-mtp-off-C6144/attempt-001-L122880-smoke-C6144/cell/C6144/campaign/row.json`
 - CPU row: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase1-startup-smokes-corrected-source/smoke-cpu-mtp-on-C6144-C12288/attempt-001-L200704-smoke-C6144-C12288/cell/C12288/campaign/row.json`
 - CPU startup diagnostics and adjudication are in the same CPU attempt directory.
+
+## Phase 2 GPU MTP-off missing-cell pass
+
+The cumulative mapped-prefix run used the same candidate and continued the resident history across targets. Its supervisor ended the profile with `resource_interference` (exit 1), so treat this as partial data rather than a completed series. The valid completed rows and their maximum measured repetition (the graph value) are below; medians are retained for reference. Raw per-request repetitions remain in each row's adjacent `records.jsonl`.
+
+| Nominal C | Row | Measured passes | Invalid measured cases | Median tok/s | Max graph value tok/s |
+|---:|---|---:|---:|---:|---:|
+| 6,144 | complete | 36/36 | 0 | 40.5824 | 41.2934 |
+| 12,288 | incomplete | 22/30 | 8 | 39.7569 | 40.0771 |
+| 28,672 | incomplete | 27/30 | 3 | 38.7389 | 39.2038 |
+| 62,464 | complete | 3/3 | 0 | 35.9855 | 35.9924 |
+| 78,848 | fill-only complete | 0 | 0 | — | — |
+| 88,064 | incomplete | 10/18 | 8 | 34.0309 | 34.1722 |
+| 100,352 | fill-only complete | 0 | 0 | — | — |
+| 120,832 | not reached | 0 | — | — | — |
+
+The incomplete decode rows failed their output-validity checks (short, typically one-token completions); these are not fatal OOMs. The C120832 stage stopped at the pre-request capacity guard: actual context was 116,601 against a 116,600 ceiling with 6,280 tokens reserved, so no decode request ran. The phase2 supervisor's `resource_interference` label and restoration record are preserved in `series-result.json`; protected Jellyfin, port 8091, and port 8092 were recorded restored/unchanged. No phase2 GPU rows are represented as complete where the row itself is incomplete.
+
+Phase 2 artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase2-primary-missing-cells/master-gpu-mtp-off-missing-gaps/attempt-001-L122880-selected-missing-cells/` (`series-result.json`, per-target `cell/C*/campaign/row.json` and `records.jsonl`).
