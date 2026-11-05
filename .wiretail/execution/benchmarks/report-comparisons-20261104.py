@@ -33,6 +33,9 @@ DATA_ONLY = False
 PREFILL_GROUPS = []
 _PREFILL_SEEN = set()
 OUTLIER_SERIES_CELLS = []
+RESPONSE_QUALITY_EXCLUSIONS = []
+RESPONSE_QUALITY_UNASSESSED = []
+_RESPONSE_QUALITY_CACHE = {}
 
 
 def plotting_pyplot():
@@ -149,6 +152,9 @@ def read_records(path):
                     "decode_tok_s":r.get('decode_tok_s'),"mtp":mtp,
                     "actual_C":r.get('actual_C_before',r.get('actual_C',r.get('actual_occupancy_tokens'))),
                     "actual_C_after":r.get('actual_C_after'),
+                    "nominal_target_C":r.get('nominal_target_C',r.get('target_tokens')),
+                    "raw_path":r.get('raw_path',r.get('sse_path')),
+                    "raw_sha256":r.get('raw_sha256',r.get('sse_sha256')),
                     "conversation_protocol":r.get('conversation_protocol'),
                     "context_tokens":r.get('context_tokens'),"target_tokens":r.get('target_tokens')})
     _RECORD_CACHE[cache_key] = out
@@ -261,6 +267,32 @@ def neighboring_geometry(records_path, source_hashes):
     return {}
 
 
+def campaign_fallback_geometry(records, cfg, rowmeta):
+    """Recover grouping geometry for a partial campaign without a final row.json."""
+    geo = rowmeta.get("geometry", {}) if isinstance(rowmeta.get("geometry"), dict) else {}
+    row_base = rowmeta.get("base", {}) if isinstance(rowmeta.get("base"), dict) else {}
+    cfg_geo = cfg.get("geometry", {}) if isinstance(cfg.get("geometry"), dict) else {}
+    cfg_base = cfg.get("base", {}) if isinstance(cfg.get("base"), dict) else {}
+    identity = cfg.get("identity", {}) if isinstance(cfg.get("identity"), dict) else {}
+    identity_geo = identity.get("geometry", {}) if isinstance(identity.get("geometry"), dict) else {}
+    nominal = (geo.get("target_tokens") or cfg.get("requested_target_tokens") or
+               cfg_geo.get("target_tokens") or identity_geo.get("target_tokens"))
+    actual = (rowmeta.get("actual_occupancy_tokens") or rowmeta.get("actual_C") or
+              geo.get("actual_C") or row_base.get("occupied_tokens") or
+              cfg.get("actual_occupancy_tokens") or cfg.get("actual_C") or
+              cfg_base.get("occupied_tokens"))
+    if nominal is None:
+        nominal = next((r.get("nominal_target_C") or r.get("target_tokens") for r in records
+                        if r.get("nominal_target_C") is not None or r.get("target_tokens") is not None), None)
+    if actual is None:
+        values = [r.get("actual_C_after") for r in records if r.get("actual_C_after") is not None]
+        if not values:
+            values = [r.get("actual_C") for r in records if r.get("actual_C") is not None]
+        if values:
+            actual = max(int(v) for v in values)
+    return actual, nominal
+
+
 def append_schedule_groups(schedule_path, family, nominal_c, mtp, protocol, source_hashes, *, identity_path=None, expected_map_sha=None):
     """Import only successful append schedule entries; never retain request/output text."""
     p=Path(schedule_path)
@@ -350,6 +382,54 @@ def timing_from_sse(path, expected_sha):
     return found[-1] if found else None
 
 
+def response_quality_from_text(text):
+    """Identify long repeated-punctuation responses without rejecting short EOS answers."""
+    compact=''.join(ch for ch in text if not ch.isspace())
+    if len(compact)<64 or any(ch.isalnum() for ch in compact):
+        return {"classification":"no_repeated_punctuation_failure","nonspace_chars":len(compact),"alphanumeric_chars":sum(ch.isalnum() for ch in compact),"dominant_character_fraction":None}
+    counts=defaultdict(int)
+    for ch in compact: counts[ch]+=1
+    dominant=max(counts.values(),default=0)/len(compact)
+    failed=dominant>=0.80
+    return {"classification":"repeated_punctuation_only" if failed else "no_repeated_punctuation_failure","nonspace_chars":len(compact),"alphanumeric_chars":0,"dominant_character_fraction":dominant}
+
+
+def response_quality_for_record(record, source_hashes):
+    """Read and hash-check one SSE response, returning metrics but never its text."""
+    path=record.get('raw_path'); expected=record.get('raw_sha256')
+    if not path or not expected: return {"classification":"raw_response_unavailable","path":path,"sha256":expected,"hash_verified":False}
+    p=Path(path)
+    if not p.is_file(): return {"classification":"raw_response_unavailable","path":str(p),"sha256":expected,"hash_verified":False}
+    digest=sha(p)
+    source_hashes[str(p)]={"sha256":digest,"declared_sha256":expected,"hash_verified":digest==expected}
+    if digest!=expected: return {"classification":"raw_hash_mismatch","path":str(p),"sha256":digest,"hash_verified":False}
+    st=p.stat(); key=(str(p),st.st_mtime_ns,st.st_size,digest)
+    if key in _RESPONSE_QUALITY_CACHE: return dict(_RESPONSE_QUALITY_CACHE[key])
+    parts=[]
+    def add_text(value):
+        if isinstance(value,str): parts.append(value)
+        elif isinstance(value,list):
+            for item in value:
+                if isinstance(item,str): parts.append(item)
+                elif isinstance(item,dict) and isinstance(item.get('text'),str): parts.append(item['text'])
+    with p.open('r',encoding='utf-8',errors='replace') as stream:
+        for line in stream:
+            if not line.startswith('data:'): continue
+            try: frame=json.loads(line[5:].strip())
+            except Exception: continue
+            if not isinstance(frame,dict): continue
+            for choice in frame.get('choices',[]) or []:
+                if not isinstance(choice,dict): continue
+                for block in ('delta','message'):
+                    obj=choice.get(block) or {}
+                    if not isinstance(obj,dict): continue
+                    add_text(obj.get('content')); add_text(obj.get('reasoning_content'))
+    result=response_quality_from_text(''.join(parts))
+    result.update({"path":str(p),"sha256":digest,"hash_verified":True})
+    _RESPONSE_QUALITY_CACHE[key]=result
+    return dict(result)
+
+
 def cell(family, c, mode, pi, triplet, source, identity, variant, mtp, nominal_c=None):
     rates = [float(r["decode_tok_s"]) for r in triplet]
     actuals=[int(r['actual_C']) for r in triplet if r.get('actual_C') is not None]
@@ -422,6 +502,27 @@ def add_raw_family(cells, family, rows, identity, variant, mtp, source_hashes):
                 t = validated_triplet(records, pi, mode, allow_unlabeled)
                 if not t:
                     continue
+                response_audits=[response_quality_for_record(r,source_hashes) for r in t]
+                bad=[(r,q) for r,q in zip(t,response_audits) if q and q.get('classification')=='repeated_punctuation_only' and q.get('hash_verified')]
+                unverified=[(r,q) for r,q in zip(t,response_audits) if q and q.get('classification')=='raw_hash_mismatch']
+                unassessed=[(r,q) for r,q in zip(t,response_audits) if q and q.get('classification')=='raw_response_unavailable']
+                if unassessed:
+                    RESPONSE_QUALITY_UNASSESSED.append({"family":family,"nominal_target_C":int(nominal_override if nominal_override is not None else c),"reasoning_mode":mode,"prompt":f"P{pi+1}","missing_raw_repetitions":[int(r['repetition']) for r,_ in unassessed],"records_path":str(p)})
+                if bad or unverified:
+                    exclusion_status=('whole_triplet_excluded_due_to_repeated_punctuation_only_output' if bad else 'whole_triplet_excluded_due_to_unverified_raw_response')
+                    RESPONSE_QUALITY_EXCLUSIONS.append({
+                            "family":family,
+                            "nominal_target_C":int(nominal_override if nominal_override is not None else c),
+                            "reasoning_mode":mode,
+                            "prompt":f"P{pi+1}",
+                            "status":exclusion_status,
+                            "bad_repetitions":[int(r['repetition']) for r,_ in bad],
+                            "unverified_repetitions":[int(r['repetition']) for r,_ in unverified],
+                            "responses":[{"repetition":int(r['repetition']),"path":q['path'],"sha256":q['sha256'],"hash_verified":q.get('hash_verified'),"classification":q.get('classification'),"nonspace_chars":q.get('nonspace_chars'),"alphanumeric_chars":q.get('alphanumeric_chars'),"dominant_character_fraction":q.get('dominant_character_fraction')} for r,q in [*bad,*unverified]],
+                            "records_path":str(p),
+                            "records_sha256":actual_hash,
+                        })
+                    continue
                 # Prefer newer current campaign by caller ordering; whole cell is replaced.
                 observed_cs={int(r['actual_C']) for r in t if r.get('actual_C') is not None}
                 actual_c=next(iter(observed_cs)) if len(observed_cs)==1 else (geometry_meta.get('actual_C') if geometry_meta.get('actual_C') is not None else int(c))
@@ -454,11 +555,7 @@ def discover_current_completion(plan, source_hashes):
                 rowp = p.parent / "row.json"
                 rowmeta = jread(rowp) if rowp.exists() else {}
                 if not spec.get("allow_partial_triplets") and not row_is_complete(rowmeta): continue
-                geo = rowmeta.get("geometry", {}) if isinstance(rowmeta.get("geometry", {}), dict) else {}
-                base = cfg.get("base", rowmeta.get("base", {}))
-                if not isinstance(base, dict): base = {}
-                actual = rowmeta.get("actual_occupancy_tokens", rowmeta.get("actual_C", geo.get("actual_C", base.get("occupied_tokens"))))
-                nominal = geo.get("target_tokens", cfg.get("requested_target_tokens"))
+                actual, nominal = campaign_fallback_geometry(read_records(p), cfg, rowmeta)
                 if actual is None or nominal is None: continue
                 rows[spec["family"]].append((int(actual), str(p), None,
                     {"approved_retained_series":str(series),"retention_reason":spec.get("reason"),"allow_partial_triplets":bool(spec.get("allow_partial_triplets")),"run_config":str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None},
@@ -481,20 +578,8 @@ def discover_current_completion(plan, source_hashes):
                 cfg = jread(cfgp) if cfgp.exists() else {}
                 rowp = p.parent / "row.json"
                 rowmeta = jread(rowp) if rowp.exists() else {}
-                geometry = rowmeta.get("geometry", {}) if isinstance(rowmeta.get("geometry", {}), dict) else {}
-                base = cfg.get("base", rowmeta.get("base", {}))
-                if not isinstance(base, dict): base = {}
-                c = rowmeta.get("actual_occupancy_tokens", rowmeta.get("actual_C", geometry.get("actual_C")))
-                if c is None: c = cfg.get("actual_occupancy_tokens", cfg.get("actual_C", base.get("occupied_tokens")))
-                if c is None:
-                    with p.open(encoding="utf-8") as stream:
-                        first = json.loads(stream.readline())
-                    recbase = first.get("base", {}) if isinstance(first.get("base", {}),dict) else {}
-                    c = first.get("actual_occupancy_tokens", first.get("actual_C", recbase.get("occupied_tokens")))
-                if not c:
-                    continue
-                nominal=geometry.get("target_tokens",cfg.get("requested_target_tokens"))
-                if nominal is None: continue
+                c, nominal = campaign_fallback_geometry(read_records(p), cfg, rowmeta)
+                if nominal is None or c is None: continue
                 provenance={"run_config":str(cfgp) if cfgp.exists() else None,"row_metadata":str(rowp) if rowp.exists() else None,"execution_step_id":step_id}
                 if step.get("outlier_series_id"):
                     provenance["independent_series_id"]=step["outlier_series_id"]
@@ -524,21 +609,27 @@ def discover_current_prefill(plan, source_hashes):
         schedules=root.glob('cell/C*/campaign/schedule.jsonl') if spec else root.glob(f'{step_id}/**/schedule.jsonl')
         for schedule in schedules:
             rowp=schedule.parent/'row.json'
-            if not rowp.is_file(): continue
             try:
-                row=jread(rowp)
+                row=jread(rowp) if rowp.is_file() else {}
                 # Partial series may contribute recorded append groups, but not imply series completion.
                 if spec and not spec.get('allow_partial_triplets') and not row_is_complete(row): continue
                 geo=row.get('geometry',{}) if isinstance(row.get('geometry',{}),dict) else {}
                 base=row.get('base',{}) if isinstance(row.get('base',{}),dict) else {}
-                nominal=geo.get('target_tokens')
-                actual=base.get('occupied_tokens',row.get('actual_occupancy_tokens'))
+                cfgp=schedule.parent/'run-config.json'
+                cfg=jread(cfgp) if cfgp.is_file() else {}
+                record_path=schedule.parent/'records.jsonl'
+                compact_records=read_records(record_path) if record_path.is_file() else []
+                actual,nominal=campaign_fallback_geometry(compact_records,cfg,row)
+                if actual is None:
+                    entries=[json.loads(line) for line in schedule.read_text().splitlines() if line.strip()]
+                    actual=entries[-1].get('cumulative_tokens') if entries else None
                 if nominal is None or actual is None: continue
-                identity=row.get('filled_prefix_method','current-plan schedule')
-                source_hashes[str(rowp)]={"sha256":sha(rowp)}
+                identity=row.get('filled_prefix_method') or cfg.get('identity',{}).get('filled_prefix_method') or 'current-plan schedule'
+                if rowp.is_file(): source_hashes[str(rowp)]={"sha256":sha(rowp)}
+                if cfgp.is_file(): source_hashes[str(cfgp)]={"sha256":sha(cfgp)}
                 first=len(PREFILL_GROUPS)
                 expected=(plan.get('chunk_map') or {}).get('sha256')
-                append_schedule_groups(schedule,family,nominal,mtp,str(identity),source_hashes,identity_path=rowp,expected_map_sha=expected)
+                append_schedule_groups(schedule,family,nominal,mtp,str(identity),source_hashes,identity_path=rowp if rowp.is_file() else cfgp,expected_map_sha=expected)
                 for group in PREFILL_GROUPS[first:]:
                     group['execution_step_id']=step_id
                     group['source']['execution_step_id']=step_id
@@ -550,7 +641,7 @@ def discover_current_prefill(plan, source_hashes):
 
 
 def collect(out, plan_path=None):
-    PREFILL_GROUPS.clear(); _PREFILL_SEEN.clear(); OUTLIER_SERIES_CELLS.clear()
+    PREFILL_GROUPS.clear(); _PREFILL_SEEN.clear(); OUTLIER_SERIES_CELLS.clear(); RESPONSE_QUALITY_EXCLUSIONS.clear(); RESPONSE_QUALITY_UNASSESSED.clear()
     _IDENTITY_ARTIFACTS.clear()
     cells, source_hashes, identities = {}, {}, {}
     empty_context_controls=[]
@@ -693,6 +784,15 @@ def collect(out, plan_path=None):
             sources = []
             for raw in raw_refs:
                 sources.append({"path": raw.get("path"), "sha256": raw.get("sha256"), "request_path": raw.get("request_path"), "request_sha256": raw.get("request_sha256")})
+            audits=[response_quality_for_record({'raw_path':r.get('path'),'raw_sha256':r.get('sha256')},source_hashes) for r in raw_refs]
+            bad=[(i,q) for i,q in enumerate(audits,1) if q and q.get('classification')=='repeated_punctuation_only' and q.get('hash_verified')]
+            unverified=[(i,q) for i,q in enumerate(audits,1) if q and q.get('classification')=='raw_hash_mismatch']
+            unassessed=[(i,q) for i,q in enumerate(audits,1) if q and q.get('classification')=='raw_response_unavailable']
+            if unassessed:
+                RESPONSE_QUALITY_UNASSESSED.append({'family':family,'nominal_target_C':int(x.get('target_C',run.get('target_C',x['actual_C']))),'reasoning_mode':x.get('reasoning_mode'),'prompt':x.get('prompt'),'missing_raw_repetitions':[i for i,_ in unassessed],'source_report':str(aco_path)})
+            if bad or unverified:
+                RESPONSE_QUALITY_EXCLUSIONS.append({'family':family,'nominal_target_C':int(x.get('target_C',run.get('target_C',x['actual_C']))),'reasoning_mode':x.get('reasoning_mode'),'prompt':x.get('prompt'),'status':'whole_triplet_excluded_due_to_repeated_punctuation_only_output' if bad else 'whole_triplet_excluded_due_to_unverified_raw_response','bad_repetitions':[i for i,_ in bad],'unverified_repetitions':[i for i,_ in unverified],'responses':[{'repetition':i,'path':q.get('path'),'sha256':q.get('sha256'),'hash_verified':q.get('hash_verified'),'classification':q.get('classification'),'nonspace_chars':q.get('nonspace_chars'),'alphanumeric_chars':q.get('alphanumeric_chars'),'dominant_character_fraction':q.get('dominant_character_fraction')} for i,q in [*bad,*unverified]],'source_report':str(aco_path),'source_report_sha256':source_hashes[str(aco_path)]['sha256']})
+                continue
             source = {"report": str(aco_path), "report_sha256": source_hashes[str(aco_path)]["sha256"], "cell_key": ck, "raw_refs": sources, "row_path": run.get("row_path"), "row_sha256": run.get("row_sha256"), "config_path": run.get("config_path"), "config_sha256": run.get("config_sha256")}
             nominal_c=int(x.get("target_C",run.get("target_C",x["actual_C"])))
             d = {"family":family,"variant":"current ACO","mtp":"on" if mtp else "off","placement":"GPU target; ACO","actual_C":int(x["actual_C"]),"nominal_target_C":nominal_c,"reasoning_mode":mode,"prompt":prompt,
@@ -785,8 +885,8 @@ def write_svg_png(pathbase, mode, subset_families, cells, metric="decode_tok_s",
             for ax in axes:
                 handles,labels=ax.get_legend_handles_labels()
                 if handles: break
-        if handles: fig.legend(handles,labels,loc='lower center',ncol=min(5,len(labels)),frameon=False,bbox_to_anchor=(.5,-.01))
-        fig.tight_layout(rect=(0,.08,1,.94))
+        if handles: fig.legend(handles,labels,loc='lower center',ncol=min(5,len(labels)),frameon=False,bbox_to_anchor=(.5,.01))
+        fig.tight_layout(rect=(0,.14,1,.94))
         png=pathbase.with_suffix('.png'); svg=pathbase.with_suffix('.svg')
         fig.savefig(png,dpi=180,bbox_inches='tight'); fig.savefig(svg,bbox_inches='tight'); plt.close(fig)
         return str(svg),str(png)
@@ -1321,13 +1421,34 @@ def main():
             if b['actual_C']>a['actual_C'] and abs(b['decode_tok_s']['median']/a['decode_tok_s']['median']-1)>.30:
                 flags.append({"type":"adjacent_observed_checkpoint_change_over_30_percent","family":k[0],"mode":k[1],"prompt":k[2],"from_C":a['actual_C'],"to_C":b['actual_C'],"relative_change":b['decode_tok_s']['median']/a['decode_tok_s']['median']-1})
     counts={}
+    capacity_excluded=[]
+    capacity_keys=defaultdict(set)
+    for outcome in plan.get('capacity_n_a_outcomes',[]):
+        if not isinstance(outcome,dict) or outcome.get('family') not in FAMILIES[:8] or outcome.get('nominal_C') is None: continue
+        fam=outcome['family']; c=int(outcome['nominal_C'])
+        for mode in MODES:
+            for pi in range(3):
+                key=(c,mode,pi); capacity_keys[fam].add(key)
+                capacity_excluded.append({'family':fam,'nominal_target_C':c,'reasoning_mode':mode,'prompt':f'P{pi+1}','status':outcome.get('status'),'source_path':outcome.get('source_path')})
     for f in FAMILIES:
         got=sorted({d['actual_C'] for d in celllist if d['family']==f})
         nominal=sorted({d['nominal_target_C'] for d in celllist if d['family']==f})
         want=required.get(f,{"checkpoints":[],"cells":[]})
         observed={(d['nominal_target_C'],d['reasoning_mode'],int(d['prompt'][-1])-1) for d in celllist if d['family']==f}
         needed={tuple(x) for x in want["cells"]}
-        counts[f]={"observed_actual_C":got,"observed_nominal_target_C":nominal,"complete_cells":sum(d['family']==f for d in celllist),"complete_repeats":3*sum(d['family']==f for d in celllist),"declared_required_checkpoints":want["checkpoints"],"missing_required_checkpoints":sorted(set(want["checkpoints"])-set(nominal)),"declared_required_cell_count":len(needed),"available_declared_required_cell_count":len(needed & observed),"missing_declared_required_cells":[{"nominal_target_C":c,"mode":m,"prompt":f"P{pi+1}"} for c,m,pi in sorted(needed-observed)]}
+        missing_cells=[{"nominal_target_C":c,"mode":m,"prompt":f"P{pi+1}"} for c,m,pi in sorted(needed-observed)]
+        feasible_missing=needed-observed-capacity_keys.get(f,set())
+        quality_missing={(x['nominal_target_C'],x['reasoning_mode'],int(x['prompt'][-1])-1) for x in RESPONSE_QUALITY_EXCLUSIONS if x['family']==f} & (needed-observed)
+        unassessed_quality_count=sum(x['family']==f for x in RESPONSE_QUALITY_UNASSESSED)
+        if needed:
+            if not missing_cells: coverage_status="complete declared coverage"
+            else: coverage_status=f"incomplete: {len(needed & observed)}/{len(needed)} usable; {len(quality_missing)} quality-rejected; {len(needed & capacity_keys.get(f,set()))} capacity-N/A; {len(feasible_missing)} feasible gaps"
+        elif f.startswith('current-aco-'):
+            run=next((r for r in aco.get('runs',[]) if r.get('mtp')==f.rsplit('-',1)[-1]),None)
+            coverage_status="complete source curve" if run and run.get('status')=='complete' and sum(d['family']==f for d in celllist)==132 else "incomplete source curve"
+        else:
+            coverage_status="no plan-declared required cells"
+        counts[f]={"observed_actual_C":got,"observed_nominal_target_C":nominal,"complete_cells":sum(d['family']==f for d in celllist),"complete_repeats":3*sum(d['family']==f for d in celllist),"declared_required_checkpoints":want["checkpoints"],"missing_required_checkpoints":sorted(set(want["checkpoints"])-set(nominal)),"declared_required_cell_count":len(needed),"available_declared_required_cell_count":len(needed & observed),"missing_declared_required_cells":missing_cells,"missing_feasible_cells":[{"nominal_target_C":c,"mode":m,"prompt":f"P{pi+1}"} for c,m,pi in sorted(feasible_missing)],"quality_rejected_required_cells":[{"nominal_target_C":c,"mode":m,"prompt":f"P{pi+1}"} for c,m,pi in sorted(quality_missing)],"capacity_excluded_required_cells":[{"nominal_target_C":c,"mode":m,"prompt":f"P{pi+1}"} for c,m,pi in sorted(needed & capacity_keys.get(f,set()))],"response_quality_unassessed_source_triplet_count":unassessed_quality_count,"coverage_status":coverage_status}
     # CSV contains sanitized per-cell triplet summaries only.
     csvpath=out/'comparison-cells-20261104.csv'
     with csvpath.open('w',newline='') as f:
@@ -1338,8 +1459,67 @@ def main():
             w.writerow({'family':d['family'],'variant':d['variant'],'placement':d['placement'],'mtp':d['mtp'],'nominal_target_C':d['nominal_target_C'],'actual_C':d['actual_C'],'reasoning_mode':d['reasoning_mode'],'prompt':d['prompt'],'decode_min':d['decode_tok_s']['min'],'decode_median':d['decode_tok_s']['median'],'decode_max':d['decode_tok_s']['max'],'decode_repeats':json.dumps(d['decode_tok_s']['repeats']),'acceptance_min':ac.get('min'),'acceptance_median':ac.get('median'),'acceptance_max':ac.get('max'),'source_path':path,'source_sha256':sh})
     report={"schema":"comparison-final-digest-v1","generated":"2026-11-04","data_only_export":DATA_ONLY,"charts_rendered":not DATA_ONLY,"queue_status":None,"queue_progress_path":str(Path(plan.get('output_root',''))/'queue-progress.json'),"queue_progress":None,"families":FAMILIES,"source_identities":ids,"source_identity_artifacts":_IDENTITY_ARTIFACTS,"source_files":hashes,"coverage":counts,"cell_count":len(celllist),"measured_repeat_count":3*len(celllist),"cells":celllist,"empty_context_controls_separate_cohort":empty_context_controls,"diagnostic_flags_review_only":flags,"limitations":["Only observed actual C values are plotted; no interpolation or manufactured grid points.","At a matching family/nominal target C/mode/prompt, later valid complete evidence replaces the whole earlier cell; repetitions are never cherry-picked.","MTP-on acceptance is shown only when measured for all three valid repetitions; MTP-off is N/A.","Historical fresh-prefill and current persistent 32K-map prefill are separate protocols and are not pooled.","Rate summaries do not establish causality or statistical significance.","A nonzero VmSwap observation exists for current ACO MTP-on; memory residency and page-in I/O are not certified."]}
     report['independent_outlier_rechecks']={"declared":plan.get('outlier_rechecks'),"complete_cells":sorted(OUTLIER_SERIES_CELLS,key=lambda d:(d.get('independent_series_id',''),d['reasoning_mode'],d['prompt'])),"replacement_policy":"Independent series remain separate robustness evidence; they do not overwrite the main-family cell."}
+    report['capacity_excluded_cells']=capacity_excluded
     report['reused_decode_outcomes']=plan.get('reused_decode_outcomes',[])
     report["excluded_series"]=[{k:s.get(k) for k in ("family","path","reason")} for s in plan.get("quarantined_series",[]) if isinstance(s,dict)]
+    report['response_quality_audit']={
+        'scope':'Hash-verified saved SSE responses available from imported benchmark cells; full answer text is never exported.',
+        'classifier':'Flag a whole measured triplet if any repetition has at least 64 nonspace output characters, no alphanumeric characters across visible content plus reasoning, and one punctuation character accounts for at least 80% of the output.',
+        'excluded_source_triplets':RESPONSE_QUALITY_EXCLUSIONS,
+        'unassessed_source_triplets':RESPONSE_QUALITY_UNASSESSED,
+        'limits':['This narrow artifact check catches repeated-punctuation failures; it is not a semantic-accuracy or general answer-quality validator.','Short EOS answers and reasoning-only answers with alphanumeric text are preserved.','Missing raw SSE is marked unassessed, not treated as pathological.']}
+    quality_csv=out/'comparison-response-quality-failures-20261104.csv'
+    with quality_csv.open('w',newline='') as f:
+        fields=['family','nominal_target_C','reasoning_mode','prompt','status','bad_repetitions','unverified_repetitions','records_path','records_sha256','response_sources']
+        w=csv.DictWriter(f,fieldnames=fields);w.writeheader()
+        for x in RESPONSE_QUALITY_EXCLUSIONS:
+            w.writerow({'family':x.get('family'),'nominal_target_C':x.get('nominal_target_C'),'reasoning_mode':x.get('reasoning_mode'),'prompt':x.get('prompt'),'status':x.get('status'),'bad_repetitions':json.dumps(x.get('bad_repetitions',[])),'unverified_repetitions':json.dumps(x.get('unverified_repetitions',[])),'records_path':x.get('records_path') or x.get('source_report'),'records_sha256':x.get('records_sha256') or x.get('source_report_sha256'),'response_sources':json.dumps(x.get('responses',[]),sort_keys=True)})
+    execution_findings=[]
+    for finding in plan.get('runtime_findings',[]):
+        if not isinstance(finding,dict): continue
+        item={k:finding.get(k) for k in ('family','status','reason','complete_cells_imported','source_path') if k in finding}
+        source_path=finding.get('source_path')
+        if source_path and Path(source_path).is_file():
+            item['source_sha256']=sha(source_path)
+            hashes[source_path]={'sha256':item['source_sha256']}
+        execution_findings.append(item)
+    capacity_receipt=plan.get('known_capacity_result_reused')
+    if isinstance(capacity_receipt,dict):
+        receipt=capacity_receipt.get('receipt') or {}
+        startup=capacity_receipt.get('startup_log') or {}
+        for artifact in (receipt,startup):
+            path=artifact.get('path'); declared=artifact.get('sha256')
+            if path and Path(path).is_file(): hashes[path]={'sha256':sha(path),'declared_sha256':declared,'hash_verified':sha(path)==declared}
+        execution_findings.append({'family':capacity_receipt.get('family'),'status':capacity_receipt.get('status'),'reason':capacity_receipt.get('note'),'source_path':receipt.get('path'),'source_sha256':hashes.get(receipt.get('path'),{}).get('sha256'),'startup_log_path':startup.get('path'),'startup_log_sha256':hashes.get(startup.get('path'),{}).get('sha256')})
+    # Preserve an operator assessment only when an approved retained series has
+    # a source-side assessment artifact. Do not infer the disposition from an
+    # exit code or bake a cell count into the report generator.
+    for spec in plan.get('retained_completed_series',[]):
+        if not isinstance(spec,dict): continue
+        series_path=Path(spec.get('path',''))
+        assessment=series_path/'operator-assessment.json'
+        if not assessment.is_file(): continue
+        try: disposition=jread(assessment)
+        except Exception: continue
+        classification=disposition.get('classification')
+        if classification!='operator_stopped_after_valid_measurements': continue
+        digest=sha(assessment); hashes[str(assessment)]={'sha256':digest}
+        item={'family':spec.get('family'),'series_id':spec.get('series_id'),'status':classification,'series_status_preserved':disposition.get('series_status_preserved'),'reason':disposition.get('note'),'source_path':str(assessment),'source_sha256':digest}
+        execution_findings.append(item)
+    for step in plan.get('steps',[]):
+        if not isinstance(step,dict) or not step.get('outlier_series_id'): continue
+        for profile in step.get('profiles',[]):
+            profile_root=profile.get('profile_run_root')
+            if not profile_root: continue
+            assessment=Path(profile_root)/'operator-assessment.json'
+            if not assessment.is_file(): continue
+            try: disposition=jread(assessment)
+            except Exception: continue
+            digest=sha(assessment); hashes[str(assessment)]={'sha256':digest}
+            completed=disposition.get('completed_valid_requests',[])
+            fault=disposition.get('fault') or {}
+            execution_findings.append({'family':step.get('family'),'series_id':step.get('outlier_series_id'),'status':disposition.get('classification'),'reason':disposition.get('note'),'valid_measured_repetitions':sum(r.get('kind')=='measured' and r.get('status')=='pass' for r in completed if isinstance(r,dict)),'runtime_fault_status':fault.get('status'),'runtime_fault_error':fault.get('error'),'source_path':str(assessment),'source_sha256':digest})
+    report['execution_findings']=execution_findings
     report['generated_at_utc'] = datetime.now(timezone.utc).isoformat()
     qp=Path(plan.get('output_root',''))/'queue-progress.json'
     if qp.exists():
@@ -1427,9 +1607,23 @@ def main():
     report['tables_appendix_path']=str(out/'comparison-tables-20261104.md')
     write_tables_appendix(out/'comparison-tables-20261104.md',celllist,prefill,bulk_cohorts,checkpoint_ingest,memory_rows,aco,matched)
     (out/'comparison-final-20261104.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
-    md=["# Comparison report digest — 2026-11-04","",f"Validated complete cells: **{len(celllist)}**; measured repeats: **{3*len(celllist)}**.",f"Queue status at generation: **{report['queue_status'] or 'not available'}**. This is not a completeness claim while the completion queue is running or awaiting assessment.","","Each primary plotted point groups the original requested context checkpoint, with min/median/max of three valid measured HTTP 200 complete-stream repetitions. New normal-conversation runs retain earlier questions and answers, so actual occupancy may grow; per-repetition actual counts and ranges remain in the data. Append-level prefill diagnostics still use actual occupancy. Nominal requested C and observed actual C are both retained; coverage matching and primary plots use nominal C; actual counts are retained separately, and append diagnostics use actual C. No interpolation or missing checkpoint substitution is used. If multiple sources cover the same family/nominal-C/mode/prompt, the complete cell from the later source replaces the prior cell as a whole.","","## Family coverage","","| Family | Complete cells | Nominal target C | Observed actual C | Missing required nominal C |","|---|---:|---|---|---|"]
+    md=["# Comparison report digest — 2026-11-04","",f"Validated complete cells: **{len(celllist)}**; measured repeats: **{3*len(celllist)}**.",f"Queue status at generation: **{report['queue_status'] or 'not available'}**. This is not a completeness claim while the completion queue is running or awaiting assessment.","","Each primary plotted point groups the original requested context checkpoint, with min/median/max of three valid measured HTTP 200 complete-stream repetitions. New normal-conversation runs retain earlier questions and answers, so actual occupancy may grow; per-repetition actual counts and ranges remain in the data. Append-level prefill diagnostics still use actual occupancy. Nominal requested C and observed actual C are both retained; coverage matching and primary plots use nominal C; actual counts are retained separately, and append diagnostics use actual C. No interpolation or missing checkpoint substitution is used. If multiple sources cover the same family/nominal-C/mode/prompt, the complete cell from the later source replaces the prior cell as a whole.","","## Family coverage","","A complete streaming HTTP response is necessary but does not certify semantic quality. Hash-verified responses matching the narrow repeated-punctuation rule are excluded as whole triplets; short EOS and reasoning-only responses remain eligible. Missing raw response files are marked unassessed. Capacity N/A outcomes are listed separately from measured cells and runnable gaps.","","| Family | Status | Complete cells | Nominal target C | Observed actual C | Missing required nominal C |","|---|---|---:|---|---|---|"]
     for f in FAMILIES:
-        c=counts[f]; md.append(f"| {f} | {c['complete_cells']} | {', '.join(map(str,c['observed_nominal_target_C'])) or '—'} | {', '.join(map(str,c['observed_actual_C'])) or '—'} | {', '.join(map(str,c['missing_required_checkpoints'])) or '—'} |")
+        c=counts[f]; md.append(f"| {f} | {c['coverage_status']} | {c['complete_cells']} | {', '.join(map(str,c['observed_nominal_target_C'])) or '—'} | {', '.join(map(str,c['observed_actual_C'])) or '—'} | {', '.join(map(str,c['missing_required_checkpoints'])) or '—'} |")
+    if RESPONSE_QUALITY_EXCLUSIONS:
+        md += ["", "## Response-quality exclusions", "", "Whole triplets with hash-verified repeated-punctuation-only output were removed from the normal comparison cells. The JSON/CSV inventory lists source paths, hashes, repetitions, and text-shape counts without copying response text.", "", "| Family | Nominal C | Mode | Prompt | Bad reps | Status |", "|---|---:|---|---|---|---|"]
+        for x in RESPONSE_QUALITY_EXCLUSIONS:
+            md.append(f"| {x.get('family')} | {x.get('nominal_target_C')} | {x.get('reasoning_mode')} | {x.get('prompt')} | {', '.join(map(str,x.get('bad_repetitions',[]))) or '—'} | {x.get('status')} |")
+    if RESPONSE_QUALITY_UNASSESSED:
+        md += ["", f"Raw response audit unavailable for **{len(RESPONSE_QUALITY_UNASSESSED)} source triplets**; those cells are marked unassessed and are not excluded by this audit."]
+    if capacity_excluded:
+        md += ["", "## Capacity-excluded points", "", "These are known allocation/capacity limits, not completed benchmark cells and not currently scheduled runnable gaps.", "", "| Family | Nominal C | Modes / prompts | Status | Source |", "|---|---:|---|---|---|"]
+        for outcome in plan.get('capacity_n_a_outcomes',[]):
+            md.append(f"| {outcome.get('family')} | {outcome.get('nominal_C')} | all 4 modes × 3 prompts | {outcome.get('status')} | `{outcome.get('source_path')}` |")
+    if execution_findings:
+        md += ["", "## Runtime and operator dispositions", "", "These dispositions explain incomplete families; they are not measurement cells. Only complete validated triplets appear in the decode tables.", "", "| Family / series | Status | Finding | Source |", "|---|---|---|---|"]
+        for finding in execution_findings:
+            md.append(f"| {finding.get('family','—')} / {finding.get('series_id','—')} | {finding.get('status','—')} | {finding.get('reason','—')} | `{finding.get('source_path','—')}` |")
     if report.get("excluded_series"):
         md += ["", "## Excluded series", "", "These R4 attempts are quarantined because their target-only slot restore did not preserve the native MTP draft history. They are excluded from primary cells and prefill summaries.", "", "| Family | Series path | Reason |", "|---|---|---|"]
         for s in report["excluded_series"]:
@@ -1442,7 +1636,7 @@ def main():
     if DATA_ONLY: md.append("Charts were intentionally skipped in this data-only readiness export.")
     else:
         for p in sorted(out.glob('*.svg')): md.append(f"- [{p.name}]({p.name})")
-    md += ["","## Prefill","","Mapped-fill interval charts sum chunks containing new input since the previous checkpoint; they do not plot cumulative-from-zero averages. Per-checkpoint rates divide the interval's summed tokens by summed matching durations, including any checkpoint tail. Actual-C interval start and end are provided where derivable. Separate append-level diagnostics show mapped regular groups, mapped checkpoint tails, and unmapped historical variable groups. Family colors match the decode charts, and markers identify append kind. Protocol values remain in the JSON/CSV data; MTP acceptance scope is not treated as a prefill protocol. No prefill rows are removed from the data exports.","","## Provenance and caveats","","Full sanitized cell data, source paths, SHA-256 digests, family identities, queue state, and review flags are in `comparison-final-20261104.json`; decode cells are in `comparison-cells-20261104.csv`, append diagnostics in `comparison-prefill-append-groups-20261104.csv`, and mapped checkpoint ingest summaries in `comparison-prefill-mapped-checkpoints-20261104.csv`. Raw request/output payloads remain external and are not copied.","","Repeat-spread and neighboring-point flags are review cues only; they do not automatically invalidate otherwise complete evidence. Rates are observations, not causal claims or significance tests. Current ACO MTP-on includes a documented VmSwap peak; the report does not certify RAM-only residency or page-in I/O.",""]
+    md += ["","## Prefill","","Mapped-fill interval charts sum chunks containing new input since the previous checkpoint; they do not plot cumulative-from-zero averages. Per-checkpoint rates divide the interval's summed tokens by summed matching durations, including any checkpoint tail. Actual-C interval start and end are provided where derivable. Separate append-level diagnostics show mapped regular groups, mapped checkpoint tails, and unmapped historical variable groups. Family colors match the decode charts, and markers identify append kind. Protocol values remain in the JSON/CSV data; MTP acceptance scope is not treated as a prefill protocol. No prefill rows are removed from the data exports.","","## Provenance and caveats","","Full sanitized cell data, source paths, SHA-256 digests, family identities, queue state, exclusions, and review flags are in `comparison-final-20261104.json`; decode cells are in `comparison-cells-20261104.csv`, response-quality failures in `comparison-response-quality-failures-20261104.csv`, append diagnostics in `comparison-prefill-append-groups-20261104.csv`, and mapped checkpoint ingest summaries in `comparison-prefill-mapped-checkpoints-20261104.csv`. Raw request/output payloads remain external and are not copied.","","Repeat-spread and neighboring-point flags are review cues only; they do not automatically invalidate otherwise complete evidence. Rates are observations, not causal claims or significance tests. Current ACO MTP-on includes a documented VmSwap peak; the report does not certify RAM-only residency or page-in I/O.",""]
     (out/'comparison-final-20261104.md').write_text('\n'.join(md))
     print(json.dumps({"out":str(out),"cells":len(celllist),"repeats":3*len(celllist),"queue_status":report['queue_status'],"families":{k:v['complete_cells'] for k,v in counts.items()},"files":sorted(p.name for p in out.iterdir())},indent=2))
 

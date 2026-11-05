@@ -1,202 +1,76 @@
 {
-  "capacity_and_exclusions": {
-    "fresh_normal_prefix_runtime_fault": "R8 master-GPU-MTP-off CUDA illegal access on first appended question after successful C6144 fill; distinct from R4 quarantine and not a capacity finding",
-    "gpu_mtp_off_c130048": {
-      "fork-gpu-mtp-off": "12 cells verified capacity N/A",
-      "master-gpu-mtp-off": "12 cells verified capacity N/A",
-      "note": "This endpoint is excluded from the 120 feasible-gap count; active GPU-off fallback profile is L122880."
-    },
-    "master_cpu_mtp_on_c262144": "Real historical1730MiB GPU allocation failure, but clean sole-owner startup not documented. Add fresh startup-only confirmation at idle; if it fits, schedule only missing256Kdecode cells aftermappedfill.",
-    "quarantine_reason": "target-only slot restoration did not preserve native MTP full-prefix state/carry; keep as diagnostic history, exclude from intended resident-MTP comparison",
-    "quarantined_old_slot_restore": [
-      "R4 fork-cpu-mtp-on",
-      "R4 master-cpu-mtp-on"
-    ]
+  "captured_utc": "2026-11-05T04:42:50Z",
+  "status": "R9 finished_with_findings; no active comparison queue",
+  "source_plans": {
+    "R8": {"path": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104_R8.json", "sha256": "78f75739d69e9d36cec02c94852baceef571a5a39333a5781f515479165a8d89"},
+    "R9": {"path": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104_R9.json", "sha256": "d94223ec4357e3d9de6fda0adfb18bec4de1a4aef3c5d3bc3793dabf7787fa6e"}
   },
-  "captured_utc": "2026-11-05T00:35:57Z",
-  "counting": {
-    "gap_count_unit": "cells, not HTTP requests; ordinary cell requires warmup plus three measured requests (4 requests total)",
-    "independent_outlier_unit": "one independent configuration series for master CPU MTP-on, C28672 / off / prompt 3; three such series are robustness checks, not three different cells",
-    "primary_gap_math": "120 selected base cells minus 16 complete = 104 remaining base cells; plus three independent outlier cohorts",
-    "queue_progress_as_of_utc": "2026-11-05T00:35:57Z; direct bounded record audit, passing warmup and three distinct passing measured repetitions per complete cell",
-    "scientific_cell": "one nominal context \u00d7 reasoning mode \u00d7 prompt index, requiring one valid complete triplet of measured repetitions"
-  },
-  "plan_erratum": "R8 metadata labels the first six steps decode_policy/decode_strategy as ingest-only despite positive selections and expected request counts; derive decode work from checkpoint selections/expected counts. Only fork-GPU-MTP-off is actually ingest-only.",
-  "remaining": {
-    "fork-cpu-mtp-on": {
-      "note": "Direct live record audit; completed QA retained in continuing mapped-source series.",
-      "planned_selected_by_nominal_context": {
-        "12288": 9,
-        "126976": 9,
-        "196608": 1,
-        "28672": 9,
-        "61440": 9
-      },
-      "remaining_cells": 21,
-      "reported_complete_of_selected": 16,
-      "reported_complete": 16,
-      "remaining_by_nominal_context": {
-        "28672": 2,
-        "61440": 9,
-        "126976": 9,
-        "196608": 1
-      }
-    },
-    "fork-gpu-mtp-off": {
-      "note": "R8 step is mapped-prefill-only; its empty decode selections create no decode gaps.",
-      "pending_ingest_only": true,
-      "remaining_decode_cells": 0
-    },
-    "master-cpu-mtp-on": {
-      "note": "Queued primary L200704. Historical L262144 OOM lacks clean prelaunch GPU-owner evidence; startup-only confirmation queued after primary.",
-      "planned_selected_by_nominal_context": {
-        "12288": 9,
-        "126976": 9,
-        "196608": 2,
-        "28672": 9,
-        "6144": 3,
-        "61440": 9
-      },
-      "remaining_cells": 41,
-      "reported_complete": 0,
-      "remaining_by_nominal_context": {
-        "6144": 3,
-        "12288": 9,
-        "28672": 9,
-        "61440": 9,
-        "126976": 9,
-        "196608": 2
-      }
-    },
-    "master-cpu-mtp-on-outlier-rechecks": {
-      "each_cohort": {
-        "measured_repetitions": 3,
-        "mode": "off",
-        "nominal_context": 28672,
-        "prompt_index": 2,
-        "series_length": 3
-      },
-      "note": "Three fresh independent normal-prefix series; do not pool or choose the fastest triplet.",
-      "remaining_independent_cohorts": 3
-    },
-    "master-gpu-mtp-off": {
-      "note": "R8 attempt recorded runtime/driver CUDA illegal access during first appended question after successful C6144 fill. Treat these cells as blocked/unmeasured, not capacity N/A. R7 earlier partial native-restore failure is also retained only diagnostically.",
-      "planned_selected_by_nominal_context": {
-        "120832": 3,
-        "12288": 10,
-        "28672": 10,
-        "6144": 12,
-        "62464": 1,
-        "88064": 6
-      },
-      "remaining_cells": 42,
-      "reported_complete": 0,
-      "remaining_by_nominal_context": {
-        "6144": 12,
-        "12288": 10,
-        "28672": 10,
-        "62464": 1,
-        "88064": 6,
-        "120832": 3
-      }
+  "report": {
+    "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/comparison-final-20261104.json",
+    "sha256": "f3f9bfef2b39d0945c87ad43e357638553e310fd52b5b7eb9343cab34b99af2b",
+    "usable_complete_cells": 805,
+    "measured_repetitions": 2415,
+    "complete_triplet_definition": "three distinct measured HTTP 200 complete-stream repetitions with valid timings and >3 generated tokens; known repeated-punctuation pathology excluded when raw SSE is available",
+    "response_quality": {
+      "classifier": "at least 64 nonspace characters; no alphanumeric visible content or reasoning; one punctuation character is at least 80% of response",
+      "whole_source_triplets_excluded": 31,
+      "by_source": {"R8 fork-cpu-mtp-on": 27, "R9 fork-cpu-mtp-on": 4},
+      "unassessed_source_triplets_missing_raw": 189,
+      "note": "Short EOS and reasoning-only responses are retained. The classifier is not a semantic-accuracy check."
     }
   },
-  "retained_coverage": {
-    "aco": "Both ACO states (MTP on and off) retain the completed 11-checkpoint \u00d7 3-prompt \u00d7 4-mode matrix: 264 cells total; each has three valid measured repetitions.",
-    "historical_controls": "Previously validated master/fork GPU and CPU controls remain indexed and retained, including the earlier complete master-GPU-MTP-on and fork-GPU-MTP-on cohorts. R4 fork-CPU-MTP-off remains valid. R5/R6/R7 approved partial sources contribute only individually complete triplets.",
-    "master_cpu_mtp_off": "R7 normal-prefix completed comparison cells retained; not rerun in R8.",
-    "scope": "Ten scientific families are the eight master/fork \u00d7 GPU/CPU \u00d7 MTP on/off controls plus ACO MTP-on and ACO MTP-off. Fresh gap work concerns only the explicitly selected missing cells; it does not erase retained historical cells."
+  "gap_fill_scope": "Selected gap-fill cells recovered/total counts only requirements listed by the completion plan; usable_cells also includes retained historical cells and is not reduced to the selected requirement scope.",
+  "family_coverage": {
+    "master-gpu-mtp-off": {"usable_cells": 54, "gap_fill_selected_recovered": 0, "gap_fill_selected_total": 54, "feasible_gaps": 42, "capacity_n_a": 12, "feasible_by_nominal_C": {"6144": 12, "12288": 10, "28672": 10, "62464": 1, "88064": 6, "120832": 3}},
+    "master-gpu-mtp-on": {"usable_cells": 72, "gap_fill_selected_total": 0, "feasible_gaps": 0},
+    "fork-gpu-mtp-off": {"usable_cells": 102, "gap_fill_selected_recovered": 0, "gap_fill_selected_total": 12, "feasible_gaps": 0, "capacity_n_a": 12},
+    "fork-gpu-mtp-on": {"usable_cells": 60, "gap_fill_selected_total": 0, "feasible_gaps": 0},
+    "master-cpu-mtp-off": {"usable_cells": 84, "gap_fill_selected_recovered": 63, "gap_fill_selected_total": 63, "feasible_gaps": 0},
+    "master-cpu-mtp-on": {"usable_cells": 31, "gap_fill_selected_recovered": 7, "gap_fill_selected_total": 48, "feasible_gaps": 41, "feasible_by_nominal_C": {"6144": 3, "12288": 9, "28672": 9, "61440": 9, "126976": 9, "196608": 2}},
+    "fork-cpu-mtp-off": {"usable_cells": 84, "gap_fill_selected_total": 0, "feasible_gaps": 0},
+    "fork-cpu-mtp-on": {
+      "usable_cells": 54,
+      "gap_fill_selected_recovered": 4,
+      "gap_fill_selected_total": 37,
+      "feasible_gaps": 33,
+      "quality_rejected_required_cells": 31,
+      "uncompleted_required_cells": 2,
+      "feasible_by_nominal_C": {"12288": 6, "28672": 9, "61440": 9, "126976": 8, "196608": 1}
+    },
+    "current-aco-mtp-off": {"usable_cells": 132, "status": "complete source curve"},
+    "current-aco-mtp-on": {"usable_cells": 132, "status": "complete source curve"}
   },
-  "selected_mode_prompt_pattern": {
-    "fork-cpu-mtp-on": "At 12,288, 28,672, 61,440, and 126,976: low/medium/xhigh \u00d7 prompt indices 0,1,2. At 196,608: off \u00d7 prompt index 2 only.",
-    "master-cpu-mtp-on": "At 6,144, 12,288, 28,672, 61,440, and 126,976: low/medium/xhigh \u00d7 prompt indices 0,1,2. Additionally, at 28,672: off \u00d7 prompt index 2. At 196,608: off \u00d7 prompt index 2 and xhigh \u00d7 prompt index 1.",
-    "master-gpu-mtp-off": "6,144: all four modes \u00d7 prompts 0,1,2. 12,288: low and off \u00d7 all prompts; medium and xhigh \u00d7 prompts 1,2. 28,672: low/medium/xhigh \u00d7 all prompts; off \u00d7 prompt 2. 62,464: low \u00d7 prompt 2. 88,064: low and off \u00d7 all prompts. 120,832: xhigh \u00d7 all prompts.",
-    "outlier": "Each of three independent series repeats only C28,672 / off / prompt index 2."
-  },
-  "sources": [
-    ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104.json (frozen R8 geometry and selected cells)",
-    "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/queue-progress.json (R8 runtime finding and queue state)",
-    "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/fork-cpu-mtp-on/attempt-001-L262144/cell/C12288/campaign/row.json (small per-row summary)",
-    "queue-owner progress message at 2026-11-05 00:29 UTC for the 13/37, 41 pending, and 42 blocked counts"
+  "capacity_exclusions": [
+    {"family": "fork-gpu-mtp-off", "nominal_C": 130048, "cells": 12, "status": "R6 capacity limit; not retried"},
+    {"family": "master-gpu-mtp-off", "nominal_C": 130048, "cells": 12, "status": "R6 capacity limit; not retried"},
+    {"family": "master-cpu-mtp-on", "configured_L": 262144, "status": "clean startup CUDA OOM before readiness; requested allocation 1730 MiB with 15900 MiB free and no other compute owner", "receipt": "/srv/ai/paged-kv/results/postqueue-master-cpu-mtp-on-256k-startup-20261105/run-activator-configured/result.json", "receipt_sha256": "f4b5b254ed94972998c79c074656423a94b02873d7f74ae12a006f599ce6761b"}
   ],
-  "status": "incomplete; R8 queue active/paused after recorded runtime fault; counts are a queue-owner snapshot at 00:29 UTC plus frozen R8 selection geometry",
-  "direct_record_counts": {
-    "master-gpu-mtp-off": {
-      "complete_cells": 0,
-      "remaining_cells": 42,
-      "remaining_by_nominal_C": {
-        "6144": 12,
-        "12288": 10,
-        "28672": 10,
-        "62464": 1,
-        "88064": 6,
-        "120832": 3
-      },
-      "passed_requests": 0,
-      "failed_requests": 1
-    },
-    "fork-cpu-mtp-on": {
-      "complete_cells": 16,
-      "remaining_cells": 21,
-      "remaining_by_nominal_C": {
-        "28672": 2,
-        "61440": 9,
-        "126976": 9,
-        "196608": 1
-      },
-      "passed_requests": 65,
-      "failed_requests": 0
-    },
-    "master-cpu-mtp-on": {
-      "complete_cells": 0,
-      "remaining_cells": 41,
-      "remaining_by_nominal_C": {
-        "6144": 3,
-        "12288": 9,
-        "28672": 9,
-        "61440": 9,
-        "126976": 9,
-        "196608": 2
-      },
-      "passed_requests": 0,
-      "failed_requests": 0
-    },
-    "master-cpu-mtp-on-outlier-a": {
-      "complete_cells": 0,
-      "remaining_cells": 1,
-      "remaining_by_nominal_C": {
-        "28672": 1
-      },
-      "passed_requests": 0,
-      "failed_requests": 0
-    },
-    "master-cpu-mtp-on-outlier-b": {
-      "complete_cells": 0,
-      "remaining_cells": 1,
-      "remaining_by_nominal_C": {
-        "28672": 1
-      },
-      "passed_requests": 0,
-      "failed_requests": 0
-    },
-    "master-cpu-mtp-on-outlier-c": {
-      "complete_cells": 0,
-      "remaining_cells": 1,
-      "remaining_by_nominal_C": {
-        "28672": 1
-      },
-      "passed_requests": 0,
-      "failed_requests": 0
-    },
-    "fork-gpu-mtp-off": {
-      "complete_cells": 0,
-      "remaining_cells": 0,
-      "remaining_by_nominal_C": {},
-      "passed_requests": 0,
-      "failed_requests": 0
-    }
+  "runtime_findings": [
+    {"family": "master-gpu-mtp-off", "status": "CUDA illegal access on first normal appended question after successful C6144 fill; runtime finding, not capacity result", "source": "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/master-gpu-mtp-off/attempt-001-L122880/series-result.json", "sha256": "6dd9933048d10efa29df236db0456290b533edb2284206860130d254429f3abe"},
+    {"family": "fork-cpu-mtp-on", "status": "R8 operator-stopped after partial valid series; 27 of 30 protocol-complete triplets later excluded by response audit", "source": "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/fork-cpu-mtp-on/attempt-001-L262144/operator-assessment.json", "sha256": "0ccf233076a3330f697d35961630fd63cece01f4db34c46b3e576b76bbec34db"},
+    {"family": "master-cpu-mtp-on", "status": "three independent C28672/off/P3 outlier sessions each retained two passing measured repetitions; third repetition failed with DFlash target argmax row lookup fault; no complete triplet", "cohorts": [
+      {"id": "master-cpu-mtp-on-outlier-a", "valid_measured_repetitions": 2, "fault": "DFlash target argmax row lookup failed", "source": "/srv/ai/paged-kv/results/comparison-completion-20261104-r9/master-cpu-mtp-on-outlier-a/attempt-001-L32768-series-a/operator-assessment.json", "sha256": "07fe98c5e70129736d393d6dd7778cb89662228cc20b5d76ead701edd752be83"},
+      {"id": "master-cpu-mtp-on-outlier-b", "valid_measured_repetitions": 2, "fault": "DFlash target argmax row lookup failed", "source": "/srv/ai/paged-kv/results/comparison-completion-20261104-r9/master-cpu-mtp-on-outlier-b/attempt-001-L32768-series-b/operator-assessment.json", "sha256": "32156a5cc39870ebf3930b2d5b5ec4ba71808475eb92dd9d6b64b5560cd2631b"},
+      {"id": "master-cpu-mtp-on-outlier-c", "valid_measured_repetitions": 2, "fault": "DFlash target argmax row lookup failed", "source": "/srv/ai/paged-kv/results/comparison-completion-20261104-r9/master-cpu-mtp-on-outlier-c/attempt-001-L32768-series-c/operator-assessment.json", "sha256": "07d0d72bd7a76ce2369f10282a3c60e510f3b1c6445a300cf19e553515f1c2b2"}
+    ]}
+  ],
+  "post_queue_diagnostics": {
+    "compute_sanitizer": "Timed out at 900 seconds after 322 output tokens; no invalid access located; diagnostic only.",
+    "cuda_gdb": {"result": "Reproduced warp out-of-range address in Flash Attention F16-compute/Turbo4-K/V specialization; source instruction/pointer remains unidentified.", "summary": "/srv/ai/paged-kv/results/cuda-gdb-master-gpuoff-r9-20261105/cuda-gdb-summary.json", "sha256": "ff136a8123da86855b076385ff35e5e2c191436ad43bc61fc6c9cf8c9c2c05b2"},
+    "graphs_disabled": {"result": "40-token warmup passed; first measured request failed with misaligned address at synchronization. Capture is not required to reproduce the failure; this does not establish the offending pointer or cause.", "summary": "/srv/ai/paged-kv/results/graphs-disabled-diagnostics-20261105/graphs-disabled-summary.json", "sha256": "41c9a00aee4755c4b118454dc6c7e27c066ec196a5fbf1e409a08de20e90471b"}
   },
-  "additional_work": {
-    "master_cpu_mtp_on_256k_clean_startup": "Startup-only, no generation; exact current masterCPUon flags withL262144. Healthy sole-owner readiness\u2192onlymissing256K12cells48requestsafterfreshmappedfill; realOOM\u2192recordbound."
-  }
+  "prefill_only": {
+    "family": "fork-gpu-mtp-off",
+    "status": "R9 mapped prefill series complete; no decode cells",
+    "append_groups": 9,
+    "nominal_checkpoints": [6144, 12288, 28672, 62464, 78848, 88064, 100352, 120832],
+    "final_actual_C": 120833,
+    "net_new_tokens": 120824,
+    "chunk_map_sha256": "5ca53650661d610ff2632eae262cb794bceb5b72efaf47364b8bcd43247dcf4f"
+  },
+  "retained_limits": [
+    "R4 target-only slot-restore CPU/MTP-on cohorts remain quarantined.",
+    "Only available raw SSE is checked for the narrow repeated-punctuation pattern; absent raw response artifacts are unassessed, not rejected.",
+    "The response-shape audit does not certify semantic answer quality or accuracy."
+  ]
 }

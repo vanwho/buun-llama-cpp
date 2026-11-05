@@ -1,120 +1,83 @@
-# Comparison completion — live handoff (latest user steering wins)
+# Comparison completion — current handoff, 2026-11-05
 
-## Required method — user override on 2026-11-05
+## Current result and remaining work
 
-User: “fuck a cache policy just fill context and prompt normally, if a new
-prompt adds tokens whatever, consider it the same size context as original”.
+R8/R9 primary queues ended with runtime findings. Do not resume an old queue
+blindly. The quality-filtered report retains **805 complete cells / 2,415
+measured repetitions**. Both current ACO curves are complete: 264 cells.
+Historical controls remain retained; there is no blanket rerun instruction.
 
-KEEP the full normal conversation: each question follows prior questions and
-answers, preserving raw content/reasoning. No benchmark rewind to a frozen
-repo base, disk KV save/restore/erase, or further cache-policy tuning. Group
-under original nominal context checkpoint; record actual per-request counts
-and their drift separately. Existing valid old measurements remain retained,
-with their protocol labeled. Only fresh disjoint mapped repo bytes are ingested;
-never count model re-evaluated old tokens as net-new repo input.
+There are **116 feasible selected gap-fill cells**, separate from 24 verified
+GPU-capacity N/A cells:
 
-## Active R8
+- Fork CPU-Q4/MTP-on: 33. C12288: 6; C28672: 9; C61440: 9;
+  C126976: 8; C196608: 1.
+- Master CPU-Q4/MTP-on: 41. C6144: 3; C12288: 9; C28672: 9;
+  C61440: 9; C126976: 9; C196608: 2.
+- Master GPU-Turbo4/MTP-off: 42. C6144: 12; C12288: 10; C28672: 10;
+  C62464: 1; C88064: 6; C120832: 3.
+- Three independent master CPU/MTP-on C28672/off/prompt-3 rechecks each have
+  two passing measured repetitions followed by a runtime error. None is a
+  complete triplet; do not combine repetitions across independent cohorts.
 
-Plan COMPARISON_COMPLETION_20261104.json revision8 is reviewed/frozen/ready;
-output /srv/ai/paged-kv/results/comparison-completion-20261104-r8.
-Source helpers commit647191820;35 tests pass. Root checked all10 server argv
-against R7 unchanged,492maximum canonical requests. Client alone changes to
-normal cumulative conversation. Current+future reply budget1752percell+1024
-leaves room underL; none of the400-token output budgets shrink.
+Fork GPU/MTP-off mapped fill completed through C120832. Master CPU/MTP-on
+L262144 clean startup failed before readiness on a 1730 MiB GPU allocation,
+with 15900 MiB free and no other compute owner before launch. That is a
+confirmed configuration limit, not an unrun measurement or general CPU limit.
 
-Runtime owner /root/comparison_runtime_prep (LunaHigh) launched the durable R8
-queue with nohup/setsid. Do not resume R7. Initially remaining120cells
-+3outliercohorts=492requests: masterGPUoff L122880;forkCPUon;masterCPUon;
-3independentC28KBashrechecks;forkGPUoffL122880ingest-only. Serverflags remain
-R7(CP32, lastforkingestCP8), no cache tuning. Realerrors assess; stat/cacheflags
-never trigger automatic replay/rerun. Keep strictL bound/no contextshift by
-reserving all remainingoutputs before newfiles, not by shorteninganswers.
+The response audit excludes 31 whole fork CPU/MTP-on triplets: R8=27, R9=4.
+R8 contributes only C12288/low/P1-P3; R9 adds C126976/medium/P1. HTTP 200 and
+SSE completion did not make the slash-only responses valid results. The
+classifier is narrow, not a semantic accuracy certification; unavailable
+historical response bodies remain explicitly unassessed.
 
-R8 master GPU/MTP-off failed on its first question after a successful C6144
-fill: +33 input tokens, LCP6144, rewind0, CUDA illegal memory access at target
-synchronize before output. This is a recorded runtime finding, not a benchmark
-restore or capacity result. See engineering-notes/normal-append-master-cuda-fault-20261105.md.
-Fork CPU/MTP-on is running normally (C12288 completed36/36 requests, all pass).
-Keep ALL primary R8 configurations on the originally pinned template/helpers;
-do not change protocol between comparison configurations. The safe hold was
-cancelled; the queue continues normally.
+## Required benchmark method and frozen identities
 
-The shared-prefix Jinja template moves effort steering from old last-user to
-new last-user. Offline rendering proves historical prompt bytes change although
-the client preserves messages. An append-stable replacement is being prepared
-outside active files for post-matrix benchmark cleanup, with reasoning-mode
-transition checks. It must not pause or alter the active comparison matrix.
-This is a separate reprocessing defect, not an established cause of the master
-off-mode CUDA failure. Run the frozen memcheck diagnostic after primary queue
-completion, then the prepared dispatch profiler, before helper/template changes.
+One continuous mapped repository fill per configuration series, with ordinary
+cumulative questions and answers. All three prompts share the fill across
+reasoning modes. Keep prior content and reasoning verbatim. No benchmark disk
+KV save/restore/erase, per-mode refill, context shifting, or shortened output
+budgets. Group by nominal C and record actual drift per repetition. Keep
+backend, net-new, and HTTP-wall prefill rates separate.
 
-## Preserved data
+B1024/U256, sixteen threads, Turbo4 GPU K/V, CPU target Q4_0, native MTP n-max2,
+the original three prompts and four modes, warmup40 + 3 measured400-token caps.
+Exact argv, binaries/DSOs, template and chunk map are pinned in R9 JSON;
+its frozen source plan is an archive, not a ready queue after these failures.
 
-Current ACO on/off curves complete264cells/792measured+264warmups. R7masterCPU
-off allsevenrows complete, including108newrequests at128K/192K/final256Kallocated
-checkpoints. NEVER rerun those completed series. Matrix beforeR7 had774cells;
-27newCPUoffcells bring available count to801 before R8. ConditionalGPU130048
-endpoints remain real-capacityN/A, not fabricated timings. ApprovedoldR4/R5/R6
-partials retained; R4MTPon target-onlyslot-restored cohorts quarantined.
+- Master binary: `/srv/ai/paged-kv/builds/master106-d2407c33f959/bin/llama-server`.
+- Fork binary: `/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server`.
+- Raw R9 root: `/srv/ai/paged-kv/results/comparison-completion-20261104-r9`.
+- Detailed live inventory: `COMPARISON_PROGRESS_20261105.md/.json`.
 
-R7paused GPUoff atC6144 afterfill/warmup/firstmeasure passed, then CUDAillegal
-on fixed-base checkpoint6147 restore. User overrode that request method; now
-append Q/A. Archived_R5/_R6/_R7 are provenance only, never executabledirections.
+## Blockers and bounded diagnostics
 
-## Agents and report work
+Fork CPU/MTP-on trace proves target and draft NaNs after several finite
+verification steps. Do not assume EOS alone or carry reset is the cause.
+Master CPU/MTP-on throws an argmax error that can also mean an invalid
+candidate, not necessarily a missing row. Master GPU/MTP-off CUDA-GDB proves
+a Turbo4 Flash Attention kernel out-of-range address after a valid warmup.
 
-- Runtime owner: /root/comparison_runtime_prep, active durable R8 queue.
-- Docs /root/aco_docs_refresh_20261104 implemented cumulativehistory, logical
-  newinput accounting (prompt_n-priorcommittedfrontier, notcache_n), persisted
-  conversation/sourcecursor, nominal/actualcounts, and whole-series headroom.
-  It is preparing the append-stable template repair outside active runtime files.
-- Audit /root/routing_prefix_engine_audit audited exact assistantconstructor:
-  rawcontent+optionalrawreasoning_content; don'tstrip orinsert stopmarkers.
-  It also proved the Jinja steering relocation and audited the master fault's
-  target synchronize path. A bounded post-primary memcheck wrapper is pending.
-- Root reporter changes groupprimaryplots byoriginalnominalC (userdirection),
-  retain actualbefore/afterperrepeat. Append diagnostics stillplot actualC.
-  Newnormal Q/A history is a distinct protocol; oldfixedbase data remainsvalid
-  underitsrecorded protocol. Do not pretend exact-input retest of oldoutlier.
-- Preview-r6 is stale: /srv/ai/paged-kv/results/comparison-final-20261104-preview-r6.
-  All10families mapped viahashverifiedadjacentsourcemetadata. Noexport/render
-  duringCPUtiming. Finalreport mustrefresh,inspectimages,checkallgaps/outliers,
-  commit/pushcompactCSV/JSON/MD/graphs; rawpayloads/traces/binaries external.
+Engineering notes:
+`cpu-mtp-nonfinite-control-20261105.md`,
+`normal-append-master-cuda-fault-20261105.md`, and
+`checkpoint-retention-prefill-reprocessing-20261105.md`.
+They live in `../engineering-notes/` and bind the diagnostic roots.
 
-## Final extra diagnostic and safeguards
+Paired master/fork CUDA traces now import successfully. Their main bulk-prefill
+attention dispatch differs (master F16 compute, fork fused Turbo4). Whole-profile
+kernel totals are diagnostic and overlap API waits; do not replace benchmark
+rates with them. See `dense-turbo4-prefill-cohort-difference-20261104.md`.
 
-AfterR8 measurements, execute profile-comparison-dispatch.py --execute once.
-It traces thetwo frozenR6GPU-MTPon configs ingestonly6144/12288/28672; serverargv
-andbinariesunchanged, no canonicaldecode. SHA118259d142fa7e9da10424d6d32ff7a8e12d1212a72d5418e663afc51980c012.
-Traceabsence is unmeasured, neverzero. This mayexplain systematicpureGPUingest
-master1346.87 vsfork910.57tok/s; CUDAfused-vs-materialized dispatch remains a
-hypothesis untiltrace. Notes engineering-notes/dense-turbo4-prefill-cohort-difference-20261104.md.
+Runtime owner `/root/comparison_runtime_prep` completed the bounded diagnostics;
+both CPU/MTP and master GPU faults persisted with CUDA graphs disabled.
+All owned diagnostic clients stopped and managed services were restored healthy.
+Frozen primary inference builds, flags and six pinned helpers remain unchanged.
+A required user
+clarification about versioned inference repairs versus retaining frozen-build
+failure outcomes is pending; do not silently change the control builds.
 
-OneGPU/model, /tmp/ai-pager-benchmark.lock. ProtectJellyfin/ffmpeg and8091;
-nevertouch8092. Restoremodel/gateway healthy. Allmodel/build/DSO/map/template
-identities pinned; no inferencecode edits or rebuild during comparison.
-
-## Latest gap audit and additional clean-start check
-
-See COMPARISON_PROGRESS_20261105.md/.json for the timestamped record count and
-exact remaining contexts. At 00:35:57 UTC, fork CPU/MTP-on completed 16 of 37
-missing cells with 65 successful requests and zero failures. Remaining primary
-gaps: 21 fork CPU/MTP-on, 41 master CPU/MTP-on, and 42 master GPU/MTP-off cells
-blocked by the CUDA fault. Also pending: three independent 28K/off/Prompt-3
-cohorts and the fork GPU/MTP-off mapped prefill-only series. A scientific cell
-requires a warmup and three measured repetitions; it is not one HTTP request.
-
-The old master CPU/MTP-on 256K startup OOM (1,730 MiB allocation) is credible,
-but lacks prelaunch GPU-owner/free-memory evidence and uses eight checkpoints
-rather than 32. The auditor is preparing a clean startup-only confirmation at
-an idle boundary after the primary queue, with explicit 16/16 threads and
-1024/256, the same pinned binary and quantization, changing only L to 262,144
-and artifact paths. Do not send a generation/counter probe at startup. If it
-fits, run only the missing 256K block (12 cells, 48 requests) after one fresh
-mapped fill; keep valid smaller measurements. If it runs out of GPU memory
-with sole model ownership, record that verified configuration limit.
-
-The first six R8 steps have stale ingest-only descriptive labels; selections,
-expected request counts and actual records correctly require decoding. Only
-the last fork GPU step is fill-only. Fix labels after the frozen primary queue
-and diagnostics, not during a run.
+Use one model and `/tmp/ai-pager-benchmark.lock`; protect Jellyfin/ffmpeg and
+8091, never touch8092. Restore the managed model and gateway after each run.
+Do not render charts during primary CPU timing. Raw payloads, traces and
+binaries stay external; commit compact reports and tools to the plan branch.

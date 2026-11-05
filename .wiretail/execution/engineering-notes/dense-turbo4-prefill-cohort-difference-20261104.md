@@ -87,3 +87,41 @@ The predefined L122880 GPU-only profiles will collect separate lower-ceiling
 mapped curves after the primary queue. B/U, quants and binaries stay fixed.
 A separate Nsight trace of the frozen GPU/MTP-on profiles will identify actual
 attention kernels; profiler timings will not replace the primary measurements.
+
+## Captured dispatch comparison — 2026-11-05
+
+Separate CUDA/NVTX-only captures of the same frozen GPU/MTP-on commands
+completed the mapped C6144 → C12288 → C28672 fill-only sequence. Both traces
+were imported with the exact matching Nsight Systems 2023.4.4.54 importer.
+The earlier automatic importer failure was a tooling problem; the imported
+captures are usable diagnostic evidence.
+
+| Whole-profile observation | Master | Fork, pager off |
+|---|---:|---:|
+| Sum of GPU kernel durations | 16.561 s | 21.271 s |
+| Main Flash Attention template | F16, type 1 | Turbo4, type 44 |
+| Calls of that main template | 1,904 | 2,040 |
+| Sum of that template's durations | 2.085 s | 7.398 s |
+| CUDA launch API duration / calls | 8.526 s / 321,137 | 11.873 s / 325,776 |
+| CUDA stream-sync API duration / calls | 6.297 s / 31,319 | 8.065 s / 3,048 |
+| CUDA async-copy API duration / calls | 2.018 s / 7,439 | 0.913 s / 8,158 |
+
+The trace confirms the hypothesized dispatch difference for the dominant
+prefill attention variant: the fork takes fused raw-Turbo4 attention where
+master predominantly materializes F16 for this shape. K/V storage remains
+Turbo4 in both requested commands; a type-1 compute kernel does not mean F16
+context storage. The direct Turbo4 variant is not automatically the fastest
+choice for a bulk-prefill workload.
+
+These totals include startup and all three fills, have no exact per-stage
+boundaries, and differ in call counts. API waits overlap GPU execution. Do not
+add these columns to reconstruct wall time, claim the entire throughput gap
+has been attributed, or replace the R6 uninstrumented speeds with trace rates.
+In particular, 7.398 s is the fork's main attention-family subtotal, not its
+total GPU time.
+
+Compact external summary:
+`/srv/ai/paged-kv/results/comparison-dispatch-diagnostic-20261104/paired-r9-cuda-summary/summary.json`,
+SHA-256 `75c360d233992ba1b7d1bfb2547967c4f40ee09c203fe98da1858cb46655d668`.
+Any later adaptive bulk-prefill dispatch repair must be versioned separately,
+measure its scratch cost, and preserve bounded-memory ACO decode and MTP paths.

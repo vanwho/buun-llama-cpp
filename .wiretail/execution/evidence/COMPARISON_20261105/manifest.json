@@ -1,0 +1,218 @@
+{
+  "coverage": {
+    "families": {
+      "current-aco-mtp-off": {
+        "capacity_n_a": 0,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 0,
+        "usable_cells": 132
+      },
+      "current-aco-mtp-on": {
+        "capacity_n_a": 0,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 0,
+        "usable_cells": 132
+      },
+      "fork-cpu-mtp-off": {
+        "capacity_n_a": 0,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 0,
+        "usable_cells": 84
+      },
+      "fork-cpu-mtp-on": {
+        "capacity_n_a": 0,
+        "feasible_missing": 33,
+        "selected_gap_fill_available": 4,
+        "selected_gap_fill_total": 37,
+        "usable_cells": 54
+      },
+      "fork-gpu-mtp-off": {
+        "capacity_n_a": 12,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 12,
+        "usable_cells": 102
+      },
+      "fork-gpu-mtp-on": {
+        "capacity_n_a": 0,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 0,
+        "usable_cells": 60
+      },
+      "master-cpu-mtp-off": {
+        "capacity_n_a": 0,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 63,
+        "selected_gap_fill_total": 63,
+        "usable_cells": 84
+      },
+      "master-cpu-mtp-on": {
+        "capacity_n_a": 0,
+        "feasible_missing": 41,
+        "selected_gap_fill_available": 7,
+        "selected_gap_fill_total": 48,
+        "usable_cells": 31
+      },
+      "master-gpu-mtp-off": {
+        "capacity_n_a": 12,
+        "feasible_missing": 42,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 54,
+        "usable_cells": 54
+      },
+      "master-gpu-mtp-on": {
+        "capacity_n_a": 0,
+        "feasible_missing": 0,
+        "selected_gap_fill_available": 0,
+        "selected_gap_fill_total": 0,
+        "usable_cells": 72
+      }
+    },
+    "measured_repetitions": 2415,
+    "total_capacity_n_a": 24,
+    "total_feasible_missing": 116,
+    "usable_cells": 805
+  },
+  "external_full_outputs": [
+    {
+      "bytes": 11516041,
+      "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/comparison-final-20261104.json",
+      "sha256": "f3f9bfef2b39d0945c87ad43e357638553e310fd52b5b7eb9343cab34b99af2b"
+    },
+    {
+      "bytes": 162255,
+      "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/preview-decode-low.png",
+      "sha256": "defc72ed594da79e229417aa8583858b0f8690b1ebef3d9b767f7d020a027e19"
+    },
+    {
+      "bytes": 147142,
+      "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/prefill-net_new_tok_s-mapped-checkpoints.png",
+      "sha256": "8c4ce4ef287c4c45b1a555e017ee519ec2c1068da7a9a1132f89bb1beb81450f"
+    },
+    {
+      "bytes": 145799,
+      "path": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/prefill-net_new_tok_s-mapped-bulk.png",
+      "sha256": "0ea6b462f6e19441f06756c690e466f841749d05eb4bf5070996f68f7b3c8ed5"
+    }
+  ],
+  "generated_utc": "2026-11-05T04:42:50Z",
+  "limitations": [
+    "The narrow saved-SSE classifier is not a semantic answer-quality validator.",
+    "189 source triplets lack raw SSE and remain unassessed.",
+    "Raw response text, raw SSE, binaries, models, and the full source/hash catalog are excluded.",
+    "External full report JSON and chart previews are linked separately."
+  ],
+  "provenance": {
+    "frozen_inputs": [
+      {
+        "path": ".wiretail/execution/benchmarks/COMPARISON_COMPLETION_20261104_R9.json",
+        "sha256": "d94223ec4357e3d9de6fda0adfb18bec4de1a4aef3c5d3bc3793dabf7787fa6e"
+      },
+      {
+        "path": ".wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+        "sha256": "3620a8c2b7180824cacfc93f8aab3df96115f31a5aa35aac02c2ed9ee8010a64"
+      },
+      {
+        "path": ".wiretail/execution/benchmarks/COMPARISON_COVERAGE_20261104.json",
+        "sha256": "8d29e706ea94828c7289a276e7be07cfcf08e81f1faf1402d9a4b9f5d330e6de"
+      }
+    ],
+    "note": "Per-cell source references and hashes are preserved in decode-summary.csv; the mapped CSV retains source series and chunk-map hashes.",
+    "report_input": "/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/comparison-final-20261104.json",
+    "report_sha256": "f3f9bfef2b39d0945c87ad43e357638553e310fd52b5b7eb9343cab34b99af2b"
+  },
+  "response_quality": {
+    "by_family": {
+      "fork-cpu-mtp-on": 31
+    },
+    "classifier": "Flag a whole measured triplet if any repetition has at least 64 nonspace output characters, no alphanumeric characters across visible content plus reasoning, and one punctuation character accounts for at least 80% of the output.",
+    "excluded_source_triplets": 31,
+    "limitations": [
+      "This narrow artifact check catches repeated-punctuation failures; it is not a semantic-accuracy or general answer-quality validator.",
+      "Short EOS answers and reasoning-only answers with alphanumeric text are preserved.",
+      "Missing raw SSE is marked unassessed, not treated as pathological."
+    ],
+    "unassessed_source_triplets": 189
+  },
+  "runtime_findings": [
+    {
+      "family": "master-gpu-mtp-off",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/master-gpu-mtp-off/attempt-001-L122880/series-result.json",
+      "source_sha256": "6dd9933048d10efa29df236db0456290b533edb2284206860130d254429f3abe",
+      "status": "runtime_or_driver_failure"
+    },
+    {
+      "family": "master-cpu-mtp-on",
+      "source_path": "/srv/ai/paged-kv/results/postqueue-master-cpu-mtp-on-256k-startup-20261105/run-activator-configured/result.json",
+      "source_sha256": "f4b5b254ed94972998c79c074656423a94b02873d7f74ae12a006f599ce6761b",
+      "status": "clean_startup_cuda_oom"
+    },
+    {
+      "family": "fork-cpu-mtp-on",
+      "series_id": "r8-fork-cpu-mtp-on",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r8/fork-cpu-mtp-on/attempt-001-L262144/operator-assessment.json",
+      "source_sha256": "0ccf233076a3330f697d35961630fd63cece01f4db34c46b3e576b76bbec34db",
+      "status": "operator_stopped_after_valid_measurements"
+    },
+    {
+      "family": "master-cpu-mtp-on",
+      "runtime_fault_status": "runtime_fault",
+      "series_id": "master-cpu-mtp-on-outlier-a",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r9/master-cpu-mtp-on-outlier-a/attempt-001-L32768-series-a/operator-assessment.json",
+      "source_sha256": "07fe98c5e70129736d393d6dd7778cb89662228cc20b5d76ead701edd752be83",
+      "status": "known_DFlash_argmax_runtime_fault_mid_series",
+      "valid_measured_repetitions": 2
+    },
+    {
+      "family": "master-cpu-mtp-on",
+      "runtime_fault_status": "runtime_fault",
+      "series_id": "master-cpu-mtp-on-outlier-b",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r9/master-cpu-mtp-on-outlier-b/attempt-001-L32768-series-b/operator-assessment.json",
+      "source_sha256": "32156a5cc39870ebf3930b2d5b5ec4ba71808475eb92dd9d6b64b5560cd2631b",
+      "status": "known_DFlash_argmax_runtime_fault_mid_series",
+      "valid_measured_repetitions": 2
+    },
+    {
+      "family": "master-cpu-mtp-on",
+      "runtime_fault_status": "runtime_fault",
+      "series_id": "master-cpu-mtp-on-outlier-c",
+      "source_path": "/srv/ai/paged-kv/results/comparison-completion-20261104-r9/master-cpu-mtp-on-outlier-c/attempt-001-L32768-series-c/operator-assessment.json",
+      "source_sha256": "07d0d72bd7a76ce2369f10282a3c60e510f3b1c6445a300cf19e553515f1c2b2",
+      "status": "known_DFlash_argmax_runtime_fault_mid_series",
+      "valid_measured_repetitions": 2
+    }
+  ],
+  "schema": "comparison-evidence-snapshot-v1",
+  "snapshot_artifacts": [
+    {
+      "bytes": 4841,
+      "path": "comparison-digest.md",
+      "sha256": "335c0a8ee4ee514fcb53880caca47e34a86a787a16cf4c857cd1fd7a01e2b7fe"
+    },
+    {
+      "bytes": 224859,
+      "path": "comparison-tables.md",
+      "sha256": "b91837ee9faac1084b409d63c7d9b137e699e1e4c61cecc299543924195923e8"
+    },
+    {
+      "bytes": 314292,
+      "path": "decode-summary.csv",
+      "sha256": "2dcfccf8964249d35cba679a9f65b9603f16bf7b1961f4184c9a368237e2f34e"
+    },
+    {
+      "bytes": 50698,
+      "path": "mapped-prefill.csv",
+      "sha256": "df1035e48b2c0711688da692511f4334c05eeafe83128bc3b4e97ed6f7d870fb"
+    },
+    {
+      "bytes": 48259,
+      "path": "response-quality-failures.csv",
+      "sha256": "7cc1a7cb7e068c98501a43b9b0619cb825227d571dcfb86cbedc5de520272efd"
+    }
+  ],
+  "status": "R9 finished with findings; compact audited snapshot"
+}

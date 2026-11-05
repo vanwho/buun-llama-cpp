@@ -66,6 +66,16 @@ population comment. Use the explicit finite-value trace above instead.
 
 ## Next decision and bounded isolation
 
+The separate `mtp-first-reject-r9-graphs-disabled-20261105` reproduction used
+the same binary, argv and requests with only `GGML_CUDA_DISABLE_GRAPHS=1` added
+to its diagnostic environment. It reached the same first bad case 14 with
+the same actual C16142 → C16571, 400 punctuation-only tokens and 0/795 MTP
+acceptance. Disabling CUDA graph capture did not resolve this reproduction.
+Ordinary asynchronous execution, attention kernels and recurrent-state
+handling remain possible owners; this does not identify one of them.
+The combined external `graphs-disabled-diagnostics-20261105/graphs-disabled-summary.json`
+has SHA-256 `41c9a00aee4755c4b118454dc6c7e27c066ec196a5fbf1e409a08de20e90471b`.
+
 Keep the primary frozen builds and configuration identities unchanged while the
 user's fixed-build versus repaired-build clarification is pending. A diagnostic
 reproduction may separately disable CUDA graphs to isolate capture/reuse; it

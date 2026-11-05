@@ -1,6 +1,16 @@
-# R9 comparison completion — 2026-11-05
+# R9 comparison completion — executed, finished with findings; historical launch specification (2026-11-05)
 
-**Root reviewed; ready to launch after the idle GPU diagnostic.** All executable, source, model, binary/DSO, template, map, server/performance flags, and normal-prefix history settings are inherited from R8. R9 changes the output root and selected decode cells, and retains validated R8 cells. No run was started.
+## Post-run audit correction — 2026-11-05 04:31 UTC
+
+R9 has finished with findings. This correction supersedes the pre-run status and the original statement below that all 30 R8 fork-CPU/MTP-on cells qualify. A hash-verified saved-SSE response-shape audit now removes a whole triplet if any repetition has at least 64 nonspace characters, no alphanumeric visible content or reasoning, and one punctuation character forms at least 80% of the response. It preserves short EOS and reasoning-only outputs and does not certify semantic accuracy.
+
+Of R8’s 30 protocol-complete fork-CPU/MTP-on triplets, 27 are excluded by that check; only C12,288 low P1/P2/P3 remain quality-eligible. R9 adds C126,976 medium P1 as one more eligible cell. Of the seven R9 selected cells, four failed the response-shape audit and two were uncompleted. Thus 33 of 37 required cells remain feasible and missing. The final comparison report contains 805 usable complete cells / 2,415 measured repetitions across all ten families. See `COMPARISON_PROGRESS_20261105.md` for exact family/context gaps and separate capacity exclusions.
+
+R9 fork-GPU/MTP-off completed the nine mapped prefill append groups through nominal C120,832 (actual final C120,833); it generated no decode cells. The three master-CPU/MTP-on outlier cohorts each retained two passing measured repetitions and then hit the DFlash target argmax row lookup fault, so none forms a complete triplet. Master-CPU/MTP-on L262,144 failed its clean startup confirmation before readiness (1,730 MiB allocation requested with 15,900 MiB free and no other compute owner); L200,704 remains the primary profile. R4 target-only slot-restore MTP-on cohorts remain quarantined.
+
+The compact audited export and response-quality inventory are external under `/srv/ai/paged-kv/results/comparison-final-20261104-quality-audit/`; raw answer text remains external.
+
+**Historical pre-run note:** Root reviewed this plan before launch. All executable, source, model, binary/DSO, template, map, server/performance flags, and normal-prefix history settings were inherited from R8. R9 changed the output root and selected decode cells and retained individually validated R8 cells. The pre-run status below is superseded by the post-run audit correction above.
 
 ## Primary remaining work
 
