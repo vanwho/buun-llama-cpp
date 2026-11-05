@@ -4302,6 +4302,13 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
     }
 
     if (ask) {
+        if (recurrent) {
+            // Fused kernels may write only a downstream activation (e.g.
+            // SSM_CONV+SiLU). Make this explicitly observed intermediate an
+            // output so fusion cannot leave its allocation unwritten. This
+            // flag is diagnostic-only and is never applied in normal runs.
+            ggml_set_output(t);
+        }
         // Asking for the node makes the scheduler expose its completed value
         // to the callback.  This is intentionally enabled only for the
         // diagnostic environment variable above.
