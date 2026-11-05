@@ -202,3 +202,16 @@ Raw campaign artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-c
 The second phase6 target row is incomplete: 5/12 selected requests passed and only 2/9 measured requests were valid. The base occupancy was 255,489 for nominal C255488 (+1 token), with final accumulated context at 255,949. The prefix was not short; the final delta reflects appended request history. The only valid measured repetitions were off/prompt index 0, reps 1–2 (2.8980 and 2.9044 tok/s; two-repeat median 2.9012 is descriptive only). Rep 3 there returned a non-substantive 5-token fragment. Off/prompt index 1 had three non-substantive 2-token outputs; off/prompt index 2 had three one-token EOS/empty outputs. No reasoning/prompt cell reached three valid measured repetitions, so this row contributes no graph point.
 
 The overall phase6 series ended `runtime_or_driver_failure` after its two targets. Preserve C195664 as recorded above (11 full triplets plus the invalid medium/prompt-1 triplet); neither row's output-invalid cases are evidence of OOM. Raw C255488 artifacts are in `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase6-cpu-mtp-off-L262144-192k-256k/master-cpu-mtp-off-L262144-192k-256k-content/attempt-002-L262144-C195664-C236544-full-matrix/cell/C255488/campaign/` (`row.json`, `records.jsonl`, `conversation-frontier.json`).
+
+## Phase 7 separate 192K CPU-KV MTP-on recovery cohort
+
+This is a separate targeted cohort for the two cells missing from the earlier broad C195664 CPU-KV MTP-on series; keep it separate rather than pooling it into that profile. The completed C195664 row passed all eight requests (2 warmups + 6 measured), with no startup error. It ran at context 200,704 using the pristine candidate and CPU Q4_0 target KV with native MTP and Turbo4 draft K/V.
+
+The mapped base occupancy was exactly 195,664 tokens for nominal C195664 (zero-token fill delta). The prefix remained resident and the two selected cells appended to it; final actual context was 198,223 (+2,559 accumulated tokens), not a refill or a prefix shortfall.
+
+| C | Reasoning | Prompt | Valid / 3 | Median tok/s | Graph value: max tok/s | All measured repetitions tok/s |
+|---:|---|---:|---:|---:|---:|---|
+| 195,664 | off | 2 | 3/3 | 7.5103 | 7.5591 | 6.5931, 7.5591, 7.5103 |
+| 195,664 | xhigh | 1 | 3/3 | 7.4307 | 7.4754 | 5.5410, 7.4307, 7.4754 |
+
+Phase 7 artifacts: `/srv/ai/paged-kv/results/pristine-master-958b444c677a-cuda134-validation-20261105/phase7-cpu-mtp-on-L200704-near192k/master-cpu-mtp-on-L200704-C195664-missing-upper-cells/attempt-001-L200704-C195664-offP2-xhighP1/cell/C195664/campaign/` (`row.json`, `records.jsonl`, `run-config.json`).
