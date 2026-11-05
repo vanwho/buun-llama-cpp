@@ -199,20 +199,21 @@
       "sha256": "b91837ee9faac1084b409d63c7d9b137e699e1e4c61cecc299543924195923e8"
     },
     {
-      "bytes": 314292,
+      "bytes": 313486,
       "path": "decode-summary.csv",
-      "sha256": "2dcfccf8964249d35cba679a9f65b9603f16bf7b1961f4184c9a368237e2f34e"
+      "sha256": "69137efc24e420720f3e94f2f76fa6f89263c489c2b31c2b30de9c998567d3e9"
     },
     {
-      "bytes": 50698,
+      "bytes": 50594,
       "path": "mapped-prefill.csv",
-      "sha256": "df1035e48b2c0711688da692511f4334c05eeafe83128bc3b4e97ed6f7d870fb"
+      "sha256": "49fd60fe2e8960443e916a691ddc23b107be2a0802099216f7f7564da1c30aa2"
     },
     {
-      "bytes": 48259,
+      "bytes": 48227,
       "path": "response-quality-failures.csv",
-      "sha256": "7cc1a7cb7e068c98501a43b9b0619cb825227d571dcfb86cbedc5de520272efd"
+      "sha256": "f4464abc91d88e3d434fc5af1f7ff87562fbc4d3c60fcc5c911521e1c0565b02"
     }
   ],
+  "snapshot_encoding": "UTF-8 with LF newlines; copied CSV records preserve all fields, normalizing CRLF to LF for repository whitespace checks.",
   "status": "R9 finished with findings; compact audited snapshot"
 }
