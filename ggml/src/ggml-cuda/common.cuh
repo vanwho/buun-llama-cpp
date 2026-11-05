@@ -48,6 +48,7 @@
 #if !defined(GGML_USE_HIP)
 bool ggml_cuda_humming_fp8_is_repacked(const ggml_tensor * tensor);
 #endif
+bool ggml_backend_buffer_is_cuda(ggml_backend_buffer_t buffer);
 
 #if defined(GGML_USE_HIP)
 #include "vendors/hip.h"
@@ -157,6 +158,34 @@ static __device__ __forceinline__ void ggml_cuda_pdl_lc() {
 #if defined(GGML_CUDA_USE_PDL) && __CUDA_ARCH__ >= GGML_CUDA_CC_HOPPER
     cudaTriggerProgrammaticLaunchCompletion();
 #endif // defined(GGML_CUDA_USE_PDL) && __CUDA_ARCH__ >= GGML_CUDA_CC_HOPPER
+}
+
+// Grid-strided L2 prefetch (evict_last) of n_bytes at p for a later kernel; a no-op before Ampere and on HIP/MUSA.
+static __device__ __forceinline__ void ggml_cuda_prefetch_l2(const char * p, const int64_t n_bytes) {
+#if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= GGML_CUDA_CC_AMPERE
+    const int64_t stride = 128*(int64_t) gridDim.x*blockDim.x;
+    for (int64_t o = 128*((int64_t) blockIdx.x*blockDim.x + threadIdx.x); o < n_bytes; o += stride) {
+        asm volatile("prefetch.global.L2::evict_last [%0];" :: "l"(p + o));
+    }
+#else
+    GGML_UNUSED(p);
+    GGML_UNUSED(n_bytes);
+#endif
+}
+
+// Completion order of this block within the grid, after its global writes are visible device-wide:
+// the block that gets gridDim.x - 1 is the last one and may read every other block's results with __ldcg.
+// Every thread of the block must call it. atomicInc wraps the counter to 0 on the last block,
+// leaving it ready for the next launch.
+static __device__ __forceinline__ unsigned int ggml_cuda_block_ticket(unsigned int * counter) {
+    __shared__ unsigned int ticket;
+    __threadfence();
+    __syncthreads();
+    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+        ticket = atomicInc(counter, gridDim.x - 1);
+    }
+    __syncthreads();
+    return ticket;
 }
 
 #ifdef __CUDA_ARCH_LIST__
@@ -402,6 +431,12 @@ static bool ggml_cuda_is_aligned(const ggml_tensor * tensor, const size_t alignm
            tensor->nb[1] % alignment == 0 &&
            tensor->nb[2] % alignment == 0 &&
            tensor->nb[3] % alignment == 0;
+}
+
+// t is s, or a contiguous view of all of s at offset 0 (a reshape)
+static bool ggml_cuda_is_whole_reshape(const ggml_tensor * t, const ggml_tensor * s) {
+    return t == s || (t->view_src == s && t->view_offs == 0 && ggml_is_contiguous(t) &&
+        ggml_nelements(t) == ggml_nelements(s));
 }
 
 static constexpr __device__ int ggml_cuda_get_physical_warp_size() {
@@ -1261,7 +1296,8 @@ struct ggml_cuda_device_info {
         int     nsm;                            // number of streaming multiprocessors
         size_t  smpb;                           // max. shared memory per block
         size_t  smpbo;                          // max. shared memory per block (with opt-in)
-        bool    integrated;                     // Device is integrated as opposed to discrete
+        size_t  l2_size;                        // L2 cache size in bytes (of the physical GPU)
+        bool    integrated;                    // Device is integrated as opposed to discrete
         bool    vmm;                            // virtual memory support
         size_t  vmm_granularity;                // granularity of virtual memory
         size_t  total_vram;
@@ -1295,6 +1331,10 @@ struct ggml_cuda_pool {
     virtual void * alloc(size_t size, size_t * actual_size) = 0;
     virtual void free(void * ptr, size_t size) = 0;
 };
+
+// Plain device allocation (defined in ggml-cuda.cu): used for context-owned persistent buffers
+// that must not go through the strict-LIFO pool.
+cudaError_t ggml_cuda_device_malloc(void ** ptr, size_t size, int device);
 
 template<typename T>
 struct ggml_cuda_pool_alloc {
@@ -1418,6 +1458,8 @@ struct ggml_cuda_graph {
     uint64_t actual_update_cpu_us = 0;
     uint64_t actual_launch_cpu_us = 0;
     uint64_t actual_capture_start_us = 0;
+    // the last evaluation waited on a deferred input (see ggml_backend_cuda_context::deferred_input)
+    bool deferred_input_wait = false;
 
     bool is_enabled() const {
         static const bool disable_cuda_graphs_due_to_env = (getenv("GGML_CUDA_DISABLE_GRAPHS") != nullptr);
@@ -1671,6 +1713,37 @@ struct ggml_cuda_q8_activation_storage {
 struct ggml_backend_cuda_context {
     // Conv-state fusion is shared by CUDA and HIP; reset for each graph evaluation.
     std::unordered_set<const ggml_tensor *> precomputed_ssm_convs;
+
+    // Per-graph-eval shared-quantize cache for the mmvq path. Several matvecs in one decode
+    // layer consume the same activation (Q/V/K read attn_norm; the router, fused gate/up and
+    // shared-expert gate read attn_post_norm), and each used to re-quantize it to q8_1. The two
+    // most recent quantizations are kept in persistent device buffers and reused when the same
+    // src1 tensor is seen again in the same graph eval with identical layout. Stream ordering
+    // makes overwrite safe (all consumers of the previous entry are enqueued before the next
+    // quantize runs). A buffer is never freed while in use: a captured graph may still replay
+    // kernels that point at it, so outgrown buffers are retired and freed at teardown.
+    struct q8_cache_entry {
+        char *              ptr  = nullptr;      // raw device memory (not pool), grow-only
+        size_t              cap  = 0;            // usable bytes
+        int                 dev  = -1;           // device the buffer was allocated on
+        const ggml_tensor * src1 = nullptr;      // key: tensor identity ...
+        const void *        data = nullptr;      // ... and its data pointer
+        uint64_t            epoch = 0;           // valid only within this graph eval
+        size_t              size = 0;            // quantized bytes
+        int64_t             ne10_padded = 0;     // layout keys
+        bool                swizzle_iq4 = false; // IQ4_XS swizzled activation rows
+        uint64_t            last_use = 0;        // LRU order
+    };
+
+    struct {
+        q8_cache_entry entries[2];
+        uint64_t       tick = 0;
+        std::vector<char *> retired;             // outgrown buffers, freed at teardown
+    } q8_cache;
+
+    // Incremented at the start of every graph evaluation; keys the q8_cache entries.
+    uint64_t graph_epoch = 1;
+
     int device;
     std::string name;
     cudaEvent_t copy_event = nullptr;
@@ -1685,6 +1758,11 @@ struct ggml_backend_cuda_context {
     // set while the meta backend records a whole tensor-parallel step on this context's stream:
     // graph_compute then launches plainly into that capture (no per-graph CUDA graph, no upload wait)
     bool external_capture = false;
+
+    // A split input uploaded on a side stream: the next graph waits on the event right before the
+    // input's first consumer, so earlier independent nodes overlap the upload.
+    const ggml_tensor * deferred_input = nullptr;
+    cudaEvent_t deferred_input_event = nullptr;
 
     // Persistent flash-attention scratch belongs to this backend context, not to the process or
     // physical device. Independent llama contexts therefore never alias Q/K/V work buffers.
@@ -1718,6 +1796,19 @@ struct ggml_backend_cuda_context {
     std::unordered_set<const void *> gdn_deferred_l2;
     // Key gathers whose only reader is a lightning indexer, which reads the rows in place instead.
     std::unordered_set<const void *> lightning_deferred_k;
+    // gated_delta_net nodes of the graph being evaluated whose GET_ROWS state gather is skipped:
+    // the launch reads sequence s's input state from base + rows[s] * D instead of src[5].
+    // Filled by ggml_cuda_gdn_state_read_plan at the start of each evaluation, cleared at its end.
+    struct gdn_state_read_entry {
+        const ggml_tensor * gdn        = nullptr;
+        const float *       base       = nullptr;
+        const int32_t *     rows       = nullptr;
+        int64_t             row_stride = 0;       // floats (always D for the shapes matched)
+        bool                used       = false;
+    };
+    std::vector<gdn_state_read_entry> gdn_state_reads;
+    // cumulative launches that read the state through the cache rows (test visibility)
+    int64_t gdn_state_read_count = 0;
     std::unordered_map<const ggml_tensor *, ggml_cuda_humming_prepared_activation> humming_prepared_activations;
     std::unordered_set<const ggml_tensor *> humming_prepared_active;
 
@@ -1878,7 +1969,22 @@ struct ggml_backend_cuda_context {
 
     // EXL3 reductions can overlap across backend contexts and streams.
     int * exl3_int8_counter_storage[GGML_CUDA_MAX_STREAMS] = {};
+
+    // ggml_cuda_block_ticket counters, one per ggml_cuda_ticket_slot, so that launches on other
+    // contexts and streams of the same device cannot take each other's tickets.
+    unsigned int * ticket_counter_storage[GGML_CUDA_MAX_STREAMS] = {};
 };
+
+enum ggml_cuda_ticket_slot {
+    GGML_CUDA_TICKET_ROUTER_TOPK_MOE,
+    GGML_CUDA_TICKET_DSV4_HC_PRE,
+    GGML_CUDA_TICKET_DSV4_HC_PRE_EPOCH, // not a ticket: a monotonic launch epoch that publishes pre
+    GGML_CUDA_TICKET_COUNT,
+};
+
+// Zero-at-rest counter for ggml_cuda_block_ticket on the current stream of ctx (an _EPOCH slot only
+// ever increments instead).
+unsigned int * ggml_cuda_ticket_counter(ggml_backend_cuda_context & ctx, ggml_cuda_ticket_slot slot);
 
 struct ggml_cuda_mm_fusion_args_host {
     const ggml_tensor * x_bias = nullptr;

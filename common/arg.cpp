@@ -1703,9 +1703,17 @@ static bool common_params_parse_ex(int argc, char ** argv, common_params_context
     // parse all CLI args now, so that -hf is available below for remote preset resolution
     parse_cli_args();
 
-    if (params.moe_cache.mode == COMMON_MOE_CACHE_MODE_ON && !params.no_extra_bufts) {
-        LOG_INF("explicit MoE cache mode disables weight repacking\n");
+    if ((params.moe_cache.mode == COMMON_MOE_CACHE_MODE_ON || params.moe_cache.no_repack) &&
+        !params.no_extra_bufts) {
+        LOG_INF("MoE cache on or a fixed budget disables weight repacking\n");
         params.no_extra_bufts = true;
+    }
+
+    if (params.numa_auto) {
+        params.numa = common_numa_auto_strategy();
+        if (params.numa == GGML_NUMA_STRATEGY_EXPERTS) {
+            LOG_INF("usable CPUs span more than one NUMA node: using --numa experts (--numa disabled turns it off)\n");
+        }
     }
 
     postprocess_cpu_params(params.cpuparams,       nullptr);
@@ -2141,6 +2149,10 @@ bool common_params_parse(int argc, char ** argv, common_params & params, llama_e
         if (!params.kv_pager.validate(pager_error)) {
             throw std::invalid_argument("invalid KV pager configuration: " + pager_error);
         }
+        const bool adaptive_mtp = params.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP_ADAPTIVE);
+        if (adaptive_mtp && (params.speculative.draft.n_min_adaptive < 1 || params.speculative.draft.n_min_adaptive > params.speculative.draft.n_max)) {
+            throw std::invalid_argument("--spec-draft-n-min-adaptive must be in [1, --spec-draft-n-max]");
+        }
         params.lr.init();
 
         // DFlash-safe target batch defaults. The drafter's block_size=16 / internal
@@ -2163,15 +2175,15 @@ bool common_params_parse(int argc, char ** argv, common_params & params, llama_e
                 }
                 return false;
             };
-            const bool b_passed   = arg_passed({"-b", "--batch-size"});
             const bool ub_passed  = arg_passed({"-ub", "--ubatch-size"});
             bool capped = false;
-            if (!b_passed && params.n_batch > 256) {
+            if (!params.n_batch_explicit && params.n_batch > 256) {
                 params.n_batch = 256;
                 capped = true;
             }
             if (!ub_passed && params.n_ubatch > 64) {
                 params.n_ubatch = 64;
+                params.n_ubatch_auto = false;
                 capped = true;
             }
             if (capped) {
@@ -2675,13 +2687,18 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         string_format("logical maximum batch size (default: %d)", params.n_batch),
         [](common_params & params, int value) {
             params.n_batch = value;
+            params.n_batch_explicit = true;
         }
     ).set_env("LLAMA_ARG_BATCH"));
     add_opt(common_arg(
-        {"-ub", "--ubatch-size"}, "N",
-        string_format("physical maximum batch size (default: %d)", params.n_ubatch),
-        [](common_params & params, int value) {
-            params.n_ubatch = value;
+        {"-ub", "--ubatch-size"}, "N|auto",
+        string_format("physical maximum batch size; 'auto' starts at %d and lets the fit raise it "
+            "when weights stream to the GPU every ubatch or MoE expert GEMMs run short (default: auto)", params.n_ubatch),
+        [](common_params & params, const std::string & value) {
+            params.n_ubatch_auto = is_autoy(value);
+            if (!params.n_ubatch_auto) {
+                params.n_ubatch = std::stoi(value);
+            }
         }
     ).set_env("LLAMA_ARG_UBATCH"));
     add_opt(common_arg(
@@ -2770,6 +2787,24 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.vbr_anchor_cache_mib = value;
         }
     ).set_env("LLAMA_ARG_VBR_ANCHOR_CACHE_MIB").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--cache-disk-path"}, "DIR",
+        "spill parked host prompt-cache conversations to DIR so they survive a restart "
+        "(default: '', the disk tier is off)",
+        [](common_params & params, const std::string & value) {
+            params.cache_disk_path = value;
+        }
+    ).set_env("LLAMA_ARG_CACHE_DISK_PATH").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--cache-disk-limit-mib"}, "N",
+        string_format("limit the --cache-disk-path tier to N MiB of objects (default: %d, 0 - unlimited)", params.cache_disk_limit_mib),
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("cache-disk-limit-mib must be non-negative");
+            }
+            params.cache_disk_limit_mib = value;
+        }
+    ).set_env("LLAMA_ARG_CACHE_DISK_LIMIT_MIB").set_examples({LLAMA_EXAMPLE_SERVER}));
     add_opt(common_arg(
         {"--context-shift"},
         {"--no-context-shift"},
@@ -3917,16 +3952,21 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     add_opt(common_arg(
         {"--numa"}, "TYPE",
         "attempt optimizations that help on some NUMA systems\n"
+        "- auto: experts when the usable CPUs span more than one node, otherwise disabled (default)\n"
+        "- disabled: no NUMA handling\n"
         "- distribute: spread execution evenly over all nodes\n"
         "- isolate: only spawn threads on CPUs on the node that execution started on\n"
         "- numactl: use the CPU map provided by numactl\n"
+        "- experts: spread every expert of mapped MoE weights across all nodes; each node's\n"
+        "  threads work on their local share first (threads stay unpinned)\n"
         "if run without this previously, it is recommended to drop the system page cache before using this\n"
         "see https://github.com/ggml-org/llama.cpp/issues/1437",
         [](common_params & params, const std::string & value) {
-            /**/ if (value == "distribute" || value == "") { params.numa = GGML_NUMA_STRATEGY_DISTRIBUTE; }
-            else if (value == "isolate") { params.numa = GGML_NUMA_STRATEGY_ISOLATE; }
-            else if (value == "numactl") { params.numa = GGML_NUMA_STRATEGY_NUMACTL; }
-            else { throw std::invalid_argument("invalid value"); }
+            // auto resolves after parsing, so the log line below names the choice
+            params.numa_auto = value == "auto";
+            if (!params.numa_auto && !common_numa_strategy_from_str(value, params.numa)) {
+                throw std::invalid_argument("invalid value");
+            }
         }
     ).set_env("LLAMA_ARG_NUMA"));
     add_opt(common_arg(
@@ -3970,13 +4010,16 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_env("LLAMA_ARG_N_CPU_MOE"));
     add_opt(common_arg(
         {"--moe-cache"}, "MODE",
-        "adaptively cache the hottest CPU-resident MoE experts in spare VRAM "
-        "(default: auto; auto = preserve weight repacking; on = automatic budget without weight repacking; "
-        "soft = try spare VRAM first, evict experts only as needed; "
-        "off/0 = disabled; N = VRAM budget in MiB per device without weight repacking)",
+        "cache the hottest CPU-resident MoE experts in spare VRAM "
+        "(default: auto; auto = fit may move routed experts to CPU to free VRAM for the cache, "
+        "which stays off below 1 GiB; "
+        "soft = keep the stock expert placement, moving experts to CPU only as needed; "
+        "off/0 = disabled; N = fixed VRAM budget in MiB per device, without weight repacking; "
+        "on = deprecated, same as auto --no-repack)",
         [](common_params & params, const std::string & value) {
             params.moe_cache.mode_explicit = true;
             params.moe_cache.fit_selected = false;
+            params.moe_cache.no_repack = value == "on";
 
             if (value == "off" || value == "0") {
                 params.moe_cache.mode       = COMMON_MOE_CACHE_MODE_OFF;
@@ -3988,7 +4031,8 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
                 params.moe_cache.mode       = COMMON_MOE_CACHE_MODE_SOFT;
                 params.moe_cache.budget_mib = 0;
             } else if (value == "on") {
-                params.moe_cache.mode       = COMMON_MOE_CACHE_MODE_ON;
+                LOG_WRN("DEPRECATED: `--moe-cache on` is `--moe-cache auto --no-repack`\n");
+                params.moe_cache.mode       = COMMON_MOE_CACHE_MODE_AUTO;
                 params.moe_cache.budget_mib = 0;
             } else {
                 char * end = nullptr;
@@ -3996,7 +4040,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
                 const long long budget_mb = strtoll(value.c_str(), &end, 10);
                 if (errno != 0 || end == value.c_str() || *end != '\0' ||
                     budget_mb <= 0 || budget_mb > 1024 * 1024) {
-                    throw std::invalid_argument("expected auto, on, off, 0, or a positive MiB budget");
+                    throw std::invalid_argument("expected auto, soft, off, 0, or a positive MiB budget");
                 }
                 params.moe_cache.mode       = COMMON_MOE_CACHE_MODE_ON;
                 params.moe_cache.budget_mib = (size_t)budget_mb;
@@ -4086,9 +4130,10 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         {"-sm", "--split-mode"}, "{none,layer,row,tensor}",
         "how to split the model across multiple GPUs, one of:\n"
         "- none: use one GPU only\n"
-        "- layer (default): split layers and KV across GPUs (pipelined)\n"
+        "- layer: split layers and KV across GPUs (pipelined)\n"
         "- row: split weight across GPUs by rows (parallelized)\n"
-        "- tensor: split weights and KV across GPUs (parallelized, EXPERIMENTAL)",
+        "- tensor: split weights and KV across GPUs (parallelized, EXPERIMENTAL)\n"
+        "(default: tensor when -fit places the whole model on several GPUs, else layer)",
         [](common_params & params, const std::string & value) {
             if (value == "none") {
                 params.split_mode = LLAMA_SPLIT_MODE_NONE;
@@ -4101,6 +4146,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             } else {
                 throw std::invalid_argument("invalid value");
             }
+            params.split_mode_explicit = true;
             if (!llama_supports_gpu_offload()) {
                 fprintf(stderr, "warning: llama.cpp was compiled without support for GPU offload. Setting the split mode has no effect.\n");
             }
@@ -4143,6 +4189,15 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             }
         }
     ).set_env("LLAMA_ARG_MAIN_GPU"));
+    add_opt(common_arg(
+        {"--split-attn-owned"}, "N",
+        "with split-mode = tensor, hold N attention layers and their KV caches whole on one GPU each (round robin) "
+        "instead of mirroring the latent caches on every GPU; trades decode/prefill speed for context (GLM DSA only, "
+        "-1 = chosen by --fit, default: -1)",
+        [](common_params & params, int value) {
+            params.n_attn_owned = value;
+        }
+    ).set_env("LLAMA_ARG_SPLIT_ATTN_OWNED"));
     add_opt(common_arg(
         { "-fit", "--fit" }, "[on|off]",
         string_format("whether to adjust unset arguments to fit in device memory ('on' or 'off', default: '%s')", params.fit_params ? "on" : "off"),
@@ -5513,6 +5568,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         ),
         [](common_params & params, const std::string & value) {
             params.speculative.draft.cache_type_k = kv_cache_type_from_str(value, false);
+            params.speculative.draft.cache_type_k_explicit = true;
         }
     ).set_env("LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_K"));
     add_opt(common_arg(
@@ -5527,8 +5583,16 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         ),
         [](common_params & params, const std::string & value) {
             params.speculative.draft.cache_type_v = kv_cache_type_from_str(value, false);
+            params.speculative.draft.cache_type_v_explicit = true;
         }
     ).set_env("LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_V"));
+    add_opt(common_arg(
+        {"--spec-draft-cache-follow"}, "<0|1>",
+        string_format("inherit the main model -ctk/-ctv for the draft KV cache when -ctkd/-ctvd are not set (default: %d)", (int) params.speculative.draft.draft_cache_follow),
+        [](common_params & params, int value) {
+            params.speculative.draft.draft_cache_follow = value != 0;
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_SPEC_DRAFT_CACHE_FOLLOW"));
     add_opt(common_arg(
         {"--spec-draft-override-tensor", "-otd", "--override-tensor-draft"}, "<tensor name pattern>=<buffer type>,...",
         "override tensor buffer type for draft model", [](common_params & params, const std::string & value) {
@@ -5572,12 +5636,19 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_LOOKUP, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_SPEC_DRAFT_N_MIN"));
     add_opt(common_arg(
+        {"--spec-draft-n-min-adaptive"}, "N",
+        string_format("minimum adaptive MTP draft depth; the depth starts at --spec-draft-n-max and never drops below it (default: %d)", params.speculative.draft.n_min_adaptive),
+        [](common_params & params, int value) {
+            params.speculative.draft.n_min_adaptive = value;
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_SPEC_DRAFT_N_MIN_ADAPTIVE"));
+    add_opt(common_arg(
         {"--spec-mtp-vocab-size"}, "N",
-        string_format("Qwen-27B MTP public balanced vocabulary; 0 disables, 32768 enables (default: %u)",
+        string_format("Qwen-27B MTP draft vocabulary; 0 disables, 32768 and 65536 select a trim size (default: %u)",
                 params.speculative.draft.mtp_vocab_size),
         [](common_params & params, int value) {
-            if (value != 0 && value != 32768) {
-                throw std::invalid_argument("--spec-mtp-vocab-size must be 0 or 32768");
+            if (value != 0 && value != 32768 && value != 65536) {
+                throw std::invalid_argument("--spec-mtp-vocab-size must be 0, 32768, or 65536");
             }
             params.speculative.draft.mtp_vocab_size = value;
         }
@@ -5699,6 +5770,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             const auto types_str = string_split<std::string>(value, ',');
             auto types = common_speculative_types_from_names(types_str);
             params.speculative.types.insert(params.speculative.types.end(), types.begin(), types.end());
+            params.speculative.spec_type_set = true;
         }
     ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_SPEC_TYPE"));
     add_opt(common_arg(

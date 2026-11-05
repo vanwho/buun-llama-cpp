@@ -565,6 +565,15 @@ struct llama_layer {
     struct ggml_tensor * indexer_attn_q_b_in_s = nullptr;
     struct ggml_tensor * indexer_comp_wkv_s    = nullptr;
     struct ggml_tensor * indexer_comp_wgate_s  = nullptr;
+    // DeepSeek-V4 EXL3 input-sign (suh) vectors
+    struct ggml_tensor * wkv_in_s                = nullptr;
+    struct ggml_tensor * wo_a_in_s               = nullptr;
+    struct ggml_tensor * wo_b_in_s               = nullptr;
+    struct ggml_tensor * attn_comp_wkv_in_s      = nullptr;
+    struct ggml_tensor * attn_comp_wgate_in_s    = nullptr;
+    struct ggml_tensor * indexer_proj_in_s       = nullptr;
+    struct ggml_tensor * indexer_comp_wkv_in_s   = nullptr;
+    struct ggml_tensor * indexer_comp_wgate_in_s = nullptr;
 
     // cogvlm
     struct ggml_tensor * visexp_attn_wqkv = nullptr;
@@ -609,6 +618,11 @@ struct llama_layer {
     // glm5-next k-pool indexer
     struct ggml_tensor * indexer_kpool_gate = nullptr;
     struct ggml_tensor * indexer_kpool_ape  = nullptr;
+
+    // deepseek41
+    struct ggml_tensor * engram_kv   = nullptr;
+    struct ggml_tensor * engram_gate = nullptr; // q_weight*k_weight folded
+    struct ggml_tensor * engram_embd = nullptr; // this layer's n-gram table, when the tables are stored per layer
 
     // MSA
     struct ggml_tensor * index_q_proj = nullptr;
@@ -659,6 +673,7 @@ struct llama_device {
 struct llama_meta_device_get_split_state_userdata {
     size_t                     n_devices;
     const struct llama_model * model;
+    int32_t                    n_attn_owned; // llama_model_params::n_attn_owned
 };
 
 struct ggml_backend_meta_split_state llama_meta_device_get_split_state(const struct ggml_tensor * tensor, void * userdata);
@@ -690,6 +705,9 @@ struct llama_model {
 
     // for classifier models
     std::vector<std::string> classifier_labels;
+
+    // deepseek41 Engram: token id -> id of its normalized form, hashed into the n-grams
+    std::vector<int32_t> engram_token_map;
 
     struct ggml_tensor * tok_embd   = nullptr;
     struct ggml_tensor * type_embd  = nullptr;
@@ -754,6 +772,19 @@ struct llama_model {
     struct ggml_tensor * fc_s = nullptr;
     struct ggml_tensor * fc_in_s = nullptr;
     struct ggml_tensor * d2t = nullptr;  // draft to target vocabulary mapping
+
+    // runtime compact MTP draft head for built-in nextn models without a sidecar
+    // d2t (built by llama_model_init_mtp_draft_vocab, src/llama-mtp-vocab.cpp;
+    // consumed by arch graph builds under cparams.embeddings_nextn_masked, i.e.
+    // draft decodes only). ids: I32 [n_sel]; compact: [n_embd, n_sel] in the
+    // output head's own quant type (bit-identical row gather).
+    struct mtp_draft_vocab_state {
+        ggml_context_ptr        ctx;
+        ggml_backend_buffer_ptr buf;
+        struct ggml_tensor * ids     = nullptr;
+        struct ggml_tensor * compact = nullptr;
+        bool                   attempted = false;
+    } mtp_draft_vocab;
 
     // dspark
     struct ggml_tensor * dspark_markov_w1   = nullptr;
@@ -857,6 +888,9 @@ struct llama_model {
     ggml_backend_dev_t dev_layer(int il) const;
     ggml_backend_dev_t dev_output() const;
 
+    // shared buffer that layer-split contexts exchange the residual stream through at layer il
+    ggml_tensor * get_layer_hop(int il, int64_t n_rows) const;
+
     ggml_backend_buffer_type_t select_buft(int il) const;
 
     bool has_tensor_overrides() const;
@@ -870,6 +904,9 @@ struct llama_model {
 
     bool supports_classic_vbr() const;
     bool supports_turbo_vbr() const;
+
+    // the MTP graph reads and writes the greedy draft chain stages
+    bool supports_mtp_draft_chain() const;
 
     llama_memory_i * create_memory(const llama_memory_params & params, const llama_cparams & cparams) const;
 

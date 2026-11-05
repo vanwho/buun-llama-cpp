@@ -3,6 +3,7 @@
 #include "llama-impl.h"
 
 #include "ggml.h"
+#include "ggml-moe-store.h"
 
 #include <cstring>
 #include <climits>
@@ -592,6 +593,7 @@ struct llama_mmap::impl {
         }
 
         mapped_fragments.emplace_back(0, file->size());
+        ggml_moe_store_map(addr, file->size(), fd);
     }
 
     static void align_range(size_t * first, size_t * last, size_t page_size) {
@@ -621,6 +623,7 @@ struct llama_mmap::impl {
 
         void * next_page_start = (uint8_t *) addr + first;
 
+        ggml_moe_store_unmap(next_page_start, len);
         if (munmap(next_page_start, len)) {
             LLAMA_LOG_WARN("warning: munmap failed: %s\n", strerror(errno));
         }
@@ -644,6 +647,7 @@ struct llama_mmap::impl {
 
     ~impl() {
         for (const auto & frag : mapped_fragments) {
+            ggml_moe_store_unmap((char *) addr + frag.first, frag.second - frag.first);
             if (munmap((char *) addr + frag.first, frag.second - frag.first)) {
                 LLAMA_LOG_WARN("warning: munmap failed: %s\n", strerror(errno));
             }
@@ -764,6 +768,30 @@ void llama_mmap::advise_random(size_t first, size_t last, bool enabled) const {
     GGML_UNUSED(first);
     GGML_UNUSED(last);
     GGML_UNUSED(enabled);
+#endif
+}
+
+bool llama_mmap::populate(size_t first, size_t last) const {
+#ifdef __linux__
+#ifndef MADV_POPULATE_READ
+#define MADV_POPULATE_READ 22
+#endif
+    const size_t page = sysconf(_SC_PAGESIZE);
+    first -= first % page;
+    last = std::min(last, size());
+    if (first >= last) return false;
+    char * beg = static_cast<char *>(addr()) + first;
+    // populating pages that are not cached would read them from disk
+    std::vector<unsigned char> vec((last - first + page - 1) / page);
+    if (mincore(beg, last - first, vec.data()) != 0) return false;
+    size_t n_cached = 0;
+    for (unsigned char v : vec) n_cached += v & 1;
+    if (n_cached * 10 < vec.size() * 9) return false;
+    return madvise(beg, last - first, MADV_POPULATE_READ) == 0;
+#else
+    GGML_UNUSED(first);
+    GGML_UNUSED(last);
+    return false;
 #endif
 }
 

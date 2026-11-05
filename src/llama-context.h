@@ -1004,6 +1004,7 @@ private:
 
     ggml_threadpool_t threadpool       = nullptr;
     ggml_threadpool_t threadpool_batch = nullptr;
+    llama_context *   threadpool_owner = nullptr; // drafter: borrow the target's pools when none attached
 
     // Backend thread settings persist across graph submissions. Cache the
     // selected pair so repeated microbatches do not reconfigure unchanged

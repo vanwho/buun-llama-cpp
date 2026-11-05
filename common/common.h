@@ -88,6 +88,11 @@ int32_t common_cpu_get_num_physical_cores();
 int32_t common_cpu_get_num_math();
 int32_t common_cpu_resolve_moe_threads(int32_t physical_cores);
 int32_t common_cpu_get_num_moe_threads();
+int32_t common_cpu_get_num_numa_nodes();
+// --numa auto: experts on a host whose usable CPUs span more than one NUMA node, else disabled
+ggml_numa_strategy common_numa_auto_strategy();
+// parse a --numa value ("auto" resolves via common_numa_auto_strategy); false if unknown
+bool common_numa_strategy_from_str(const std::string & value, ggml_numa_strategy & numa);
 
 //
 // Common params
@@ -185,6 +190,7 @@ enum common_speculative_type {
     COMMON_SPECULATIVE_TYPE_DRAFT_SIMPLE,  // standalone draft model speculative decoding
     COMMON_SPECULATIVE_TYPE_DRAFT_EAGLE3,  // Eagle3 speculative decoding
     COMMON_SPECULATIVE_TYPE_DRAFT_MTP,     // Multi-token prediction
+    COMMON_SPECULATIVE_TYPE_DRAFT_MTP_ADAPTIVE, // Multi-token prediction with adaptive draft depth
     COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH,  // DFlash speculative decoding
     COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK,  // DSpark speculative decoding (DFlash + Markov head)
     COMMON_SPECULATIVE_TYPE_NGRAM_SIMPLE,  // simple self-speculative decoding based on n-grams
@@ -347,6 +353,7 @@ enum class common_speculative_draft_kv_device {
 struct common_params_speculative_draft {
     int32_t n_max = 3; // maximum number of tokens to draft during speculative decoding
     int32_t n_min = 0; // minimum number of draft tokens to use for speculative decoding
+    int32_t n_min_adaptive = 3; // minimum adaptive MTP draft depth (--spec-type draft-mtp-adaptive)
     bool n_max_set = false; // true when the user explicitly overrides the draft depth
 
     // Qwen-27B MTP-only sidecars: 32768 enables the experimental public
@@ -375,6 +382,9 @@ struct common_params_speculative_draft {
     ggml_type cache_type_k = GGML_TYPE_F16; // KV cache data type for the K
     ggml_type cache_type_v = GGML_TYPE_F16; // KV cache data type for the V
     common_speculative_draft_kv_device kv_device = common_speculative_draft_kv_device::AUTO;
+    bool cache_type_k_explicit = false; // -ctkd was given (beats --spec-draft-cache-follow)
+    bool cache_type_v_explicit = false; // -ctvd was given (beats --spec-draft-cache-follow)
+    bool draft_cache_follow = false; // inherit the main model -ctk/-ctv when -ctkd/-ctvd are unset
 
     common_cpu_params cpuparams;
     common_cpu_params cpuparams_batch;
@@ -410,6 +420,7 @@ struct common_params_speculative_ngram_cache {
 
 struct common_params_speculative {
     std::vector<enum common_speculative_type> types = { COMMON_SPECULATIVE_TYPE_NONE };
+    bool spec_type_set = false; // true when the user explicitly set --spec-type (including none)
 
     double synth_len = -1.0;
     std::vector<double> synth_rates;
@@ -457,8 +468,12 @@ struct common_params_speculative {
     }
 
     bool has_non_mtp_model_drafter() const {
-        return has_type(COMMON_SPECULATIVE_TYPE_DRAFT_SIMPLE) ||
-               has_type(COMMON_SPECULATIVE_TYPE_DRAFT_EAGLE3) ||
+        return has_type(COMMON_SPECULATIVE_TYPE_DRAFT_SIMPLE) || has_target_feature_drafter();
+    }
+
+    // EAGLE3/DFlash/DSpark sidecars read the target's hidden states and may borrow its embedding/output
+    bool has_target_feature_drafter() const {
+        return has_type(COMMON_SPECULATIVE_TYPE_DRAFT_EAGLE3) ||
                has_type(COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH) ||
                has_type(COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK) ||
                has_type(COMMON_SPECULATIVE_TYPE_DFLASH);
@@ -469,7 +484,8 @@ struct common_params_speculative {
     }
 
     bool uses_mtp_as_primary_drafter() const {
-        return has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
+        return (has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
+                has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP_ADAPTIVE)) &&
                !has_non_mtp_model_drafter();
     }
 
@@ -487,10 +503,20 @@ struct common_params_speculative {
 
     uint32_t need_n_rs_seq() const {
         bool needs_rs_seq = std::any_of(types.begin(), types.end(), [&](auto t) {
-            return t == COMMON_SPECULATIVE_TYPE_DRAFT_MTP || t == COMMON_SPECULATIVE_TYPE_DRAFT_EAGLE3 || t == COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH || t == COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK;
+            return t == COMMON_SPECULATIVE_TYPE_DRAFT_MTP || t == COMMON_SPECULATIVE_TYPE_DRAFT_MTP_ADAPTIVE || t == COMMON_SPECULATIVE_TYPE_DRAFT_EAGLE3 || t == COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH || t == COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK;
         });
 
         return needs_rs_seq ? draft.n_max : 0u;
+    }
+
+    // a default-depth MTP drafter drafts one token on a tensor split target (see the MTP drafter),
+    // so the target needs one rollback plane there unless --draft-max or another drafter asks for more
+    uint32_t need_n_rs_seq_tensor() const {
+        const bool mtp_only = std::none_of(types.begin(), types.end(), [&](auto t) {
+            return t == COMMON_SPECULATIVE_TYPE_DRAFT_EAGLE3 || t == COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH || t == COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK;
+        });
+        const uint32_t n = need_n_rs_seq();
+        return mtp_only && !draft.n_max_set ? std::min(n, 1u) : n;
     }
 
     // model-free self-speculation (no -md): drafts come from the target context alone but are
@@ -591,6 +617,9 @@ struct common_moe_cache_params {
     int cpu_overlap            = -2; // -2 = inherit provider, -1 = auto, 0..8 = CPU rows
     bool mode_explicit         = false;
     bool fit_selected          = false;
+    size_t fit_cache_bytes     = 0;     // projected cache capacity of the selected placement
+    size_t fit_expert_bytes    = 0;     // routed expert bytes that placement caches from the host
+    bool no_repack             = false; // deprecated "on": auto with canonical expert weights
     bool profile               = true;
     std::string profile_path;
 };
@@ -600,6 +629,8 @@ struct common_params {
     int32_t n_ctx                 =     0; // context size, 0 == context the model was trained with
     int32_t n_batch               =  2048; // logical batch size for prompt processing (must be >=32 to use BLAS)
     int32_t n_ubatch              =   512; // physical batch size for prompt processing (must be >=32 to use BLAS)
+    bool    n_ubatch_auto         =  true; // let the fit raise n_ubatch when weights stream to the GPU per ubatch
+    bool    n_batch_explicit      = false; // -b was passed: the auto ubatch never exceeds it
     int32_t n_keep                =     0; // number of tokens to keep from initial prompt
     int32_t n_chunks              =    -1; // max number of chunks to process (-1 = unlimited)
     int32_t n_parallel            =     1; // number of parallel sequences to decode
@@ -622,6 +653,7 @@ struct common_params {
 
     int32_t n_gpu_layers       = -1;    // number of layers to store in VRAM, -1 is auto, <= -2 is all
     int32_t main_gpu           = 0;     // the GPU that is used for scratch and small tensors
+    int32_t n_attn_owned       = -1;    // tensor split: attention layers held whole by one device each, -1 = auto
     float   tensor_split[128]  = {0};   // how split tensors should be distributed across GPUs
     bool    fit_params         = true;  // whether to fit unset model/context parameters to free device memory
     bool    fit_params_print   = false; // print the estimated required memory to run the model
@@ -635,6 +667,7 @@ struct common_params {
     uint64_t fit_params_vbr_growth_headroom_bytes = 0; // 0 = derive from fit_params_target
 
     enum llama_split_mode split_mode = LLAMA_SPLIT_MODE_LAYER; // how to split the model across GPUs
+    bool split_mode_explicit = false; // -sm given; otherwise the fit picks tensor split for a model resident on several GPUs
     enum llama_load_mode  load_mode  = LLAMA_LOAD_MODE_AUTO; // how to load the model
 
     enum llama_lazy_mode lazy_mode = LLAMA_LAZY_MODE_AUTO; // on-demand reading of tensors marked by the arch
@@ -648,6 +681,7 @@ struct common_params {
     void * cb_eval_user_data                 = nullptr;
 
     ggml_numa_strategy numa = GGML_NUMA_STRATEGY_DISABLED;
+    bool numa_auto = true; // resolve numa from the host topology after parsing (--numa auto)
 
     enum llama_rope_scaling_type rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED;
     enum llama_pooling_type      pooling_type      = LLAMA_POOLING_TYPE_UNSPECIFIED; // pooling type for embeddings
@@ -963,6 +997,11 @@ struct common_params {
     bool log_json = false;
 
     std::string slot_save_path;
+    // Prompt-cache disk tier (P4): parked host-prompt-cache conversations spill to this
+    // directory so they survive a server restart. Empty = the tier is off.
+    std::string cache_disk_path;
+    // Byte limit for the disk tier; 0 = unlimited.
+    int32_t cache_disk_limit_mib = 0;
     bool        resume = false; // save the slots' conversations at shutdown and sleep, restore them at startup and wake
     std::string resume_path;    // root of the resume store, empty: the cache directory
     bool        resume_no_host_cache = false; // save and restore the slots only, not the host prompt cache

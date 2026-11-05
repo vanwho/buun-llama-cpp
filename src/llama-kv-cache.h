@@ -424,6 +424,10 @@ public:
     // iSWA attaches both children after their pools exist so ownership follows the
     // actually active controller and the last child in parent execution order is root.
     bool vbr_controller_active() const { return vbr_vmm_active(); }
+    // backs graph reads of the first n_kv cells (VBR maps cells only as they fill); false if it can't
+    bool vbr_map_reads(uint32_t n_kv);
+    // the layers live on more than one device, which pipeline parallelism needs
+    bool spans_devices() const { return ctxs_bufs.size() > 1; }
     void vbr_import_accounting_observed() noexcept {
         vbr_import_receipts_release();
     }
@@ -530,7 +534,8 @@ public:
     // graph_build API
     //
 
-    uint32_t get_n_kv(const slot_info & sinfo) const;
+    // n_used_min: cells assumed used regardless of the current state
+    uint32_t get_n_kv(const slot_info & sinfo, uint32_t n_used_min = 0) const;
     bool selected_attention_supported() const noexcept { return !v_trans; }
 
     // get views of the current state of the cache
@@ -2154,10 +2159,12 @@ public:
             stream_copy_info sc_info);
 
     // used to create a batch processing context from a batch
+    // batch_stable: allow every ubatch to read up to the batch's last cell (caches sharing a KQ mask must agree)
     llama_kv_cache_context(
             llama_kv_cache * kv,
             slot_info_vec_t sinfos,
-            std::vector<llama_ubatch> ubatches);
+            std::vector<llama_ubatch> ubatches,
+            bool batch_stable = true);
 
     virtual ~llama_kv_cache_context();
 
@@ -2211,6 +2218,8 @@ public:
     //
 
     uint32_t get_n_kv() const;
+    // whether the ubatches of this batch read up to its last cell
+    bool batch_stable() const { return n_used_batch > 0; }
 
     // Return the number of rows that the attention graph may read from the
     // cache source. Dense graphs consume only the logical prefix; paged graphs
@@ -2320,6 +2329,9 @@ private:
     slot_info_vec_t sinfos;
 
     std::vector<llama_ubatch> ubatches;
+
+    // one past the highest cell the batch writes, 0 for a single ubatch
+    uint32_t n_used_batch = 0;
 
     //
     // data needed for building the compute graph for the current ubatch:

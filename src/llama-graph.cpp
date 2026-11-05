@@ -2966,7 +2966,7 @@ ggml_tensor * llm_graph_context::build_lora_mm(
             (in_s->type == GGML_TYPE_F32 || in_s->type == GGML_TYPE_I32 || in_s->type == GGML_TYPE_I16);
         const bool mxfp4_scale = w->type == GGML_TYPE_MXFP4 && in_s->type == GGML_TYPE_I32;
         const bool exl3_signs = ggml_type_is_exl3(w->type) &&
-            in_s->type == GGML_TYPE_F16 && ggml_nelements(in_s) == w->ne[0];
+            in_s->type == GGML_TYPE_F16 && ggml_nelements(in_s) == w->ne[0]*w->ne[2];
         if (!exl3_signs && ((!fp8_scale && !i8_scale && !i4_scale && !mxfp4_scale) ||
             ggml_nelements(in_s) != 1)) {
             throw std::runtime_error(format(
@@ -2997,7 +2997,7 @@ ggml_tensor * llm_graph_context::build_lora_mm(
         const bool w8a16_scale = w->type == GGML_TYPE_I8 && w_s->type == GGML_TYPE_I8 &&
             w_s->ne[0] >= static_cast<int64_t>(sizeof(ggml_w8a16_scale_header));
         const bool exl3_scale = ggml_type_is_exl3(w->type) &&
-            w_s->type == GGML_TYPE_F16 && ggml_nelements(w_s) == w->ne[1];
+            w_s->type == GGML_TYPE_F16 && ggml_nelements(w_s) == w->ne[1]*w->ne[2];
         if ((w->type == GGML_TYPE_F8_E4M3 &&
              (w_s->type == GGML_TYPE_F32 || w_s->type == GGML_TYPE_I8 || fp8_group_scale ||
               is_dynamic_fp8_bf16_channel_scale(w, w_s, in_s))) ||
@@ -3033,6 +3033,24 @@ ggml_tensor * llm_graph_context::build_lora_mm(
     }
 
     return res;
+}
+
+void llm_graph_context::build_mtp_chain_out(
+          ggml_cgraph * gf,
+          ggml_tensor * logits,
+          ggml_tensor * tok,
+          ggml_tensor * h_next) const {
+    // the draft's own inputs are ancestors of every copy, so overwriting the stages is safe
+    ggml_build_forward_expand(gf, ggml_cpy(ctx0, tok, cparams.mtp_chain_tok));
+
+    // confidence as the step-by-step drafter's top-10 sampler reports it
+    const int64_t n_vocab_head = logits->ne[0];
+    const int64_t n_cand       = std::min<int64_t>(10, n_vocab_head);
+    ggml_tensor * cand = ggml_get_rows(ctx0, ggml_reshape_2d(ctx0, logits, 1, n_vocab_head), ggml_top_k(ctx0, logits, n_cand));
+    cand = ggml_soft_max(ctx0, ggml_reshape_2d(ctx0, cand, n_cand, 1));
+    ggml_tensor * p = ggml_get_rows(ctx0, ggml_reshape_2d(ctx0, cand, 1, n_cand), ggml_argmax(ctx0, cand));
+    ggml_build_forward_expand(gf, ggml_cpy(ctx0, p, cparams.mtp_chain_p));
+    ggml_build_forward_expand(gf, ggml_cpy(ctx0, h_next, cparams.mtp_chain_h));
 }
 
 ggml_tensor * llm_graph_context::build_d2t_logits(
@@ -3426,7 +3444,7 @@ ggml_tensor * llm_graph_context::build_ffn(
                     const float limit = hparams.swiglu_clamp_shexp[il];
                     constexpr float eps = 1e-6f;
                     if (limit > eps) {
-                        if (arch == LLM_ARCH_DEEPSEEK4 || arch == LLM_ARCH_GLM5_NEXT || (arch == LLM_ARCH_DFLASH && hparams.dsv4_hc_mult > 0)) {
+                        if (arch == LLM_ARCH_DEEPSEEK4 || arch == LLM_ARCH_DEEPSEEK41 || arch == LLM_ARCH_GLM5_NEXT || (arch == LLM_ARCH_DFLASH && hparams.dsv4_hc_mult > 0)) {
                             cur = ggml_swiglu_clamp(ctx0, cur, tmp, limit);
                         } else {
                             tmp = ggml_clamp(ctx0, tmp, -limit, limit);
@@ -3741,8 +3759,13 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
         ggml_tensor * weights_sum = ggml_sum_rows(ctx0, weights); // [1, n_tokens]
         cb(weights_sum, "ffn_moe_weights_sum", il);
 
-        // Avoid division by zero, clamp to smallest number representable by F16
-        weights_sum = ggml_clamp(ctx0, weights_sum, 6.103515625e-5, INFINITY);
+        if (arch == LLM_ARCH_DEEPSEEK41) {
+            // model.py Gate.forward: weights / (sum + 1e-20); the sum can fall below the F16 clamp below
+            weights_sum = ggml_scale_bias(ctx0, weights_sum, 1.0f, 1e-20f);
+        } else {
+            // Avoid division by zero, clamp to smallest number representable by F16
+            weights_sum = ggml_clamp(ctx0, weights_sum, 6.103515625e-5, INFINITY);
+        }
         cb(weights_sum, "ffn_moe_weights_sum_clamped", il);
 
         weights = ggml_div(ctx0, weights, weights_sum); // [n_expert_used, n_tokens]
@@ -3838,7 +3861,7 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
                     const float limit = hparams.swiglu_clamp_exp[il];
                     constexpr float eps = 1e-6f;
                     if (limit > eps) {
-                        if (arch == LLM_ARCH_MAPLE || arch == LLM_ARCH_DEEPSEEK4 || arch == LLM_ARCH_GLM5_NEXT || (arch == LLM_ARCH_DFLASH && hparams.dsv4_hc_mult > 0) || arch == LLM_ARCH_HY_V4) {
+                        if (arch == LLM_ARCH_MAPLE || arch == LLM_ARCH_DEEPSEEK4 || arch == LLM_ARCH_DEEPSEEK41 || arch == LLM_ARCH_GLM5_NEXT || (arch == LLM_ARCH_DFLASH && hparams.dsv4_hc_mult > 0) || arch == LLM_ARCH_HY_V4) {
                             cur = ggml_swiglu_clamp(ctx0, cur, up, limit);
                         } else {
                             up = ggml_clamp(ctx0, up, -limit, limit);
@@ -4340,6 +4363,11 @@ ggml_tensor * llm_graph_context::build_attn_mha(
         ggml_flash_attn_ext_set_sparse_mask(cur, sparse_mask);
 
         if (v_mla) {
+            // turbo V decodes in the FWHT domain (see build_attn_v_unrotate): restore the latent before
+            // the up-projection, which an output-side unrotate would come after. cur is the fresh FA output.
+            if (ggml_is_turbo_kv_type(v->type) && cur->ne[0] % 128 == 0) {
+                cur = ggml_turbo_wht(ctx0, cur, 1); // 1 = inverse
+            }
 #if 0
             // v_mla can be applied as a matrix-vector multiplication with broadcasting across dimension 3 == n_tokens.
             // However, the code is optimized for dimensions 0 and 1 being large, so this is inefficient.
@@ -5932,7 +5960,10 @@ ggml_tensor * llm_graph_context::build_attn(
     ggml_tensor * cur = build_attn_mha(q, k, v, kq_b, kq_mask, sinks, v_mla, 0, kq_scale, il);
     cb(cur, "kqv_out", il);
 
-    cur = build_attn_v_unrotate(cur, v, v_rot, use_kv_cur ? nullptr : inp->self_vmean, il);
+    // with v_mla, build_attn_mha already restored a turbo V ahead of the up-projection
+    if (!v_mla || !ggml_is_turbo_kv_type(v->type)) {
+        cur = build_attn_v_unrotate(cur, v, v_rot, use_kv_cur ? nullptr : inp->self_vmean, il);
+    }
 
     if (wo) {
         cur = build_lora_mm(wo, cur, wo_s);

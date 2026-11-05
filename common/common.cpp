@@ -252,6 +252,47 @@ int32_t common_cpu_get_num_moe_threads() {
     return common_cpu_resolve_moe_threads(common_cpu_get_num_physical_cores());
 }
 
+int32_t common_cpu_get_num_numa_nodes() {
+#if defined(__linux__)
+    // count the nodes holding a CPU this process may run on, so numactl/cpuset binds count as one node
+    cpu_set_t affinity;
+    if (sched_getaffinity(0, sizeof(affinity), &affinity) != 0) {
+        return 1;
+    }
+    int32_t n_nodes = 0;
+    for (int node = 0; ; ++node) {
+        const std::string dir = "/sys/devices/system/node/node" + std::to_string(node);
+        if (!std::filesystem::is_directory(dir)) {
+            break;
+        }
+        for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
+            if (CPU_ISSET(cpu, &affinity) && std::filesystem::exists(dir + "/cpu" + std::to_string(cpu))) {
+                ++n_nodes;
+                break;
+            }
+        }
+    }
+    return std::max<int32_t>(n_nodes, 1);
+#else
+    return 1;
+#endif
+}
+
+ggml_numa_strategy common_numa_auto_strategy() {
+    return common_cpu_get_num_numa_nodes() > 1 ? GGML_NUMA_STRATEGY_EXPERTS : GGML_NUMA_STRATEGY_DISABLED;
+}
+
+bool common_numa_strategy_from_str(const std::string & value, ggml_numa_strategy & numa) {
+    /**/ if (value == "auto") { numa = common_numa_auto_strategy(); }
+    else if (value == "disabled") { numa = GGML_NUMA_STRATEGY_DISABLED; }
+    else if (value == "distribute" || value == "") { numa = GGML_NUMA_STRATEGY_DISTRIBUTE; }
+    else if (value == "isolate") { numa = GGML_NUMA_STRATEGY_ISOLATE; }
+    else if (value == "numactl") { numa = GGML_NUMA_STRATEGY_NUMACTL; }
+    else if (value == "experts") { numa = GGML_NUMA_STRATEGY_EXPERTS; }
+    else { return false; }
+    return true;
+}
+
 // Helper for setting process priority
 
 #if defined(_WIN32)
@@ -1422,7 +1463,8 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
 
         // the draft context is created from the same base params and follows the main context, fit both together
         const bool has_draft = params.speculative.has_dft();
-        const bool spec_mtp = params.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP);
+        const bool spec_mtp = params.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP)
+                            || params.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP_ADAPTIVE);
 
         common_params params_dft = common_base_params_to_speculative(params);
 
@@ -1476,11 +1518,14 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
                 ? (uint32_t) params.speculative.draft.n_ctx : 0,
             /*.next         =*/ spec_mtp && !extra_is_mtp ? &extra_mtp : nullptr,
             /*.optional_if_no_mtp =*/ false,
-            /*.borrows_target_tensors =*/ has_draft && extra_is_mtp,
+            // EAGLE3/DFlash/DSpark sidecars may omit the embedding and output and need the target to build a context
+            /*.borrows_target_tensors =*/ has_draft && (extra_is_mtp || params.speculative.has_target_feature_drafter()),
             /*.full_target_context =*/ false,
             /*.required_gpu_layers =*/ extra_is_mtp && native_mtp ? 2u : 0u,
+            /*.target_n_rs_seq_tensor =*/ params.speculative.need_n_rs_seq_tensor(),
         };
 
+        // LoRA adapters load after the fit and have no tensor split rules, so they keep the split mode
         const common_params_fit_status fit_status = common_fit_params(
             params.model.path.c_str(), &mparams, &cparams,
             params.tensor_split,
@@ -1489,7 +1534,9 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             params.fit_params_target.data(),
             params.fit_params_min_ctx,
             has_draft || spec_mtp ? &extra_dft : nullptr,
-            params.verbosity >= LOG_LEVEL_DEBUG ? GGML_LOG_LEVEL_DEBUG : GGML_LOG_LEVEL_ERROR);
+            params.verbosity >= LOG_LEVEL_DEBUG ? GGML_LOG_LEVEL_DEBUG : GGML_LOG_LEVEL_ERROR,
+            !params.n_ubatch_auto ? 0 : params.n_batch_explicit ? params.n_batch : UINT32_MAX,
+            !params.split_mode_explicit && params.lora_adapters.empty());
         if (fit_status != COMMON_PARAMS_FIT_STATUS_SUCCESS) {
             COM_ERR("%s", "fit could not prove a viable placement; restoring the pre-fit parameters\n");
             mparams = mparams_before;
@@ -1513,6 +1560,9 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             // mparams, and callers (e.g. the cache-plan calibration profile) must key on the
             // effective value, never the unresolved -1 sentinel
             params.n_gpu_layers = mparams.n_gpu_layers;
+            params.split_mode   = mparams.split_mode;
+            params.n_ubatch     = cparams.n_ubatch;
+            params.n_batch      = cparams.n_batch;
             if (common_params_apply_vbr_cpu_fallback(params, true) ==
                     common_vbr_cpu_fallback_result::applied) {
                 COM_WRN("%s", "implicit VBR auto-fit resolved to CPU KV placement; using static f16 KV cache\n");
@@ -1527,7 +1577,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
     if (params.moe_cache.mode_explicit || params.moe_cache.fit_selected) {
         const char * mode = params.moe_cache.mode == COMMON_MOE_CACHE_MODE_OFF ? "off" :
             params.moe_cache.mode == COMMON_MOE_CACHE_MODE_AUTO ? "auto" :
-            params.moe_cache.mode == COMMON_MOE_CACHE_MODE_SOFT ? "soft" : "on";
+            params.moe_cache.mode == COMMON_MOE_CACHE_MODE_SOFT ? "soft" : "budget";
         const char * placement = params.moe_cache.fit_selected ? " placement=cache-aware-fit" : "";
         if (params.moe_cache.mode == COMMON_MOE_CACHE_MODE_OFF) {
             COM_INF("%s", "MoE cache: mode=off\n");
@@ -1558,6 +1608,9 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
     if (!params.fit_params) {
         common_params_resolve_vbr_codec_auto_from_model(params, model);
         cparams = common_context_params_to_llama(params);
+    }
+    if (llama_model_split_mode(model) == LLAMA_SPLIT_MODE_TENSOR) {
+        cparams.n_rs_seq = std::min(cparams.n_rs_seq, params.speculative.need_n_rs_seq_tensor());
     }
 
     if (params.moe_cache.profile && params.moe_cache.profile_path.empty() &&
@@ -2009,6 +2062,7 @@ struct llama_model_params common_model_params_to_llama(common_params & params) {
 
     mparams.n_gpu_layers    = params.n_gpu_layers;
     mparams.main_gpu        = params.main_gpu;
+    mparams.n_attn_owned    = params.n_attn_owned;
     mparams.split_mode      = params.split_mode;
     mparams.load_mode       = params.load_mode;
     mparams.lazy_mode = params.lazy_mode;
@@ -2036,7 +2090,9 @@ struct llama_model_params common_model_params_to_llama(common_params & params) {
     mparams.progress_callback           = params.load_progress_callback;
     mparams.progress_callback_user_data = params.load_progress_callback_user_data;
     mparams.no_alloc                    = params.no_alloc;
-    mparams.load_mtp                    = params.load_mtp || std::find(params.speculative.types.begin(), params.speculative.types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != params.speculative.types.end();
+    mparams.load_mtp                    = params.load_mtp
+                                        || params.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP)
+                                        || params.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP_ADAPTIVE);
 
     return mparams;
 }

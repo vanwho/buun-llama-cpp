@@ -480,11 +480,11 @@ static bool run_capability_queries(
     const int automatic_device_ok = ggml_moe_cache.query_device(
             cuda_device, &automatic_reserve, &automatic_caps);
     ok &= automatic_device_ok == 1;
-    ok &= automatic_caps.recommended_reserve_bytes >= 1024 * MiB;
+    ok &= automatic_caps.recommended_reserve_bytes >= 512 * MiB;
     ok &= automatic_caps.recommended_reserve_bytes <= 3072 * MiB;
     ok &= automatic_caps.recommended_reserve_bytes % reserve_step == 0;
     if (std::strstr(ggml_backend_dev_name(cuda_device), "RTX 3090")) {
-        ok &= automatic_caps.recommended_reserve_bytes == 1408 * MiB;
+        ok &= automatic_caps.recommended_reserve_bytes == 640 * MiB;
     }
     set_env("GGML_CUDA_MOE_CACHE_RESERVE_MB", "2048");
     ggml_moe_cache_config explicit_reserve = {};
@@ -982,8 +982,10 @@ static bool run_fused_alias_fallbacks(ggml_backend_t cpu) {
             GGML_ASSERT(ggml_backend_graph_compute(cpu, graph.graph) == GGML_STATUS_SUCCESS);
             std::vector<float> actual(reference.size());
             ggml_backend_tensor_get(graph.out, actual.data(), 0, ggml_nbytes(graph.out));
+            // Down over the activations stays fully fused: the hits are dispatched
+            // before down is written and the activations restored for recovery.
             const bool cell_ok = std::memcmp(actual.data(), reference.data(), ggml_nbytes(graph.out)) == 0 &&
-                plans == (alias == 4 ? 0 : 1) && full_plans == (alias < 3 ? 1 : 0);
+                plans == (alias == 4 ? 0 : 1) && full_plans == (alias < 4 ? 1 : 0);
             printf("cache-fused-alias%d-mask%llx-failure%d: %s\n", alias,
                     (unsigned long long)mask, fail, cell_ok ? "OK" : "FAIL");
             ok &= cell_ok;
@@ -4153,7 +4155,7 @@ static bool run_scheduler_overlap_config(ggml_backend_t cuda, ggml_backend_t cpu
     for (auto mode : {GGML_MOE_CACHE_MODE_UNSPECIFIED, GGML_MOE_CACHE_MODE_AUTO}) {
         for (int overlap : {-2, -1, 0, 2}) {
             supplied = false;
-            ggml_backend_sched_set_moe_cache(scheduler, mode, 4, 0, overlap, nullptr);
+            ggml_backend_sched_set_moe_cache(scheduler, mode, 4, 0, 0, overlap, nullptr);
             const bool expected_call = mode != GGML_MOE_CACHE_MODE_UNSPECIFIED || overlap != -2;
             const bool matches = supplied == expected_call &&
                 (!supplied || captured.overlap_cpu_rows == (overlap == -2 ? 3 : overlap));
@@ -4162,8 +4164,12 @@ static bool run_scheduler_overlap_config(ggml_backend_t cuda, ggml_backend_t cpu
             ok &= matches;
         }
     }
+    // A device limit is an override even under the provider policy.
     supplied = false;
-    ggml_backend_sched_set_moe_cache(scheduler, GGML_MOE_CACHE_MODE_OFF, 4, 0, 2, nullptr);
+    ggml_backend_sched_set_moe_cache(scheduler, GGML_MOE_CACHE_MODE_UNSPECIFIED, 4, 1, 0, -2, nullptr);
+    ok &= supplied && captured.max_devices == 1;
+    supplied = false;
+    ggml_backend_sched_set_moe_cache(scheduler, GGML_MOE_CACHE_MODE_OFF, 4, 0, 0, 2, nullptr);
     ok &= !supplied;
     ggml_backend_sched_free(scheduler);
     ggml_moe_cache.session_create = saved_create;

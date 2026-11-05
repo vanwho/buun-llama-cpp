@@ -315,7 +315,7 @@ static std::string parse_moe_cache_mode(const std::string & value) {
     const long long budget_mb = strtoll(value.c_str(), &end, 10);
     if (errno != 0 || end == value.c_str() || *end != '\0' ||
         budget_mb <= 0 || budget_mb > 1024 * 1024) {
-        throw std::invalid_argument("expected auto, on, off, 0, or a positive MiB budget");
+        throw std::invalid_argument("expected auto, soft, off, 0, or a positive MiB budget");
     }
     return std::to_string(budget_mb);
 }
@@ -329,15 +329,13 @@ static common_moe_cache_params common_moe_cache_from_bench_mode(const std::strin
     result.mode_explicit = true;
     if (mode == "off") {
         result.mode = COMMON_MOE_CACHE_MODE_OFF;
-    } else if (mode == "auto") {
+    } else if (mode == "auto" || mode == "on") {
         result.mode = COMMON_MOE_CACHE_MODE_AUTO;
     } else if (mode == "soft") {
         result.mode = COMMON_MOE_CACHE_MODE_SOFT;
     } else {
         result.mode = COMMON_MOE_CACHE_MODE_ON;
-        if (mode != "on") {
-            result.budget_mib = std::stoull(mode);
-        }
+        result.budget_mib = std::stoull(mode);
     }
     return result;
 }
@@ -365,10 +363,10 @@ static void apply_moe_cache_mode(llama_context_params & cparams, const std::stri
     if (mode == "off") {
         cparams.moe_cache_mode = LLAMA_MOE_CACHE_MODE_OFF;
         cparams.moe_cache_budget_mib = 0;
-    } else if (mode == "auto") {
+    } else if (mode == "auto" || mode == "on") {
         cparams.moe_cache_mode = LLAMA_MOE_CACHE_MODE_AUTO;
         cparams.moe_cache_budget_mib = 0;
-    } else if (mode == "on" || mode == "soft") {
+    } else if (mode == "soft") {
         cparams.moe_cache_mode = LLAMA_MOE_CACHE_MODE_ON;
         cparams.moe_cache_budget_mib = 0;
     } else {
@@ -542,7 +540,7 @@ static const cmd_params cmd_params_defaults = {
     /* vbr_entry_explicit   */ false,
     /* vbr_floor_explicit   */ false,
     /* vbr_vram_explicit    */ false,
-    /* numa                 */ GGML_NUMA_STRATEGY_DISABLED,
+    /* numa                 */ common_numa_auto_strategy(),
     /* reps                 */ 5,
     /* prio                 */ GGML_SCHED_PRIO_NORMAL,
     /* delay                */ 0,
@@ -564,7 +562,8 @@ static void print_usage(int /* argc */, char ** argv) {
     printf("options:\n");
     printf("  -h, --help\n");
     printf("  --version                                   show version and build info\n");
-    printf("  --numa <distribute|isolate|numactl>         numa mode (default: disabled)\n");
+    printf("  --numa <auto|disabled|experts|distribute|isolate|numactl>\n");
+    printf("                                              numa mode (default: auto = experts on a multi-node host)\n");
     printf("  -r, --repetitions <n>                       number of times to repeat each test (default: %d)\n", cmd_params_defaults.reps);
     printf("  --prio <-1|0|1|2|3>                         process/thread priority (default: %d)\n", cmd_params_defaults.prio);
     printf("  --delay <0...N> (seconds)                   delay between each test (default: %d)\n", cmd_params_defaults.delay);
@@ -612,8 +611,8 @@ static void print_usage(int /* argc */, char ** argv) {
     printf("  --poll <0...100>                                  (default: %s)\n", join(cmd_params_defaults.poll, ",").c_str());
     printf("  -ngl, --n-gpu-layers <n>                          (default: %s)\n", join(cmd_params_defaults.n_gpu_layers, ",").c_str());
     printf("  -ncmoe, --n-cpu-moe <n>                           (default: %s)\n", join(cmd_params_defaults.n_cpu_moe, ",").c_str());
-    printf("  --moe-cache <auto|on|soft|off|0|MiB>                   (default: %s)\n", join(cmd_params_defaults.moe_cache, ",").c_str());
-    printf("                                                    on and fixed budgets disable weight repacking\n");
+    printf("  --moe-cache <auto|soft|off|0|MiB>                 (default: %s)\n", join(cmd_params_defaults.moe_cache, ",").c_str());
+    printf("                                                    fixed budgets and deprecated on disable weight repacking\n");
     printf("  --repack <auto|on|off|0|1>                        weight repacking policies (default: %s)\n", join(cmd_params_defaults.repack, ",").c_str());
     printf("  -nr, --no-repack                                  equivalent to --repack off\n");
     printf("  --[no-]moe-cache-profile                         persist expert heatmap (default: on)\n");
@@ -1149,13 +1148,7 @@ static cmd_params parse_cmd_params(int argc, char ** argv) {
                     break;
                 }
                 std::string value(argv[i]);
-                if (value == "distribute" || value == "") {
-                    params.numa = GGML_NUMA_STRATEGY_DISTRIBUTE;
-                } else if (value == "isolate") {
-                    params.numa = GGML_NUMA_STRATEGY_ISOLATE;
-                } else if (value == "numactl") {
-                    params.numa = GGML_NUMA_STRATEGY_NUMACTL;
-                } else {
+                if (!common_numa_strategy_from_str(value, params.numa)) {
                     invalid_param = true;
                     break;
                 }
@@ -1680,6 +1673,8 @@ struct cmd_params_instance {
         cparams.embeddings      = embeddings;
         cparams.op_offload      = !no_op_offload;
         cparams.swa_full        = false;
+        // batches only request the last token's logits, logits_all would size the reserve for n_ubatch*n_vocab
+        cparams.logits_all      = false;
 
         llama_bench_vbr_row row;
         row.active = vbr;
