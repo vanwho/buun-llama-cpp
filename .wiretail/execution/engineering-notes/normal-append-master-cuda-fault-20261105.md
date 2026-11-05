@@ -45,6 +45,7 @@ An offline comparison of R8 fork CPU/MTP-on C12,288 requests proves that client
 message history is preserved exactly, but `qwen38-shared-prefix.jinja` moves its
 reasoning-effort system instruction from the previous last user to the new last
 user. This changes the rendered historical prefix and can require reprocessing.
-It is being repaired at a fresh configuration boundary by retaining each turn's
-original steering as part of durable chat history. It is not proof of the CUDA
-fault's cause: the crashing off-mode request had rewind zero.
+A repair is being prepared outside active files to retain each turn's steering
+as durable chat history. Apply it only after the primary comparison matrix and
+its diagnostics, with reasoning-mode transition checks. It is not proof of the
+CUDA fault's cause: the crashing off-mode request had rewind zero.

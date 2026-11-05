@@ -34,16 +34,19 @@ R8 master GPU/MTP-off failed on its first question after a successful C6144
 fill: +33 input tokens, LCP6144, rewind0, CUDA illegal memory access at target
 synchronize before output. This is a recorded runtime finding, not a benchmark
 restore or capacity result. See engineering-notes/normal-append-master-cuda-fault-20261105.md.
-Fork CPU/MTP-on is running normally (C12288,29/36 requests passed at latest
-capture). Keep it running with its originally pinned template for the entire
-configuration. Do not silently change its template or helper provenance midway.
+Fork CPU/MTP-on is running normally (C12288 completed36/36 requests, all pass).
+Keep ALL primary R8 configurations on the originally pinned template/helpers;
+do not change protocol between comparison configurations. The safe hold was
+cancelled; the queue continues normally.
 
 The shared-prefix Jinja template moves effort steering from old last-user to
 new last-user. Offline rendering proves historical prompt bytes change although
 the client preserves messages. An append-stable replacement is being prepared
-for the next fresh configuration; hold at that safe queue boundary until root
-pins its provenance. This is a separate reprocessing defect, not an established
-cause of the master off-mode CUDA failure.
+outside active files for post-matrix benchmark cleanup, with reasoning-mode
+transition checks. It must not pause or alter the active comparison matrix.
+This is a separate reprocessing defect, not an established cause of the master
+off-mode CUDA failure. Run the frozen memcheck diagnostic after primary queue
+completion, then the prepared dispatch profiler, before helper/template changes.
 
 ## Preserved data
 
