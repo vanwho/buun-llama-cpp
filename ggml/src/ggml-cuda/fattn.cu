@@ -5012,8 +5012,8 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     // f16-materialize route (~0.56 ms per 1K ctx tokens measured on Qwen3.8-27B, RTX 3090) —
     // the long-context decode regression vs llamAmpere. Native VEC is NOT an alternative at
     // these widths: cols_per_block=2 makes it re-scan the KV per column block (measured 3x
-    // slower than the materialize route at 21K). GGML_T4_MMA_FUSED_MAX_Q=4 restores the old
-    // materialize routing for widths 5..8.
+    // slower than the materialize route at 21K). GGML_T4_MMA_FUSED_MAX_Q=4 disables this
+    // specialized tile for widths 5..8; eligible matched Turbo4 still uses the general fused path.
     static const int t4_mma_fused_max_q = [] {
         const char * e = getenv("GGML_T4_MMA_FUSED_MAX_Q");
         if (!e) return 8;
@@ -5036,8 +5036,11 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
           (amd_wmma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) &&
            ggml_cuda_fattn_turbo_ncols2(dst) > 1)));
 
+    // Matched Turbo4 supports arbitrary query counts via tiled launches. In particular, do
+    // not constrain prefill to the 5..8-row specialized tile above: doing so disagrees with
+    // the fused capability query used by MTP scratch admission and materializes full K/V.
     if (turbo_mma_fused && (turbo_matched || turbo_fused_asym || turbo1_tcq_matched) &&
-        turbo_fused_finite && (Q->ne[1] <= 4 || turbo4_matched_wide) &&
+        turbo_fused_finite &&
         (Q->ne[0] == 128 || Q->ne[0] == 256) &&
         (turing_mma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) ||
          (amd_wmma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) &&
