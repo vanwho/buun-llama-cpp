@@ -8,6 +8,12 @@
 #include <mutex>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 struct moe_zc_state {
     bool init = false;
     size_t budget = 0;
@@ -29,11 +35,22 @@ static void moe_zc_init() {
     g_zc.budget = (size_t) ((gb ? atof(gb) : 64.0) * (1ull << 30));
     if (!gb) {
         // registered pages stay locked in RAM: default to half of it, so fill registration covers big MoEs
-        ggml_backend_dev_t cpu = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
-        size_t free = 0, total = 0;
-        if (cpu) {
-            ggml_backend_dev_memory(cpu, &free, &total);
+        // Query host RAM directly: a CUDA backend must not depend on the global
+        // backend registry, which itself owns/loads the CUDA backend.
+        size_t total = 0;
+#ifdef _WIN32
+        MEMORYSTATUSEX status = {};
+        status.dwLength = sizeof(status);
+        if (GlobalMemoryStatusEx(&status)) {
+            total = size_t(status.ullTotalPhys);
         }
+#else
+        const long pages = sysconf(_SC_PHYS_PAGES);
+        const long page_size = sysconf(_SC_PAGE_SIZE);
+        if (pages > 0 && page_size > 0 && size_t(pages) <= SIZE_MAX / size_t(page_size)) {
+            total = size_t(pages) * size_t(page_size);
+        }
+#endif
         g_zc.budget = std::max(g_zc.budget, total / 2);
     }
 }
