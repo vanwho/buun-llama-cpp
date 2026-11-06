@@ -80,7 +80,7 @@ struct llama_kv_cache_state_test {
         const uint32_t count = order.size();
         out.write(&count, sizeof(count));
         cache->state_write_meta(out, cr, 0);
-        cache->state_write_data(out, cr);
+        cache->state_write_data(out, cr, 0);
         return out.buf;
     }
 };
