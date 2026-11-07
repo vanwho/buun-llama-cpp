@@ -462,13 +462,13 @@
     "docs/aco-figures/figures/16_prefill_mtp_off_context.svg": "a02bbe2b1b05b7e8d5465167cdf15a9b9d9784ed5a392ce780de216bdef54ea4",
     "docs/aco-figures/figures/17_long_context_decode_comparison.png": "feb117261165c571ec60015276ae3eefa35bfdec46bd1f871acba5de2d1c6955",
     "docs/aco-figures/figures/17_long_context_decode_comparison.svg": "a2e201a35664450a58b6be18acb3ac3136cdc80b2a7b7d15f6c87cbd6ec385b8",
-    "docs/aco-figures/figures/cover.png": "88473faa182864f2d8412373ff673ea198ce55ff0d30849885d783574598e862"
+    "docs/aco-figures/figures/cover.png": "1c109d9ed0965ab29761caeab10e52b9d9a4e93c9dc34515a6597eba18fdc584"
   },
   "public_manifest": {
     "path": "docs/aco-figures/data/manifest.json",
-    "sha256": "e56fcfc8b645a64b61a339b7458564983de3fbdea380c5e0b3b5b703b593c966"
+    "sha256": "6c10e564281c598bef5c6f307177f689d0acd92af7f6b1c3fbecd02cbfd7ccd1"
   },
-  "public_docs_commit": "873b47811674dd06f676054dfd1f49287e0f6044",
+  "public_docs_commit": "8e74b704689712c6af817d1d6da21fa675dbc77a",
   "article_import": {
     "archive": "/home/ninja/Downloads/ACO_article_and_graphs_with_prefill_2026-11-07.zip",
     "sha256": "8b3526093f0f98cda4484fde3fe56c35b912dacc42158c080c9ba6cc30d1af85",
@@ -479,8 +479,8 @@
   "publication_working_directory": "/srv/ai/paged-kv/publication/aco-20261107/updated/aco_publication_with_prefill",
   "publication_archive": {
     "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-07.zip",
-    "sha256": "9c3c2070a6636fec9eaf71900da1ee0d975aaf75cbb468079eb4f5bcc4f5e851",
-    "bytes": 10282944,
+    "sha256": "437a590a1d31c0fff97f86c5ed13db7b236073acc7810f8bf2964f092e852569",
+    "bytes": 10319819,
     "members": 60,
     "hash_manifest_entries": 58
   },
@@ -503,7 +503,18 @@
     "SVG charts",
     "LinkedIn launch post"
   ],
-  "prior_public_docs_commit": "9942c163e69aa1f4f06a83ddd33ac13632083724",
-  "article_sha256": "d87a9060cfe2babe5f001f628e1d5ec90b6dac52b8dac1951dcff6ac538d846c",
-  "publication_source_sha256": "03adb65d39e4557765457a1a322a5ef44d43bcaa82b9311349e461adb67e1505"
+  "prior_public_docs_commit": "873b47811674dd06f676054dfd1f49287e0f6044",
+  "article_sha256": "4d673ed98ed8286f76a67ece5db5cabe8618a7a145d769d20797197bdbbab571",
+  "publication_source_sha256": "5febc05f999620abd6023c023169699a827eeab07f1fecf564cf907dbcc95bbd",
+  "cover_edit": {
+    "tool": "built-in image_gen",
+    "badge": "9X",
+    "model": "Qwen3.8-27B",
+    "removed_text": "UP TO",
+    "path": "docs/aco-figures/figures/cover.png",
+    "sha256": "1c109d9ed0965ab29761caeab10e52b9d9a4e93c9dc34515a6597eba18fdc584",
+    "prompt": "docs/aco-figures/cover-image-prompt.txt",
+    "prompt_sha256": "3191d79b6bdb6c38b53bc65d8c7a91d083bf1d83c38a479965a9313cd37aaee5",
+    "publication_formats_refreshed": true
+  }
 }
