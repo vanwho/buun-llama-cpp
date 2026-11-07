@@ -378,11 +378,11 @@
   "figures": "docs/aco-figures/figures",
   "external_provenance_manifest": "/srv/ai/paged-kv/results/aco-article-20261107/source-data/source-manifest.json",
   "public_data_exports": {
+    "docs/aco-figures/data/chart-data.csv": "10fdcb4c858f922fe807dcbb72db10af70d183da889e8a791829b29ab4e4deaf",
     "docs/aco-figures/data/cpu-mtp-placement.csv": "7faade5bb6ca1125a93d0392179ef71e14cca00469ce24d3fc12e14847e954fa",
     "docs/aco-figures/data/decode.csv": "1a6e46f7e7d40db4bf405bb8e90a1ef14edfb5b58ff1c7701bf6507290c8f9e6",
     "docs/aco-figures/data/prefill.csv": "0b62c73eb27fdf0aa936f5cc443486399d3c45d619d4615e6f44940d919388a5"
   },
-  "article_source_status": "New complete article saved in repository; no previous standalone article located in local files, accessible Pages/Sites, or this chat history; original location requested from user.",
   "documentation": {
     "article": "docs/aco-article.md",
     "guide": "docs/aco.md",
@@ -394,11 +394,23 @@
       "cpu_mtp_placement": 42
     },
     "figure_names": [
-      "decode-mtp-on",
-      "decode-mtp-off",
-      "prefill-mtp-on",
-      "prefill-mtp-off",
-      "cpu-mtp-placement"
+      "01_mtp_64k_comparison",
+      "02_mtp_context_comparison",
+      "03_mtp_prompt_1",
+      "04_mtp_prompt_2",
+      "05_mtp_prompt_3",
+      "06_non_mtp_64k_comparison",
+      "07_non_mtp_context_comparison",
+      "08_aco_mtp_on_off",
+      "09_non_mtp_prompt_1",
+      "10_non_mtp_prompt_2",
+      "11_non_mtp_prompt_3",
+      "12_cpu_mtp_placement",
+      "13_prefill_mtp_on_32k_comparison",
+      "14_prefill_mtp_on_context",
+      "15_prefill_mtp_off_128k_comparison",
+      "16_prefill_mtp_off_context",
+      "17_long_context_decode_comparison"
     ],
     "figure_formats": [
       "png",
@@ -411,24 +423,87 @@
       "new_benchmarks_run": false,
       "generated_text_format": "LF CSV, trailing SVG whitespace normalized",
       "editorial_numeric_review": "Luna High review passed; max ratios, same-prompt comparisons, metric scopes and placement statements checked",
-      "staged_whitespace_check": "pass"
+      "staged_whitespace_check": "pass",
+      "imported_article_review": "Luna High review passed; original narrative and credits retained, current max comparisons and feature scopes verified"
     }
   },
   "figure_hashes": {
-    "docs/aco-figures/figures/cpu-mtp-placement.png": "fd1e8cd199e02b5976d82e7b18d3b893e7c9f15bcb84e9f858866cda0bd29fe1",
-    "docs/aco-figures/figures/cpu-mtp-placement.svg": "4657f5bcaa30a190fd2e0f1303d9a46c2680e5e6ee0b664eb599a238c699b7fa",
-    "docs/aco-figures/figures/decode-mtp-off.png": "130a8b24eef6a42c4ff8edba763308fd5c17062cb6e8d0692d5ac6b27e980267",
-    "docs/aco-figures/figures/decode-mtp-off.svg": "4c8598c72f6fc39752cae4218168f1c03bf2f9226ed3bea1d6d1ad408408c72d",
-    "docs/aco-figures/figures/decode-mtp-on.png": "0d0672108acdcac0a861086be3a1f1fe6eae1ea94d3deff1a7e20faa5620bf6b",
-    "docs/aco-figures/figures/decode-mtp-on.svg": "209d9c5883f58037295abb729a274d5aeb06af3d915b123a58dc2763ce5662eb",
-    "docs/aco-figures/figures/prefill-mtp-off.png": "c7255da676eee244b1e3498174f5906230a4933bae2bf120b814b261a92d6377",
-    "docs/aco-figures/figures/prefill-mtp-off.svg": "8aafb37466ee1cc4d5e079758dec7d2aff35af73be790a4c6b1eb9ec28ad2ca1",
-    "docs/aco-figures/figures/prefill-mtp-on.png": "eac8e850f8b783eb1f1307442ad67017d131a03b693243e844ed643b04ef9be3",
-    "docs/aco-figures/figures/prefill-mtp-on.svg": "2135555a0b0d767338fbd53d6a88db47624adf51ad82649c6c4c7d891315819e"
+    "docs/aco-figures/figures/01_mtp_64k_comparison.png": "0abedb9b645e9c53c7848c9a85fc7af127f135b4ae05aa4d12b89e389a9f2c7c",
+    "docs/aco-figures/figures/01_mtp_64k_comparison.svg": "3d24eca1f08e5ab55fe8cad251f52ac63d29d1c29d0567fa98f26a40a35c61bb",
+    "docs/aco-figures/figures/02_mtp_context_comparison.png": "375f9f02d90484a3dc8272c4a29ea3d3b6572d6ce026d5527ae842d412b85c7f",
+    "docs/aco-figures/figures/02_mtp_context_comparison.svg": "93d81865fa3acfd517acf9f299d700923b1172be891f6d1eb666b8387eb786cc",
+    "docs/aco-figures/figures/03_mtp_prompt_1.png": "20a34b074bf5256a9f0289d9554e6852b41cd6e897cdddb282fd2767b0d84640",
+    "docs/aco-figures/figures/03_mtp_prompt_1.svg": "3881bf50dad25fe64eba9aca836eb28cd6498f33914337ca9ee57dba5d02a1be",
+    "docs/aco-figures/figures/04_mtp_prompt_2.png": "de1af8d66776108c00d67b16c16b59d0d189e7625c308126173618972af261fe",
+    "docs/aco-figures/figures/04_mtp_prompt_2.svg": "f0f4f6472b740fa3c06c733cad8d68439cc2f8a01874e3bf381194b635467ada",
+    "docs/aco-figures/figures/05_mtp_prompt_3.png": "ca3470956aae0486bc3ed0b6345dd1cd70bdc50bc5980eae7dd3692ca9f8ceb8",
+    "docs/aco-figures/figures/05_mtp_prompt_3.svg": "fb16378ade3aa47e38f5ea6e994c8545142d0685007512eeb113c79515740afd",
+    "docs/aco-figures/figures/06_non_mtp_64k_comparison.png": "4583329180f9bafafaf2f9df46cc9fd3c9dc75142ffed762d5aace638d5d02d3",
+    "docs/aco-figures/figures/06_non_mtp_64k_comparison.svg": "8469de702a7427447f856ea23fb99803c24e1b749c4728f5e7b952bbe83d252a",
+    "docs/aco-figures/figures/07_non_mtp_context_comparison.png": "b36c5f4669746d06b7997e4141ee49671c9d0fa3f4efb24299603fb621feb8c5",
+    "docs/aco-figures/figures/07_non_mtp_context_comparison.svg": "0ee43c1a593a0574c5108c5dcf8c5a5141c479099d123b8fc61b0c73d0cf06d5",
+    "docs/aco-figures/figures/08_aco_mtp_on_off.png": "843b1a5d4c265fcd729c2989e33e0c5ab6febdef2fbaa6cfb8ce4ea59f215a7c",
+    "docs/aco-figures/figures/08_aco_mtp_on_off.svg": "754ac87fcf99fed754c1833169f9c3e1511301d9d3aba254023b4edb0dae4177",
+    "docs/aco-figures/figures/09_non_mtp_prompt_1.png": "c7e53368a0859e2a0f5d80199f457c58100eaa698b8dba0ae48848a149892043",
+    "docs/aco-figures/figures/09_non_mtp_prompt_1.svg": "b383ca2ba86d8bd06cac7bbfa204bcaf41bbd6f9513a4cb251f9f252d7ab97ec",
+    "docs/aco-figures/figures/10_non_mtp_prompt_2.png": "617b87692f7a055db6576179c0a51420a77fb3940f7ec828fa97bb5de5cb9af2",
+    "docs/aco-figures/figures/10_non_mtp_prompt_2.svg": "2de0ece47cec4690cbb939f9eb45b1182bfa0b9db09f9a048560b917142b8327",
+    "docs/aco-figures/figures/11_non_mtp_prompt_3.png": "a9967e3c5affcb42e042b6640936082b5b3f9aa956aac33ae2f8ece5c8231997",
+    "docs/aco-figures/figures/11_non_mtp_prompt_3.svg": "d3689b2c6e657c4a4e5a45b9384b8cd9580842f8d58150743103efdd18a64b7e",
+    "docs/aco-figures/figures/12_cpu_mtp_placement.png": "5d19cafdc95d0ebbcf0c6c8f97186d1fafd905b905176b51d3f52a7a14fe720c",
+    "docs/aco-figures/figures/12_cpu_mtp_placement.svg": "3ddcc5061bf9e31f06df2521952af6e6eecf2e21a37a6d77271fa88eccf2d9ea",
+    "docs/aco-figures/figures/13_prefill_mtp_on_32k_comparison.png": "ac59ef9088960f63347d2f20a37a85595d6390ecf712f03b3fe21797625a69af",
+    "docs/aco-figures/figures/13_prefill_mtp_on_32k_comparison.svg": "80c8559cb66921bb7a99dde59b448b165418df83bb95952283abe687ffd7e714",
+    "docs/aco-figures/figures/14_prefill_mtp_on_context.png": "1fb42ed124a8ad8ba3c307533b7bddc8e0ce50e852b7c0f31b7ed5dc8630e973",
+    "docs/aco-figures/figures/14_prefill_mtp_on_context.svg": "7f4b9c5d68ccccbd73a0a54df767b857d8e624d9a89ae791f7250f6ee32bfac9",
+    "docs/aco-figures/figures/15_prefill_mtp_off_128k_comparison.png": "ecc11bfcdde28bcdb8db8956464f8613e1da1e62a926a6d904e847ce2f346d03",
+    "docs/aco-figures/figures/15_prefill_mtp_off_128k_comparison.svg": "e962040459e06230a9dc88e7d9e31d0c0d73741bd60b95061d562f5d07af78d2",
+    "docs/aco-figures/figures/16_prefill_mtp_off_context.png": "f5f6466c6661a50fcad0e48b1d167c7406a4027535937cce24fa5c8046852792",
+    "docs/aco-figures/figures/16_prefill_mtp_off_context.svg": "a02bbe2b1b05b7e8d5465167cdf15a9b9d9784ed5a392ce780de216bdef54ea4",
+    "docs/aco-figures/figures/17_long_context_decode_comparison.png": "feb117261165c571ec60015276ae3eefa35bfdec46bd1f871acba5de2d1c6955",
+    "docs/aco-figures/figures/17_long_context_decode_comparison.svg": "a2e201a35664450a58b6be18acb3ac3136cdc80b2a7b7d15f6c87cbd6ec385b8",
+    "docs/aco-figures/figures/cover.png": "88473faa182864f2d8412373ff673ea198ce55ff0d30849885d783574598e862"
   },
   "public_manifest": {
     "path": "docs/aco-figures/data/manifest.json",
-    "sha256": "b90f5093338b15618ecd2d5e73ed747f9813f72a08b5cbfc993f2dceb342c503"
+    "sha256": "e56fcfc8b645a64b61a339b7458564983de3fbdea380c5e0b3b5b703b593c966"
   },
-  "public_docs_commit": "9942c163e69aa1f4f06a83ddd33ac13632083724"
+  "public_docs_commit": "873b47811674dd06f676054dfd1f49287e0f6044",
+  "article_import": {
+    "archive": "/home/ninja/Downloads/ACO_article_and_graphs_with_prefill_2026-11-07.zip",
+    "sha256": "8b3526093f0f98cda4484fde3fe56c35b912dacc42158c080c9ba6cc30d1af85",
+    "extracted_to": "/srv/ai/paged-kv/publication/aco-20261107/source-import",
+    "members": 65
+  },
+  "canonical_publication_article": "/srv/ai/paged-kv/publication/aco-20261107/updated/aco_publication_with_prefill/article_source.md",
+  "publication_working_directory": "/srv/ai/paged-kv/publication/aco-20261107/updated/aco_publication_with_prefill",
+  "publication_archive": {
+    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-07.zip",
+    "sha256": "9c3c2070a6636fec9eaf71900da1ee0d975aaf75cbb468079eb4f5bcc4f5e851",
+    "bytes": 10282944,
+    "members": 60,
+    "hash_manifest_entries": 58
+  },
+  "publication_validation": {
+    "original_archive_unchanged": true,
+    "hashes_match": true,
+    "local_article_and_gallery_links_resolve": true,
+    "self_contained_article_embedded_images": 8,
+    "chart_pairs": 17,
+    "canonical_article_matches_repository_copy": true,
+    "archive_crc_pass": true,
+    "linkedin_launch_post_matches_source": true
+  },
+  "publication_formats": [
+    "Markdown",
+    "HTML",
+    "self-contained HTML",
+    "plain text",
+    "PNG charts",
+    "SVG charts",
+    "LinkedIn launch post"
+  ],
+  "prior_public_docs_commit": "9942c163e69aa1f4f06a83ddd33ac13632083724",
+  "article_sha256": "d87a9060cfe2babe5f001f628e1d5ec90b6dac52b8dac1951dcff6ac538d846c",
+  "publication_source_sha256": "03adb65d39e4557765457a1a322a5ef44d43bcaa82b9311349e461adb67e1505"
 }
