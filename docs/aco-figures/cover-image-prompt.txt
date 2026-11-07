@@ -1,7 +1,7 @@
 Use case: text-localization.
-Edit target: the supplied ACO article cover image.
-Make only these three requested text changes, preserving the original composition, dimensions/aspect ratio, detailed GPU/RAM illustration, blue/green palette, typography style and every other label.
-1. Remove the small green "UP TO" banner entirely. Do not use the words "UP TO" anywhere.
-2. Replace the large right-hand "8.9×" performance badge with the exact text "9X" (digit 9, uppercase X), in the same bold bright-green style. Keep "CPU KV OFFLOAD" and "MTP ENABLED" below it.
-3. Add the exact model name "Qwen3.8-27B" clearly and legibly beneath the central "ON A 16GB GPU!" headline. Place it in the available space above the attention-selection illustration, at a suitable medium size in white/cyan, without overlapping any other lettering.
-Keep all existing labels such as NEW ATTENTION-AWARE CONTEXT OFFLOADING (ACO), FULL 256K CONTEXT, SYSTEM RAM FULL CONTEXT 256K TOKENS, ATTENTION-AWARE SELECTION, and GPU VRAM 64K HOT CONTEXT. No new claims or layout redesign.
+Edit target: the supplied ACO article cover.
+Add a clearly readable two-line footer centered along the bottom of the image, in the available dark floor space between the RAM bank and GPU label, with generous bottom padding:
+RTX 4080
+1M Context Soon!
+Render the first line in bold white and the second in bright green/cyan, matching the cover's typography. Use these exact words and capitalization. Keep both lines fully inside the image and avoid covering the existing labels or important GPU/RAM illustration details.
+Preserve the existing image dimensions/aspect ratio, illustration, composition, colors, and every other label exactly, especially Qwen3.8-27B, the 9X badge, FULL 256K CONTEXT, ON A 16GB GPU!, MTP ENABLED, and GPU VRAM 64K HOT CONTEXT. Make no other changes.

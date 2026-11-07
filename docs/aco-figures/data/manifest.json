@@ -72,9 +72,9 @@
     "figures/16_prefill_mtp_off_context.svg": "a02bbe2b1b05b7e8d5465167cdf15a9b9d9784ed5a392ce780de216bdef54ea4",
     "figures/17_long_context_decode_comparison.png": "feb117261165c571ec60015276ae3eefa35bfdec46bd1f871acba5de2d1c6955",
     "figures/17_long_context_decode_comparison.svg": "a2e201a35664450a58b6be18acb3ac3136cdc80b2a7b7d15f6c87cbd6ec385b8",
-    "figures/cover.png": "1c109d9ed0965ab29761caeab10e52b9d9a4e93c9dc34515a6597eba18fdc584",
+    "figures/cover.png": "87ef767c889e845dc1c12b060bc67d76c340fd88c142373f4d6391f1d63e8e9e",
     "render.py": "263e1eeaa03f1e1b39f06a42fd196bc436c18c09489f26b097c173195caf119e",
-    "cover-image-prompt.txt": "3191d79b6bdb6c38b53bc65d8c7a91d083bf1d83c38a479965a9313cd37aaee5"
+    "cover-image-prompt.txt": "bfb761c209c65fb2b12938133b0b4726608524addeb5e51678fe65e609847b31"
   },
   "decode_selection_export": "ACO comparison data selected for the November 2026 publication",
   "chart_count": 17,
