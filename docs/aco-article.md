@@ -2,7 +2,7 @@
 
 *Attention-Aware Context Offloading keeps the history in RAM, the working context on the GPU, and native MTP in the loop.*
 
-![ACO with 256K context, 64K hot GPU context and up to 8.9× CPU-offload decode speed with MTP enabled](aco-figures/figures/cover.png)
+![Qwen3.8-27B with ACO: 256K context, 64K hot GPU context and 9X CPU KV offload with MTP enabled](aco-figures/figures/cover.png)
 
 Last time, I [pushed Qwen3.8-27B past 100 tokens per second on a 16GB RTX 4080](https://medium.com/@paulvanliew/i-made-qwen3-8-27b-run-2-5-faster-breaking-100-tok-s-on-a-16gb-rtx-4080-72b6a99d7a42). The next problem was less glamorous, but much more familiar to anyone building a local coding agent:
 
