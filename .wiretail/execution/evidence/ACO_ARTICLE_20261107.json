@@ -1,0 +1,434 @@
+{
+  "decode_statistic": "maximum of recorded measured repetitions for the same prompt and reasoning mode",
+  "decode_source_csv": "/srv/ai/paged-kv/results/aco-comparison-graphs-20261105/data/decode_merged.csv",
+  "aco_vs_cpu_mtp_on_C256000": [
+    {
+      "prompt": "P1",
+      "reasoning": "off",
+      "a_context": 256000,
+      "b_context": 256000,
+      "a_max": 61.125125123,
+      "b_max": 7.213545104,
+      "ratio": 8.47365951716381,
+      "percent_change": 747.365951716381,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-on/C256000/session-01/reasoning-off/campaign/records.jsonl"
+    },
+    {
+      "prompt": "P2",
+      "reasoning": "off",
+      "a_context": 256000,
+      "b_context": 256000,
+      "a_max": 48.825654242,
+      "b_max": 5.494524363,
+      "ratio": 8.886238556114307,
+      "percent_change": 788.6238556114307,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-on/C256000/session-01/reasoning-off/campaign/records.jsonl"
+    },
+    {
+      "prompt": "P3",
+      "reasoning": "off",
+      "a_context": 256000,
+      "b_context": 256000,
+      "a_max": 55.349432481,
+      "b_max": 6.504941194,
+      "ratio": 8.5088290316987,
+      "percent_change": 750.8829031698699,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-on/C256000/session-01/reasoning-off/campaign/records.jsonl"
+    }
+  ],
+  "aco_vs_cpu_mtp_off_C256000": [
+    {
+      "prompt": "P1",
+      "reasoning": "off",
+      "a_context": 256000,
+      "b_context": 256000,
+      "a_max": 37.513636714,
+      "b_max": 2.981000486,
+      "ratio": 12.58424374305855,
+      "percent_change": 1158.424374305855,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-off/C256000/matrix-20261102T154158Z/Hdefault/reasoning-off/campaign/records.jsonl"
+    },
+    {
+      "prompt": "P2",
+      "reasoning": "off",
+      "a_context": 256000,
+      "b_context": 256000,
+      "a_max": 37.572497549,
+      "b_max": 2.984483872,
+      "ratio": 12.589278133314702,
+      "percent_change": 1158.9278133314701,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-off/C256000/matrix-20261102T154158Z/Hdefault/reasoning-off/campaign/records.jsonl"
+    },
+    {
+      "prompt": "P3",
+      "reasoning": "off",
+      "a_context": 256000,
+      "b_context": 256000,
+      "a_max": 37.446490935,
+      "b_max": 2.982887544,
+      "ratio": 12.553772270202622,
+      "percent_change": 1155.3772270202621,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-cpu-mtp-off/C256000/matrix-20261102T154158Z/Hdefault/reasoning-off/campaign/records.jsonl"
+    }
+  ],
+  "aco_vs_gpu_mtp_on_C6144": [
+    {
+      "prompt": "P1",
+      "reasoning": "off",
+      "a_context": 6144,
+      "b_context": 6144,
+      "a_max": 102.478542432,
+      "b_max": 102.463635656,
+      "ratio": 1.0001454835747783,
+      "percent_change": 0.014548357477828233,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/records.json"
+    },
+    {
+      "prompt": "P2",
+      "reasoning": "off",
+      "a_context": 6144,
+      "b_context": 6144,
+      "a_max": 82.00840432,
+      "b_max": 75.825463569,
+      "ratio": 1.0815417467955686,
+      "percent_change": 8.154174679556858,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/records.json"
+    },
+    {
+      "prompt": "P3",
+      "reasoning": "off",
+      "a_context": 6144,
+      "b_context": 6144,
+      "a_max": 92.931997535,
+      "b_max": 87.850669675,
+      "ratio": 1.0578405136670916,
+      "percent_change": 5.784051366709164,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/105-matrix/105-10/attempt-01/records.json"
+    }
+  ],
+  "aco_vs_gpu_mtp_off_C100352": [
+    {
+      "prompt": "P1",
+      "reasoning": "off",
+      "a_context": 100352,
+      "b_context": 100352,
+      "a_max": 37.534966785,
+      "b_max": 39.535010246,
+      "ratio": 0.9494108273007883,
+      "percent_change": -5.058917269921171,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-gpu-mtp-off/C100352/session-02/reasoning-off/campaign/records.jsonl"
+    },
+    {
+      "prompt": "P2",
+      "reasoning": "off",
+      "a_context": 100352,
+      "b_context": 100352,
+      "a_max": 37.572975994,
+      "b_max": 39.586335841,
+      "ratio": 0.949140030158721,
+      "percent_change": -5.085996984127905,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-gpu-mtp-off/C100352/session-02/reasoning-off/campaign/records.jsonl"
+    },
+    {
+      "prompt": "P3",
+      "reasoning": "off",
+      "a_context": 100352,
+      "b_context": 100352,
+      "a_max": 37.539479961,
+      "b_max": 39.524156887,
+      "ratio": 0.9497857239137519,
+      "percent_change": -5.021427608624807,
+      "a_source": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+      "b_source": "/srv/ai/paged-kv/results/forward/benchmark-reruns-20261101/fork-gpu-mtp-off/C100352/session-02/reasoning-off/campaign/records.jsonl"
+    }
+  ],
+  "cpu_gpu_mtp_vs_master_C61440": [
+    {
+      "prompt": "P1",
+      "reasoning": "off",
+      "a_context": 61440,
+      "b_context": 61440,
+      "a_max": 17.678990898,
+      "b_max": 15.12357245,
+      "ratio": 1.1689692337209652,
+      "percent_change": 16.896923372096516,
+      "a_source": "/srv/ai/paged-kv/results/release/cpu-q4-offload-20261016-full/mtp-draft-kv-gpu-explicit/L65536-C61440/records.jsonl",
+      "b_source": "/srv/ai/paged-kv/results/release/cpu-q4-master-control-20261016-mtp-safe/upstream-master-cpu-q4-native-mtp-default/L65536-C61440/records.jsonl"
+    },
+    {
+      "prompt": "P2",
+      "reasoning": "off",
+      "a_context": 61440,
+      "b_context": 61440,
+      "a_max": 13.56387112,
+      "b_max": 12.256665375,
+      "ratio": 1.1066526420527327,
+      "percent_change": 10.665264205273273,
+      "a_source": "/srv/ai/paged-kv/results/release/cpu-q4-offload-20261016-full/mtp-draft-kv-gpu-explicit/L65536-C61440/records.jsonl",
+      "b_source": "/srv/ai/paged-kv/results/release/cpu-q4-master-control-20261016-mtp-safe/upstream-master-cpu-q4-native-mtp-default/L65536-C61440/records.jsonl"
+    },
+    {
+      "prompt": "P3",
+      "reasoning": "off",
+      "a_context": 61440,
+      "b_context": 61440,
+      "a_max": 15.292590372,
+      "b_max": 13.838557927,
+      "ratio": 1.1050710957507415,
+      "percent_change": 10.507109575074146,
+      "a_source": "/srv/ai/paged-kv/results/release/cpu-q4-offload-20261016-full/mtp-draft-kv-gpu-explicit/L65536-C61440/records.jsonl",
+      "b_source": "/srv/ai/paged-kv/results/release/cpu-q4-master-control-20261016-mtp-safe/upstream-master-cpu-q4-native-mtp-default/L65536-C61440/records.jsonl"
+    }
+  ],
+  "cpu_gpu_mtp_vs_master_C126976": [
+    {
+      "prompt": "P1",
+      "reasoning": "off",
+      "a_context": 126976,
+      "b_context": 126976,
+      "a_max": 12.019782579,
+      "b_max": 10.115666915,
+      "ratio": 1.1882343181126778,
+      "percent_change": 18.823431811267778,
+      "a_source": "/srv/ai/paged-kv/results/release/cpu-q4-offload-20261016-full/mtp-draft-kv-gpu-explicit/L131072-C126976/records.jsonl",
+      "b_source": "/srv/ai/paged-kv/results/release/cpu-q4-master-control-20261016-mtp-safe/upstream-master-cpu-q4-native-mtp-default/L131072-C126976/records.jsonl"
+    },
+    {
+      "prompt": "P2",
+      "reasoning": "off",
+      "a_context": 126976,
+      "b_context": 126976,
+      "a_max": 9.417279143,
+      "b_max": 8.273829023,
+      "ratio": 1.1382008398797439,
+      "percent_change": 13.820083987974385,
+      "a_source": "/srv/ai/paged-kv/results/release/cpu-q4-offload-20261016-full/mtp-draft-kv-gpu-explicit/L131072-C126976/records.jsonl",
+      "b_source": "/srv/ai/paged-kv/results/release/cpu-q4-master-control-20261016-mtp-safe/upstream-master-cpu-q4-native-mtp-default/L131072-C126976/records.jsonl"
+    },
+    {
+      "prompt": "P3",
+      "reasoning": "off",
+      "a_context": 126976,
+      "b_context": 126976,
+      "a_max": 10.931136089,
+      "b_max": 9.294238397,
+      "ratio": 1.176119615409086,
+      "percent_change": 17.611961540908606,
+      "a_source": "/srv/ai/paged-kv/results/release/cpu-q4-offload-20261016-full/mtp-draft-kv-gpu-explicit/L131072-C126976/records.jsonl",
+      "b_source": "/srv/ai/paged-kv/results/release/cpu-q4-master-control-20261016-mtp-safe/upstream-master-cpu-q4-native-mtp-default/L131072-C126976/records.jsonl"
+    }
+  ],
+  "prefill_source_csv": "/srv/ai/paged-kv/results/merge-plan-master-20261106-three-prefill-curves/prefill-curves.csv",
+  "prefill_highlights": [
+    {
+      "variant": "ACO MTP-on",
+      "target_C": 8192,
+      "actual_C": 8193,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 1401.5663941607786,
+      "wall_tok_s": 1396.9413687700446
+    },
+    {
+      "variant": "ACO MTP-on",
+      "target_C": 32768,
+      "actual_C": 32769,
+      "net_new_tokens": 8191,
+      "backend_tok_s": 832.3617196926399,
+      "wall_tok_s": 829.2287672729822
+    },
+    {
+      "variant": "ACO MTP-on",
+      "target_C": 65536,
+      "actual_C": 65537,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 817.2639503205664,
+      "wall_tok_s": 812.1171384870005
+    },
+    {
+      "variant": "ACO MTP-on",
+      "target_C": 131072,
+      "actual_C": 131073,
+      "net_new_tokens": 8191,
+      "backend_tok_s": 731.0843742941381,
+      "wall_tok_s": 723.3483634704864
+    },
+    {
+      "variant": "ACO MTP-on",
+      "target_C": 261120,
+      "actual_C": 261121,
+      "net_new_tokens": 7167,
+      "backend_tok_s": 614.3873962814134,
+      "wall_tok_s": 602.9230417729929
+    },
+    {
+      "variant": "ACO MTP-off",
+      "target_C": 8192,
+      "actual_C": 8193,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 1589.358438160434,
+      "wall_tok_s": 1583.4384314820027
+    },
+    {
+      "variant": "ACO MTP-off",
+      "target_C": 32768,
+      "actual_C": 32769,
+      "net_new_tokens": 8191,
+      "backend_tok_s": 928.4336546773075,
+      "wall_tok_s": 924.5918890855963
+    },
+    {
+      "variant": "ACO MTP-off",
+      "target_C": 65536,
+      "actual_C": 65537,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 881.2181784565227,
+      "wall_tok_s": 875.231415574877
+    },
+    {
+      "variant": "ACO MTP-off",
+      "target_C": 131072,
+      "actual_C": 131073,
+      "net_new_tokens": 8191,
+      "backend_tok_s": 849.7894457852072,
+      "wall_tok_s": 839.05389045461
+    },
+    {
+      "variant": "ACO MTP-off",
+      "target_C": 261120,
+      "actual_C": 261121,
+      "net_new_tokens": 7167,
+      "backend_tok_s": 802.5055908374641,
+      "wall_tok_s": 783.042124652891
+    },
+    {
+      "variant": "Full GPU MTP-on",
+      "target_C": 8192,
+      "actual_C": 8193,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 1584.3057802986393,
+      "wall_tok_s": 1578.7088610404935
+    },
+    {
+      "variant": "Full GPU MTP-on",
+      "target_C": 32768,
+      "actual_C": 32769,
+      "net_new_tokens": 8191,
+      "backend_tok_s": 923.5559066992075,
+      "wall_tok_s": 919.6938928980271
+    },
+    {
+      "variant": "Full GPU MTP-off",
+      "target_C": 8192,
+      "actual_C": 8193,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 1687.9309843922015,
+      "wall_tok_s": 1680.6416747350495
+    },
+    {
+      "variant": "Full GPU MTP-off",
+      "target_C": 32768,
+      "actual_C": 32769,
+      "net_new_tokens": 8191,
+      "backend_tok_s": 981.0794892350716,
+      "wall_tok_s": 977.3810232102943
+    },
+    {
+      "variant": "Full GPU MTP-off",
+      "target_C": 65536,
+      "actual_C": 65537,
+      "net_new_tokens": 8192,
+      "backend_tok_s": 595.4849117293375,
+      "wall_tok_s": 592.9131580569378
+    },
+    {
+      "variant": "Full GPU MTP-off",
+      "target_C": 130048,
+      "actual_C": 130049,
+      "net_new_tokens": 7167,
+      "backend_tok_s": 317.55699434785765,
+      "wall_tok_s": 315.79824696319554
+    }
+  ],
+  "cpu_mtp_placement": {
+    "feature": "independent native-MTP KV residency",
+    "branch_config": "CPU Q4_0 target KV with GPU Turbo4 MTP draft KV",
+    "branch_option": "--spec-draft-kv-device gpu",
+    "compared_master_commit": "958b444c677a",
+    "master_behavior": "native MTP context inherits target KV offload placement; no independent --spec-draft-kv-device option",
+    "source_locations": [
+      "common/arg.cpp:5391",
+      "common/speculative.cpp:6156",
+      "common/common.cpp:1473",
+      "common/common.cpp:2100"
+    ],
+    "claim_scope": "branch feature relative to compared native-MTP master interface; do not assert no other llama.cpp speculative mechanism can place draft models on GPU"
+  },
+  "article": "docs/aco-article.md",
+  "figures": "docs/aco-figures/figures",
+  "external_provenance_manifest": "/srv/ai/paged-kv/results/aco-article-20261107/source-data/source-manifest.json",
+  "public_data_exports": {
+    "docs/aco-figures/data/cpu-mtp-placement.csv": "7faade5bb6ca1125a93d0392179ef71e14cca00469ce24d3fc12e14847e954fa",
+    "docs/aco-figures/data/decode.csv": "1a6e46f7e7d40db4bf405bb8e90a1ef14edfb5b58ff1c7701bf6507290c8f9e6",
+    "docs/aco-figures/data/prefill.csv": "0b62c73eb27fdf0aa936f5cc443486399d3c45d619d4615e6f44940d919388a5"
+  },
+  "article_source_status": "New complete article saved in repository; no previous standalone article located in local files, accessible Pages/Sites, or this chat history; original location requested from user.",
+  "documentation": {
+    "article": "docs/aco-article.md",
+    "guide": "docs/aco.md",
+    "overview": "README.md",
+    "max_decode_reasoning_mode": "off",
+    "public_curated_data_rows": {
+      "decode": 156,
+      "prefill": 111,
+      "cpu_mtp_placement": 42
+    },
+    "figure_names": [
+      "decode-mtp-on",
+      "decode-mtp-off",
+      "prefill-mtp-on",
+      "prefill-mtp-off",
+      "cpu-mtp-placement"
+    ],
+    "figure_formats": [
+      "png",
+      "svg"
+    ],
+    "validation": {
+      "portable_figure_renderer": "completed exit 0",
+      "article_relative_links_missing": [],
+      "runtime_changes": false,
+      "new_benchmarks_run": false,
+      "generated_text_format": "LF CSV, trailing SVG whitespace normalized",
+      "editorial_numeric_review": "Luna High review passed; max ratios, same-prompt comparisons, metric scopes and placement statements checked",
+      "staged_whitespace_check": "pass"
+    }
+  },
+  "figure_hashes": {
+    "docs/aco-figures/figures/cpu-mtp-placement.png": "fd1e8cd199e02b5976d82e7b18d3b893e7c9f15bcb84e9f858866cda0bd29fe1",
+    "docs/aco-figures/figures/cpu-mtp-placement.svg": "4657f5bcaa30a190fd2e0f1303d9a46c2680e5e6ee0b664eb599a238c699b7fa",
+    "docs/aco-figures/figures/decode-mtp-off.png": "130a8b24eef6a42c4ff8edba763308fd5c17062cb6e8d0692d5ac6b27e980267",
+    "docs/aco-figures/figures/decode-mtp-off.svg": "4c8598c72f6fc39752cae4218168f1c03bf2f9226ed3bea1d6d1ad408408c72d",
+    "docs/aco-figures/figures/decode-mtp-on.png": "0d0672108acdcac0a861086be3a1f1fe6eae1ea94d3deff1a7e20faa5620bf6b",
+    "docs/aco-figures/figures/decode-mtp-on.svg": "209d9c5883f58037295abb729a274d5aeb06af3d915b123a58dc2763ce5662eb",
+    "docs/aco-figures/figures/prefill-mtp-off.png": "c7255da676eee244b1e3498174f5906230a4933bae2bf120b814b261a92d6377",
+    "docs/aco-figures/figures/prefill-mtp-off.svg": "8aafb37466ee1cc4d5e079758dec7d2aff35af73be790a4c6b1eb9ec28ad2ca1",
+    "docs/aco-figures/figures/prefill-mtp-on.png": "eac8e850f8b783eb1f1307442ad67017d131a03b693243e844ed643b04ef9be3",
+    "docs/aco-figures/figures/prefill-mtp-on.svg": "2135555a0b0d767338fbd53d6a88db47624adf51ad82649c6c4c7d891315819e"
+  },
+  "public_manifest": {
+    "path": "docs/aco-figures/data/manifest.json",
+    "sha256": "b90f5093338b15618ecd2d5e73ed747f9813f72a08b5cbfc993f2dceb342c503"
+  },
+  "public_docs_commit": "9942c163e69aa1f4f06a83ddd33ac13632083724"
+}
