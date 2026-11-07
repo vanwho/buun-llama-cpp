@@ -8,20 +8,18 @@ A research and development fork of [llama.cpp](https://github.com/ggml-org/llama
 
 ### ACO: Attention-Aware Context Offloading (experimental)
 
-ACO keeps a bounded target KV working set on the GPU and canonical sealed-page
-backing in host memory. Selective routing approximates full-context attention;
-it is supported only for the documented Qwen3.8 CUDA geometry and is not a
-dense-equivalence or general performance claim. See the
-[architecture, limits, build, and launch guide](docs/aco.md).
+ACO keeps a bounded target KV working set on the GPU and compressed history
+in CPU RAM. Attention uses selected GPU pages, with cold-page promotion at
+turn boundaries. On an RTX 4080, Qwen3.8-27B UD-IQ4_XS reached 256K context
+with 64K hot KV, generating up to **102 tok/s at small contexts** and
+**61 tok/s near full context** with native MTP. At the large shared checkpoint,
+maximum decode speed was up to **8.9× CPU KV offload with MTP** and **12.6×
+without MTP**. The latest near-256K prefill rates were **614 tok/s with MTP**
+and **803 tok/s without MTP**.
 
-The latest 256K ACO measurement covers 11 context checkpoints for each of
-MTP-on and MTP-off (22 rows total) and four reasoning modes. Its full run results
-and cell-wise historical selections are documented in the
-[2026-11-04 full curves](.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md)
-and [best-results report](.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md).
-The full curves use one frozen build and host; the historical selections keep
-each cell's build lineage. These observations do not establish dense-equivalent
-quality or isolate the effect of any one code change.
+Read the [ACO article and comparison graphs](docs/aco-article.md), the
+[architecture, supported geometry, build and launch guide](docs/aco.md), or
+the [plotted benchmark data](docs/aco-figures/README.md).
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

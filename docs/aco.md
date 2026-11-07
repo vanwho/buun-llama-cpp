@@ -126,58 +126,44 @@ capacity and uses host metadata; it does not copy K/V or allocate GPU buffers.
 
 ## Measured results
 
-The 2026-11-04 full-curve run used two fresh persistent variants and completed
-22/22 context rows and 264/264 prompt/reasoning cells, with 792 passing
-measured requests, 264 warmups, and 1,056 benchmark requests total. Each
-variant retained one process across the context ladder; there was no
-per-prompt or per-reasoning-mode fill/reset. The shared geometry was
-L=262,144, H=65,536,
-B/U=1024/256 and GPU Turbo4 target KV. MTP-on also used GPU Turbo4 draft KV
-and native MTP n-max=2; MTP-off had no draft allocation.
-Each of three canonical prompts ran in reasoning off, low, medium, and xhigh;
-each cell used one 40-token warmup and three measured requests capped at 400
-tokens. The final configured checkpoint was 261,120; actual occupancy was
-C=261,121, leaving 1,023 tokens of reserve. Target checkpoints were 6,144,
-12,288, 28,672, 62,464, 78,848, 88,064, 100,352, 130,048, 196,608, 256,000,
-and 261,120; these are ladder targets, and actual occupancy is reported
-separately. The full run and historical
-cell-wise selection, including exact checkpoint values and identities, are in
-the [full-curve report](../.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.md)
-and [best-results report](../.wiretail/execution/evidence/ACO_BEST_RESULTS_20261104.md).
+The [ACO article](aco-article.md) presents the maximum-speed comparisons and
+current graphs. On an RTX 4080 with Qwen3.8-27B UD-IQ4_XS, ACO reached
+256K total context with 64K target hot KV, Turbo4 target and draft K/V,
+B/U=1024/256 and native MTP n-max=2.
 
-At the final filled checkpoint (C=261,121) in low reasoning, the three-repeat
-decode results were:
+At the final filled checkpoint, C=261,121, maximum decode speeds with reasoning
+off were:
 
-| Variant | P1 min / median / max | P2 min / median / max | P3 min / median / max |
+| Variant | Python merge | mmap versus read | Bash directory watcher |
 |---|---:|---:|---:|
-| MTP on | 57.86 / 58.22 / 58.79 tok/s | 45.52 / 45.78 / 45.82 tok/s | 54.71 / 55.30 / 56.73 tok/s |
-| MTP off | 37.37 / 37.38 / 37.43 tok/s | 37.43 / 37.43 / 37.45 tok/s | 37.42 / 37.44 / 37.45 tok/s |
+| MTP on | 61.23 tok/s | 46.46 tok/s | 54.29 tok/s |
+| MTP off | 37.59 tok/s | 37.59 tok/s | 37.47 tok/s |
 
-These are filled near-capacity results; the full run includes all four
-reasoning modes and is linked above. MTP-on MTP acceptance medians were
-90.00/61.34/82.39% for prompts 1/2/3. Across the 15 repository-content
-appends, aggregate ingest rates (total tokens / total elapsed time) were
-781.88 net-new tok/s with MTP on and 938.44 tok/s with MTP off; HTTP-wall rates
-were 777.90 and 932.60 tok/s. These rates
-include observed run effects and are not a controlled attribution to one
-change. In particular, the `maskrepair` build label and a single-pair 5.5%
-observation do not establish a material speedup caused by mask repair.
+At the shared 250K filled checkpoint, ACO's maximum decode rates were
+8.47–8.89 times the CPU Q4_0 target-offload rates with MTP enabled and
+12.55–12.59 times the rates with MTP disabled. At small contexts, ACO reached
+102.48 tok/s on the Python prompt with MTP, compared with 102.46 tok/s for
+full GPU.
 
-The MTP-on process recorded 530.4 MiB peak `VmSwap` at C=100,352; MTP-off
-recorded zero in 958 samples. The samples do not identify which allocations
-were swapped or measure swap-in I/O, so the MTP-on run is not certified
-RAM-only. A bounded natural file-recall check separately demonstrated a cold
-source-page promotion and correct answer. This is functional evidence for that
-case, not a general retrieval-quality or dense-equivalence certification.
-Short recall continues to use the stronger all-layer route; early routing is
-for bulk spans and does not imply that all query replay has been removed.
+The latest November 6 prefill runs used a fresh server per configuration and
+new repository-content appends in 8K increments. Both ACO curves completed
+32 appends through C=261,121. Their final append rates were:
 
-The build's overall comparison remains observational. Whole-cell historical
-selection promoted 95 comparable cells (86 improved in both median and maximum,
-5 median-only, 4 maximum-only), retained 28 prior bests, and selected 141 new
-cells. Each cell keeps all three repeats from one build; the selected-best
-table can contain cells from different builds and is not a frozen cohort. Do
-not infer causality or statistical significance from these cells.
+| Variant | Backend prefill | Net-new request-wall rate |
+|---|---:|---:|
+| MTP on | 614.39 tok/s | 602.92 tok/s |
+| MTP off | 802.51 tok/s | 783.04 tok/s |
+
+At approximately 128K context, the MTP-off ACO curve measured 849.79 tok/s
+versus 317.56 tok/s for the full-GPU curve. The plotted values are in the
+[publication data](aco-figures/README.md), with all retained points shown.
+
+The complete generation matrix covers three canonical prompts and four
+reasoning modes, with one 40-token warmup and three measured requests using
+a 400-token output budget per cell. The [publication CSVs](aco-figures/README.md)
+contain the plotted rates and recorded decode repeat values. Their
+[manifest](aco-figures/data/manifest.json) defines the metrics and records
+data and figure hashes.
 
 ## Build
 
