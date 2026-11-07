@@ -462,13 +462,13 @@
     "docs/aco-figures/figures/16_prefill_mtp_off_context.svg": "a02bbe2b1b05b7e8d5465167cdf15a9b9d9784ed5a392ce780de216bdef54ea4",
     "docs/aco-figures/figures/17_long_context_decode_comparison.png": "feb117261165c571ec60015276ae3eefa35bfdec46bd1f871acba5de2d1c6955",
     "docs/aco-figures/figures/17_long_context_decode_comparison.svg": "a2e201a35664450a58b6be18acb3ac3136cdc80b2a7b7d15f6c87cbd6ec385b8",
-    "docs/aco-figures/figures/cover.png": "1c109d9ed0965ab29761caeab10e52b9d9a4e93c9dc34515a6597eba18fdc584"
+    "docs/aco-figures/figures/cover.png": "87ef767c889e845dc1c12b060bc67d76c340fd88c142373f4d6391f1d63e8e9e"
   },
   "public_manifest": {
     "path": "docs/aco-figures/data/manifest.json",
-    "sha256": "6c10e564281c598bef5c6f307177f689d0acd92af7f6b1c3fbecd02cbfd7ccd1"
+    "sha256": "b8da054a81c8c94b34aeb95ae1a5c11755422cd418a53b670968f9d9a47f9b79"
   },
-  "public_docs_commit": "8e74b704689712c6af817d1d6da21fa675dbc77a",
+  "public_docs_commit": "c38c26d89fc7ad992531c1532c78e8e0857cba63",
   "article_import": {
     "archive": "/home/ninja/Downloads/ACO_article_and_graphs_with_prefill_2026-11-07.zip",
     "sha256": "8b3526093f0f98cda4484fde3fe56c35b912dacc42158c080c9ba6cc30d1af85",
@@ -479,8 +479,8 @@
   "publication_working_directory": "/srv/ai/paged-kv/publication/aco-20261107/updated/aco_publication_with_prefill",
   "publication_archive": {
     "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-07.zip",
-    "sha256": "437a590a1d31c0fff97f86c5ed13db7b236073acc7810f8bf2964f092e852569",
-    "bytes": 10319819,
+    "sha256": "f14f47b2f61c1f73761e87499ddd223b5bb0c06800c36767f8c563e91a83090c",
+    "bytes": 10352201,
     "members": 60,
     "hash_manifest_entries": 58
   },
@@ -503,18 +503,22 @@
     "SVG charts",
     "LinkedIn launch post"
   ],
-  "prior_public_docs_commit": "873b47811674dd06f676054dfd1f49287e0f6044",
-  "article_sha256": "4d673ed98ed8286f76a67ece5db5cabe8618a7a145d769d20797197bdbbab571",
-  "publication_source_sha256": "5febc05f999620abd6023c023169699a827eeab07f1fecf564cf907dbcc95bbd",
+  "prior_public_docs_commit": "8e74b704689712c6af817d1d6da21fa675dbc77a",
+  "article_sha256": "ffa8883428656b469f98de2082f9391001816a5b3bafd292df88d16db8bffeb9",
+  "publication_source_sha256": "8bb6ff2d650f356f04547e2544762f0262377b02012435a7be3c03710f91dcf7",
   "cover_edit": {
     "tool": "built-in image_gen",
     "badge": "9X",
     "model": "Qwen3.8-27B",
     "removed_text": "UP TO",
     "path": "docs/aco-figures/figures/cover.png",
-    "sha256": "1c109d9ed0965ab29761caeab10e52b9d9a4e93c9dc34515a6597eba18fdc584",
+    "sha256": "87ef767c889e845dc1c12b060bc67d76c340fd88c142373f4d6391f1d63e8e9e",
     "prompt": "docs/aco-figures/cover-image-prompt.txt",
-    "prompt_sha256": "3191d79b6bdb6c38b53bc65d8c7a91d083bf1d83c38a479965a9313cd37aaee5",
-    "publication_formats_refreshed": true
+    "prompt_sha256": "bfb761c209c65fb2b12938133b0b4726608524addeb5e51678fe65e609847b31",
+    "publication_formats_refreshed": true,
+    "footer": [
+      "RTX 4080",
+      "1M Context Soon!"
+    ]
   }
 }
