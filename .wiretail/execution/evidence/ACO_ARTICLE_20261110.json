@@ -1,7 +1,7 @@
 {
   "date": "2026-11-10",
   "request": "Rewrite the publication around maximum prompt-benchmark decode results, emphasizing MTP-on ACO with a CPU GPU-MTP aside and one prefill curve.",
-  "public_docs_commit": "bdedbc749313d51fa58161bb08963d86e206dc1d",
+  "public_docs_commit": "ee07c3a5580be37b63625a5e6c5ba404722de418",
   "article": {
     "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-article.md",
     "sha256": "a13de8c551deca37c73aac03d9ce31c696184114538243fbe73b893e3177de2a"
@@ -12,12 +12,12 @@
   },
   "public_figure_manifest": {
     "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-figures/data/manifest.json",
-    "sha256": "0f0f9750c8fd26139ffd4328d9daa75cc2ef1fde10729cc51fc1260808710065"
+    "sha256": "69d6c7841a67c8b2b1739059e9c5d28e8991bdaf104c125719abd49dcecae37c"
   },
   "publication_archive": {
-    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-10_v2.zip",
-    "bytes": 9358046,
-    "sha256": "1da4a9837ef92f6de533d60312f9744c06afe656e33bd44bcbe12af98f211f86",
+    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-10_v3.zip",
+    "bytes": 9168072,
+    "sha256": "0c3658268d6f52861eb2c92a84a54b5eff989bfbcb7d1306da1f6c94dea5bf8a",
     "members": 49,
     "hash_manifest_entries": 47,
     "crc_pass": true,
@@ -154,6 +154,21 @@
     "git_diff_check": "pass",
     "runtime_changes": false,
     "new_benchmarks_run": false,
-    "reasoning_comparison_points_checked": 44
+    "reasoning_comparison_points_checked": 44,
+    "consistent_label_layout_visual_review": "passed across the prefill, reasoning, standard decode, CPU placement, and MTP on/off graphs",
+    "graph_data_sha256": "5e0fbad437731b3fb75a2baa27c2b0bec5d2645177c220f923b529017d6d6fa9"
+  },
+  "label_layout": {
+    "preferred_side": {
+      "GPU": "above",
+      "ACO": "below",
+      "CPU": "below"
+    },
+    "default_offset_points": 14,
+    "low_decode_curves": "labels above if the zero-axis leaves insufficient room below",
+    "collision_adjustment": "horizontal offset first, then increased distance on the same side",
+    "reasoning_modes": "fixed quadrants per mode",
+    "aco_prefill_after_64k": "label every third point",
+    "subplot_layout": "finalized before label collision measurement"
   }
 }
