@@ -18,7 +18,7 @@ The [article](../aco-article.md) focuses on MTP-enabled decode across context le
 
 ## Data
 
-The renderer reads [chart-data.csv](data/chart-data.csv), containing 353 observations. The decode graphs use maximum measured rates from the three canonical prompts, with a 400-token output budget and three eligible repetitions per point. Configuration comparisons use reasoning off. The ACO Prompt 1 reasoning graph compares off, low, medium, and xhigh across 11 context points each. Original repetition rates are retained alongside their maxima. Context positions are cumulative, and 1K means 1,024 tokens.
+The renderer reads [chart-data.csv](data/chart-data.csv), containing 347 observations. The decode graphs use maximum measured rates from the three canonical prompts, with a 400-token output budget and three eligible repetitions per point. Configuration comparisons use reasoning off. The ACO Prompt 1 reasoning graph compares off, low, medium, and xhigh across 11 context points each. Original repetition rates are retained alongside their maxima. Context positions are cumulative, and 1K means 1,024 tokens.
 
 The article uses the MTP-on prefill curve, measuring backend prompt-stage throughput for mapped fresh repository chunks. The data export also retains the MTP-off prefill measurements.
 
