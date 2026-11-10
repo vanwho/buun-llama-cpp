@@ -24,6 +24,12 @@ The curve continues through the larger context sizes. ACO reaches **70.61 tok/s 
 
 The three configuration names in the graphs describe target KV placement. **GPU** keeps it in VRAM, **CPU** keeps it in system RAM, and **ACO** retains the full history in RAM with selected pages hot in VRAM. Model weights are on the GPU in all three. GPU and ACO use Turbo4 target KV. The CPU target cache uses Q4_0, paired with GPU-resident Turbo4 MTP in the branch comparisons.
 
+## Prompt 1 across reasoning modes
+
+![Maximum ACO Prompt 1 decode speeds across reasoning modes with MTP enabled](aco-figures/figures/11_aco_prompt_1_reasoning.png)
+
+ACO maintains similar code-generation throughput across **off, low, medium, and xhigh** reasoning. Near full 256K context, Prompt 1 reaches **61.23 tok/s with reasoning off, 58.79 with low, 58.03 with medium, and 58.03 with xhigh**, with MTP enabled throughout.
+
 ## The long-context difference is substantial
 
 ![Maximum ACO and CPU-offload decode speeds with MTP at long context](aco-figures/figures/05_mtp_long_context.png)
@@ -82,9 +88,9 @@ The machine has an **RTX 4080 16GB, Ryzen 7950X3D, and 64GB of RAM**, running Li
 
 The benchmark uses batch/microbatch **1024 / 256**, one sequence, 16 CPU threads, flash attention, greedy sampling, and seed 42. Native MTP uses a maximum draft length of two. Each prompt has a 40-token warmup and three measured repetitions with a **400-token output budget**.
 
-The article and graphs use maximum measured decode speeds with reasoning off, comparing the same prompt across configurations. The three prompts are the original Python sorted-list merge, mmap-versus-read explanation, and Bash directory watcher. Context is loaded from mapped repository chunks and retained for the prompt tests. The data files include the individual measured repetition rates and exact context positions. **1K means 1,024 tokens.**
+The GPU, ACO, and CPU comparisons use maximum measured decode speeds with reasoning off. The Prompt 1 reasoning graph compares all four reasoning settings using the same maximum-of-three measurement. The three prompts are the original Python sorted-list merge, mmap-versus-read explanation, and Bash directory watcher. Context is loaded from mapped repository chunks and retained for the prompt tests. The data files include the individual measured repetition rates and exact context positions. **1K means 1,024 tokens.**
 
-The accompanying graph pack includes the full curves for all three prompts, ACO with MTP on and off, the CPU MTP-placement comparison, and the prefill curve. [Graphs and plotted data](https://github.com/vanwho/buun-llama-cpp/tree/plan/attention-aware-kv-paging/docs/aco-figures).
+The accompanying graph pack includes the full curves for all three prompts, ACO with MTP on and off, all four reasoning modes for ACO Prompt 1, the CPU MTP-placement comparison, and the prefill curve. [Graphs and plotted data](https://github.com/vanwho/buun-llama-cpp/tree/plan/attention-aware-kv-paging/docs/aco-figures).
 
 ## Open code
 

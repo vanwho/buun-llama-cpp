@@ -48,5 +48,10 @@
     "file": "10_mtp_prompt_2",
     "title": "Maximum decode with MTP on for P2 mmap vs read",
     "caption": "ACO measured 82.01 tokens/s at 6K context and 48.83 tokens/s at 250K filled context on P2."
+  },
+  {
+    "file": "11_aco_prompt_1_reasoning",
+    "title": "Maximum ACO Prompt 1 decode across reasoning modes",
+    "caption": "With MTP enabled near full 256K context, Prompt 1 reached 61.23 tokens/s with reasoning off, 58.79 with low, 58.03 with medium, and 58.03 with xhigh. Each line uses the maximum of three measured repetitions at every context point."
   }
 ]

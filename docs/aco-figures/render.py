@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the ten numbered decode and prefill figures from curated chart data."""
+"""Render the eleven numbered decode and prefill figures from curated chart data."""
 from __future__ import annotations
 
 import csv
@@ -22,6 +22,7 @@ COLORS = {
     "GPU": "#0072B2", "ACO": "#D55E00", "CPU": "#009E73",
     "CPU + GPU MTP": "#009E73", "Master CPU + MTP": "#CC79A7",
     "MTP on": "#D55E00", "MTP off": "#0072B2",
+    "off": "#D55E00", "low": "#0072B2", "medium": "#009E73", "xhigh": "#A352A0",
 }
 plt.rcParams.update({
     "font.family": "DejaVu Sans", "font.size": 12, "axes.titlesize": 14,
@@ -46,6 +47,8 @@ def load_data():
             raise ValueError(f"Nonfinite chart point: {row}")
         if row["kind"] in ("decode", "cpu-placement") and (row["statistic"] != "max" or row["reasoning"] != "off"):
             raise ValueError(f"Unexpected decode selection: {row}")
+        if row["kind"] == "decode-reasoning" and (row["statistic"] != "max" or row["reasoning"] not in ("off", "low", "medium", "xhigh")):
+            raise ValueError(f"Unexpected reasoning comparison point: {row}")
     return rows
 
 
@@ -108,7 +111,9 @@ def labels(ax, sets, integer=False, fontsize=8.2):
         for step in range(len(base_offsets)):
             candidate = base_offsets[(start + step) % len(base_offsets)]
             ann.set_position(candidate)
-            box = ann.get_window_extent(renderer).expanded(1.04, 1.08)
+            ann.get_window_extent(renderer)
+            ann.update_bbox_position_size(renderer)
+            box = ann.get_bbox_patch().get_window_extent(renderer).expanded(1.04, 1.08)
             inside = box.x0 >= bounds.x0 + 1 and box.x1 <= bounds.x1 - 1 and box.y0 >= bounds.y0 + 1 and box.y1 <= bounds.y1 - 1
             if inside and all(not box.overlaps(prev) for prev in used):
                 used.append(box)
@@ -118,7 +123,9 @@ def labels(ax, sets, integer=False, fontsize=8.2):
         if chosen is None:
             chosen = base_offsets[start]
             ann.set_position(chosen)
-            used.append(ann.get_window_extent(renderer).expanded(1, 1))
+            ann.get_window_extent(renderer)
+            ann.update_bbox_position_size(renderer)
+            used.append(ann.get_bbox_patch().get_window_extent(renderer))
             ann.arrow_patch.set_visible(math.hypot(*chosen) > 14)
 
 
@@ -242,6 +249,12 @@ def make_on_off(decode):
     save(fig, "08_aco_mtp_on_off")
 
 
+def make_reasoning_comparison(rows):
+    points = [dict(row, series=row["reasoning"]) for row in rows if row["kind"] == "decode-reasoning"]
+    make_single(points, "11_aco_prompt_1_reasoning", "Maximum decode · ACO · MTP on · P1 Python merge",
+                ("off", "low", "medium", "xhigh"))
+
+
 def main():
     rows = load_data()
     decode = [row for row in rows if row["kind"] == "decode"]
@@ -266,6 +279,8 @@ def main():
     make_single([row for row in decode if row["mtp"] == "on" and row["prompt"] == "P2"],
                 "10_mtp_prompt_2", "Maximum decode · MTP on · P2 mmap vs read · reasoning off")
 
+    make_reasoning_comparison(rows)
+
     captions = [
         {"file": "01_mtp_64k_comparison", "title": "Maximum decode with MTP on around 64K context", "caption": "Around 64K on P1, ACO reached 79.69 tokens/s, GPU reached 80.70, and CPU reached 17.68."},
         {"file": "02_mtp_context_comparison", "title": "Maximum decode with MTP on across prompt types", "caption": "At 250K filled context, ACO measured 61.13, 48.83, and 55.35 tokens/s on P1, P2, and P3, compared with CPU at 7.21, 5.49, and 6.50."},
@@ -277,6 +292,7 @@ def main():
         {"file": "08_aco_mtp_on_off", "title": "Maximum ACO decode with MTP on and off", "caption": "At 250K filled context on P1, ACO measured 61.13 tokens/s with MTP on and 37.51 tokens/s with MTP off."},
         {"file": "09_prefill_mtp_on_context", "title": "Backend prefill with MTP on across context lengths", "caption": "With MTP on, ACO ingested fresh repository chunks at 1,402 backend tokens/s on the first 8K append and 614 tokens/s near full 256K context."},
         {"file": "10_mtp_prompt_2", "title": "Maximum decode with MTP on for P2 mmap vs read", "caption": "ACO measured 82.01 tokens/s at 6K context and 48.83 tokens/s at 250K filled context on P2."},
+        {'file': '11_aco_prompt_1_reasoning', 'title': 'Maximum ACO Prompt 1 decode across reasoning modes', 'caption': 'With MTP enabled near full 256K context, Prompt 1 reached 61.23 tokens/s with reasoning off, 58.79 with low, 58.03 with medium, and 58.03 with xhigh. Each line uses the maximum of three measured repetitions at every context point.'},
     ]
     (RESEARCH / "chart_captions.json").write_text(json.dumps(captions, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"Rendered {len(captions)} figure pairs from {len(rows)} curated rows")

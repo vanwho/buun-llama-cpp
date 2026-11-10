@@ -1,6 +1,6 @@
 # ACO publication figures and data
 
-The [article](../aco-article.md) focuses on MTP-enabled decode across context lengths, with a CPU MTP-placement comparison, an MTP-off comparison, and one prefill curve. This folder contains 10 PNG/SVG chart pairs and the Qwen3.8 cover. The [complete gallery](GALLERY.md) includes every graph and caption.
+The [article](../aco-article.md) focuses on MTP-enabled decode across context lengths, with a CPU MTP-placement comparison, an MTP-off comparison, and one prefill curve. This folder contains 11 PNG/SVG chart pairs and the Qwen3.8 cover. The [complete gallery](GALLERY.md) includes every graph and caption.
 
 | Figure | Results |
 |---|---|
@@ -14,10 +14,11 @@ The [article](../aco-article.md) focuses on MTP-enabled decode across context le
 | [Maximum ACO decode with MTP on and off](figures/08_aco_mtp_on_off.png) | At 250K filled context on P1, ACO measured 61.13 tokens/s with MTP on and 37.51 tokens/s with MTP off. |
 | [Backend prefill with MTP on across context lengths](figures/09_prefill_mtp_on_context.png) | With MTP on, ACO ingested fresh repository chunks at 1,402 backend tokens/s on the first 8K append and 614 tokens/s near full 256K context. |
 | [Maximum decode with MTP on for P2 mmap vs read](figures/10_mtp_prompt_2.png) | ACO measured 82.01 tokens/s at 6K context and 48.83 tokens/s at 250K filled context on P2. |
+| [Maximum ACO Prompt 1 decode across reasoning modes](figures/11_aco_prompt_1_reasoning.png) | With MTP enabled near full 256K context, Prompt 1 reached 61.23 tokens/s with reasoning off, 58.79 with low, 58.03 with medium, and 58.03 with xhigh. Each line uses the maximum of three measured repetitions at every context point. |
 
 ## Data
 
-The renderer reads [chart-data.csv](data/chart-data.csv), containing 309 observations. The decode graphs use maximum measured rates from the three canonical prompts, with reasoning off, a 400-token output budget, and three eligible repetitions per point. Original repetition rates are retained alongside their maxima. Context positions are cumulative, and 1K means 1,024 tokens.
+The renderer reads [chart-data.csv](data/chart-data.csv), containing 353 observations. The decode graphs use maximum measured rates from the three canonical prompts, with a 400-token output budget and three eligible repetitions per point. Configuration comparisons use reasoning off. The ACO Prompt 1 reasoning graph compares off, low, medium, and xhigh across 11 context points each. Original repetition rates are retained alongside their maxima. Context positions are cumulative, and 1K means 1,024 tokens.
 
 The article uses the MTP-on prefill curve, measuring backend prompt-stage throughput for mapped fresh repository chunks. The data export also retains the MTP-off prefill measurements.
 

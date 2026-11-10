@@ -1,6 +1,6 @@
 # ACO graphs and captions
 
-Maximum decode results from the three prompt benchmarks, with reasoning off and a 400-token output budget. Each point uses the fastest of three measured repetitions. The final prefill figure follows fresh repository chunks.
+Maximum decode results from the three prompt benchmarks with a 400-token output budget. Each point uses the fastest of three measured repetitions. Configuration comparisons use reasoning off, and the ACO Prompt 1 reasoning graph covers off, low, medium, and xhigh. The final prefill figure follows fresh repository chunks.
 
 ## Maximum decode with MTP on around 64K context
 
@@ -61,3 +61,9 @@ With MTP on, ACO ingested fresh repository chunks at 1,402 backend tokens/s on t
 ![Maximum decode with MTP on for P2 mmap vs read](figures/10_mtp_prompt_2.png)
 
 ACO measured 82.01 tokens/s at 6K context and 48.83 tokens/s at 250K filled context on P2.
+
+## Maximum ACO Prompt 1 decode across reasoning modes
+
+![Maximum ACO Prompt 1 decode across reasoning modes](figures/11_aco_prompt_1_reasoning.png)
+
+With MTP enabled near full 256K context, Prompt 1 reached 61.23 tokens/s with reasoning off, 58.79 with low, 58.03 with medium, and 58.03 with xhigh. Each line uses the maximum of three measured repetitions at every context point.
