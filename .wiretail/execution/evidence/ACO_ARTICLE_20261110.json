@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-10",
+  "request": "Rewrite the publication around maximum prompt-benchmark decode results, emphasizing MTP-on ACO with a CPU GPU-MTP aside and one prefill curve.",
+  "public_docs_commit": "934fe047163beaac7f96fe8cef70aecd0547ca2c",
+  "article": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-article.md",
+    "sha256": "391b680488f3779324aa412ff2db42727581817ac0739c39e593706462a4fa97"
+  },
+  "canonical_publication_source": {
+    "path": "/srv/ai/paged-kv/publication/aco-20261110/aco_publication/article_source.md",
+    "sha256": "713d9688f4d67cc14cf10cb9c982698eab8e579474badc6f444202a02ea69ef8"
+  },
+  "public_figure_manifest": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-figures/data/manifest.json",
+    "sha256": "1d0152f2b0659adb8fbaa7e125687d595a8cd9c66f5b2a1ec4912cc2cf06c496"
+  },
+  "publication_archive": {
+    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-10.zip",
+    "bytes": 8781133,
+    "sha256": "7a0a9ad72d1adb531eac4e2967b250ff63978cb5665c58adbd285303e057932c",
+    "members": 47,
+    "hash_manifest_entries": 45,
+    "crc_pass": true
+  },
+  "publication_working_directory": "/srv/ai/paged-kv/publication/aco-20261110/aco_publication",
+  "benchmark_method": {
+    "publication_date": "2026-11-10",
+    "focus": "ACO maximum decode throughput with MTP enabled across filled context lengths",
+    "decode": {
+      "statistic": "maximum measured repetition",
+      "reasoning": "off",
+      "warmup_runs_per_prompt": 1,
+      "warmup_output_budget_tokens": 40,
+      "measured_repetitions_per_prompt": 3,
+      "measured_output_budget_tokens": 400,
+      "sampling_temperature": 0,
+      "seed": 42,
+      "points": 156,
+      "placement_comparison_points": 42,
+      "all_plotted_decode_points_have_three_eligible_repetitions": true,
+      "main_prompt": "P1 Python sorted-list merge",
+      "source": {
+        "path": "/srv/ai/paged-kv/results/aco-comparison-graphs-20261105/data/decode_merged.csv",
+        "sha256": "d2cd3d4a7acd3b946306b616b8744b564907392d24906f0f4dd02807bfaa1654"
+      },
+      "aco_completion_receipt": {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/ACO_FULL_CURVES_20261104.json",
+        "sha256": "3620a8c2b7180824cacfc93f8aab3df96115f31a5aa35aac02c2ed9ee8010a64"
+      }
+    },
+    "prefill": {
+      "article_curve": "MTP on",
+      "metric": "backend processed prompt tokens divided by model prompt-stage seconds",
+      "wall_metric": "net-new tokens divided by complete append-request wall seconds",
+      "method": "mapped fresh repository chunks appended to one resident history per configuration",
+      "source": {
+        "path": "/srv/ai/paged-kv/results/merge-plan-master-20261106-three-prefill-curves/prefill-curves.csv",
+        "sha256": "b1e621c8e6212e3b37ac1316b37998643978c3983b0f5ca30a37692fdb321853"
+      }
+    },
+    "configuration": {
+      "model": "Qwen3.8-27B UD-IQ4_XS",
+      "gpu": "RTX 4080 16GB",
+      "cpu": "Ryzen 7950X3D",
+      "ram_gb": 64,
+      "batch": 1024,
+      "microbatch": 256,
+      "threads": 16,
+      "parallel_sequences": 1,
+      "flash_attention": true,
+      "target_gpu_kv": "Turbo4",
+      "target_cpu_kv": "Q4_0",
+      "aco_host_kv": "Turbo4",
+      "mtp_gpu_kv": "Turbo4",
+      "mtp_max_draft_tokens": 2,
+      "aco_total_context_tokens": 262144,
+      "aco_hot_tokens": 65536
+    },
+    "prompts": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ]
+  },
+  "figure_count": 10,
+  "cover": {
+    "path": "/srv/ai/paged-kv/publication/aco-20261110/aco_publication/assets/cover.png",
+    "sha256": "87ef767c889e845dc1c12b060bc67d76c340fd88c142373f4d6391f1d63e8e9e"
+  },
+  "article_focus": {
+    "primary_prompt": "P1 Python sorted-list merge",
+    "supporting_prompts": [
+      "P2 mmap vs read",
+      "P3 Bash directory watcher"
+    ],
+    "reasoning": "off",
+    "decode_statistic": "max of three eligible measured repetitions",
+    "output_budget_tokens": 400,
+    "prefill_graphs": 1
+  },
+  "formats": [
+    "Markdown",
+    "HTML",
+    "self-contained HTML",
+    "plain text",
+    "PNG graphs",
+    "SVG graphs",
+    "CSV data",
+    "LinkedIn launch copy"
+  ],
+  "validation": {
+    "caption_numeric_claims_checked": 25,
+    "decode_points_checked": 156,
+    "cpu_placement_points_checked": 42,
+    "all_decode_points_have_three_eligible_repetitions": true,
+    "all_decode_maxima_match_repetitions": true,
+    "public_manifest_hashes_match": true,
+    "article_matches_package_source": true,
+    "article_gallery_readme_links_resolve": true,
+    "package_hash_entries_checked": 45,
+    "archive_crc_pass": true,
+    "self_contained_article_embedded_images": 7,
+    "git_diff_check": "pass",
+    "runtime_changes": false,
+    "new_benchmarks_run": false
+  }
+}
