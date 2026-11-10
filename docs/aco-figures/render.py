@@ -86,47 +86,63 @@ def artists(ax, points, order):
 
 
 def labels(ax, sets, integer=False, fontsize=8.2):
-    """Place value labels in clear nearby positions while keeping them in the axes."""
+    """Keep one label side and spacing per series, moving only colliding labels."""
     ax.figure.canvas.draw()
     renderer = ax.figure.canvas.get_renderer()
     bounds = ax.get_window_extent(renderer)
+    points_to_pixels = ax.figure.dpi / 72
     used = []
-    base_offsets = ((0, 12), (0, -19), (14, 11), (-14, 11), (14, -19), (-14, -19),
-                    (0, 29), (0, -35), (26, 10), (-26, 10), (26, -19), (-26, -19),
-                    (0, 46), (0, -52), (40, 0), (-40, 0))
-    ordered = [(line, x, y, series, idx) for line, xs, ys, series in sets
-               for idx, (x, y) in enumerate(zip(xs, ys))]
-    # Place the most crowded high-value series first; all labels still retain their series colors.
-    for line, x, y, series, idx in ordered:
+    preferred_offsets = {
+        "GPU": (0, 14), "ACO": (0, -14), "CPU": (0, -14),
+        "CPU + GPU MTP": (0, 14), "Master CPU + MTP": (0, -14),
+        "MTP on": (0, 14), "MTP off": (0, -14),
+        "off": (-12, 18), "low": (22, 18),
+        "medium": (-12, -18), "xhigh": (22, -18),
+    }
+    for line, xs, ys, series in sets:
+        preferred_x, preferred_y = preferred_offsets[series]
+        # Very low decode curves need their whole label row above the line to
+        # clear the zero axis. Prefill curves have sufficient room below.
+        lowest_pixel = min(ax.transData.transform((x, y))[1] for x, y in zip(xs, ys))
+        if preferred_y < 0 and lowest_pixel - bounds.y0 < (abs(preferred_y) + fontsize) * points_to_pixels:
+            preferred_y = abs(preferred_y)
+        side = 1 if preferred_y > 0 else -1
         color = to_hex(tuple(channel * .72 for channel in to_rgb(line.get_color())))
-        text = f"{int(round(y)):,}" if integer else f"{y:.1f}"
-        ann = ax.annotate(text, (x, y), xytext=(0, 12), textcoords="offset points",
-                          ha="center", va="bottom", fontsize=fontsize, color=color, zorder=5,
-                          bbox={"boxstyle": "round,pad=.12", "facecolor": "white", "edgecolor": "none", "alpha": .94},
-                          arrowprops={"arrowstyle": "-", "color": line.get_color(), "linewidth": .7,
-                                      "alpha": .8, "shrinkA": 2, "shrinkB": 5})
-        chosen = None
-        # Rotate the preferred side by series and point to separate labels around nearby lines.
-        start = (idx + (0 if series in ("GPU", "CPU", "CPU + GPU MTP", "MTP off") else 1)) % len(base_offsets)
-        for step in range(len(base_offsets)):
-            candidate = base_offsets[(start + step) % len(base_offsets)]
-            ann.set_position(candidate)
-            ann.get_window_extent(renderer)
-            ann.update_bbox_position_size(renderer)
-            box = ann.get_bbox_patch().get_window_extent(renderer).expanded(1.04, 1.08)
-            inside = box.x0 >= bounds.x0 + 1 and box.x1 <= bounds.x1 - 1 and box.y0 >= bounds.y0 + 1 and box.y1 <= bounds.y1 - 1
-            if inside and all(not box.overlaps(prev) for prev in used):
-                used.append(box)
-                chosen = candidate
-                ann.arrow_patch.set_visible(math.hypot(*chosen) > 14)
-                break
-        if chosen is None:
-            chosen = base_offsets[start]
-            ann.set_position(chosen)
-            ann.get_window_extent(renderer)
-            ann.update_bbox_position_size(renderer)
-            used.append(ann.get_bbox_patch().get_window_extent(renderer))
-            ann.arrow_patch.set_visible(math.hypot(*chosen) > 14)
+        sparse_index = 0
+        for x, y in zip(xs, ys):
+            # Tokenizer boundary offsets of one token still belong to 64K.
+            # Keep every marker, but label only each third later ACO append.
+            if integer and series == "ACO" and round(x) > 64:
+                sparse_index += 1
+                if sparse_index % 3:
+                    continue
+            text = f"{int(round(y)):,}" if integer else f"{y:.1f}"
+            ann = ax.annotate(text, (x, y), xytext=(preferred_x, preferred_y), textcoords="offset points",
+                              ha="center", va="center", fontsize=fontsize, color=color, zorder=5,
+                              bbox={"boxstyle": "round,pad=.12", "facecolor": "white", "edgecolor": "none", "alpha": .94},
+                              arrowprops={"arrowstyle": "-", "color": line.get_color(), "linewidth": .7,
+                                          "alpha": .8, "shrinkA": 2, "shrinkB": 5})
+            placed = False
+            # Try the same vertical distance first. Nearby endpoint labels
+            # can shift sideways, then move farther on the same side if needed.
+            for extra_y in (0, 12, 24, 36, 48, 60):
+                for shift_x in (0, -16, 16, -30, 30, -44, 44):
+                    offset = (preferred_x + shift_x, preferred_y + side * extra_y)
+                    ann.set_position(offset)
+                    ann.get_window_extent(renderer)
+                    ann.update_bbox_position_size(renderer)
+                    # Exclude the leader line from collision checks.
+                    box = ann.get_bbox_patch().get_window_extent(renderer).expanded(1.08, 1.15)
+                    inside = box.x0 >= bounds.x0 + 1 and box.x1 <= bounds.x1 - 1 and box.y0 >= bounds.y0 + 1 and box.y1 <= bounds.y1 - 1
+                    if inside and all(not box.overlaps(previous) for previous in used):
+                        used.append(box)
+                        ann.arrow_patch.set_visible(offset[0] != 0 or extra_y != 0)
+                        placed = True
+                        break
+                if placed:
+                    break
+            if not placed:
+                raise ValueError(f"No clear label position for {series} at {x}K")
 
 
 def legend(fig, order):
@@ -159,6 +175,7 @@ def make_triptych(points, slug, state, order=("GPU", "ACO", "CPU"), *, cpu_place
     fig, axes = plt.subplots(3, 1, figsize=(18.5, 14), sharex=True)
     heading = "Maximum decode · CPU MTP placement · MTP on · reasoning off" if cpu_placement else f"Maximum decode · MTP {state} · reasoning off"
     fig.suptitle(heading, fontsize=20, fontweight="semibold", color="#1E2B39", y=.99)
+    fig.subplots_adjust(left=.105, right=.985, top=.91, bottom=.075, hspace=.34)
     for ax, (prompt, prompt_type) in zip(axes, PROMPTS):
         panel = [row for row in points if row["prompt"] == prompt]
         if not cpu_placement:
@@ -166,16 +183,15 @@ def make_triptych(points, slug, state, order=("GPU", "ACO", "CPU"), *, cpu_place
         line_panel(ax, panel, order, title=prompt)
         ax.set_title(f"{prompt} · {prompt_type}", loc="left", fontweight="semibold", fontsize=14, color="#334155", pad=10)
     legend(fig, order)
-    fig.subplots_adjust(left=.105, right=.985, top=.91, bottom=.075, hspace=.34)
     save(fig, slug)
 
 
 def make_single(points, slug, title, order=("GPU", "ACO", "CPU"), *, integer=False):
     fig, ax = plt.subplots(figsize=(18.5, 9.5))
     fig.suptitle(title, fontsize=20, fontweight="semibold", color="#1E2B39", y=.99)
+    fig.subplots_adjust(left=.105, right=.985, top=.87, bottom=.12)
     line_panel(ax, points, order, integer=integer)
     legend(fig, order)
-    fig.subplots_adjust(left=.105, right=.985, top=.87, bottom=.12)
     save(fig, slug)
 
 
@@ -239,13 +255,13 @@ def make_on_off(decode):
     fig, axes = plt.subplots(3, 1, figsize=(18.5, 14), sharex=True)
     fig.suptitle("Maximum decode · ACO · MTP on versus off · reasoning off",
                  fontsize=20, fontweight="semibold", color="#1E2B39", y=.99)
+    fig.subplots_adjust(left=.105, right=.985, top=.91, bottom=.075, hspace=.34)
     for ax, (prompt, prompt_type) in zip(axes, PROMPTS):
         points = [dict(row, series="MTP on" if row["mtp"] == "on" else "MTP off")
                   for row in decode if row["series"] == "ACO" and row["prompt"] == prompt]
         line_panel(ax, points, ("MTP on", "MTP off"))
         ax.set_title(f"{prompt} · {prompt_type}", loc="left", fontweight="semibold", fontsize=14, color="#334155", pad=10)
     legend(fig, ("MTP on", "MTP off"))
-    fig.subplots_adjust(left=.105, right=.985, top=.91, bottom=.075, hspace=.34)
     save(fig, "08_aco_mtp_on_off")
 
 
