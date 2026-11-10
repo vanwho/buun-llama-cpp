@@ -1,7 +1,7 @@
 {
   "date": "2026-11-10",
   "request": "Rewrite the publication around maximum prompt-benchmark decode results, emphasizing MTP-on ACO with a CPU GPU-MTP aside and one prefill curve.",
-  "public_docs_commit": "ee07c3a5580be37b63625a5e6c5ba404722de418",
+  "public_docs_commit": "32f1511e1c8e5eeef65106ff12bbf8f406563688",
   "article": {
     "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-article.md",
     "sha256": "a13de8c551deca37c73aac03d9ce31c696184114538243fbe73b893e3177de2a"
@@ -12,12 +12,12 @@
   },
   "public_figure_manifest": {
     "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-figures/data/manifest.json",
-    "sha256": "69d6c7841a67c8b2b1739059e9c5d28e8991bdaf104c125719abd49dcecae37c"
+    "sha256": "d110de4f2db29d0ad546d293bcef80c285c20f40ac9d1132c072a61a8fb37338"
   },
   "publication_archive": {
-    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-10_v3.zip",
-    "bytes": 9168072,
-    "sha256": "0c3658268d6f52861eb2c92a84a54b5eff989bfbcb7d1306da1f6c94dea5bf8a",
+    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-10_v4.zip",
+    "bytes": 9143245,
+    "sha256": "68b703f18f6a26de746c3e55018bb102f3713144b3f28dabc13d79003e6e45ac",
     "members": 49,
     "hash_manifest_entries": 47,
     "crc_pass": true,
@@ -36,8 +36,8 @@
       "measured_output_budget_tokens": 400,
       "sampling_temperature": 0,
       "seed": 42,
-      "points": 156,
-      "placement_comparison_points": 42,
+      "points": 153,
+      "placement_comparison_points": 39,
       "all_plotted_decode_points_have_three_eligible_repetitions": true,
       "main_prompt": "P1 Python sorted-list merge",
       "source": {
@@ -65,6 +65,16 @@
           "path": "/srv/ai/paged-kv/results/aco-comparison-graphs-20261105/data/decode_merged.csv",
           "sha256": "d2cd3d4a7acd3b946306b616b8744b564907392d24906f0f4dd02807bfaa1654"
         }
+      },
+      "plotted_endpoint_selection": {
+        "cpu_gpu_mtp_last_occupied_tokens": 256000,
+        "omitted_later_occupied_tokens": 258048,
+        "prompts": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "reason": "User requested removal of the adjacent final endpoint from the graphs."
       }
     },
     "prefill": {
@@ -141,8 +151,8 @@
   ],
   "validation": {
     "caption_numeric_claims_checked": 25,
-    "decode_points_checked": 156,
-    "cpu_placement_points_checked": 42,
+    "decode_points_checked": 153,
+    "cpu_placement_points_checked": 39,
     "all_decode_points_have_three_eligible_repetitions": true,
     "all_decode_maxima_match_repetitions": true,
     "public_manifest_hashes_match": true,
@@ -156,7 +166,8 @@
     "new_benchmarks_run": false,
     "reasoning_comparison_points_checked": 44,
     "consistent_label_layout_visual_review": "passed across the prefill, reasoning, standard decode, CPU placement, and MTP on/off graphs",
-    "graph_data_sha256": "5e0fbad437731b3fb75a2baa27c2b0bec5d2645177c220f923b529017d6d6fa9"
+    "graph_data_sha256": "3d86938122779d523d932569e247db2e585cb584100f2c6a4587983940e38949",
+    "adjacent_cpu_gpu_mtp_endpoint_removal": "C258048 omitted for P1/P2/P3 across the plotted comparisons; C256000 retained"
   },
   "label_layout": {
     "preferred_side": {
