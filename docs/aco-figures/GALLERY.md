@@ -1,139 +1,63 @@
-# ACO publication graph gallery
+# ACO graphs and captions
 
-[Read the article](../aco-article.md). All decode charts use maximum measured repetitions with reasoning off.
+Maximum decode results from the three prompt benchmarks, with reasoning off and a 400-token output budget. Each point uses the fastest of three measured repetitions. The final prefill figure follows fresh repository chunks.
 
-## MTP on at 64K-class context
+## Maximum decode with MTP on around 64K context
 
-![MTP on at 64K-class context](figures/01_mtp_64k_comparison.png)
+![Maximum decode with MTP on around 64K context](figures/01_mtp_64k_comparison.png)
 
-On the P1 Python prompt, ACO measured 79.69 tokens/s: 4.5× CPU at 17.68 and 99% of GPU at 80.70.
+Around 64K on P1, ACO reached 79.69 tokens/s, GPU reached 80.70, and CPU reached 17.68.
 
-[SVG](figures/01_mtp_64k_comparison.svg)
+## Maximum decode with MTP on across prompt types
 
-## MTP-on decode across context lengths
+![Maximum decode with MTP on across prompt types](figures/02_mtp_context_comparison.png)
 
-![MTP-on decode across context lengths](figures/02_mtp_context_comparison.png)
+At 250K filled context, ACO measured 61.13, 48.83, and 55.35 tokens/s on P1, P2, and P3, compared with CPU at 7.21, 5.49, and 6.50.
 
-Near 250K context, ACO measured 61.13, 48.83, and 55.35 tokens/s on P1–P3, versus CPU at 7.21, 5.49, and 6.50: 8.47–8.89× CPU speed.
+## Maximum decode with MTP on for P1 Python merge
 
-[SVG](figures/02_mtp_context_comparison.svg)
+![Maximum decode with MTP on for P1 Python merge](figures/03_mtp_prompt_1.png)
 
-## MTP on · P1 Python merge
+ACO measured 102.48 tokens/s at 6K context and 61.23 tokens/s near full 256K context on P1.
 
-![MTP on · P1 Python merge](figures/03_mtp_prompt_1.png)
+## Maximum decode with MTP on for P3 Bash watcher
 
-On P1, ACO measured 102.48 tokens/s at 6K, 70.61 at 128K, and 61.23 near 256K.
+![Maximum decode with MTP on for P3 Bash watcher](figures/04_mtp_prompt_3.png)
 
-[SVG](figures/03_mtp_prompt_1.svg)
+ACO measured 92.93 tokens/s at 6K context and 55.35 tokens/s at 250K filled context on P3.
 
-## MTP on · P2 mmap vs read
+## Maximum decode with MTP on at 250K filled context
 
-![MTP on · P2 mmap vs read](figures/04_mtp_prompt_2.png)
+![Maximum decode with MTP on at 250K filled context](figures/05_mtp_long_context.png)
 
-Near 250K on P2, ACO measured 48.83 tokens/s versus CPU at 5.49: 8.89× CPU speed.
+At 256,000 occupied tokens, ACO measured 61.13, 48.83, and 55.35 tokens/s across P1, P2, and P3.
 
-[SVG](figures/04_mtp_prompt_2.svg)
+## Maximum decode by CPU MTP placement
 
-## MTP on · P3 Bash watcher
+![Maximum decode by CPU MTP placement](figures/06_cpu_mtp_placement.png)
 
-![MTP on · P3 Bash watcher](figures/05_mtp_prompt_3.png)
+Around 64K on P1, CPU + GPU MTP measured 17.68 tokens/s and master CPU + MTP measured 15.12, a 16.9% gain.
 
-Near 250K on P3, ACO measured 55.35 tokens/s versus CPU at 6.50: 8.51× CPU speed.
+## Maximum decode with MTP off across prompt types
 
-[SVG](figures/05_mtp_prompt_3.svg)
+![Maximum decode with MTP off across prompt types](figures/07_non_mtp_context_comparison.png)
 
-## MTP off at 62,464 tokens
+At 250K filled context, ACO measured 37.51, 37.57, and 37.45 tokens/s on P1, P2, and P3.
 
-![MTP off at 62,464 tokens](figures/06_non_mtp_64k_comparison.png)
+## Maximum ACO decode with MTP on and off
 
-On P1, ACO measured 42.33 tokens/s versus CPU at 8.48 and GPU at 43.01: 5.0× CPU speed and 98% of GPU speed.
+![Maximum ACO decode with MTP on and off](figures/08_aco_mtp_on_off.png)
 
-[SVG](figures/06_non_mtp_64k_comparison.svg)
+At 250K filled context on P1, ACO measured 61.13 tokens/s with MTP on and 37.51 tokens/s with MTP off.
 
-## MTP-off decode across context lengths
+## Backend prefill with MTP on across context lengths
 
-![MTP-off decode across context lengths](figures/07_non_mtp_context_comparison.png)
+![Backend prefill with MTP on across context lengths](figures/09_prefill_mtp_on_context.png)
 
-Near 256K, ACO measured about 37.5 tokens/s across P1–P3, versus CPU at about 3.0 tokens/s.
+With MTP on, ACO ingested fresh repository chunks at 1,402 backend tokens/s on the first 8K append and 614 tokens/s near full 256K context.
 
-[SVG](figures/07_non_mtp_context_comparison.svg)
+## Maximum decode with MTP on for P2 mmap vs read
 
-## ACO decode · MTP on versus off
+![Maximum decode with MTP on for P2 mmap vs read](figures/10_mtp_prompt_2.png)
 
-![ACO decode · MTP on versus off](figures/08_aco_mtp_on_off.png)
-
-On P1 near 256K, ACO measured 61.23 tokens/s with MTP on and 37.59 with MTP off.
-
-[SVG](figures/08_aco_mtp_on_off.svg)
-
-## MTP off · P1 Python merge
-
-![MTP off · P1 Python merge](figures/09_non_mtp_prompt_1.png)
-
-Near 250K on P1, ACO measured 37.51 tokens/s versus CPU at 2.98: 12.6× CPU speed.
-
-[SVG](figures/09_non_mtp_prompt_1.svg)
-
-## MTP off · P2 mmap vs read
-
-![MTP off · P2 mmap vs read](figures/10_non_mtp_prompt_2.png)
-
-Near 250K on P2, ACO measured 37.57 tokens/s versus CPU at 2.98: 12.6× CPU speed.
-
-[SVG](figures/10_non_mtp_prompt_2.svg)
-
-## MTP off · P3 Bash watcher
-
-![MTP off · P3 Bash watcher](figures/11_non_mtp_prompt_3.png)
-
-Near 250K on P3, ACO measured 37.45 tokens/s versus CPU at 2.98: 12.6× CPU speed.
-
-[SVG](figures/11_non_mtp_prompt_3.svg)
-
-## CPU MTP placement
-
-![CPU MTP placement](figures/12_cpu_mtp_placement.png)
-
-Around 64K on P1–P3, CPU + GPU MTP measured 17.68, 13.56, and 15.29 tokens/s; master CPU + MTP measured 15.12, 12.26, and 13.84. Around 128K, CPU + GPU MTP measured 14–19% higher.
-
-[SVG](figures/12_cpu_mtp_placement.svg)
-
-## MTP-on prefill at 32K target
-
-![MTP-on prefill at 32K target](figures/13_prefill_mtp_on_32k_comparison.png)
-
-At 32K, GPU measured 924 and ACO 832 fresh tokens/s; ACO reached 90% of the GPU rate.
-
-[SVG](figures/13_prefill_mtp_on_32k_comparison.svg)
-
-## MTP-on prefill across context lengths
-
-![MTP-on prefill across context lengths](figures/14_prefill_mtp_on_context.png)
-
-ACO measured 1,402 fresh tokens/s on the first append and 614 near 256K. Around 64K, ACO measured 817 versus GPU at 559.
-
-[SVG](figures/14_prefill_mtp_on_context.svg)
-
-## Prefill without MTP · 128K context
-
-![Prefill without MTP · 128K context](figures/15_prefill_mtp_off_128k_comparison.png)
-
-Near 128K, ACO measured 850 fresh tokens/s, CPU 559, and GPU 318; ACO reached 2.7× the GPU rate.
-
-[SVG](figures/15_prefill_mtp_off_128k_comparison.svg)
-
-## MTP-off prefill across context lengths
-
-![MTP-off prefill across context lengths](figures/16_prefill_mtp_off_context.png)
-
-ACO measured 1,589 fresh tokens/s on the first append and 803 near 256K.
-
-[SVG](figures/16_prefill_mtp_off_context.svg)
-
-## Long-context maximum decode
-
-![Long-context maximum decode](figures/17_long_context_decode_comparison.png)
-
-At 250K filled context, ACO measured 8.47–8.89× CPU speed with MTP on and 12.55–12.59× with MTP off across P1–P3.
-
-[SVG](figures/17_long_context_decode_comparison.svg)
+ACO measured 82.01 tokens/s at 6K context and 48.83 tokens/s at 250K filled context on P2.
