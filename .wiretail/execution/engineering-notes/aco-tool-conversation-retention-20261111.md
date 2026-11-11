@@ -85,7 +85,59 @@ historical fact guaranteed to be retrieved.
 
 ## Validation
 
-Builds and runtime checks are performed by Luna High agents with CUDA 13.4,
-Release, architecture 89 and `--parallel 16`. Raw artifacts remain outside Git
-under `/srv/ai/paged-kv/results/aco-toolturn-resilience-20261111/`; final results
-are recorded after the final source and runtime checks finish.
+Final implementation commit: `7c993829047cf513035d3efeaa51480aec9e204a`.
+Luna High performed the builds and live checks. CUDA 13.4/GNU 13, Release,
+architecture `89-real`, incremental build with `--parallel 16`.
+
+All six focused suites passed: chat-template, kv-pager, kv-policy, kv-prefetch,
+server-prompt-cache and speculative-mtp-state. Coverage includes instruction
+retention during eviction, single/batch output rollover past a protected
+shared-Q prefix, bounded recent/history budgets and speculative carry transitions.
+The model-backed query-replay executable was built, but its mere build is not
+counted as a live replay proof.
+
+The final native-tool conversation used L=262,144, admitted H=65,536, G=16,384,
+B=1024/U=256, GPU Turbo4 target/draft KV, native GPU MTP n-max=2, low reasoning
+and a 24,576-token output ceiling. It appended ten distinct repository-file
+chunks, preserving actual assistant replies and normal server prefix caching.
+There were no disk saves/restores, forced paging or CPU attention fallback.
+
+| Result | Final candidate |
+| --- | --- |
+| Correct latest-file tool reports | 10/10 |
+| Occupied tokens after last request | 83,656 |
+| First completed request beyond hot capacity | 67,189 |
+| Final cold pages | 103 |
+| Instruction prefix resident | Every request |
+| MTP accepted/drafted, cumulative for this smoke | 218/224 (97.3%) |
+| HTTP, admission, nonfinite or capacity failures | None |
+
+The ten short file summaries were also reviewed for coherent English and
+obvious wrong-file content or repeated filler; none was found. This is a
+multi-turn tool-coherence check, not the canonical throughput benchmark or a
+guarantee of retrieval accuracy for every cold fact at 256K.
+
+Two identical 2,522-token native requests were then sent to the managed final
+candidate. Both produced the same coherent `report_file(chat.cpp)` call, with
+MTP accepted/drafted counts of 56/86 and 52/90. The second request reused the
+446-token prefix before Q and evaluated the 2,076-token query suffix again.
+That is the intended new-request query capture, not an unsuccessful prefix
+cache or a replay of the whole conversation.
+
+Raw artifacts remain outside Git under
+`/srv/ai/paged-kv/results/aco-toolturn-resilience-20261111/`:
+
+- `ctest-final-7c9938290.log`
+- `production-7c9938290-selected/summary.json` and its requests/responses/slots
+- `managed-cached-repeat-7c9938290/summary.json` and its requests/responses
+
+## Managed deployment
+
+The existing `qwen38-aco` physical profile now uses the immutable server and
+matching project DSOs in
+`/srv/ai/paged-kv/builds/aco-toolturn-resilience-7c9938290/bin/`.
+The loaded executable and `/proc/PID/maps` were verified. Existing ACO model
+names and reasoning aliases are unchanged; L=262,144, H=65,536, B/U=1024/256,
+Turbo4 target/draft and native GPU MTP n-max=2 remain configured.
+Backend, gateway and long-memory health were checked; 8092 was preserved.
+Test-owned locks and runtime service masks are removed after validation.
