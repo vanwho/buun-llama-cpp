@@ -301,9 +301,17 @@ bool llama_kv_live_policy_prepare_query_target(
         std::vector<bool> mandatory_generation;
         for (const auto & page : boundary.pages) {
             const bool write = boundary.has_write_page && page.record.id == boundary.write_page;
-            const bool query_page = page.record.id.position_begin >= 0 &&
+            // A cold catalogue record is not a current query write. During
+            // early routing it may describe an old, invalidated future span.
+            // Conversely a resident partial boundary page will receive Q even
+            // when its current valid extent ends exactly at query_start.
+            const int64_t query_page_end = commit.page_tokens != 0
+                ? int64_t(page.record.id.position_begin) + commit.page_tokens
+                : int64_t(page.record.id.position_end);
+            const bool query_page = page.record.physical_slot != UINT32_MAX &&
+                page.record.id.position_begin >= 0 &&
                 uint64_t(page.record.id.position_begin) < uint64_t(commit.query_end) &&
-                uint64_t(std::max<llama_pos>(0, page.record.id.position_end)) >
+                uint64_t(std::max<int64_t>(0, query_page_end)) >
                     uint64_t(commit.query_start);
             const bool generation = !query_page && (page.current || write || page.inflight_pin ||
                 page.speculative_pin || page.record.pin_count != 0);

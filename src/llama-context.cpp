@@ -3485,7 +3485,18 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 }
             }
         }
+        // Instruction/recent pages are part of every selected view, including
+        // the provisional query. Residency alone must not leave them out of
+        // an attention view assembled from an earlier turn's history.
         const llama_pos last_position = *std::max_element(query_positions.begin(), query_positions.end());
+        for (const auto logical_page : pager.request_retained_pages(sequence_id)) {
+            if (uint64_t(logical_page) * page_tokens > uint64_t(last_position)) continue;
+            const auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+                    [&](const auto & value) { return value.id.logical_page == logical_page; });
+            if (page == pager_snapshot.pages().end() || !resident_state(*page))
+                return refuse("request-retained instruction/recent page is not resident");
+            if (!append_page(page->id)) return refuse("request-retained pages exceed admitted attention capacity");
+        }
         if (full_attention) {
             // Automatic dense-equivalent coverage, not a file/prompt heuristic.
             // The whole bounded request fits, and every causal row must exist.

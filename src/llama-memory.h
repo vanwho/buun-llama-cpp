@@ -371,6 +371,8 @@ struct llama_memory_i {
 
     // Server-owned logical turn notifications. They are separate from decode
     // submissions so prefill, target verification and rollback cannot mint turns.
+    virtual bool set_kv_pager_request_retention(int32_t /* sequence_id */, int64_t /* instruction_end */,
+            const std::vector<std::pair<int64_t, int64_t>> & /* recent */, int64_t /* query_start */, int64_t /* query_end */, int64_t /* planned_end */ = -1) { return true; }
     virtual void begin_kv_pager_turn(
             int32_t /* sequence_id */, uint64_t /* turn_id */,
             int64_t /* query_start */, int64_t /* query_end */,

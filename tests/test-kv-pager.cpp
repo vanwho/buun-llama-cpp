@@ -36,6 +36,50 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+static void test_request_retention() {
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages = {false, 16};
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(1));
+        allocation.requested_bytes = allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    llama_kv_pager_status status;
+    auto pager = llama_kv_pager::create(config, geometry(16384), resources(8192, 128), backend, status);
+    assert(pager && pager->snapshot().physical_page_count == 16);
+    assert(pager->snapshot().generation_pages == 4 &&
+            pager->snapshot().generation_tail_tokens == 4 * geometry(16384).page_tokens);
+    assert(pager->set_request_retention(0, 600, {}, 4096, 4352, 6400));
+    assert(pager->snapshot().generation_pages == 8 &&
+            pager->snapshot().retrieval_pages == 8);
+    assert(pager->set_request_retention(0, 600, {}, 4096, 4352, 4608));
+    assert(pager->snapshot().generation_pages == 4 &&
+            pager->snapshot().retrieval_pages == 12);
+    assert(pager->set_request_retention(0, 600, {{2048, 2560}, {512, 3840}}, 4096, 4352));
+    llama_kv_page_id id{};
+    id.sequence_id = 0;
+    for (const auto page : {0u, 1u, 2u, 8u, 9u}) { id.logical_page = page; assert(pager->request_retained(id)); }
+    id.logical_page = 3;
+    assert(!pager->request_retained(id)); // oversized recent message remains rankable
+    id.sequence_id = 1;
+    id.logical_page = 0;
+    assert(!pager->request_retained(id));
+    assert(!pager->set_request_retention(0, 4096, {}, 8192, 8448));
+    id.sequence_id = 0;
+    assert(pager->request_retained(id)); // refused plan does not destroy the previous plan
+    assert(pager->set_request_retention(0, 0, {}, 8192, 8448));
+    assert(!pager->request_retained(id));
+    // A single incoming file can exceed H. Its rolling Q window still leaves
+    // instruction anchors in history instead of evicting them or refusing.
+    assert(pager->set_request_retention(0, 600, {}, 4096, 12288));
+    assert(pager->request_history_budget(0, 4096, 12288) == 3);
+    pager->clear_request_retention(0);
+    std::cout << "request_retention_bounded_and_sequence_scoped=pass auto_generation_pages=4\n";
+}
+
 static void test_natural_proof_query_scope() {
     llama_kv_pager_natural_proof scope;
     scope.sequence_id = 3;
@@ -2181,6 +2225,170 @@ static void test_non_generation_write_victim_uses_position_order() {
     run_case(true);
 }
 
+static void test_request_retention_eviction_lifecycle() {
+    constexpr uint32_t hot_pages = 8;
+    constexpr llama_pos page_tokens = 256;
+    const auto run_case = [](bool batch_writes) {
+        host_page_fixture fixture;
+        fixture.initialize(hot_pages * page_tokens);
+        fixture.use_requested_page_identity = true;
+        auto host_resources = resources(1u << 20, 128);
+        host_resources.host_capture_enabled = true;
+        host_resources.host_source_namespace = host_page_fixture::source_namespace;
+        host_resources.host_child_id = 0;
+        host_resources.host_stream_index = 0;
+        host_resources.host_lanes = { { nullptr, nullptr, false } };
+        host_resources.host_ring_bytes = 128;
+        host_resources.host_chunk_bytes = 64;
+        host_resources.host_budget.host.pageable_cap = 1u << 20;
+        host_resources.host_budget.host.pageable_state =
+                llama_cache_budget_capacity_state::known;
+        host_resources.host_budget.host.pinned_cap = 128;
+        host_resources.host_budget.host.pinned_state =
+                llama_cache_budget_capacity_state::known;
+        host_resources.host_budget.host.total_cap = 1u << 20;
+        host_resources.host_budget.host.total_state =
+                llama_cache_budget_capacity_state::known;
+
+        llama_kv_pager_config config;
+        config.mode = llama_kv_pager_mode::selective;
+        config.hot_pages.automatic = false;
+        config.hot_pages.value = hot_pages;
+        config.retrieval_pages.automatic = false;
+        config.retrieval_pages.value = 3;
+        llama_kv_pager_backend backend;
+        backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+            allocation.handle = reinterpret_cast<void *>(uintptr_t(0x9b));
+            allocation.requested_bytes = bytes;
+            allocation.realized_bytes = bytes;
+            return true;
+        };
+        backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+        llama_kv_pager_status status;
+        auto pager = llama_kv_pager::create(
+                config, geometry(4096), host_resources, backend, status);
+        assert(pager && status == llama_kv_pager_status::ok);
+        assert(pager->snapshot().physical_page_count == hot_pages);
+        pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+        pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+        assert(pager->set_request_retention(0, page_tokens,
+                { { 2 * page_tokens, 3 * page_tokens } },
+                7 * page_tokens, 8 * page_tokens));
+
+        const auto write_page = [&](llama_pos begin) {
+            if (batch_writes) {
+                std::vector<llama_pos> positions;
+                for (llama_pos offset = 0; offset < page_tokens; ++offset) {
+                    positions.push_back(begin + offset);
+                }
+                std::vector<llama_kv_pager_write_ticket> tickets;
+                assert(pager->begin_write_batch(0, 1, positions, tickets) ==
+                        llama_kv_pager_write_status::ok);
+                assert(tickets.size() == positions.size());
+                for (const auto & ticket : tickets) {
+                    assert(pager->complete_write(ticket, 32, true) ==
+                            llama_kv_pager_write_status::ok);
+                }
+            } else {
+                llama_kv_pager_write_ticket ticket;
+                for (llama_pos position = begin; position < begin + page_tokens; ++position) {
+                    assert(pager->begin_write(0, 1, position, ticket) ==
+                            llama_kv_pager_write_status::ok);
+                    assert(pager->complete_write(ticket, 32, true) ==
+                            llama_kv_pager_write_status::ok);
+                }
+            }
+        };
+        const auto resident_page = [&](uint32_t logical_page, llama_kv_page_record & output) {
+            const auto pages = pager->residency(0).pages();
+            const auto found = std::find_if(pages.begin(), pages.end(), [&](const auto & page) {
+                return page.id.logical_page == logical_page;
+            });
+            if (found == pages.end()) return false;
+            output = *found;
+            return true;
+        };
+        const auto exact_page = [&](uint32_t logical_page, llama_kv_page_record & output) {
+            const auto pages = pager->exact_page_records(0);
+            const auto found = std::find_if(pages.begin(), pages.end(), [&](const auto & page) {
+                return page.id.logical_page == logical_page;
+            });
+            if (found == pages.end()) return false;
+            output = *found;
+            return true;
+        };
+        const auto is_resident = [&](uint32_t logical_page) {
+            llama_kv_page_record ignored;
+            return resident_page(logical_page, ignored);
+        };
+
+        for (uint32_t page = 0; page < hot_pages; ++page) {
+            write_page(llama_pos(page) * page_tokens);
+        }
+        pager->release_sequence_pins(0);
+        (void) pager->seal_ready_pages();
+        llama_kv_page_record initial_instruction;
+        llama_kv_page_record initial_recent;
+        assert(exact_page(0, initial_instruction));
+        assert(exact_page(2, initial_recent));
+        const auto instruction_id = initial_instruction.id;
+        const auto recent_id = initial_recent.id;
+        const auto instruction_version = initial_instruction.content_version;
+        const auto recent_version = initial_recent.content_version;
+        assert(initial_instruction.host_valid && initial_recent.host_valid);
+        assert(pager->request_retained(instruction_id));
+        assert(pager->request_retained(recent_id));
+
+        // Fill three pages past H. Host sealing makes the older ordinary
+        // history evictable, while request-owned instruction and complete
+        // recent-message pages remain physically resident.
+        for (uint32_t page = hot_pages; page < hot_pages + 3; ++page) {
+            write_page(llama_pos(page) * page_tokens);
+            pager->release_sequence_pins(0);
+            (void) pager->seal_ready_pages();
+        }
+        llama_kv_page_record retained_instruction;
+        llama_kv_page_record retained_recent;
+        assert(resident_page(0, retained_instruction));
+        assert(resident_page(2, retained_recent));
+        assert(retained_instruction.id == instruction_id &&
+                retained_instruction.content_version == instruction_version &&
+                retained_instruction.host_valid);
+        assert(retained_recent.id == recent_id &&
+                retained_recent.content_version == recent_version &&
+                retained_recent.host_valid);
+        assert(!is_resident(1));
+        llama_kv_page_record evicted_history;
+        assert(exact_page(1, evicted_history));
+        assert(evicted_history.physical_slot == UINT32_MAX && evicted_history.host_valid);
+
+        // Retention prevents eviction, not writes to the retained prefix.
+        llama_kv_pager_write_ticket rewrite;
+        assert(pager->begin_write(0, 1, 0, rewrite) == llama_kv_pager_write_status::ok);
+        assert(pager->complete_write(rewrite, 32, true) ==
+                llama_kv_pager_write_status::ok);
+        pager->release_sequence_pins(0);
+        (void) pager->seal_ready_pages();
+        llama_kv_page_record rewritten_instruction;
+        assert(resident_page(0, rewritten_instruction));
+        assert(rewritten_instruction.host_valid && !rewritten_instruction.dirty);
+        assert(rewritten_instruction.content_version > instruction_version);
+
+        pager->clear_request_retention(0);
+        assert(!pager->request_retained(rewritten_instruction.id));
+        write_page(llama_pos(hot_pages + 3) * page_tokens);
+        pager->release_sequence_pins(0);
+        (void) pager->seal_ready_pages();
+        assert(!is_resident(0));
+        assert(is_resident(2));
+    };
+
+    run_case(false);
+    run_case(true);
+    std::cout << "request_retention_eviction_lifecycle=pass H=8 single_and_batch "
+                 "prefix_rewrite=allowed clear_releases_scope=1\n";
+}
+
 static void test_long_query_generation_recycles_closed_query_pages() {
     // Scale the production shape down to H=4/P=256. The query is longer than
     // the physical pool and ends 125 rows into its last page, matching the
@@ -2330,6 +2538,7 @@ static void test_long_query_generation_recycles_closed_query_pages() {
 }
 
 int main() {
+    test_request_retention();
     test_natural_proof_query_scope();
     test_turn_epoch_state_and_geometry();
     test_layer_slot_geometry();
@@ -2341,6 +2550,7 @@ int main() {
     test_mode_lifecycle_matrix();
     test_pager_host_mutation();
     test_non_generation_write_victim_uses_position_order();
+    test_request_retention_eviction_lifecycle();
     test_generation_ring_victim_and_history_pins();
     test_long_query_generation_recycles_closed_query_pages();
     test_full_256k_capacity_plan();

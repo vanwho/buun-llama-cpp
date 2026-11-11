@@ -1000,6 +1000,35 @@ common_chat_msg_spans server_tokens::find_message_spans(const common_chat_msg_de
     return delims.split(tokens, skips);
 }
 
+std::vector<common_chat_msg_span> server_tokens::map_source_message_spans(
+        const llama_vocab * vocab, const std::string & prompt,
+        const std::vector<common_chat_msg_span> & spans) const {
+    if (has_media() || spans.empty()) return {};
+    std::vector<size_t> offsets;
+    offsets.reserve(tokens.size() + 1);
+    size_t at = 0;
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        offsets.push_back(at);
+        const auto piece = common_token_to_piece(vocab, tokens[i]);
+        // A tokenizer-added BOS has no byte range in the rendered prompt.
+        if (i == 0 && tokens[i] == llama_vocab_bos(vocab) && prompt.compare(0, piece.size(), piece) != 0) continue;
+        if (prompt.compare(at, piece.size(), piece) != 0) return {};
+        at += piece.size();
+    }
+    offsets.push_back(at);
+    if (at != prompt.size()) return {};
+    std::vector<common_chat_msg_span> result;
+    for (const auto & span : spans) {
+        if (span.pos > at || span.len > at - span.pos) return {};
+        const auto begin = std::upper_bound(offsets.begin(), offsets.end(), span.pos);
+        const auto end = std::lower_bound(offsets.begin(), offsets.end(), span.pos + span.len);
+        const size_t first = begin == offsets.begin() ? 0 : size_t(begin - offsets.begin() - 1);
+        const size_t last = size_t(end - offsets.begin());
+        result.push_back({span.role, first, last >= first ? last - first : 0, span.source_index});
+    }
+    return result;
+}
+
 bool server_tokens::validate(const struct llama_context * ctx) const {
     const llama_model * model = llama_get_model(ctx);
     const llama_vocab * vocab = llama_model_get_vocab(model);
@@ -1633,6 +1662,7 @@ json oaicompat_chat_params_parse(
     inputs.json_schema            = json_schema.is_null() ? "" : json_schema.dump();
     inputs.grammar                = grammar;
     inputs.use_jinja              = opt.use_jinja;
+    inputs.capture_message_spans  = opt.capture_message_spans;
     inputs.parallel_tool_calls    = json_value(body, "parallel_tool_calls", caps["supports_parallel_tool_calls"]);
     inputs.add_generation_prompt  = json_value(body, "add_generation_prompt", true);
     inputs.continue_final_message = body.contains("continue_final_message") ?
@@ -1724,6 +1754,14 @@ json oaicompat_chat_params_parse(
 
     llama_params["message_delimiters"] = chat_params.message_delimiters.to_json();
     llama_params["rendered_user_message_count"] = chat_params.rendered_user_message_count;
+    if (opt.capture_message_spans) {
+        auto spans = json::array();
+        for (const auto & span : chat_params.source_message_spans) {
+            spans.push_back({{"role", common_chat_role_to_string(span.role)}, {"pos", span.pos}, {"len", span.len},
+                {"source_index", span.source_index}});
+        }
+        llama_params["source_message_spans"] = std::move(spans);
+    }
 
     // Reasoning budget: pass parameters through to sampling layer
     {

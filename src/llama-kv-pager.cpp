@@ -1565,8 +1565,15 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
     // Only explicitly admitted in-flight transfer destinations are counted
     // here as mandatory extra GPU pages.
     const uint64_t slack_pages = resources.admission.transfer_destination_pages;
+    // One page suited 400-token throughput samples but is too short for
+    // ordinary tool use and multi-thousand-token reasoning. Reserve a rolling
+    // quarter of H (up to 16K tokens) for new query/output state. This partitions
+    // the existing pool; it does not allocate more K/V or CUDA scratch.
+    const uint32_t auto_generation_pages = std::max<uint32_t>(1,
+        std::min<uint32_t>(output.physical_page_count / 4,
+            std::max<uint32_t>(1, 16384 / geometry.page_tokens)));
     const uint32_t generation_tokens = config.generation_tail_tokens.automatic
-        ? geometry.page_tokens : config.generation_tail_tokens.value;
+        ? auto_generation_pages * geometry.page_tokens : config.generation_tail_tokens.value;
     llama_kv_pager_turn_geometry turn_geometry;
     if (anchor_pages > UINT32_MAX || slack_pages > UINT32_MAX ||
         !llama_kv_pager_derive_turn_geometry(
@@ -1655,6 +1662,82 @@ llama_kv_pager_turn_state llama_kv_pager::turn_state(int32_t sequence_id) const 
     return found == turn_states_.end() ? llama_kv_pager_turn_state{} : found->second;
 }
 
+bool llama_kv_pager::set_request_retention(int32_t sequence_id, int64_t instruction_end,
+        const std::vector<std::pair<int64_t, int64_t>> & recent, int64_t query_start, int64_t query_end, int64_t planned_end) {
+    if (sequence_id < 0 || instruction_end < 0 || query_start < 0 || snapshot_.geometry.page_tokens == 0) return false;
+    const uint64_t width = snapshot_.geometry.page_tokens;
+    const uint64_t prefix_pages = (uint64_t(instruction_end) + width - 1) / width;
+    uint32_t generation_pages = snapshot_.generation_pages;
+    uint32_t retrieval_pages = snapshot_.retrieval_pages;
+    if (automatic_generation_tail_) {
+        const uint32_t minimum = 1 + snapshot_.admission.transfer_destination_pages;
+        const uint32_t available = prefix_pages + 2 < snapshot_.physical_page_count
+            ? uint32_t(snapshot_.physical_page_count - prefix_pages - 2) : 0;
+        if (instruction_end > 0 && available < minimum) return false;
+        const uint32_t max_generation = instruction_end > 0
+            ? std::min(snapshot_.physical_page_count / 2, available)
+            : snapshot_.physical_page_count / 2;
+        const uint32_t base = std::max<uint32_t>(minimum,
+            std::max<uint32_t>(1, std::min<uint32_t>(snapshot_.physical_page_count / 4,
+                std::max<uint32_t>(1, 16384 / width))));
+        const uint64_t wanted = planned_end > query_end
+            ? (uint64_t(planned_end - query_end) + width - 1) / width : 0;
+        generation_pages = std::max<uint32_t>(minimum,
+            std::min(max_generation, std::max(base, uint32_t(std::min<uint64_t>(wanted, max_generation)))));
+        retrieval_pages = std::min(configured_retrieval_pages_, snapshot_.physical_page_count - generation_pages);
+    }
+    const auto commit_budgets = [&]() {
+        snapshot_.generation_pages = generation_pages;
+        snapshot_.generation_tail_tokens = uint32_t(uint64_t(generation_pages) * width);
+        snapshot_.retrieval_pages = retrieval_pages;
+    };
+    if (instruction_end == 0 && recent.empty()) {
+        commit_budgets();
+        request_retained_pages_.erase(sequence_id);
+        return true;
+    }
+    // Leave generation slack plus a crossing microbatch free. An instruction
+    // prefix which cannot fit is an explicit capacity error, never silent loss.
+    const uint32_t reserve = generation_pages + 2;
+    if (prefix_pages + reserve > snapshot_.physical_page_count) return false;
+    std::vector<uint32_t> pages;
+    for (uint32_t page = 0; page < prefix_pages; ++page) pages.push_back(page);
+    const uint64_t query_pages = query_end > query_start
+        ? (uint64_t(query_end - 1) / width - uint64_t(query_start) / width + 1) : 0;
+    const uint64_t ordinary_history_budget = retrieval_pages > query_pages
+        ? retrieval_pages - query_pages : 0;
+    const uint64_t first_query_page = uint64_t(query_start) / width;
+    // A boundary page shared with Q is already charged to the query window.
+    // For Q longer than H, its existing rolling window must leave the
+    // instruction anchors in R, not silently displace those anchors.
+    const uint64_t history_budget = std::max(ordinary_history_budget, std::min(prefix_pages, first_query_page));
+    const size_t limit = std::min<size_t>(snapshot_.physical_page_count - reserve,
+            pages.size() + snapshot_.physical_page_count / 4);
+    for (const auto & range : recent) {
+        if (range.first < 0 || range.second <= range.first || range.second > query_start) continue;
+        const uint64_t first = uint64_t(range.first) / width;
+        const uint64_t last = (uint64_t(range.second) - 1) / width;
+        if (last >= snapshot_.logical_page_count || last - first + 1 > limit) continue;
+        auto next = pages;
+        for (uint32_t page = uint32_t(first); page <= last; ++page) next.push_back(page);
+        std::sort(next.begin(), next.end());
+        next.erase(std::unique(next.begin(), next.end()), next.end());
+        // Keep complete messages when they fit; large file/tool payloads
+        // remain normal ranking candidates instead of pinning an entire H.
+        const size_t history_count = size_t(std::lower_bound(next.begin(), next.end(), first_query_page) - next.begin());
+        if (next.size() <= limit && history_count <= history_budget) pages = std::move(next);
+    }
+    request_retained_pages_[sequence_id] = std::move(pages);
+    commit_budgets();
+    return true;
+}
+
+bool llama_kv_pager::request_retained(const llama_kv_page_id & id) const noexcept {
+    const auto found = request_retained_pages_.find(id.sequence_id);
+    return found != request_retained_pages_.end() &&
+        std::binary_search(found->second.begin(), found->second.end(), id.logical_page);
+}
+
 bool llama_kv_pager::frozen_history_page(const page_state * page) const noexcept {
     if (page == nullptr || !page->present) return false;
     if (page->owner == page_owner::frozen_history) return true;
@@ -1693,7 +1776,7 @@ bool llama_kv_pager::generation_page_evictable(const page_state * page,
         !page->record.dirty &&
         page->host_content_version == page->content_version &&
         page->record.content_version == page->content_version &&
-        !frozen_history_page(page) &&
+        !frozen_history_page(page) && !request_retained(page->record.id) &&
         (routing_summary_provider_.build == nullptr ||
          page->summary_content_version == page->content_version) &&
         (page->record.state == llama_kv_page_state::host_clean ||
@@ -1742,7 +1825,7 @@ llama_kv_pager::page_state * llama_kv_pager::oldest_unselected_history_victim(
                  page.summary_content_version != page.content_version) ||
                 (page.record.state != llama_kv_page_state::host_clean &&
                  page.record.state != llama_kv_page_state::gpu_host_clean) ||
-                frozen_history_page(&page) ||
+                frozen_history_page(&page) || request_retained(page.record.id) ||
                 std::find(excluded_logical_pages.begin(), excluded_logical_pages.end(),
                     page.record.id.logical_page) != excluded_logical_pages.end()) {
             continue;
@@ -1975,6 +2058,8 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
     if (!output) { status = llama_kv_pager_status::allocation; return nullptr; }
     output->backend_ = std::move(backend);
     output->router_mode_ = config.router;
+    output->automatic_generation_tail_ = config.generation_tail_tokens.automatic;
+    output->configured_retrieval_pages_ = config.retrieval_pages.automatic ? UINT32_MAX : config.retrieval_pages.value;
     try {
         if (!llama_kv_pager_plan(config, geometry, resources, output->snapshot_, status)) return nullptr;
         output->routing_summary_config_ = resources.routing_summary;
@@ -3353,7 +3438,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
         page_state * oldest = nullptr;
         for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
             page_state * candidate = find_slot(i);
-            if (candidate && !frozen_history_page(candidate) && !candidate->host_inflight &&
+            if (candidate && !frozen_history_page(candidate) && !request_retained(candidate->record.id) && !candidate->host_inflight &&
                     !candidate->record.dirty &&
                     candidate->record.pin_count == 0 && candidate->record.host_valid &&
                     candidate->host_content_version == candidate->content_version &&
@@ -3448,7 +3533,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
                 if (candidate == nullptr || candidate->record.id != *planned_victim ||
                         candidate->content_version != planned_victim_content_version ||
                         candidate->host_inflight || candidate->record.pin_count != 0 ||
-                        frozen_history_page(candidate) || !candidate->record.host_valid ||
+                        frozen_history_page(candidate) || request_retained(candidate->record.id) || !candidate->record.host_valid ||
                         candidate->record.dirty ||
                         candidate->host_content_version != candidate->content_version ||
                         candidate->record.content_version != candidate->content_version ||
@@ -3738,7 +3823,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                     if (page == nullptr || (page->record.id.sequence_id == sequence_id &&
                             std::find(written_logical_pages.begin(), written_logical_pages.end(),
                                 page->record.id.logical_page) != written_logical_pages.end())) continue;
-                    if (!frozen_history_page(page) && !page->host_inflight && !page->record.dirty &&
+                    if (!frozen_history_page(page) && !request_retained(page->record.id) && !page->host_inflight && !page->record.dirty &&
                             page->record.pin_count == 0 && page->record.host_valid &&
                             page->host_content_version == page->content_version &&
                             page->record.content_version == page->content_version &&

@@ -692,6 +692,28 @@ public:
         return residency_.snapshot().for_sequence(sequence_id);
     }
     llama_kv_pager_turn_state turn_state(int32_t sequence_id) const;
+    // Request-owned semantic retention. Ranges name native token positions;
+    // only bounded host metadata is retained, never another K/V allocation.
+    bool set_request_retention(int32_t sequence_id, int64_t instruction_end,
+            const std::vector<std::pair<int64_t, int64_t>> & recent, int64_t query_start, int64_t query_end, int64_t planned_end = -1);
+    bool request_retained(const llama_kv_page_id & id) const noexcept;
+    const std::vector<uint32_t> & request_retained_pages(int32_t sequence_id) const noexcept {
+        static const std::vector<uint32_t> empty;
+        const auto found = request_retained_pages_.find(sequence_id);
+        return found == request_retained_pages_.end() ? empty : found->second;
+    }
+    void clear_request_retention(int32_t sequence_id) noexcept { request_retained_pages_.erase(sequence_id); }
+    uint32_t request_history_budget(int32_t sequence_id, int64_t query_start, int64_t query_end) const noexcept {
+        const auto ordinary = llama_kv_query_history_budget(snapshot_.retrieval_pages, query_start,
+                query_end, snapshot_.geometry.page_tokens);
+        if (query_start < 0 || snapshot_.geometry.page_tokens == 0) return ordinary;
+        const auto & retained = request_retained_pages(sequence_id);
+        const auto first_query_page = uint64_t(query_start) / snapshot_.geometry.page_tokens;
+        const auto mandatory = uint32_t(std::lower_bound(retained.begin(), retained.end(), first_query_page) - retained.begin());
+        // A long Q already uses a rolling physical window. Keep room for its
+        // instruction anchors instead of charging the entire logical Q to H.
+        return std::max(ordinary, std::min(mandatory, snapshot_.retrieval_pages));
+    }
     llama_kv_pager_turn_status transition_turn(
             int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch,
             llama_kv_pager_turn_phase next_phase, int64_t query_start, int64_t query_end,
@@ -1078,6 +1100,9 @@ private:
     uint32_t test_force_logical_page_ = UINT32_MAX;
     llama_kv_routing_summary_config routing_summary_config_;
     llama_kv_router_mode router_mode_ = llama_kv_router_mode::legacy;
+    std::map<int32_t, std::vector<uint32_t>> request_retained_pages_;
+    bool automatic_generation_tail_ = true;
+    uint32_t configured_retrieval_pages_ = UINT32_MAX;
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;

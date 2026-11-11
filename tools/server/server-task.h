@@ -141,6 +141,9 @@ struct task_params {
     int64_t final_user_token_begin = -1;
     int64_t final_user_token_end = -1;
     int32_t final_user_kv_position_offset = 0;
+    std::vector<common_chat_msg_span> source_message_spans;
+    int64_t pager_instruction_end = 0;
+    std::vector<std::pair<int64_t, int64_t>> pager_recent_spans;
 
     // Embeddings
     int32_t embd_normalize = 2; // (-1=none, 0=max absolute int16, 1=taxicab, 2=Euclidean/L2, >2=p-norm)

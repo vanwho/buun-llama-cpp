@@ -68,6 +68,37 @@ its exact-mode invariants and fails closed when they are not met. The optional
 
 ## Automatic attention reuse
 
+For text chat, ACO obtains source-message ranges from the rendered template,
+including templates which wrap tool results in user-role delimiters. Temporary
+markers are used only in a separate CPU template render: they are removed and
+the result must exactly match the original prompt before any range is accepted.
+The model receives the original prompt. Literal role delimiters in files and
+repeated text cannot select an older question. Consecutive tool results form the
+current query; a tool continuation does not restart routing from token zero.
+Unsupported ambiguous chat layouts are reported explicitly instead of silently
+treating the whole conversation as a new query.
+
+The initial instruction prefix, including system/developer instructions and
+tool schemas, remains in GPU attention. The most recent user goal and complete
+recent resident messages receive an additional allowance of at most one quarter of the
+admitted hot pages, after reserving space for the current query and generation.
+Large file/tool payloads which exceed that allowance, and already-cold recent
+messages, remain ranking candidates.
+Retention is bounded host metadata, evaluated at request boundaries; it does not
+allocate another K/V pool or add a generation-token synchronization. Protected
+pages participate in the existing authenticated transfer/publication path.
+An instruction prefix which cannot fit together with the required write space
+produces a capacity error rather than being silently evicted. The configured
+hot-page count is a maximum; actual admission may be smaller.
+
+Automatic generation-tail sizing starts with one quarter of admitted H, capped
+at 16K tokens, inside the existing hot pool. A bounded longer answer grows that
+allowance toward its requested output size, up to half of H. This keeps a useful rolling window
+of the current answer/reasoning instead of the former one-page default. The
+remaining pool supports selected history; shorter subsequent requests restore
+the ordinary allowance, and explicit generation-tail settings
+continue to take precedence. This changes no total K/V or scratch allocation.
+
 Selective ACO handles ordinary requests without an ingestion mode or file
 classification. Existing prefix caching and authenticated message boundaries
 remain the source of token continuity and query positions. A changed file is

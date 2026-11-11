@@ -68,6 +68,10 @@ public:
     void note_kv_pager_accepted_tokens(uint32_t count) override {
         mem_attn->note_kv_pager_accepted_tokens(count);
     }
+    bool set_kv_pager_request_retention(int32_t sequence_id, int64_t instruction_end,
+            const std::vector<std::pair<int64_t, int64_t>> & recent, int64_t query_start, int64_t query_end, int64_t planned_end = -1) override {
+        return mem_attn->set_kv_pager_request_retention(sequence_id, instruction_end, recent, query_start, query_end, planned_end);
+    }
     void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
             int64_t query_start, int64_t query_end, int64_t planned_end = -1,
             uint32_t attention_tokens = 0, bool verify_view = false) override {

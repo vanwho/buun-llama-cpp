@@ -695,6 +695,152 @@ static void test_query_commit_authoritative_admission() {
     assert(before_stale == 2);
 }
 
+static void test_query_commit_distinguishes_cold_q_and_partial_boundary() {
+    // Authenticated cold catalogue pages within the future Q interval are not
+    // mandatory current-write pages. They must not make early publication
+    // require host backing for content that has not been written.
+    llama_kv_residency_table future_table(3);
+    auto future_initial = future_table.begin();
+    assert(future_table.replace(future_initial, live_resident(0, 0)) ==
+            llama_kv_residency_status::ok);
+    assert(future_table.replace(future_initial, live_resident(2, 1)) ==
+            llama_kv_residency_status::ok);
+    assert(future_table.publish(future_initial) == llama_kv_residency_status::ok);
+    auto future = live_boundary(future_table.snapshot(), live_promotion_for(1, 2));
+    future.hot_capacity = 3;
+    future.logical_page_count = 4;
+    future.pages[1].record.content_version = 7;
+    llama_kv_live_policy_page cold_future_q;
+    cold_future_q.record.id = live_page_id(3);
+    cold_future_q.record.physical_slot = UINT32_MAX;
+    cold_future_q.record.state = llama_kv_page_state::host_clean;
+    cold_future_q.record.host_valid = false;
+    future.pages.push_back(cold_future_q);
+    future.retrieval.query_generation = 3;
+    future.retrieval.model_identity = live_page_id(0).model_identity;
+    future.retrieval.session_generation = live_page_id(0).session_generation;
+    future.retrieval.sequence_generation = live_page_id(0).sequence_generation;
+    future.retrieval.sequence_id = 0;
+    future.retrieval.representation_epoch = live_page_id(0).representation_epoch;
+    future.retrieval.position = 600;
+    future.query_commit.enabled = true;
+    future.query_commit.turn_id = 2;
+    future.query_commit.retrieval_epoch = 1;
+    future.query_commit.query_generation = 3;
+    future.query_commit.table_epoch = future.snapshot.epoch();
+    future.query_commit.query_position = 600;
+    future.query_commit.query_start = 512;
+    future.query_commit.query_end = 1024;
+    future.query_commit.page_tokens = 256;
+    future.query_commit.rollback_generation = cold_future_q.record.id.page_generation;
+    future.query_commit.model_identity = live_page_id(0).model_identity;
+    future.query_commit.session_generation = live_page_id(0).session_generation;
+    future.query_commit.sequence_generation = live_page_id(0).sequence_generation;
+    future.query_commit.representation_epoch = live_page_id(0).representation_epoch;
+    future.query_commit.sequence_id = 0;
+    future.query_commit.retrieval_budget = 1;
+    future.query_commit.generation_budget = 1;
+    future.query_commit.selected = {{ live_page_id(1), 7, { 0 } }};
+    std::vector<llama_kv_page_record> future_target;
+    const char * failure_reason = nullptr;
+    assert(llama_kv_live_policy_prepare_query_target(
+            future, future_target, &failure_reason));
+    assert(failure_reason == nullptr && future_target.size() == 3);
+    assert(std::any_of(future_target.begin(), future_target.end(), [](const auto & page) {
+        return page.id == live_page_id(2);
+    }));
+    assert(std::none_of(future_target.begin(), future_target.end(), [](const auto & page) {
+        return page.id == live_page_id(3);
+    }));
+
+    // A resident partial boundary page ends exactly at query_start in valid
+    // rows, but the next Q write continues in its physical page. It is Q,
+    // not a generation pin or an R history page, so selected history still
+    // fits when generation budget is zero.
+    llama_kv_residency_table partial_table(3);
+    auto partial_initial = partial_table.begin();
+    auto history = live_resident(0, 0);
+    history.content_version = 7;
+    auto partial_id = live_page_id(1);
+    partial_id.position_end = 448;
+    auto partial_resident = live_resident(1, 1);
+    partial_resident.id = partial_id;
+    partial_resident.pin_count = 1;
+    partial_resident.state = llama_kv_page_state::gpu_dirty;
+    partial_resident.host_valid = false;
+    partial_resident.dirty = true;
+    auto query_page = live_resident(2, 2);
+    assert(partial_table.replace(partial_initial, history) == llama_kv_residency_status::ok);
+    assert(partial_table.replace(partial_initial, partial_resident) == llama_kv_residency_status::ok);
+    assert(partial_table.replace(partial_initial, query_page) == llama_kv_residency_status::ok);
+    assert(partial_table.publish(partial_initial) == llama_kv_residency_status::ok);
+
+    llama_kv_live_policy_boundary partial;
+    partial.snapshot = partial_table.snapshot();
+    partial.hot_capacity = 3;
+    partial.logical_page_count = 3;
+    partial.has_write_page = true;
+    partial.write_page = partial_id;
+    partial.previous_target = { history.id, partial_id, query_page.id };
+    partial.retrieval.status = llama_kv_routing_retrieval_status::ok;
+    partial.retrieval.table_epoch = partial.snapshot.epoch();
+    partial.retrieval.query_generation = 4;
+    partial.retrieval.model_identity = history.id.model_identity;
+    partial.retrieval.session_generation = history.id.session_generation;
+    partial.retrieval.sequence_generation = history.id.sequence_generation;
+    partial.retrieval.sequence_id = 0;
+    partial.retrieval.representation_epoch = history.id.representation_epoch;
+    partial.retrieval.position = 599;
+    partial.retrieval.selected.push_back({
+        history.id, llama_kv_routing_retrieval_reason::summary,
+        9.0f, true, false, 1,
+    });
+    llama_kv_live_policy_page history_page;
+    history_page.record = history;
+    partial.pages.push_back(history_page);
+    llama_kv_live_policy_page boundary_page;
+    boundary_page.record = partial_resident;
+    boundary_page.current = true;
+    partial.pages.push_back(boundary_page);
+    llama_kv_live_policy_page current_query_page;
+    current_query_page.record = query_page;
+    partial.pages.push_back(current_query_page);
+    partial.query_commit.enabled = true;
+    partial.query_commit.turn_id = 3;
+    partial.query_commit.retrieval_epoch = 1;
+    partial.query_commit.query_generation = 4;
+    partial.query_commit.table_epoch = partial.snapshot.epoch();
+    partial.query_commit.query_position = 599;
+    partial.query_commit.query_start = 448;
+    partial.query_commit.query_end = 600;
+    partial.query_commit.page_tokens = 256;
+    partial.query_commit.rollback_generation = query_page.id.page_generation;
+    partial.query_commit.model_identity = history.id.model_identity;
+    partial.query_commit.session_generation = history.id.session_generation;
+    partial.query_commit.sequence_generation = history.id.sequence_generation;
+    partial.query_commit.representation_epoch = history.id.representation_epoch;
+    partial.query_commit.sequence_id = 0;
+    partial.query_commit.retrieval_budget = 1;
+    partial.query_commit.generation_budget = 0;
+    partial.query_commit.selected = {{ history.id, history.content_version, { 0 } }};
+    std::vector<llama_kv_page_record> partial_target;
+    failure_reason = nullptr;
+    assert(llama_kv_live_policy_prepare_query_target(
+            partial, partial_target, &failure_reason));
+    assert(failure_reason == nullptr && partial_target.size() == 3);
+    assert(std::any_of(partial_target.begin(), partial_target.end(), [&](const auto & page) {
+        return page.id == partial_id && page.id.position_end == 448 && page.pin_count == 1;
+    }));
+    assert(std::any_of(partial_target.begin(), partial_target.end(), [&](const auto & page) {
+        return page.id == query_page.id;
+    }));
+    assert(std::any_of(partial_target.begin(), partial_target.end(), [&](const auto & page) {
+        return page.id == history.id;
+    }));
+    std::cout << "query_commit_cold_q_and_partial_boundary=pass cold_future_q=ignored "
+                 "partial_boundary_is_q=1 generation_budget=0 selected_r=1\n";
+}
+
 static llama_kv_live_policy_boundary dirty_victim_query_boundary(
         const llama_kv_residency_snapshot & snapshot, uint32_t hot_capacity) {
     llama_kv_live_policy_boundary boundary;
@@ -1258,6 +1404,7 @@ int main(int argc, char ** argv) {
         test_live_policy_publication();
         test_live_policy_cancellation_boundaries();
         test_query_commit_authoritative_admission();
+        test_query_commit_distinguishes_cold_q_and_partial_boundary();
         test_query_target_preserves_non_droppable_residents();
         test_live_policy_multi_promotion();
         std::cout << "query_commit_authoritative_admission=pass\n";
@@ -1268,6 +1415,7 @@ int main(int argc, char ** argv) {
     test_live_policy_cancellation_boundaries();
     test_live_policy_multi_promotion();
     test_query_commit_authoritative_admission();
+    test_query_commit_distinguishes_cold_q_and_partial_boundary();
     test_query_target_preserves_non_droppable_residents();
     if (!test_live_lifecycle()) return 1;
 

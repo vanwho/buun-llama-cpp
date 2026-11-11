@@ -1428,6 +1428,105 @@ static common_chat_params common_chat_templates_apply_jinja(const struct common_
         }
     }
 
+    const auto with_source_spans = [&](common_chat_params result) {
+        if (!inputs.capture_message_spans) return result;
+        // Render once more with temporary content markers, then remove them.
+        // Only accept offsets if the complete unmarked prompt is identical.
+        // This handles tool-as-user templates, repeated text and literal role
+        // delimiters in source files without guessing from delimiter counts.
+        auto marked = params;
+        std::string prefix = "[[ACO_SOURCE_";
+        while (result.prompt.find(prefix) != std::string::npos) prefix += '_';
+        struct marker { std::string text; size_t index; bool end; };
+        std::vector<marker> markers;
+        std::vector<common_chat_msg_span> spans;
+        size_t source_index = 0;
+        for (auto & message : marked.messages) {
+            const size_t ordinal = source_index++;
+            const auto role = common_chat_role_from_string(message.value("role", ""));
+            // Assistant contents may be split/stripped at <think> boundaries.
+            // Do not perturb those template branches just to locate user/tool
+            // queries. Source ordinals preserve intervening tool-call turns.
+            if ((role != COMMON_CHAT_ROLE_USER && role != COMMON_CHAT_ROLE_TOOL) || !message.contains("content")) continue;
+            auto & body = message["content"];
+            json * first_text = nullptr;
+            json * last_text = nullptr;
+            if (body.is_string()) first_text = last_text = &body;
+            else if (body.is_array()) {
+                bool text_only = true;
+                for (auto & part : body) {
+                    if (part.value("type", "") != "text" || !part.contains("text") || !part["text"].is_string()) {
+                        text_only = false; break;
+                    }
+                    if (!first_text) first_text = &part["text"];
+                    last_text = &part["text"];
+                }
+                if (!text_only) continue;
+            }
+            if (!first_text || !last_text) continue;
+            const size_t index = spans.size();
+            const auto begin = prefix + std::to_string(index) + "_BEGIN]]";
+            const auto end = prefix + std::to_string(index) + "_END]]";
+            // Leave exterior whitespace exterior for templates using trim().
+            const auto leading = first_text->get<std::string>();
+            const auto first = leading.find_first_not_of(" \t\r\n");
+            const size_t a = first == std::string::npos ? leading.size() : first;
+            *first_text = leading.substr(0, a) + begin + leading.substr(a);
+            const auto trailing = last_text->get<std::string>();
+            const auto last = trailing.find_last_not_of(" \t\r\n");
+            const size_t b = last == std::string::npos ? 0 : last + 1;
+            *last_text = trailing.substr(0, b) + end + trailing.substr(b);
+            spans.push_back({role, 0, 0, ordinal});
+            markers.push_back({begin, index, false});
+            markers.push_back({end, index, true});
+        }
+        try {
+            const auto rendered = common_chat_template_direct_apply_impl(tmpl, marked);
+            struct event { size_t pos; const marker * value; };
+            std::vector<event> events;
+            for (const auto & marker : markers) {
+                const auto at = rendered.find(marker.text);
+                if (at == std::string::npos) {
+                    return result;
+                }
+                if (rendered.find(marker.text, at + marker.text.size()) != std::string::npos) return result;
+                events.push_back({at, &marker});
+            }
+            std::sort(events.begin(), events.end(), [](const auto & a, const auto & b) { return a.pos < b.pos; });
+            std::string clean;
+            clean.reserve(result.prompt.size());
+            size_t at = 0;
+            std::vector<bool> opened(spans.size(), false), closed(spans.size(), false);
+            for (const auto & event : events) {
+                if (event.pos < at) return result;
+                clean.append(rendered, at, event.pos - at);
+                auto & span = spans[event.value->index];
+                if (!event.value->end) {
+                    if (opened[event.value->index]) return result;
+                    span.pos = clean.size();
+                    opened[event.value->index] = true;
+                } else {
+                    if (!opened[event.value->index]) return result;
+                    span.len = clean.size() - span.pos;
+                    closed[event.value->index] = true;
+                }
+                at = event.pos + event.value->text.size();
+            }
+            clean.append(rendered, at, std::string::npos);
+            if (clean != result.prompt) return result;
+            for (size_t i = 0; i < spans.size(); ++i) if (opened[i] != closed[i]) return result;
+            std::vector<common_chat_msg_span> verified;
+            for (size_t i = 0; i < spans.size(); ++i) if (closed[i]) verified.push_back(spans[i]);
+            std::sort(verified.begin(), verified.end(),
+                [](const auto & a, const auto & b) { return a.pos < b.pos; });
+            result.source_message_spans = std::move(verified);
+        } catch (const std::exception &) {
+            // The ordinary render remains authoritative. Never feed markers
+            // to the model or accept offsets from a changed template branch.
+        }
+        return result;
+    };
+
     if (inputs.force_pure_content) {
         LOG_WRN("Forcing pure content template, will not render reasoning or tools separately.");
         // Create the result structure
@@ -1441,11 +1540,11 @@ static common_chat_params common_chat_templates_apply_jinja(const struct common_
             return p.literal(data.generation_prompt) << p.content(p.rest());
         });
         data.parser                    = parser.save();
-        return data;
+        return with_source_spans(std::move(data));
     }
 
     if (auto result = common_chat_try_specialized_template(tmpl, src, params)) {
-        return *result;
+        return with_source_spans(std::move(*result));
     }
 
     try {
@@ -1475,7 +1574,7 @@ static common_chat_params common_chat_templates_apply_jinja(const struct common_
         common_peg_arena arena;
         arena.load(auto_params.parser);
         LOG_DBG("%s: generated parser:\n%s\n\nparser generation prompt: %s\n", __func__, arena.dump(arena.root()).c_str(), auto_params.generation_prompt.c_str());
-        return auto_params;
+        return with_source_spans(std::move(auto_params));
     } catch (const std::exception & e) {
         throw std::invalid_argument(std::string("Unable to generate parser for this template. Automatic parser generation failed: ") + e.what());
     }

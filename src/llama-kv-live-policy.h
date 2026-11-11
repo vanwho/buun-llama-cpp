@@ -92,6 +92,7 @@ struct llama_kv_query_commit {
     uint64_t query_position = 0;
     int64_t query_start = -1;
     int64_t query_end = -1;
+    uint32_t page_tokens = 0;
     uint64_t rollback_generation = 0;
     uint64_t model_identity = 0;
     uint64_t session_generation = 0;

@@ -13715,7 +13715,8 @@ private:
                 /* reasoning_budget      */ params_base.sampling.reasoning_budget_tokens,
                 /* reasoning_budget_msg  */ params_base.sampling.reasoning_budget_message,
                 /* media_path            */ params_base.media_path,
-                /* force_pure_content    */ params_base.force_pure_content_parser
+                /* force_pure_content    */ params_base.force_pure_content_parser,
+                /* capture_message_spans */ params_base.kv_pager.mode == llama_kv_pager_mode::selective
             };
 
             {
@@ -16098,6 +16099,13 @@ private:
                 ? int64_t(slot.task->n_tokens()) + slot.task->params.n_predict +
                     std::max(0, common_speculative_n_max(&slot.task->params.speculative)) + 1
                 : -1;
+            if (!ctx_tgt->set_kv_pager_request_retention(slot.id,
+                    slot.task->params.pager_instruction_end,
+                    slot.task->params.pager_recent_spans, query_start, query_end, planned_end)) {
+                send_error(slot, "ACO hot capacity cannot retain the instruction prefix and write/generation reserve");
+                slot.release();
+                return false;
+            }
             ctx_tgt->begin_kv_pager_turn(
                     slot.id, slot.slot_session_generation, query_start, query_end, planned_end);
         }
@@ -23815,8 +23823,8 @@ private:
                         slot.prompt.tokens.push_back(cur_tok);
 
                         // break at the last user message, or at user messages at least min step past the last checkpoint
-                        if (do_checkpoint && slot.query_replay_count == 0 &&
-                                spans.is_user_start(slot.prompt.n_tokens())) {
+                        if ((do_checkpoint || exact_query_span) && slot.query_replay_count == 0 &&
+                                (spans.is_user_start(slot.prompt.n_tokens()) || slot.prompt.n_tokens() == last_user_pos)) {
                             const auto pos = slot.prompt.n_tokens();
                             if (pos == last_user_pos || last_checkpoint < 0 || pos > last_checkpoint + params_base.checkpoint_min_step) {
                                 break;
@@ -23855,7 +23863,7 @@ private:
 
                     const bool near_prompt_end = slot.task->n_tokens() < slot.prompt.n_tokens() + n_ubatch;
 
-                    const bool is_user_start = spans.is_user_start(n_tokens_start);
+                    const bool is_user_start = spans.is_user_start(n_tokens_start) || n_tokens_start == last_user_pos;
                     const bool is_last_user_message = n_tokens_start == last_user_pos;
 
                     // Capture the replay boundary before the exact final-user
@@ -23878,6 +23886,10 @@ private:
                                     text.data() + query_begin, int32_t(native_end - query_begin),
                                     llama_pos(query_begin), &routing_state_bytes);
                                 if (routed < 0) {
+                                    // Early routing supports one sequence. Its
+                                    // unsubmitted Q rows must not outlive the
+                                    // released slot or reach the next cycle.
+                                    batch.clear();
                                     send_error(slot, "Unable to publish early selected KV history");
                                     slot.release();
                                     return;
@@ -28768,7 +28780,7 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                     data);
 
             task.params.message_spans = task.tokens.find_message_spans(delimiters);
-            if (task.params.rendered_user_message_count_present) {
+            if (task.params.rendered_user_message_count_present && task.params.source_message_spans.empty()) {
                 if (task.tokens.has_media()) {
                     SRV_WRN("%s", "final-user token span is unsupported for multimodal chat prompts; using the full prompt as the fresh query suffix\n");
                 } else {
@@ -28809,6 +28821,72 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                         SRV_WRN("%s", "rendered final-user token span is ambiguous or outside the tokenized prompt; using the full prompt as the fresh query suffix\n");
                     }
                 }
+            }
+
+            if (!task.params.source_message_spans.empty() && prompt.is_string()) {
+                const auto source = task.tokens.map_source_message_spans(ctx_server.vocab,
+                        prompt.get<std::string>(), task.params.source_message_spans);
+                auto query = source.end();
+                for (auto it = source.begin(); it != source.end(); ++it) {
+                    if (it->role == COMMON_CHAT_ROLE_USER || it->role == COMMON_CHAT_ROLE_TOOL) query = it;
+                }
+                if (query != source.end()) {
+                    const auto query_last = query;
+                    // Consecutive tool results form one interaction, including
+                    // Qwen's synthetic user wrapper. Old user questions must
+                    // not become the query again on each tool continuation.
+                    while (query->role == COMMON_CHAT_ROLE_TOOL && query != source.begin() &&
+                            (query - 1)->role == COMMON_CHAT_ROLE_TOOL &&
+                            (query - 1)->source_index + 1 == query->source_index) --query;
+                    size_t begin = query->pos;
+                    for (const auto & span : task.params.message_spans.spans) {
+                        if ((span.role == COMMON_CHAT_ROLE_USER || span.role == COMMON_CHAT_ROLE_TOOL) &&
+                                span.pos <= begin && begin < span.pos + span.len) {
+                            begin = span.pos;
+                            break;
+                        }
+                    }
+                    task.params.final_user_token_begin = int64_t(begin);
+                    task.params.final_user_token_end = int64_t(std::max(begin + 1, query_last->pos + query_last->len));
+                    // These offsets already name the actual native tokens.
+                    task.params.final_user_kv_position_offset = 0;
+                    for (const auto & span : source) {
+                        if (span.role == COMMON_CHAT_ROLE_USER) {
+                            // System/developer text and the complete tool
+                            // schemas precede the first source user text.
+                            task.params.pager_instruction_end = int64_t(span.pos);
+                            break;
+                        }
+                    }
+                    // Prefer the most recent actual user goal, then complete
+                    // recent messages. The cache owner bounds this to H.
+                    for (auto it = source.rbegin(); it != source.rend(); ++it) {
+                        if (it->role == COMMON_CHAT_ROLE_USER && it->pos < begin) {
+                            task.params.pager_recent_spans.emplace_back(it->pos, it->pos + it->len);
+                            break;
+                        }
+                    }
+                    for (auto it = source.rbegin(); it != source.rend(); ++it) {
+                        // Gaps contain assistant tool calls/replies. Preserve
+                        // complete small exchanges too, without tagging or
+                        // rewriting the assistant's reasoning text.
+                        if (it->pos <= begin && it + 1 != source.rend()) {
+                            const auto & previous = *(it + 1);
+                            if (previous.source_index + 1 < it->source_index)
+                                task.params.pager_recent_spans.emplace_back(previous.pos + previous.len, it->pos);
+                        }
+                        if (it->pos + it->len <= begin && it->role != COMMON_CHAT_ROLE_SYSTEM)
+                            task.params.pager_recent_spans.emplace_back(it->pos, it->pos + it->len);
+                    }
+                } else {
+                    throw std::invalid_argument("ACO cannot map this chat template's source messages to native tokens");
+                }
+            }
+            if (params.kv_pager.mode == llama_kv_pager_mode::selective &&
+                    task.params.rendered_user_message_count_present && !task.tokens.has_media() &&
+                    task.params.final_user_token_begin < 0) {
+                // Query start zero would make every historical page ineligible.
+                throw std::invalid_argument("ACO requires an unambiguous rendered chat query boundary");
             }
 
             task.id_slot = json_value(data, "id_slot", -1);

@@ -299,6 +299,21 @@ std::vector<std::unique_ptr<field>> make_llama_cmpl_schema(const common_params &
             SRV_TRC("chat format: %s\n", common_chat_format_name(ctx.params.chat_parser_params.format));
         }));
 
+    add((new field_json("source_message_spans"))
+        ->set_desc("Server-derived source-message byte ranges in the rendered prompt")
+        ->set_handler([&](field_eval_context & ctx, const json & data) {
+            const auto & spans = data.at("source_message_spans");
+            if (!spans.is_array()) throw std::invalid_argument("invalid source message spans");
+            for (const auto & span : spans) {
+                const auto role = common_chat_role_from_string(span.at("role").get<std::string>());
+                const auto pos = span.at("pos").get<int64_t>();
+                const auto len = span.at("len").get<int64_t>();
+                if (role == COMMON_CHAT_ROLE_UNKNOWN || pos < 0 || len < 0 || uint64_t(len) > SIZE_MAX - uint64_t(pos))
+                    throw std::invalid_argument("invalid source message span");
+                ctx.params.source_message_spans.push_back({role, size_t(pos), size_t(len), span.at("source_index").get<size_t>()});
+            }
+        }));
+
     add((new field_json("rendered_user_message_count"))
         ->set_desc("Server-derived user-message count for authenticating rendered role spans")
         ->set_handler([&](field_eval_context & ctx, const json & data) {

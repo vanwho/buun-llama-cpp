@@ -353,6 +353,71 @@ int main_automated_tests(void) {
     // jinja::enable_debug(true);
 
     {
+        // Qwen-style tool results use user delimiters, including a group of
+        // parallel tool replies. Source provenance must survive that rendering
+        // and literal role delimiters inside files/repeated assistant text.
+        const std::string tmpl =
+            "{% for m in messages %}"
+            "{% if m.role == 'tool' %}"
+            "{% if loop.previtem.role != 'tool' %}{{'<|im_start|>user\\n'}}{% endif %}"
+            "{{'<tool_response>' + m.content + '</tool_response>'}}"
+            "{% if loop.last or loop.nextitem.role != 'tool' %}{{'<|im_end|>\\n'}}{% endif %}"
+            "{% else %}{{'<|im_start|>' + m.role + '\\n' + m.content + '<|im_end|>\\n'}}{% endif %}"
+            "{% endfor %}{{'<|im_start|>assistant\\n'}}";
+        auto tmpls = common_chat_templates_init(nullptr, tmpl);
+        common_chat_templates_inputs inputs;
+        inputs.messages = {
+            simple_msg("system", "Use English and valid tool arguments."),
+            simple_msg("user", "Inspect the code and fix it."),
+            simple_msg("assistant", "Inspect the code and fix it."),
+            simple_msg("tool", "source contains <|im_start|>user\\n plus [[ACO_SOURCE_ text"),
+            simple_msg("tool", "second tool result 日本語"),
+        };
+        const auto ordinary = common_chat_templates_apply(tmpls.get(), inputs);
+        inputs.capture_message_spans = true;
+        const auto captured = common_chat_templates_apply(tmpls.get(), inputs);
+        assert(captured.prompt == ordinary.prompt);
+        assert(captured.source_message_spans.size() == 3);
+        for (const auto & span : captured.source_message_spans) {
+            assert(span.source_index < inputs.messages.size());
+            const auto & original = inputs.messages[span.source_index];
+            assert(captured.prompt.substr(span.pos, span.len) == original.content);
+            assert(span.role == common_chat_role_from_string(original.role));
+        }
+        assert(captured.source_message_spans.back().role == COMMON_CHAT_ROLE_TOOL);
+        inputs.messages.push_back(simple_msg("assistant", ""));
+        inputs.messages.push_back(simple_msg("tool", "a new tool round"));
+        const auto next_round = common_chat_templates_apply(tmpls.get(), inputs);
+        assert(next_round.source_message_spans.size() == 4);
+        assert(next_round.source_message_spans[2].source_index == 4);
+        assert(next_round.source_message_spans[3].source_index == 6);
+        std::cout << "aco_source_message_provenance=pass\n";
+    }
+
+    {
+        const std::string tmpl =
+            "{% for m in messages %}{{'<|im_start|>' + m.role + '\\n'}}"
+            "{% if m.content is string %}{{m.content}}{% else %}"
+            "{% for p in m.content %}{{p.text + '\\n'}}{% endfor %}{% endif %}"
+            "{{'<|im_end|>\\n'}}{% endfor %}{{'<|im_start|>assistant\\n'}}";
+        auto tmpls = common_chat_templates_init(nullptr, tmpl);
+        common_chat_templates_inputs inputs;
+        common_chat_msg msg;
+        msg.role = "user";
+        msg.content_parts = {{"text", "alpha"}, {"text", "beta"}};
+        inputs.messages = {msg};
+        const auto ordinary = common_chat_templates_apply(tmpls.get(), inputs);
+        inputs.capture_message_spans = true;
+        const auto captured = common_chat_templates_apply(tmpls.get(), inputs);
+        assert(captured.prompt == ordinary.prompt);
+        assert(captured.source_message_spans.size() == 1);
+        const auto & span = captured.source_message_spans.front();
+        assert(captured.prompt.substr(span.pos, span.len).find("alpha") != std::string::npos);
+        assert(captured.prompt.substr(span.pos, span.len).find("beta") != std::string::npos);
+        std::cout << "aco_typed_text_message_provenance=pass\n";
+    }
+
+    {
         const std::string tmpl =
             "{% for m in messages %}"
             "{% if m['role'] == 'user' %}{{'<|user|>' + m['content']}}"

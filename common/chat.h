@@ -159,6 +159,8 @@ struct common_chat_msg_span {
     common_chat_role role = COMMON_CHAT_ROLE_UNKNOWN;
     std::size_t pos = 0;
     std::size_t len = 0;
+    // Present for source-provenance spans, not delimiter-derived spans.
+    std::size_t source_index = SIZE_MAX;
 
     bool valid() const {
         return role != COMMON_CHAT_ROLE_UNKNOWN;
@@ -272,6 +274,9 @@ struct common_chat_templates_inputs {
     bool                                  add_bos = false;
     bool                                  add_eos = false;
     bool                                  force_pure_content = false;
+    // ACO only: recover source-message byte ranges without trusting role-like
+    // strings inside file/tool content. Does not change the model's prompt.
+    bool                                  capture_message_spans = false;
 };
 
 struct common_chat_params {
@@ -289,6 +294,9 @@ struct common_chat_params {
     std::string                         parser;
     common_chat_msg_delimiters          message_delimiters;
     size_t                              rendered_user_message_count = 0;
+    // Byte ranges in prompt, authenticated by removing temporary markers
+    // from a second template render and requiring byte-for-byte equality.
+    std::vector<common_chat_msg_span>     source_message_spans;
 };
 
 // per-message parsing syntax

@@ -346,6 +346,8 @@ public:
 
     // split the tokens into message spans, skipping over media chunks
     common_chat_msg_spans find_message_spans(const common_chat_msg_delimiters & delims) const;
+    std::vector<common_chat_msg_span> map_source_message_spans(const llama_vocab * vocab,
+            const std::string & prompt, const std::vector<common_chat_msg_span> & spans) const;
 
     // check text token IDs and the mapping between media chunks and token ranges
     bool validate(const struct llama_context * ctx) const;
@@ -456,6 +458,7 @@ struct server_chat_params {
     std::string reasoning_budget_message;
     std::string media_path;
     bool force_pure_content = false;
+    bool capture_message_spans = false;
 };
 
 // used by /completions endpoint
