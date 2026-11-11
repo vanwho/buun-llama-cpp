@@ -141,3 +141,9 @@ names and reasoning aliases are unchanged; L=262,144, H=65,536, B/U=1024/256,
 Turbo4 target/draft and native GPU MTP n-max=2 remain configured.
 Backend, gateway and long-memory health were checked; 8092 was preserved.
 Test-owned locks and runtime service masks are removed after validation.
+
+Subsequent inspection found that the live gateway still passed client messages
+through an external history-rewriting proxy, which the direct backend smoke
+above did not exercise. That layer has now been removed from the serving path;
+8091 is decommissioned. See [native gateway and session storage](aco-native-gateway-20261111.md)
+for the diagnosis, host changes, verification and future transparent KV resume.

@@ -109,6 +109,12 @@ classification. Existing prefix caching and authenticated message boundaries
 remain the source of token continuity and query positions. A changed file is
 new text, regardless of its name; no file registry or content hashing is added.
 
+Clients and gateways must forward the conversation intact for native context
+growth. ACO moves KV between GPU and host RAM; an external history budget that
+deletes messages or substitutes retrieved summaries changes the conversation
+before ACO can use it. Native prefix reuse and session serialization are
+separate from such text rewriting.
+
 When the complete request, its bounded output and speculative lookahead fit
 the admitted attention capacity, ACO checks that the existing causal prefix
 has valid GPU-resident rows with consistent ownership and representation.
