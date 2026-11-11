@@ -66,6 +66,11 @@ acceptance do not prove this multi-turn tool behavior is correct.
   prompt token after the commit seam to produce logits. Large tool payloads keep
   the existing fast early-routing capability; an experiment forcing their full
   all-layer query pass did not fix stale answers and was removed.
+- Re-evaluating Q inside an otherwise identical cached prompt also invalidates
+  speculative branch/carry state before the physical rewind. A carry from the
+  old prompt frontier must not seed an earlier replay row. A later coordinated
+  checkpoint restore can reinstall its own authenticated carry. Normal appended
+  tool turns do not take this path.
 
 The new metadata is bounded by the hot-page capacity and lives on the host.
 There is no second K/V pool, extra model evaluation, per-token readback or

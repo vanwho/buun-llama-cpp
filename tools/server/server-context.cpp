@@ -22625,12 +22625,18 @@ private:
                                 n_rewind, n_append,
                                 slot.task->params.cache_prompt ? 1 : 0);
 
-                            if (n_rewind > 0) {
+                            const bool replaying_cached_query =
+                                n_past >= 0 && size_t(n_past) < n_past_common;
+                            if (n_rewind > 0 || replaying_cached_query) {
                                 // A deferred speculative carry belongs to the discarded
                                 // suffix, even when its numeric positions happen to fall
                                 // below the retained LCP. Preserve the reusable drafter
                                 // prefix, but invalidate branch-local proposal state at
-                                // the scheduler's semantic rewind boundary.
+                                // the scheduler's semantic rewind boundary. ACO query
+                                // recapture is also a real rewind when the text is
+                                // identical: the old prompt-frontier carry cannot seed
+                                // an earlier Q row. A subsequent coordinated checkpoint
+                                // restore may reinstall its own authenticated carry.
                                 common_speculative_sequence_transition(
                                     slot.get_spec(), slot.id,
                                     common_speculative_sequence_event::prompt_rewind);
