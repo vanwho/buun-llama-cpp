@@ -1,0 +1,40 @@
+{
+  "publication_date": "2026-11-11",
+  "canonical_article": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/docs/aco-article.md",
+    "sha256": "ae541fb7083d29f3c10e967a9a6c5315c420082b9bd352deebcb3cbdd6791f11"
+  },
+  "mechanics_record": ".wiretail/execution/evidence/ACO_ARTICLE_20261111.json",
+  "archive": {
+    "path": "/home/ninja/Downloads/ACO_article_and_graphs_UPDATED_2026-11-11.zip",
+    "bytes": 9176376,
+    "sha256": "03daac644be3ae0c2e6c153560d59341dea60d1f4cb2b32fed4ff1f03fc3b03b"
+  },
+  "package_working_directory": "/srv/ai/paged-kv/publication/aco-20261111/aco_publication",
+  "formats": [
+    "Markdown",
+    "HTML",
+    "self-contained HTML",
+    "plain text",
+    "LinkedIn launch copy",
+    "PNG/SVG figures",
+    "CSV data"
+  ],
+  "scope": "Technical teasers, detailed ranking/promotion/eviction/tool-boundary/MTP explanations, and measured live-session examples",
+  "validation": {
+    "performed_by": "gpt-6-luna high",
+    "archive_members": 50,
+    "manifest_entries_checked": 48,
+    "archive_crc": "pass",
+    "source_exports_match": true,
+    "relative_images_resolve": true,
+    "embedded_images": 8,
+    "graph_png_svg_pairs": 11,
+    "graph_data_captions_cover_identical_to_nov10_v4": true,
+    "compact_mechanics_record_matches_package": true,
+    "article_launch_exclude_proxy_discussion": true,
+    "cache_venv_raw_logs_excluded": true
+  },
+  "runtime_changes": false,
+  "new_benchmarks_run": false
+}
