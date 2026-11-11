@@ -1712,21 +1712,30 @@ bool llama_kv_pager::set_request_retention(int32_t sequence_id, int64_t instruct
     // For Q longer than H, its existing rolling window must leave the
     // instruction anchors in R, not silently displace those anchors.
     const uint64_t history_budget = std::max(ordinary_history_budget, std::min(prefix_pages, first_query_page));
+    const uint64_t prefix_history = std::min(prefix_pages, first_query_page);
+    const uint64_t ranked_reserve = std::min<uint64_t>(history_budget - prefix_history,
+        std::max<uint64_t>(1, history_budget / 8));
+    const uint64_t retained_history_limit = history_budget - ranked_reserve;
     const size_t limit = std::min<size_t>(snapshot_.physical_page_count - reserve,
-            pages.size() + snapshot_.physical_page_count / 4);
+            pages.size() + snapshot_.physical_page_count / 2);
     for (const auto & range : recent) {
         if (range.first < 0 || range.second <= range.first || range.second > query_start) continue;
         const uint64_t first = uint64_t(range.first) / width;
-        const uint64_t last = (uint64_t(range.second) - 1) / width;
+        if (first >= first_query_page) continue;
+        // A partial page shared with Q belongs to the rolling Q/output window,
+        // not historical retention. Pinning it for the whole turn prevents its
+        // eventual reuse after generation advances beyond G. An instruction
+        // page remains protected through the prefix admission above.
+        const uint64_t last = std::min((uint64_t(range.second) - 1) / width, first_query_page - 1);
         if (last >= snapshot_.logical_page_count || last - first + 1 > limit) continue;
         auto next = pages;
         for (uint32_t page = uint32_t(first); page <= last; ++page) next.push_back(page);
         std::sort(next.begin(), next.end());
         next.erase(std::unique(next.begin(), next.end()), next.end());
-        // Keep complete messages when they fit; large file/tool payloads
-        // remain normal ranking candidates instead of pinning an entire H.
+        // Fit ordered recent ranges without consuming the ranked-history or
+        // write reserve; oversized optional spans remain rank candidates.
         const size_t history_count = size_t(std::lower_bound(next.begin(), next.end(), first_query_page) - next.begin());
-        if (next.size() <= limit && history_count <= history_budget) pages = std::move(next);
+        if (next.size() <= limit && history_count <= retained_history_limit) pages = std::move(next);
     }
     request_retained_pages_[sequence_id] = std::move(pages);
     commit_budgets();

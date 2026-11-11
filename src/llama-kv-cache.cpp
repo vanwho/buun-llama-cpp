@@ -3591,18 +3591,51 @@ void llama_kv_cache::cancel_early_router_query() {
 bool llama_kv_cache::set_kv_pager_request_retention(int32_t sequence_id, int64_t instruction_end,
         const std::vector<std::pair<int64_t, int64_t>> & recent, int64_t query_start, int64_t query_end, int64_t planned_end) {
     if (!pager_) return true;
+    const auto & geometry = pager_->snapshot();
+    const uint64_t width = geometry.geometry.page_tokens;
+    if (width == 0 || query_start < 0 || query_end < query_start || instruction_end < 0) return false;
     const auto inventory = pager_->exact_page_records(sequence_id);
     std::vector<std::pair<int64_t, int64_t>> resident_recent;
-    for (const auto & range : recent) {
+    const auto is_cold = [&](const auto & range) {
         // Optional recent retention must not require a second, speculative
         // H2D path before query capture. Already-cold messages remain ordinary
         // ranking candidates; absent pages can still be produced by prefill.
-        const bool cold = std::any_of(inventory.begin(), inventory.end(), [&](const auto & page) {
-            return page.physical_slot == UINT32_MAX && page.id.position_begin < range.second &&
-                page.id.position_end > range.first;
-        });
-        if (!cold) resident_recent.push_back(range);
+        // exact_page_records is sorted by logical page. Bound the scan to the
+        // requested range instead of rescanning all L pages for every H page.
+        const auto first = uint64_t(range.first) / width;
+        const auto last = uint64_t(range.second - 1) / width;
+        auto page = std::lower_bound(inventory.begin(), inventory.end(), first,
+            [](const auto & value, uint64_t logical) { return value.id.logical_page < logical; });
+        for (; page != inventory.end() && page->id.logical_page <= last; ++page) {
+            if (page->physical_slot == UINT32_MAX) return true;
+        }
+        return false;
+    };
+    const uint64_t goal_limit = std::max<uint64_t>(width, uint64_t(geometry.physical_page_count) * width / 8);
+    const auto add_message = [&](const auto & range) {
+        if (range.first >= 0 && range.second > range.first &&
+                uint64_t(range.second - range.first) <= goal_limit && !is_cold(range))
+            resident_recent.push_back(range);
+    };
+    if (!recent.empty()) add_message(recent.front()); // small actual user goal first
+    if (query_start > 0 && width != 0) {
+        // Preserve one coherent recent conversation, not isolated messages
+        // separated by missing tool calls/replies. Page-sized candidates let
+        // the owner fit the suffix to its real R/G/query budget. A known cold
+        // page ends this resident suffix; cold retrieval still uses ranking.
+        const uint64_t last = uint64_t(query_start - 1) / width;
+        const uint64_t count = std::min<uint64_t>(geometry.physical_page_count / 2, last + 1);
+        for (uint64_t offset = 0; offset < count; ++offset) {
+            const auto first = int64_t((last - offset) * width);
+            const std::pair<int64_t, int64_t> range {first,
+                first + std::min<int64_t>(int64_t(width), query_start - first)};
+            if (is_cold(range)) break;
+            resident_recent.push_back(range);
+        }
     }
+    // Do not refill this allowance with disconnected older exchanges after a
+    // cold gap. Those remain attention-ranking candidates, rather than being
+    // pinned merely because they were once a tool call or reply.
     return pager_->set_request_retention(sequence_id, instruction_end, resident_recent, query_start, query_end, planned_end);
 }
 

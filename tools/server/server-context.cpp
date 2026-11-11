@@ -28832,6 +28832,7 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                 }
                 if (query != source.end()) {
                     const auto query_last = query;
+                    task.params.pager_query_is_tool = query_last->role == COMMON_CHAT_ROLE_TOOL;
                     // Consecutive tool results form one interaction, including
                     // Qwen's synthetic user wrapper. Old user questions must
                     // not become the query again on each tool continuation.
@@ -28848,6 +28849,14 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                     }
                     task.params.final_user_token_begin = int64_t(begin);
                     task.params.final_user_token_end = int64_t(std::max(begin + 1, query_last->pos + query_last->len));
+                    if (task.params.pager_query_is_tool && task.tokens.size() > 1) {
+                        // A file's last code token is not the agent's next
+                        // decision. Include the tool-result closure and native
+                        // assistant prefix in Q, leaving one final prompt token
+                        // after the commit/replay seam to produce its logits.
+                        task.params.final_user_token_end = std::max<int64_t>(
+                            task.params.final_user_token_end, int64_t(task.tokens.size()) - 1);
+                    }
                     // These offsets already name the actual native tokens.
                     task.params.final_user_kv_position_offset = 0;
                     for (const auto & span : source) {
@@ -28858,25 +28867,15 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                             break;
                         }
                     }
-                    // Prefer the most recent actual user goal, then complete
-                    // recent messages. The cache owner bounds this to H.
+                    // The cache owner keeps one coherent resident suffix,
+                    // including native assistant/tool headers and invocations.
+                    // Supply only the additional small user goal here; older
+                    // disconnected exchanges remain ordinary rank candidates.
                     for (auto it = source.rbegin(); it != source.rend(); ++it) {
                         if (it->role == COMMON_CHAT_ROLE_USER && it->pos < begin) {
                             task.params.pager_recent_spans.emplace_back(it->pos, it->pos + it->len);
                             break;
                         }
-                    }
-                    for (auto it = source.rbegin(); it != source.rend(); ++it) {
-                        // Gaps contain assistant tool calls/replies. Preserve
-                        // complete small exchanges too, without tagging or
-                        // rewriting the assistant's reasoning text.
-                        if (it->pos <= begin && it + 1 != source.rend()) {
-                            const auto & previous = *(it + 1);
-                            if (previous.source_index + 1 < it->source_index)
-                                task.params.pager_recent_spans.emplace_back(previous.pos + previous.len, it->pos);
-                        }
-                        if (it->pos + it->len <= begin && it->role != COMMON_CHAT_ROLE_SYSTEM)
-                            task.params.pager_recent_spans.emplace_back(it->pos, it->pos + it->len);
                     }
                 } else {
                     throw std::invalid_argument("ACO cannot map this chat template's source messages to native tokens");

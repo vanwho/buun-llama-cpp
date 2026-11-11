@@ -141,6 +141,7 @@ struct task_params {
     int64_t final_user_token_begin = -1;
     int64_t final_user_token_end = -1;
     int32_t final_user_kv_position_offset = 0;
+    bool pager_query_is_tool = false;
     std::vector<common_chat_msg_span> source_message_spans;
     int64_t pager_instruction_end = 0;
     std::vector<std::pair<int64_t, int64_t>> pager_recent_spans;

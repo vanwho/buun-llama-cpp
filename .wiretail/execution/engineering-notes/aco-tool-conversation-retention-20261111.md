@@ -32,7 +32,10 @@ acceptance do not prove this multi-turn tool behavior is correct.
 - The initial instruction prefix includes system/developer text and tool
   schemas. These pages are protected during prefill, history selection and
   generation. A bounded recent allowance prioritizes the latest user goal and
-  small complete recent exchanges. Already-cold optional recent messages remain
+  a contiguous recent resident conversation, including assistant invocations.
+  The suffix is fitted newest-first to at most half of admitted H, while roughly
+  one eighth of the available historical budget remains open to ranked older
+  history. Already-cold optional recent messages remain
   normal ranking candidates; this does not invent a second H2D implementation.
 - Retention uses admitted H and the real query/history/generation budgets.
   Shared instruction/query boundary pages are charged once. Large file/tool
@@ -43,7 +46,9 @@ acceptance do not prove this multi-turn tool behavior is correct.
   retained set, and request cleanup releases the retention metadata.
 - A partial page shared with the incoming query stays writable; it is not
   frozen as historical R merely because its old valid extent ends at the
-  query start. Live admission uses the page geometry for this distinction.
+  query start. Optional recent retention also excludes that shared page, so
+  the rolling output window can eventually recycle it during a long answer.
+  Live admission uses the page geometry for this distinction.
 - Old cold catalogue entries inside an upcoming query are not current query
   writes. Early routing does not demand uploads of invalidated future entries.
   A failed early publication also discards its unsubmitted server batch before
@@ -57,6 +62,10 @@ acceptance do not prove this multi-turn tool behavior is correct.
   only query pages exceeding G against historical R. Subtracting the whole Q
   after already reserving G unnecessarily dropped still-fitting history at the
   first selective transition. The physical target-size checks remain intact.
+- A tool query includes the native assistant-response prefix, leaving the final
+  prompt token after the commit seam to produce logits. Large tool payloads keep
+  the existing fast early-routing capability; an experiment forcing their full
+  all-layer query pass did not fix stale answers and was removed.
 
 The new metadata is bounded by the hot-page capacity and lives on the host.
 There is no second K/V pool, extra model evaluation, per-token readback or
@@ -69,5 +78,5 @@ historical fact guaranteed to be retrieved.
 
 Builds and runtime checks are performed by Luna High agents with CUDA 13.4,
 Release, architecture 89 and `--parallel 16`. Raw artifacts remain outside Git
-under `/tmp/aco-toolturn-resilience-20261111/`; final results are recorded after
-the final source and runtime checks finish.
+under `/srv/ai/paged-kv/results/aco-toolturn-resilience-20261111/`; final results
+are recorded after the final source and runtime checks finish.

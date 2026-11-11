@@ -79,6 +79,58 @@ static void test_request_retention() {
     assert(pager->set_request_retention(0, 600, {}, 4096, 12288));
     assert(pager->request_history_budget(0, 4096, 12288) == 3);
     pager->clear_request_retention(0);
+    // Keep a contiguous suffix of recent resident history behind the
+    // instruction anchors. Leave ranking room and the generation/crossing
+    // reserve inside the same H=16 physical pool.
+    const std::vector<std::pair<int64_t, int64_t>> recent_suffix = {
+        {3840, 4096}, {3584, 3840}, {3328, 3584}, {3072, 3328},
+        {2816, 3072}, {2560, 2816}, {2304, 2560}, {2048, 2304},
+    };
+    assert(pager->set_request_retention(0, 600, recent_suffix, 4096, 4352, 4608));
+    assert(pager->snapshot().generation_pages == 4 &&
+            pager->snapshot().retrieval_pages == 12);
+    uint32_t retained_history_pages = 0;
+    for (uint32_t page = 0; page < 16; ++page) {
+        id.logical_page = page;
+        if (pager->request_retained(id)) ++retained_history_pages;
+    }
+    assert(retained_history_pages == 10);
+    for (uint32_t page : {0u, 1u, 2u, 9u, 10u, 11u, 12u, 13u, 14u, 15u}) {
+        id.logical_page = page;
+        assert(pager->request_retained(id));
+    }
+    for (uint32_t page : {3u, 4u, 5u, 6u, 7u, 8u}) {
+        id.logical_page = page;
+        assert(!pager->request_retained(id));
+    }
+    const auto retrieval_room = pager->request_history_budget(0, 4096, 4352);
+    assert(retrieval_room == 12 && retrieval_room > retained_history_pages);
+    assert(retained_history_pages + pager->snapshot().generation_pages + 2 <=
+            pager->snapshot().physical_page_count);
+    pager->clear_request_retention(0);
+
+    // A recent range ending at a query that starts inside its physical page
+    // must not pin that shared Q/output page for the whole turn.
+    assert(pager->set_request_retention(0, 600, {{4096, 4200}}, 4200, 4456, 4456));
+    id.logical_page = 16;
+    assert(!pager->request_retained(id));
+    for (uint32_t page : {0u, 1u, 2u}) {
+        id.logical_page = page;
+        assert(pager->request_retained(id));
+    }
+    pager->clear_request_retention(0);
+
+    // If the same shared page is part of the instruction prefix, the anchor
+    // exception keeps it retained even though the recent range crosses Q.
+    llama_kv_pager_config boundary_config = config;
+    boundary_config.hot_pages = {false, 32};
+    llama_kv_pager_status boundary_status;
+    auto boundary_pager = llama_kv_pager::create(
+        boundary_config, geometry(16384), resources(8192, 128), backend, boundary_status);
+    assert(boundary_pager && boundary_pager->snapshot().physical_page_count == 32);
+    assert(boundary_pager->set_request_retention(0, 4100, {{4096, 4200}}, 4200, 4456, 4456));
+    id.logical_page = 16;
+    assert(boundary_pager->request_retained(id));
     std::cout << "request_retention_bounded_and_sequence_scoped=pass auto_generation_pages=4\n";
 }
 

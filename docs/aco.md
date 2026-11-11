@@ -79,11 +79,12 @@ Unsupported ambiguous chat layouts are reported explicitly instead of silently
 treating the whole conversation as a new query.
 
 The initial instruction prefix, including system/developer instructions and
-tool schemas, remains in GPU attention. The most recent user goal and complete
-recent resident messages receive an additional allowance of at most one quarter of the
-admitted hot pages, after reserving space for the current query and generation.
-Large file/tool payloads which exceed that allowance, and already-cold recent
-messages, remain ranking candidates.
+tool schemas, remains in GPU attention. A small latest user goal and a contiguous
+recent resident conversation receive an additional allowance of at most half of
+the admitted hot pages, after reserving space for the current query and generation.
+The suffix is fitted newest-first to the actual history budget; a portion of that
+budget remains available for attention-ranked older pages. Already-cold recent
+messages remain ranking candidates rather than causing a second transfer path.
 Retention is bounded host metadata, evaluated at request boundaries; it does not
 allocate another K/V pool or add a generation-token synchronization. Protected
 pages participate in the existing authenticated transfer/publication path.
@@ -126,6 +127,12 @@ causal query coverage. Commit fences those graphs before trusting the certificat
 Physical relocation, table epochs and invisible future pages do not force
 replay. Normal Q-window rollover is allowed; a changed/missing historical page,
 unproven coverage, content edit or representation change retains replay.
+
+For tool continuations the query includes the native assistant response boundary,
+not only the final code token in a tool payload. The retained conversation also
+includes the assistant invocation which produced the result. Existing view
+certificates avoid replay when the selected history is unchanged. This does not
+add routing work during generation.
 
 For supported single-sequence text Qwen35 hybrid requests using
 `--kv-router probe-rerank` and larger than one configured batch, ACO can prepare
