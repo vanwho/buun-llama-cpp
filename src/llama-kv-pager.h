@@ -704,8 +704,16 @@ public:
     }
     void clear_request_retention(int32_t sequence_id) noexcept { request_retained_pages_.erase(sequence_id); }
     uint32_t request_history_budget(int32_t sequence_id, int64_t query_start, int64_t query_end) const noexcept {
-        const auto ordinary = llama_kv_query_history_budget(snapshot_.retrieval_pages, query_start,
-                query_end, snapshot_.geometry.page_tokens);
+        uint32_t ordinary = 0;
+        if (query_start >= 0 && query_end > query_start && snapshot_.geometry.page_tokens != 0) {
+            const uint64_t first = uint64_t(query_start) / snapshot_.geometry.page_tokens;
+            const uint64_t last = uint64_t(query_end - 1) / snapshot_.geometry.page_tokens;
+            const uint64_t pages = last - first + 1;
+            // G is the rolling current-query/output window, not an empty
+            // second allocation beside Q. Charge only Q's excess over G.
+            const uint64_t extra = pages > snapshot_.generation_pages ? pages - snapshot_.generation_pages : 0;
+            ordinary = extra < snapshot_.retrieval_pages ? snapshot_.retrieval_pages - uint32_t(extra) : 0;
+        }
         if (query_start < 0 || snapshot_.geometry.page_tokens == 0) return ordinary;
         const auto & retained = request_retained_pages(sequence_id);
         const auto first_query_page = uint64_t(query_start) / snapshot_.geometry.page_tokens;

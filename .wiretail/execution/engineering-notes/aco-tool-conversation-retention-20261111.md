@@ -53,6 +53,10 @@ acceptance do not prove this multi-turn tool behavior is correct.
   requests restore the ordinary allowance. This partitions the same pool; it
   does not add VRAM. The former one-page default only retained roughly 512
   generated tokens on the live geometry, unlike OpenCode's long output budget.
+- Owner budgeting shares the rolling query/output allowance with Q. It charges
+  only query pages exceeding G against historical R. Subtracting the whole Q
+  after already reserving G unnecessarily dropped still-fitting history at the
+  first selective transition. The physical target-size checks remain intact.
 
 The new metadata is bounded by the hot-page capacity and lives on the host.
 There is no second K/V pool, extra model evaluation, per-token readback or

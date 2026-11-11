@@ -1704,8 +1704,9 @@ bool llama_kv_pager::set_request_retention(int32_t sequence_id, int64_t instruct
     for (uint32_t page = 0; page < prefix_pages; ++page) pages.push_back(page);
     const uint64_t query_pages = query_end > query_start
         ? (uint64_t(query_end - 1) / width - uint64_t(query_start) / width + 1) : 0;
-    const uint64_t ordinary_history_budget = retrieval_pages > query_pages
-        ? retrieval_pages - query_pages : 0;
+    const uint64_t extra_query_pages = query_pages > generation_pages ? query_pages - generation_pages : 0;
+    const uint64_t ordinary_history_budget = retrieval_pages > extra_query_pages
+        ? retrieval_pages - extra_query_pages : 0;
     const uint64_t first_query_page = uint64_t(query_start) / width;
     // A boundary page shared with Q is already charged to the query window.
     // For Q longer than H, its existing rolling window must leave the

@@ -98,6 +98,10 @@ of the current answer/reasoning instead of the former one-page default. The
 remaining pool supports selected history; shorter subsequent requests restore
 the ordinary allowance, and explicit generation-tail settings
 continue to take precedence. This changes no total K/V or scratch allocation.
+The generation allowance is a rolling current-query/output window. Query pages
+which fit that window are not charged again to the historical allowance; only
+query pages beyond the window reduce it. Physical target admission still checks
+the complete resident set against H.
 
 Selective ACO handles ordinary requests without an ingestion mode or file
 classification. Existing prefix caching and authenticated message boundaries

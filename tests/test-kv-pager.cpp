@@ -58,6 +58,8 @@ static void test_request_retention() {
     assert(pager->set_request_retention(0, 600, {}, 4096, 4352, 4608));
     assert(pager->snapshot().generation_pages == 4 &&
             pager->snapshot().retrieval_pages == 12);
+    assert(pager->request_history_budget(0, 4096, 4352) == 12);
+    assert(pager->request_history_budget(0, 4096, 6144) == 8);
     assert(pager->set_request_retention(0, 600, {{2048, 2560}, {512, 3840}}, 4096, 4352));
     llama_kv_page_id id{};
     id.sequence_id = 0;
