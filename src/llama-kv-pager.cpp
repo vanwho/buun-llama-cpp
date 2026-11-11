@@ -1663,7 +1663,7 @@ llama_kv_pager_turn_state llama_kv_pager::turn_state(int32_t sequence_id) const 
 }
 
 bool llama_kv_pager::set_request_retention(int32_t sequence_id, int64_t instruction_end,
-        const std::vector<std::pair<int64_t, int64_t>> & recent, int64_t query_start, int64_t query_end, int64_t planned_end) {
+        const std::vector<std::pair<int64_t, int64_t>> & recent, int64_t query_start, int64_t query_end, int64_t /* planned_end */) {
     if (sequence_id < 0 || instruction_end < 0 || query_start < 0 || snapshot_.geometry.page_tokens == 0) return false;
     const uint64_t width = snapshot_.geometry.page_tokens;
     const uint64_t prefix_pages = (uint64_t(instruction_end) + width - 1) / width;
@@ -1680,10 +1680,13 @@ bool llama_kv_pager::set_request_retention(int32_t sequence_id, int64_t instruct
         const uint32_t base = std::max<uint32_t>(minimum,
             std::max<uint32_t>(1, std::min<uint32_t>(snapshot_.physical_page_count / 4,
                 std::max<uint32_t>(1, 16384 / width))));
-        const uint64_t wanted = planned_end > query_end
-            ? (uint64_t(planned_end - query_end) + width - 1) / width : 0;
+        // max_tokens is an output ceiling, not a demand to reserve that many
+        // resident rows. G rolls and recycles sealed pages, so a large client
+        // ceiling must not silently halve useful historical attention even
+        // for a short tool reply. Keep automatic G stable at H/4, <=16K;
+        // explicit generation-tail settings still override this policy.
         generation_pages = std::max<uint32_t>(minimum,
-            std::min(max_generation, std::max(base, uint32_t(std::min<uint64_t>(wanted, max_generation)))));
+            std::min(max_generation, base));
         retrieval_pages = std::min(configured_retrieval_pages_, snapshot_.physical_page_count - generation_pages);
     }
     const auto commit_budgets = [&]() {
@@ -1807,6 +1810,14 @@ llama_kv_pager::page_state * llama_kv_pager::oldest_generation_victim(
             queue.erase(queue.begin());
             continue;
         }
+        if (request_retained(page->record.id)) {
+            // A Q page can share the instruction prefix. It is permanently
+            // protected for this request, not a pending seal/pin fence. Keep
+            // it resident without blocking recycling of later G pages.
+            page->generation_queued = false;
+            queue.erase(queue.begin());
+            continue;
+        }
         if (generation_page_evictable(page, sequence_id, turn_id)) return page;
         return nullptr;
     }
@@ -1851,7 +1862,7 @@ llama_kv_pager::page_state * llama_kv_pager::oldest_unselected_history_victim(
 
 void llama_kv_pager::queue_generation_page(page_state & page) noexcept {
     if (!page.present || page.generation_queued ||
-            page.owner != page_owner::current_turn_generation || page.host_inflight ||
+            page.owner != page_owner::current_turn_generation || request_retained(page.record.id) || page.host_inflight ||
             page.record.pin_count != 0 || !page.record.host_valid || page.record.dirty ||
             page.host_content_version != page.content_version ||
             page.record.content_version != page.content_version) return;
@@ -3789,11 +3800,16 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                 size_t at = 0;
                 while (at < fifo.size()) {
                     const auto identity = fifo[at];
-                    const page_state * page = find_page(sequence_id, identity.logical_page);
+                    page_state * page = find_page(sequence_id, identity.logical_page);
                     if (page == nullptr || page->record.id != identity ||
                             page->owner != page_owner::current_turn_generation ||
                             page->owner_turn_id != active->second.turn_id ||
                             !page->generation_queued) {
+                        fifo.erase(fifo.begin() + at);
+                        continue;
+                    }
+                    if (request_retained(page->record.id)) {
+                        page->generation_queued = false;
                         fifo.erase(fifo.begin() + at);
                         continue;
                     }

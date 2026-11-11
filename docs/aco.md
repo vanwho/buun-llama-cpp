@@ -92,13 +92,13 @@ An instruction prefix which cannot fit together with the required write space
 produces a capacity error rather than being silently evicted. The configured
 hot-page count is a maximum; actual admission may be smaller.
 
-Automatic generation-tail sizing starts with one quarter of admitted H, capped
-at 16K tokens, inside the existing hot pool. A bounded longer answer grows that
-allowance toward its requested output size, up to half of H. This keeps a useful rolling window
-of the current answer/reasoning instead of the former one-page default. The
-remaining pool supports selected history; shorter subsequent requests restore
-the ordinary allowance, and explicit generation-tail settings
-continue to take precedence. This changes no total K/V or scratch allocation.
+Automatic generation-tail sizing uses one quarter of admitted H, capped at
+16K tokens, inside the existing hot pool and reduced if required to retain the
+instruction prefix. It is a rolling answer/reasoning window, not a full output
+reservation: long answers recycle sealed older output pages. A large client
+output ceiling therefore does not shrink historical attention for a short tool
+reply. Explicit generation-tail settings take precedence. This changes no total
+K/V or scratch allocation.
 The generation allowance is a rolling current-query/output window. Query pages
 which fit that window are not charged again to the historical allowance; only
 query pages beyond the window reduce it. Physical target admission still checks

@@ -53,11 +53,15 @@ acceptance do not prove this multi-turn tool behavior is correct.
   writes. Early routing does not demand uploads of invalidated future entries.
   A failed early publication also discards its unsubmitted server batch before
   releasing the slot, so the next scheduler cycle cannot consume stale rows.
-- Automatic generation sizing starts at H/4 (maximum 16K tokens) and grows
-  toward a bounded request's output allowance, up to H/2. Short subsequent
-  requests restore the ordinary allowance. This partitions the same pool; it
-  does not add VRAM. The former one-page default only retained roughly 512
-  generated tokens on the live geometry, unlike OpenCode's long output budget.
+- Automatic generation sizing uses a stable H/4 (maximum 16K tokens), reduced
+  when necessary to retain the instruction prefix. G is a rolling window, not
+  a reservation for the entire max-output ceiling. The earlier attempt to grow
+  G toward OpenCode's 24,576-token ceiling halved historical attention even for
+  short replies and was removed. This partitions the same pool, without extra
+  VRAM. The former one-page default only retained roughly 512 generated tokens.
+- A retained instruction page shared with Q never blocks the generation FIFO.
+  It stays resident but is excluded from recyclable G indexing; transient
+  seal/event/pin fences still preserve the oldest-first recycling rule.
 - Owner budgeting shares the rolling query/output allowance with Q. It charges
   only query pages exceeding G against historical R. Subtracting the whole Q
   after already reserving G unnecessarily dropped still-fitting history at the
